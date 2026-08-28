@@ -19,6 +19,22 @@ const token = Object.freeze({
 
 /** Proves inbound subject credentials remain request-private and disappear at request completion. */
 describe('InboundExecutionTokenCredentialScope', () => {
+  it('scopes a verifier-approved public session source to one nested STS operation', async () => {
+    const data = {}
+    inboundExecutionTokenCredentialScope.preparePublicCorrelation(data, {
+      requestId: 'request-public',
+      traceparent: '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01'
+    })
+
+    await inboundExecutionTokenCredentialScope.runPrepared(data, async () => {
+      await inboundExecutionTokenCredentialScope.runVerifiedSessionSource('verified.access', () =>
+        inboundExecutionTokenCredentialScope.run(async () => true)
+      )
+      await expect(inboundExecutionTokenCredentialScope.run(async () => true)).rejects.toThrow(
+        'Transport-private HUMAN OBO subject credential is required'
+      )
+    })
+  })
   it('isolates one non-serializable bearer and cleans it after the callback', async () => {
     const data = {}
     inboundExecutionTokenCredentialScope.prepare(data, 'a.b.c', token)

@@ -1,6 +1,7 @@
 import { Inject } from '@nestjs/common'
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs'
 import { CommonJwtService } from '@oes/common/auth'
+import { inboundExecutionTokenCredentialScope } from '@oes/common/authorization'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import { REPO } from '../../../common/constants'
 import { AUTH_ACCESS_TOKEN_INVALID } from '../../../common/constants/exception-enums'
@@ -28,9 +29,10 @@ export interface ValidateAccessTokenResult {
 
 // Validates an access token against the persisted session truth before gateway requests continue.
 @QueryHandler(ValidateAccessTokenQuery)
-export class ValidateAccessTokenHandler
-  implements IQueryHandler<ValidateAccessTokenQuery, ValidateAccessTokenResult>
-{
+export class ValidateAccessTokenHandler implements IQueryHandler<
+  ValidateAccessTokenQuery,
+  ValidateAccessTokenResult
+> {
   constructor(
     private readonly jwtService: CommonJwtService,
     @Inject(REPO.SESSION)
@@ -83,7 +85,9 @@ export class ValidateAccessTokenHandler
       })
     }
 
-    await this.assertTenantSessionCanContinue(session)
+    await inboundExecutionTokenCredentialScope.runVerifiedSessionSource(query.accessToken, () =>
+      this.assertTenantSessionCanContinue(session)
+    )
 
     session.touch()
     await this.sessionRepository.save(session)
@@ -149,9 +153,7 @@ export class ValidateAccessTokenHandler
       return []
     }
 
-    return value
-      .map((item) => (typeof item === 'string' ? item.trim() : ''))
-      .filter(Boolean)
+    return value.map((item) => (typeof item === 'string' ? item.trim() : '')).filter(Boolean)
   }
 
   /** assertTenantSessionCanContinue blocks access-token validation when tenant lifecycle no longer allows session use. */

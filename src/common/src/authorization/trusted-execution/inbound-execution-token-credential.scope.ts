@@ -85,6 +85,25 @@ export class InboundExecutionTokenCredentialScope {
     return this.accessor.run(entry.credential, callback)
   }
 
+  /** Temporarily upgrades an already verified public session source for its downstream STS hop only. */
+  runVerifiedSessionSource<T>(bearer: string, callback: () => T): T {
+    const current = requireEntry()
+    if (!current.correlation || current.credential || current.token) {
+      throw new Error('Verified public session source correlation is required')
+    }
+    const state: RequestState = {
+      active: true,
+      entry: Object.freeze({
+        correlation: current.correlation,
+        credential: this.issuer.issueVerifiedSessionAccessCredential(bearer)
+      })
+    }
+    const result = storage.run(state, callback)
+    if (isPromiseLike(result)) return result.finally(() => clear(state)) as T
+    clear(state)
+    return result
+  }
+
   /** Returns only verified HUMAN execution facts; the retained bearer stays transport-private. */
   requireVerifiedExecution(): VerifiedExecutionToken {
     const token = requireEntry().token

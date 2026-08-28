@@ -1,4 +1,5 @@
 import { CommonJwtService } from '@oes/common/auth'
+import { inboundExecutionTokenCredentialScope } from '@oes/common/authorization'
 import { SessionStatus } from '@oes/common/constants'
 import { Session } from '../../../domain/aggregates/usersession.aggregate'
 import { TrustedDeviceService } from '../../services/trusted-device.service'
@@ -92,9 +93,9 @@ describe('ValidateAccessTokenHandler', () => {
       tenantSessionAccessService as any
     )
 
-    await expect(handler.execute(new ValidateAccessTokenQuery('token-1'))).rejects.toThrow(
-      'tenant inactive'
-    )
+    await expect(
+      runFromGateway(() => handler.execute(new ValidateAccessTokenQuery('token-1')))
+    ).rejects.toThrow('tenant inactive')
 
     expect(tenantSessionAccessService.assertSessionCanContinue).toHaveBeenCalledWith({
       sessionId: 'session-1',
@@ -141,7 +142,9 @@ describe('ValidateAccessTokenHandler', () => {
       } as any
     )
 
-    await expect(handler.execute(new ValidateAccessTokenQuery('token-1'))).resolves.toEqual({
+    await expect(
+      runFromGateway(() => handler.execute(new ValidateAccessTokenQuery('token-1')))
+    ).resolves.toEqual({
       userId: 'user-1',
       accountId: 'account-1',
       tenantId: 'tenant-1',
@@ -202,7 +205,9 @@ describe('ValidateAccessTokenHandler', () => {
       { assertSessionCanContinue: jest.fn().mockResolvedValue(undefined) } as any
     )
 
-    await expect(handler.execute(new ValidateAccessTokenQuery('token-1'))).resolves.toEqual(
+    await expect(
+      runFromGateway(() => handler.execute(new ValidateAccessTokenQuery('token-1')))
+    ).resolves.toEqual(
       expect.objectContaining({
         terminal: 'PDA',
         allowedTerminals: ['PDA'],
@@ -240,7 +245,19 @@ describe('ValidateAccessTokenHandler', () => {
       } as any
     )
 
-    await expect(handler.execute(new ValidateAccessTokenQuery('token-1'))).rejects.toBeDefined()
+    await expect(
+      runFromGateway(() => handler.execute(new ValidateAccessTokenQuery('token-1')))
+    ).rejects.toBeDefined()
     expect(trustedDeviceService.markTrustedDeviceSeen).not.toHaveBeenCalled()
   })
 })
+
+/** Mirrors the guard/interceptor boundary required by the public session-validation RPC. */
+function runFromGateway<T>(callback: () => T): T {
+  const data = {}
+  inboundExecutionTokenCredentialScope.preparePublicCorrelation(data, {
+    requestId: 'request-validate-access',
+    traceparent: '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01'
+  })
+  return inboundExecutionTokenCredentialScope.runPrepared(data, callback)
+}
