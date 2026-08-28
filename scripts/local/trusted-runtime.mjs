@@ -626,6 +626,35 @@ async function waitReady(services, timeoutMs) {
   )
 }
 
+/** Selects one exact host-native service restart target without regenerating shared trust state. */
+export function selectRestartService(manifest, workload) {
+  if (typeof workload !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(workload)) {
+    throw new Error('TRUSTED_RUNTIME_RESTART_WORKLOAD_INVALID')
+  }
+  const matches = (manifest?.services ?? []).filter((service) => service.workload === workload)
+  if (matches.length !== 1) throw new Error('TRUSTED_RUNTIME_RESTART_WORKLOAD_NOT_EXACT')
+  return matches[0]
+}
+
+/** Restarts one exact service from its preserved manifest, environment, and trust leaves. */
+async function restartService(workload) {
+  const manifest = JSON.parse(await readFile(join(stateRoot, 'manifest.json'), 'utf8'))
+  const service = selectRestartService(manifest, workload)
+  const pid = await livePid(service.pidPath)
+  if (pid) process.kill(pid, 'SIGTERM')
+  await rm(service.pidPath, { force: true })
+  const deadline = Date.now() + 15_000
+  while (await canConnect('127.0.0.1', service.port)) {
+    if (Date.now() >= deadline) throw new Error('TRUSTED_RUNTIME_RESTART_LISTENER_BUSY')
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 250))
+  }
+  await startService(service)
+  await waitReady([service], 90_000)
+  process.stdout.write(
+    `TRUSTED_RUNTIME_RESTARTED workload=${service.workload} pid=${await livePid(service.pidPath)} port=${service.port}\n`
+  )
+}
+
 /** Reports PID and listener state without substituting a different process. */
 async function status(requireReady = false) {
   const manifest = JSON.parse(await readFile(join(stateRoot, 'manifest.json'), 'utf8'))
@@ -895,5 +924,6 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   } else if (command === 'up') await up()
   else if (command === 'status') await status(false)
   else if (command === 'down') await down()
+  else if (command === 'restart') await restartService(process.argv[3])
   else throw new Error('TRUSTED_RUNTIME_COMMAND_INVALID')
 }

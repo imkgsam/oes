@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { generateProfile, readInventory } from './trusted-runtime.mjs'
+import { generateProfile, readInventory, selectRestartService } from './trusted-runtime.mjs'
 import { readFile, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
@@ -64,6 +64,24 @@ test('inventory rejects duplicate workload, listener port, or source', async () 
     /DUPLICATE_CANONICALPORT/
   )
   await assert.rejects(() => readInventory('a|50050|a.ts\nb|50051|a.ts\n'), /DUPLICATE_SOURCE/)
+})
+
+test('service restart selection is exact and rejects missing, malformed, or duplicate targets', () => {
+  const permission = { workload: 'permission-service', port: 52051 }
+  const manifest = { services: [permission, { workload: 'auth-service', port: 52050 }] }
+  assert.equal(selectRestartService(manifest, 'permission-service'), permission)
+  assert.throws(
+    () => selectRestartService(manifest, 'permission-service '),
+    /RESTART_WORKLOAD_INVALID/
+  )
+  assert.throws(
+    () => selectRestartService(manifest, 'unknown-service'),
+    /RESTART_WORKLOAD_NOT_EXACT/
+  )
+  assert.throws(
+    () => selectRestartService({ services: [permission, permission] }, 'permission-service'),
+    /RESTART_WORKLOAD_NOT_EXACT/
+  )
 })
 
 test('notification payload protection key is stable and owner-private', async () => {
