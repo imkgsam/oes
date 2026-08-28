@@ -11,6 +11,7 @@ import {
 import { AppLogger } from '@oes/common/logging'
 import { status } from '@grpc/grpc-js'
 import { getTraceId, recordExceptionToActiveSpan } from '@oes/common/tracing'
+import { resolveHttpResponseTraceId } from '../interceptors/response.interceptor'
 
 @Catch()
 export class GatewayExceptionFilter implements ExceptionFilter {
@@ -25,7 +26,7 @@ export class GatewayExceptionFilter implements ExceptionFilter {
 
     const moduleName = process.env.MODULE_NAME || 'api-gateway'
     const methodName = `${req.method} ${req.originalUrl}`
-    const traceId = getTraceId()
+    const traceId = resolveHttpResponseTraceId(getTraceId(), req)
     const requestId = req.header('x-request-id') ?? undefined
 
     let payload: HttpExceptionPayload
@@ -153,7 +154,7 @@ export class GatewayExceptionFilter implements ExceptionFilter {
       code:
         typeof candidate.code === 'string'
           ? candidate.code
-          : candidate.details?.code ?? UNKNOWN_EXCEPTION.code,
+          : (candidate.details?.code ?? UNKNOWN_EXCEPTION.code),
       message: candidate.message ?? 'Downstream service error',
       messageKey: candidate.messageKey,
       details: candidate.details
@@ -169,22 +170,22 @@ export class GatewayExceptionFilter implements ExceptionFilter {
     const response = exception.getResponse()
     const statusCode = exception.getStatus()
     const responseObject =
-      typeof response === 'object' && response !== null ? (response as Record<string, any>) : undefined
+      typeof response === 'object' && response !== null
+        ? (response as Record<string, any>)
+        : undefined
     const message =
       typeof response === 'string'
         ? response
         : Array.isArray((response as any)?.message)
           ? (response as any).message.join('; ')
-          : (response as any)?.message ?? exception.message
+          : ((response as any)?.message ?? exception.message)
 
     if (responseObject?.code && typeof responseObject.code === 'string') {
       return {
         code: responseObject.code,
         message,
         messageKey:
-          typeof responseObject.messageKey === 'string'
-            ? responseObject.messageKey
-            : undefined,
+          typeof responseObject.messageKey === 'string' ? responseObject.messageKey : undefined,
         details: responseObject.details ?? responseObject,
         meta: {
           traceId,
