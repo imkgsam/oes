@@ -15,5 +15,12 @@
       "urn:oes:service:permission-service",
       "urn:oes:service:tenant-org-service"
     ]
+  },
+  {
+    "spiffeId": "spiffe://local.oes.internal/ns/oes/sa/collaboration-service",
+    "audiences": [
+      "urn:oes:service:identity-service",
+      "urn:oes:service:permission-service"
+    ]
   }
 ]

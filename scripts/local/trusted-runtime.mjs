@@ -161,6 +161,17 @@ async function runtimePolicyEnvironment() {
     actorBindingVersion: gatewaySelector.machineWorkloadBindingVersion,
     targetAudiences: ['urn:oes:service:permission-service', 'urn:oes:service:collaboration-service']
   }
+  const collaborationSelector = selectorProfile.selectors.find((entry) => entry.inventoryEntryKey === 'collaboration-service')
+  if (!collaborationSelector) throw new Error('TRUSTED_RUNTIME_SELECTOR_MISSING_COLLABORATION')
+  const collaboration = auth.find((entry) => entry.spiffeId === 'spiffe://local.oes.internal/ns/oes/sa/collaboration-service')
+  if (!collaboration) throw new Error('TRUSTED_RUNTIME_AUTH_POLICY_MISSING_COLLABORATION')
+  collaboration.humanObo = {
+    selfAudience: 'urn:oes:service:collaboration-service',
+    actorMachinePrincipalId: collaborationSelector.machinePrincipalId,
+    actorBindingId: collaborationSelector.machineWorkloadBindingId,
+    actorBindingVersion: collaborationSelector.machineWorkloadBindingVersion,
+    targetAudiences: ['urn:oes:service:identity-service', 'urn:oes:service:permission-service']
+  }
   return {
     AUTH_EXECUTION_WORKLOAD_POLICIES: JSON.stringify(auth),
     PERMISSION_WORKLOAD_ISSUANCE_POLICIES: JSON.stringify(JSON.parse(permission)),

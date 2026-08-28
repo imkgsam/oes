@@ -61,3 +61,22 @@ test('APISIX standalone profile routes only to the host-rewritable Gateway bindi
   assert.match(routes, /api-gateway:9101/u)
   assert.match(routes, /#END/u)
 })
+
+test('projects exact Collaboration HUMAN_OBO owner selectors and Permission upper bound', async () => {
+  const auth = JSON.parse(await readFile('scripts/local/runtime-config/auth-execution-workload-policies.json', 'utf8'))
+  const permission = JSON.parse(await readFile('scripts/local/runtime-config/permission-workload-issuance-policies.json', 'utf8'))
+  const source = await readFile('scripts/local/trusted-runtime.mjs', 'utf8')
+  assert.deepEqual(auth.find((entry) => entry.spiffeId.endsWith('/collaboration-service')), {
+    spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/collaboration-service',
+    audiences: ['urn:oes:service:identity-service', 'urn:oes:service:permission-service']
+  })
+  assert.deepEqual(permission.find((entry) => entry.originalWorkloadSpiffeId.endsWith('/collaboration-service')), {
+    originalWorkloadSpiffeId: 'spiffe://local.oes.internal/ns/oes/sa/collaboration-service',
+    targetAudience: 'urn:oes:service:permission-service',
+    permissionCodes: ['permission.internal.account_access_summary.resolve'],
+    scopeLevel: 'SYSTEM',
+    policyVersion: 'auth-login-owner-facts-v1'
+  })
+  assert.match(source, /TRUSTED_RUNTIME_SELECTOR_MISSING_COLLABORATION/)
+  assert.match(source, /selfAudience: 'urn:oes:service:collaboration-service'/)
+})
