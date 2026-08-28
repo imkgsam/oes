@@ -19,6 +19,7 @@
   {
     "spiffeId": "spiffe://local.oes.internal/ns/oes/sa/collaboration-service",
     "audiences": [
+      "urn:oes:service:collaboration-service",
       "urn:oes:service:identity-service",
       "urn:oes:service:permission-service"
     ]

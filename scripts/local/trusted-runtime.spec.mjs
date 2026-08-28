@@ -68,7 +68,7 @@ test('projects exact Collaboration HUMAN_OBO owner selectors and Permission uppe
   const source = await readFile('scripts/local/trusted-runtime.mjs', 'utf8')
   assert.deepEqual(auth.find((entry) => entry.spiffeId.endsWith('/collaboration-service')), {
     spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/collaboration-service',
-    audiences: ['urn:oes:service:identity-service', 'urn:oes:service:permission-service']
+    audiences: ['urn:oes:service:collaboration-service', 'urn:oes:service:identity-service', 'urn:oes:service:permission-service']
   })
   assert.deepEqual(permission.find((entry) => entry.originalWorkloadSpiffeId.endsWith('/collaboration-service')), {
     originalWorkloadSpiffeId: 'spiffe://local.oes.internal/ns/oes/sa/collaboration-service',
