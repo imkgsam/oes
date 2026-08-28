@@ -56,6 +56,7 @@
 
 OES 默认从普通讨论开始；只读讨论不创建角色或资源。有状态修改按真实范围自动建议：
 
+- Portfolio Planner（Planner）：长期可见的只读项目组合规划顾问，默认使用 Plan mode，按月、周、日提供跨方向候选、里程碑、冲突与验收建议；不成为owner、canonical writer或执行总控；
 - Direct：一个 owner 闭合一个无稳定设计变化的小型 Change Set；
 - Design Owner：研究稳定设计，先展示完整只读 Proposal Preview，Human确认后形成local-only Proposal并提交exact global UD；
 - Global Unified Design（UD）：全局唯一canonical writer、串行设计审核者和Design remote owner；
@@ -66,7 +67,7 @@ OES 默认从普通讨论开始；只读讨论不创建角色或资源。有状�
 
 新服务、跨服务契约/事件、权限、租户、共享抽象、AI工具协议或canonical gap先进入Design Owner → exact UD。一个独立交付物使用FL；两个及以上独立交付物使用SL拆分sibling FL；必须共同原子验收的slices保持一个FL并由IT并行实现。
 
-Design、Direct、SL、FL、Feature RI和Stage RI必须是Human在正常Codex项目任务列表中可发现、可打开、可继续的project-associated task。`source=exec`等隐藏transport只允许bounded IT、helper和短期只读分析，不得创建owner或独立reviewer。role task在title、parent、project、正常列表可见性和双向消息均read-after-create通过前不得写role-owned资源；失败时修复same task，不创建重复owner。
+Planner、Design、Direct、SL、FL、Feature RI和Stage RI必须是Human在正常Codex项目任务列表中可发现、可打开、可继续的project-associated task。`source=exec`等隐藏transport只允许bounded IT、helper和短期只读分析，不得创建owner或独立reviewer。role task在title、parent、project、正常列表可见性和双向消息均read-after-create通过前不得写role-owned资源；失败时修复same task，不创建重复owner。
 
 创建任何delivery/review owner前，系统自动准备最小充分execution profile并由target session完成一次真实smoke。task、host、repository、worktree、toolchain、credential identity和permission policy未变时后续直接复用；漂移时保持原owner/candidate并自动修复。已确认范围内的普通文件、Git、测试、本地服务、task-owned数据库、localhost和approved network不向Human逐项请求许可。
 
@@ -78,6 +79,8 @@ Human默认只看到`讨论中、设计审核中、实现中、审核中、等�
 
 任何有状态work item同时只有一个current owner和artifact owner。通知不转移owner；replacement必须在旧owner终止并验证后创建。不得恢复全局调度中心、task registry、watchdog、heartbeat、pull inbox或历史状态账本。
 
+Planner只重读现有canonical truth、可见task与GitHub状态生成非canonical建议；Human选择方向后仍由既有Direct、Design、FL或SL入口形成有状态确认，Planner不创建第二套调度、监控或授权链。
+
 ## 6. 讨论、冻结与写入
 
 - 用户表达“还在讨论”“先聊想法”或同等语义时，只分析和比较，不修改项目文件。
@@ -85,6 +88,7 @@ Human默认只看到`讨论中、设计审核中、实现中、审核中、等�
 - 用户要求形成设计时，Design Owner先基于latest truth展示完整只读Proposal Preview，包含问题、结论、流程、文件范围、protected scope、迁移、验证和停止点。
 - Human确认exact Preview后才形成Proposal并提交exact global UD；该确认授权UD推进到`DESIGN_PR_READY`，Design PR merge、NEW_DESIGN delivery activation和cleanup分别确认。
 - delivery中发现design gap时只暂停affected lane并保留原SL/FL资源；truth merge后UD自动返回exact original owner，原owner更新latest `origin/main`、只重验受影响范围并继续，不创建replacement或把实现路由到祖先task。
+- Planner的月、周、日规划默认只保存在Planner task消息中；日计划必须关联周目标、周目标必须关联月度里程碑，未满足依赖或无法在时间盒内验收的事项不进入推荐组合。
 - Proposal、Packet和验证只保存当前必要状态；Git、task history或最终记录可重建的中间事实不另建长期receipt、ledger或重复manifest。
 - canonical cutover前已存在的合法task、owner和资源保持exact binding到terminal/cleanup；新规则只约束cutover后新建role。当前Collaboration Runtime Cutover及其现有FL/RI保持暂停和资源不变，设计合并后优先same-id恢复Human可见性，再由原SL继续。
 
