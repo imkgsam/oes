@@ -4,12 +4,14 @@ import {
   ForbiddenException,
   Global,
   Injectable,
-  Module
+  Module,
+  SetMetadata
 } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import {
   createLazyTrustedExecutionRuntime,
   ExecutionTokenVerifier,
+  getGrpcMetadataValue,
   getAuthenticatedGrpcRequestContext,
   TrustedExecutionGuard,
   TrustedInternalExecutionGuard
@@ -26,6 +28,8 @@ import {
 } from '../infrastructure/adaptors/foundation-trusted-grpc.clients'
 
 export const IDENTITY_AUDIENCE = 'urn:oes:service:identity-service'
+export const IDENTITY_MACHINE_BOOTSTRAP_KEY = 'oes:identity:machine-bootstrap'
+export const AuthorizeIdentityMachineBootstrap = () => SetMetadata(IDENTITY_MACHINE_BOOTSTRAP_KEY, true)
 const runtime = createLazyTrustedExecutionRuntime(IDENTITY_AUDIENCE)
 const CALLERS = new Set([
   'api-gateway',
@@ -44,14 +48,29 @@ export class IdentityFoundationTrustedExecutionGuard
   implements CanActivate
 {
   constructor(
-    reflector: Reflector,
+    private readonly authReflector: Reflector,
     verifier: ExecutionTokenVerifier,
-    identity: GrpcWorkloadIdentityProvider
+    private readonly authIdentity: GrpcWorkloadIdentityProvider
   ) {
-    super(reflector, verifier, identity, IDENTITY_AUDIENCE)
+    super(authReflector, verifier, authIdentity, IDENTITY_AUDIENCE)
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const machineBootstrap = this.authReflector.getAllAndOverride<boolean>(
+      IDENTITY_MACHINE_BOOTSTRAP_KEY,
+      [context.getHandler(), context.getClass()]
+    )
+    if (machineBootstrap) {
+      const metadata = context.switchToRpc().getContext()
+      if (getGrpcMetadataValue(metadata, 'authorization') !== undefined) {
+        throw new ForbiddenException('Identity machine bootstrap is mTLS-only')
+      }
+      const workload = await this.authIdentity.getVerifiedWorkloadIdentity(context.getArgByIndex(2))
+      if (readWorkloadName(workload.spiffeId) !== 'auth-service') {
+        throw new ForbiddenException('Identity machine bootstrap requires exact Auth workload')
+      }
+      return true
+    }
     await super.canActivate(context)
     const token = getAuthenticatedGrpcRequestContext(
       context.switchToRpc().getData()
@@ -68,6 +87,7 @@ export class IdentityFoundationTrustedExecutionGuard
       throw new ForbiddenException('Identity SYSTEM MACHINE caller is not permitted')
     return true
   }
+
 }
 
 /** Binds generic Identity INTERNAL owner resolvers to the Identity audience. */

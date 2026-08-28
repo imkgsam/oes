@@ -98,6 +98,7 @@ import {
 } from '../../application/queries'
 import { IdentityGrpcPresenter } from './identity-grpc.presenter'
 import { getOptionalOperatorScope } from './grpc-request-context'
+import { AuthorizeIdentityMachineBootstrap } from '../../modules/identity-trusted-execution.module'
 
 type ResolveEmployeeLoginAccountRequest = {
   tenantId?: string
@@ -316,8 +317,7 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
   }
 
   /** Exposes only the protected Auth-to-Identity exact MACHINE owner-fact resolver. */
-  @AuthorizeInternalCall({ all: ['identity.internal.machine_principal.resolve'] })
-  @UseGuards(IdentityAudienceTrustedInternalExecutionGuard)
+  @AuthorizeIdentityMachineBootstrap()
   async resolveMachinePrincipalForAuth(
     request: ResolveMachinePrincipalForAuthRequest
   ): Promise<ResolveMachinePrincipalForAuthResponse> {
