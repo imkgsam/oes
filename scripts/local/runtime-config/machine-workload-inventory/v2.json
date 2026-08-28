@@ -1,0 +1,19 @@
+{
+  "version": "2",
+  "entries": [
+    {
+      "inventoryEntryKey": "auth-service",
+      "displayName": "Auth Service",
+      "machineType": "INTERNAL_SERVICE",
+      "scopeLevel": "SYSTEM",
+      "workloadSpiffeId": "spiffe://oes/auth-service"
+    },
+    {
+      "inventoryEntryKey": "collaboration-service",
+      "displayName": "Collaboration Service",
+      "machineType": "INTERNAL_SERVICE",
+      "scopeLevel": "SYSTEM",
+      "workloadSpiffeId": "spiffe://oes/collaboration-service"
+    }
+  ]
+}

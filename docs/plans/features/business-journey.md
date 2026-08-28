@@ -55,3 +55,11 @@ No FL-1 through FL-5 resource is mutated. Their evidence may be reused later onl
 ## Next legal action
 
 After Stage Lead accepts resource recovery, reconstruct the bounded FL-6 implementation append-only from canonical truth and this task's surviving history, then execute the affected acceptance matrix and normal feature gates. Remote publication, product main merge and cleanup remain gated.
+
+## Reconstruction checkpoint: Identity fixed SYSTEM inventory
+
+The recovered lineage now contains a versioned Identity-owned fixed SYSTEM inventory with immutable v1 entries and additive v2 Collaboration entry. The deployment-only reconciler distinguishes truly empty state, complete v1, and complete v2 before mutation; exact v2 reruns are no-op, exact v1 advances additively in one transaction, while unreceipted, partial, mixed, reordered, removed, repointed or otherwise divergent owner facts fail closed. Receipt foreign keys restrict deletion and retain original provisioning provenance while migration advances only manifest metadata and emits an Identity-local migration audit. Selector output contains only non-secret principal/binding references and positive binding version.
+
+Checkpoint evidence is owner-local under `/private/tmp/oes-fl-business-journey-artifacts`; paths are not stable truth. State-machine tests, Prisma generation/validation, Identity build, CLI syntax and diff hygiene passed. The first validation attempt without `DATABASE_URL` is retained as a command-input correction; the exact explicit isolated-format URL input passed without making a connection.
+
+Remaining next slice: reconstruct Auth-only Identity/HR/TenantOrg INTERNAL owner resolvers, exact workload inventory/policies, and their mTLS/audience/Code/cnf/selector negatives before task/event and live journey work.
