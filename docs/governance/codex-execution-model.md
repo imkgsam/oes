@@ -60,6 +60,12 @@ RI以Principal Reviewer/SDET标准规划不重复、风险驱动、可复现的�
 
 RI不成为实现owner；发现缺陷后把精确finding返回artifact owner。
 
+### 2.9 Portfolio Planner（Planner）
+
+Planner是长期可见的Principal Portfolio Planner / Principal Architect级只读顾问，持续以latest canonical truth、正常可见task、PR/CI、阻塞、Human优先级和可用容量为输入，默认使用Plan mode形成月、周、日三级滚动项目组合建议。
+
+Planner不成为work item owner、artifact owner、canonical writer、reviewer、remote owner或全局调度中心；不写设计/代码、不创建branch/worktree/PR、不merge、不cleanup，也不建立task registry、项目状态数据库、watchdog、持续polling或第二真相源。Human选择规划方向只形成新的自然语言工作意图，后续仍由现有Direct、Design、FL或SL入口按本模型确认和执行。
+
 ## 3. 默认路由
 
 普通讨论是唯一默认入口，不创建role、branch、worktree、Workspace或Packet。
@@ -67,6 +73,7 @@ RI不成为实现owner；发现缺陷后把精确finding返回artifact owner。
 | 真实情况 | 路由 |
 | --- | --- |
 | 只读咨询、比较、状态 | 当前task直接回答 |
+| 跨业务方向、基础能力和时间盒的月/周/日组合规划 | Planner |
 | 小而明确、无稳定语义变化 | Direct |
 | 新服务、跨服务契约/事件、权限、租户、共享抽象、AI工具协议或canonical gap | Design Owner → UD |
 | 一个独立可验收feature | FL |
@@ -74,6 +81,24 @@ RI不成为实现owner；发现缺陷后把精确finding返回artifact owner。
 | 同一feature的原子实现slices | 一个FL → bounded ITs |
 
 系统读取真实状态后只显示当前合法选项并标记一个建议。Human不选择IDT/CDT，也不需要主动指定内部reviewer。
+
+### 3.1 Planner规划契约
+
+Planner可由Human手动唤醒，或由Codex标准定时能力在同一个可见Planner task中按约定时间唤醒；定时只触发一次只读刷新，不形成框架heartbeat、后台polling或自动执行授权。
+
+Planner每次从现有真相重新计算，不维护镜像状态。规划只保留三层：
+
+1. 月计划：给出CRM、ERP、基础服务、工程优化等不同方向的有界里程碑、成功指标、依赖和容量比例；
+2. 周计划：把已选月度方向转化为本周可验收成果、关键路径、并行关系和风险；
+3. 日计划：按Human配置的工作时间盒（默认09:00—18:00）给出可在收工前完成验收的候选组合。
+
+每次通常给出3—5个不同项目方向；不足3个真正可执行方向时只显示有效项，不用低价值工作凑数。每个候选必须包含明确成果、时间估算与缓冲、停止点、验收标准及证据、依赖、风险、置信度、非目标、Human决策点、上层里程碑关联和与其他候选的冲突关系。Planner必须给出至少一个推荐组合；能够并行的方向可同时推荐，写入边界、稳定设计、资源或依赖冲突的方向不得组合。
+
+月度和周度里程碑必须显示`正常 | 有风险 | 阻塞 | 已完成`的规划健康度、当前进度、预测完成时间和偏差原因；这些只是Planner的只读判断，不新增delivery状态或状态转换。
+
+Planner优先收尾、解除阻塞和关键路径，默认保留约20%风险缓冲并限制WIP。未关联周/月目标、设计未冻结、依赖未满足、执行环境未就绪或无法在目标时间盒闭合验收的事项不得进入推荐执行组合。每日只轻量校正，每周重新排序，每月重新选择方向；仅关键阻塞、优先级或依赖变化触发中途重算并向Human提示。
+
+月、周、日计划是带生成时间与有效期的noncanonical task消息：每日计划到期后重新评估，不机械顺延；计划与实际只用于校准后续估时，不形成长期日报、周报、月报、历史账本或repository artifact。Human选择一个或多个方向后，Planner输出简洁执行意图并进入现有路由；该选择不绕过Proposal、任务启动、main merge、scope扩大或cleanup确认。
 
 ## 4. Human可见状态与复杂度预算
 
@@ -94,7 +119,7 @@ RI不成为实现owner；发现缺陷后把精确finding返回artifact owner。
 7. Human应在30秒内理解当前状态；
 8. 证据数量不得随内部状态数量线性增长；
 9. 技术绑定只能服务机器校验，不得成为Human日常流程；
-10. 一个active runtime cutover未完成前，不继续增加新的常规协同能力。
+10. 一个active runtime cutover未完成前，不启用新的常规协同能力；即使目标设计已经冻结，也不得创建role task、定时触发或运行资源。
 
 ## 5. Task身份、标题与可见性
 
@@ -103,6 +128,7 @@ RI不成为实现owner；发现缺陷后把精确finding返回artifact owner。
 可见role task使用：
 
 - `[Design] HUMAN_READABLE_TOPIC`
+- `[Planner] OES Portfolio Planning`
 - `[UD] Unified Design`
 - `[Direct] HUMAN_READABLE_CHANGE_SET`
 - `[SL] HUMAN_READABLE_STAGE`
@@ -114,7 +140,7 @@ RI不成为实现owner；发现缺陷后把精确finding返回artifact owner。
 
 ### 5.2 必须可见的role task
 
-Design、Direct、SL、FL、Feature RI和Stage RI必须通过Human-visible、project-associated的task transport创建。`source=exec`或其他不进入正常Codex项目任务列表的transport只能用于bounded IT、helper和短期只读分析，不得创建owner或独立reviewer。
+Planner、Design、Direct、SL、FL、Feature RI和Stage RI必须通过Human-visible、project-associated的task transport创建。`source=exec`或其他不进入正常Codex项目任务列表的transport只能用于bounded IT、helper和短期只读分析，不得创建owner或独立reviewer。
 
 role task只有在creator read-after-create同时证明以下事实后才算创建成功：
 
@@ -327,6 +353,10 @@ canonical merge后按以下顺序恢复：
 7. 全部接管完成后继续原三个FL、Feature RI、Draft PR和Stage验收。
 
 在恢复完成前禁止新的隐藏SL/FL/RI、replacement、remote mutation、cleanup、rename或resource deletion。
+
+### 13.2 Planner启用边界
+
+本角色定义可先进入canonical truth，但当前Collaboration Runtime Cutover达到terminal并完成所需验证前，Planner保持未启用：不创建Planner task、不建立定时触发、不迁移现有task，也不改变当前SL/FL/RI。cutover完成后，Human通过既有任务确认卡一次性确认创建一个可见、project-associated的`[Planner] OES Portfolio Planning` task；可选定时安排与该task绑定，不创建第二个Planner或新的协同状态机。
 
 ## 14. Human命令契约
 
