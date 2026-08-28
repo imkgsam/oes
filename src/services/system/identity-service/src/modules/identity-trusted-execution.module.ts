@@ -70,6 +70,14 @@ export class IdentityFoundationTrustedExecutionGuard
   }
 }
 
+/** Binds generic Identity INTERNAL owner resolvers to the Identity audience. */
+@Injectable()
+export class IdentityAudienceTrustedInternalExecutionGuard extends TrustedInternalExecutionGuard {
+  constructor(reflector: Reflector, verifier: ExecutionTokenVerifier, identity: GrpcWorkloadIdentityProvider) {
+    super(reflector, verifier, identity, IDENTITY_AUDIENCE)
+  }
+}
+
 /** Preserves the external-credential bootstrap as exact Auth/Gateway mTLS without fabricating an ET. */
 @Injectable()
 export class IdentityExternalCredentialAdmissionGuard implements CanActivate {
@@ -118,12 +126,12 @@ export class IdentityExternalCredentialAdmissionGuard implements CanActivate {
       inject: [Reflector, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider]
     },
     {
-      provide: TrustedInternalExecutionGuard,
+      provide: IdentityAudienceTrustedInternalExecutionGuard,
       useFactory: (
         reflector: Reflector,
         verifier: ExecutionTokenVerifier,
         identity: GrpcWorkloadIdentityProvider
-      ) => new TrustedInternalExecutionGuard(reflector, verifier, identity, IDENTITY_AUDIENCE),
+      ) => new IdentityAudienceTrustedInternalExecutionGuard(reflector, verifier, identity),
       inject: [Reflector, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider]
     }
   ],
@@ -135,7 +143,7 @@ export class IdentityExternalCredentialAdmissionGuard implements CanActivate {
     ExecutionTokenVerifier,
     GrpcWorkloadIdentityProvider,
     IdentityFoundationTrustedExecutionGuard,
-    TrustedInternalExecutionGuard,
+    IdentityAudienceTrustedInternalExecutionGuard,
     IdentityExternalCredentialAdmissionGuard
   ]
 })

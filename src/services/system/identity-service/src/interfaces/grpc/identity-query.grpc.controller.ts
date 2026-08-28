@@ -9,7 +9,7 @@ import {
   InternalServiceGuard,
   RequireAuthenticatedOperator
 } from '@oes/common/authorization'
-import { TrustedInternalExecutionGuard } from '@oes/common/authorization'
+import { IdentityAudienceTrustedInternalExecutionGuard } from '../../modules/identity-trusted-execution.module'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
@@ -303,7 +303,7 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
 
   /** Exposes the narrow generated Auth-only Integration Machine fact resolution RPC. */
   @AuthorizeInternalCall({ all: ['identity.internal.integration_machine.resolve'] })
-  @UseGuards(TrustedInternalExecutionGuard)
+  @UseGuards(IdentityAudienceTrustedInternalExecutionGuard)
   async resolveIntegrationMachineForAuth(
     request: ResolveIntegrationMachineForAuthRequest
   ): Promise<ResolveIntegrationMachineForAuthResponse> {
@@ -317,7 +317,7 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
 
   /** Exposes only the protected Auth-to-Identity exact MACHINE owner-fact resolver. */
   @AuthorizeInternalCall({ all: ['identity.internal.machine_principal.resolve'] })
-  @UseGuards(TrustedInternalExecutionGuard)
+  @UseGuards(IdentityAudienceTrustedInternalExecutionGuard)
   async resolveMachinePrincipalForAuth(
     request: ResolveMachinePrincipalForAuthRequest
   ): Promise<ResolveMachinePrincipalForAuthResponse> {

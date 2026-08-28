@@ -2,13 +2,13 @@ import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/comm
 import {
   AuthenticatedOperatorGuard,
   AuthorizeInternalCall,
-  TrustedInternalExecutionGuard,
   GrpcRequestContextInterceptor,
   IDENTITY_MACHINE_PERMISSION_CODES,
   InternalServiceGuard,
   PermissionGuard,
   RequirePermissions
 } from '@oes/common/authorization'
+import { AuthAudienceTrustedInternalExecutionGuard } from '../../modules/auth/auth-trusted-execution.module'
 import { ValidatingCommandBus } from '@oes/common/cqrs'
 import { ExternalApiKeyCredentialServiceController, ExternalApiKeyCredentialServiceControllerMethods } from '@oes/common/generated/auth_service'
 import { ExternalApiKeyCredentialService } from '../../application/services/external-api-key-credential.service'
@@ -84,7 +84,7 @@ export class ExternalApiKeyGrpcController implements ExternalApiKeyCredentialSer
   }
 
   @AuthorizeInternalCall({ all: ['auth.internal.external_api_key.exchange'] })
-  @UseGuards(TrustedInternalExecutionGuard)
+  @UseGuards(AuthAudienceTrustedInternalExecutionGuard)
   async exchangeExternalApiKey(request: any, _metadata?: unknown, call?: unknown): Promise<any> {
     if (!resolveExternalApiKeyContext(request).verifiedGatewayExchange) {
       throw new Error('EXTERNAL_API_KEY_INVALID')
@@ -96,7 +96,7 @@ export class ExternalApiKeyGrpcController implements ExternalApiKeyCredentialSer
   }
 
   @AuthorizeInternalCall({ all: [EXTERNAL_API_KEY_VERIFIER_COMPROMISE_PERMISSION] })
-  @UseGuards(TrustedInternalExecutionGuard)
+  @UseGuards(AuthAudienceTrustedInternalExecutionGuard)
   async compromiseExternalApiKeyVerifierVersion(
     request: any,
     _metadata?: unknown,

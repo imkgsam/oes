@@ -91,6 +91,14 @@ export class AuthTrustedExecutionGuard extends TrustedExecutionGuard implements 
   }
 }
 
+/** Binds generic Auth INTERNAL methods to the Auth audience without constructor string injection. */
+@Injectable()
+export class AuthAudienceTrustedInternalExecutionGuard extends TrustedInternalExecutionGuard {
+  constructor(reflector: Reflector, verifier: ExecutionTokenVerifier, identity: GrpcWorkloadIdentityProvider) {
+    super(reflector, verifier, identity, AUTH_AUDIENCE)
+  }
+}
+
 /** Supplies Auth's exact audience verifier and dual public/protected admission guard. */
 @Module({
   providers: [
@@ -110,18 +118,18 @@ export class AuthTrustedExecutionGuard extends TrustedExecutionGuard implements 
       inject: [Reflector, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider]
     },
     {
-      provide: TrustedInternalExecutionGuard,
+      provide: AuthAudienceTrustedInternalExecutionGuard,
       useFactory: (
         reflector: Reflector,
         verifier: ExecutionTokenVerifier,
         identity: GrpcWorkloadIdentityProvider
-      ) => new TrustedInternalExecutionGuard(reflector, verifier, identity, AUTH_AUDIENCE),
+      ) => new AuthAudienceTrustedInternalExecutionGuard(reflector, verifier, identity),
       inject: [Reflector, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider]
     }
   ],
   exports: [
     AuthTrustedExecutionGuard,
-    TrustedInternalExecutionGuard,
+    AuthAudienceTrustedInternalExecutionGuard,
     AuthIdentityTrustedGrpcClient,
     AuthPermissionTrustedGrpcClient,
     AuthHrTrustedGrpcClient,
