@@ -24,6 +24,9 @@ test('offline profile validation does not require live Docker infrastructure', a
   assert.equal(new Set(profile.services.map((service) => service.certPath)).size, 21)
   assert.equal(profile.gateway.workload, 'api-gateway')
   assert.equal(profile.gateway.port, 52101)
+  const auth = profile.services.find((service) => service.workload === 'auth-service')
+  const authEnvironment = await readFile(auth.envPath, 'utf8')
+  assert.match(authEnvironment, /AUTH_EXECUTION_WORKLOAD_POLICIES=.*urn:oes:service:auth-service/u)
 })
 
 test('inventory rejects duplicate workload, listener port, or source', async () => {

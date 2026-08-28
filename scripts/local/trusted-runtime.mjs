@@ -35,6 +35,7 @@ export async function readInventory(text) {
 export async function generateProfile({ basePort = Number(process.env.OES_TRUSTED_RUNTIME_BASE_PORT || 52050), requireInfrastructure = false } = {}) {
   const inventory = await readInventory()
   const sourceEnvironment = parseEnv(await readFile(envSource, 'utf8'))
+  Object.assign(sourceEnvironment, await runtimePolicyEnvironment())
   const nacosPort = process.env.OES_NACOS_HOST_PORT?.trim() || sourceEnvironment.NACOS_HOST_PORT || (requireInfrastructure ? resolveInfrastructurePort('nacos', '8848') : '8848')
   const postgresPort = requireInfrastructure ? resolveInfrastructurePort('postgres', '5432') : '5432'
   const redisPort = requireInfrastructure ? resolveInfrastructurePort('redis', '6379') : '6379'
@@ -102,6 +103,19 @@ export async function generateProfile({ basePort = Number(process.env.OES_TRUSTE
   await writeFile(join(stateRoot, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n', { mode: 0o600 })
   await chmod(join(stateRoot, 'manifest.json'), 0o600)
   return manifest
+}
+
+/** Projects the versioned trust registries directly so a retained lifecycle env cannot stale runtime admission. */
+async function runtimePolicyEnvironment() {
+  const [auth, permission] = await Promise.all([
+    readFile(join(root, 'scripts/local/runtime-config/auth-execution-workload-policies.json'), 'utf8'),
+    readFile(join(root, 'scripts/local/runtime-config/permission-workload-issuance-policies.json'), 'utf8')
+  ])
+  return {
+    AUTH_EXECUTION_WORKLOAD_POLICIES: JSON.stringify(JSON.parse(auth)),
+    PERMISSION_WORKLOAD_ISSUANCE_POLICIES: JSON.stringify(JSON.parse(permission)),
+    AUTH_PERMISSION_WORKLOAD_ISSUANCE_POLICY_VERSION: 'auth-login-owner-facts-v1'
+  }
 }
 
 /** Starts exact built package entrypoints and records only task-owned PIDs/logs. */
