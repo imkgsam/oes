@@ -153,7 +153,7 @@ Fresh replacement evidence after final formatting:
   pass.
 - `44-pda-foundation-remediation-live.log`: affected PDA live matrix passes with Item `403`,
   outage/recovery, logout/stale-session and zero fixture residue.
-- `45-post-live-runtime-down.log` and `47-runtime-down-settled.log`: launcher shutdown succeeds,
+- `45-post-live-runtime-down.log` and `59-final-zero-residue-corrected.log`: launcher shutdown succeeds,
   PID files are absent and all application listeners settle closed.
 
 ## Review state and findings
@@ -166,9 +166,6 @@ Fresh replacement evidence after final formatting:
   so candidate-only lint stops before rule execution on all 39 changed TypeScript files. The
   config, package manifest and lockfile are byte-identical to the candidate base; evidence is in
   `153-final-candidate-eslint.log` and `154-final-eslint-baseline-classification.log`.
-- Inherited finding: the full Gateway login suite has a pre-existing tenant-name hydration
-  expectation failure outside the changed PDA path. The changed PDA tests, all affected neighboring
-  suites, typecheck and build pass.
 
 ## Rollback and stop point
 
