@@ -274,6 +274,7 @@ export function composeEnvironment(context) {
     ['NATS_NOTIFICATION_RECOVERY_PASSWORD', natsPassword(taskKey, 'nats-recovery')],
     ['NATS_OPERATOR_USER', `operator_${taskKey}`],
     ['NATS_OPERATOR_PASSWORD', natsPassword(taskKey, 'nats-operator')],
+    ['SITE_PREVIEW_TOKEN_SECRET', fixture(taskKey, 'site-preview-token', 48)],
     ['MINIO_ROOT_USER', `minio_${taskKey}`],
     ['MINIO_ROOT_PASSWORD', fixture(taskKey, 'minio', 40)],
     ['MINIO_BUCKET', `oes-${taskKey.replaceAll('_', '-')}-assets`],

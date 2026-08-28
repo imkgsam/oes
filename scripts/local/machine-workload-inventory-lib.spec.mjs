@@ -50,27 +50,28 @@ test('v1 to v2 is exact additive and rejects changed, reordered, removed or repo
 test('complete v1 migrates while partial, mixed and divergent receipt state fails before mutation', async () => {
   const v1 = await load(1)
   const v2 = await load(2)
-  const receipt = {
-    inventoryEntryKey: 'auth-service',
+  const receiptsV1 = v1.entries.map((entry) => ({
+    inventoryEntryKey: entry.inventoryEntryKey,
     manifestVersion: '1',
     manifestDigest: inventoryDigest(v1)
-  }
+  }))
   assert.equal(
-    classifyInventoryState({ receipts: [receipt], manifest: v2, previousManifest: v1 }).action,
+    classifyInventoryState({ receipts: receiptsV1, manifest: v2, previousManifest: v1 }).action,
     'MIGRATE_ADDITIVE'
   )
   for (const receipts of [
-    [{ ...receipt, manifestDigest: 'wrong' }],
+    receiptsV1.slice(0, -1),
+    receiptsV1.map((receipt, index) => index === 0 ? { ...receipt, manifestDigest: 'wrong' } : receipt),
     [
-      receipt,
+      ...receiptsV1,
       {
-        ...receipt,
+        ...receiptsV1[0],
         inventoryEntryKey: 'collaboration-service',
         manifestVersion: '2',
         manifestDigest: inventoryDigest(v2)
       }
     ],
-    [{ ...receipt, inventoryEntryKey: 'unknown-service' }]
+    [{ ...receiptsV1[0], inventoryEntryKey: 'unknown-service' }]
   ])
     assert.throws(
       () => classifyInventoryState({ receipts, manifest: v2, previousManifest: v1 }),

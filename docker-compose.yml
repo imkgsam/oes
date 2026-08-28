@@ -554,6 +554,9 @@ services:
       OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/public-entry-service
       DATABASE_URL: ${OES_DB_PUBLIC_ENTRY_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50067
+      PUBLIC_ENTRY_FOUNDATION_MACHINE_PRINCIPAL_ID: ${PUBLIC_ENTRY_FOUNDATION_MACHINE_PRINCIPAL_ID:?run identity selector projection}
+      PUBLIC_ENTRY_FOUNDATION_MACHINE_WORKLOAD_BINDING_ID: ${PUBLIC_ENTRY_FOUNDATION_MACHINE_WORKLOAD_BINDING_ID:?run identity selector projection}
+      PUBLIC_ENTRY_FOUNDATION_MACHINE_WORKLOAD_BINDING_VERSION: ${PUBLIC_ENTRY_FOUNDATION_MACHINE_WORKLOAD_BINDING_VERSION:?run identity selector projection}
     expose: ['50067']
     volumes:
       - type: volume
@@ -579,6 +582,7 @@ services:
       OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/site-service
       DATABASE_URL: ${OES_DB_SITE_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50069
+      SITE_PREVIEW_TOKEN_SECRET: ${SITE_PREVIEW_TOKEN_SECRET:?run pnpm db:config}
     expose: ['50069']
     volumes:
       - type: volume
@@ -654,6 +658,9 @@ services:
       OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/crm-service
       DATABASE_URL: ${OES_DB_CRM_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50060
+      CRM_PARTY_MACHINE_PRINCIPAL_ID: ${CRM_PARTY_MACHINE_PRINCIPAL_ID:?run identity selector projection}
+      CRM_PARTY_MACHINE_WORKLOAD_BINDING_ID: ${CRM_PARTY_MACHINE_WORKLOAD_BINDING_ID:?run identity selector projection}
+      CRM_PARTY_MACHINE_WORKLOAD_BINDING_VERSION: ${CRM_PARTY_MACHINE_WORKLOAD_BINDING_VERSION:?run identity selector projection}
     expose: ['50060']
     volumes:
       - type: volume
@@ -779,6 +786,9 @@ services:
       OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/srm-service
       DATABASE_URL: ${OES_DB_SRM_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50061
+      SRM_PARTY_MACHINE_PRINCIPAL_ID: ${SRM_PARTY_MACHINE_PRINCIPAL_ID:?run identity selector projection}
+      SRM_PARTY_MACHINE_WORKLOAD_BINDING_ID: ${SRM_PARTY_MACHINE_WORKLOAD_BINDING_ID:?run identity selector projection}
+      SRM_PARTY_MACHINE_WORKLOAD_BINDING_VERSION: ${SRM_PARTY_MACHINE_WORKLOAD_BINDING_VERSION:?run identity selector projection}
     expose: ['50061']
     volumes:
       - type: volume
