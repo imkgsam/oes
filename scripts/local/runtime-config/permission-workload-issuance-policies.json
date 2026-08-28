@@ -15,6 +15,16 @@
   },
   {
     "originalWorkloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/auth-service",
+    "targetAudience": "urn:oes:service:permission-service",
+    "permissionCodes": [
+      "permission.internal.account_terminal_access.resolve",
+      "permission.internal.principal_authorization.resolve"
+    ],
+    "scopeLevel": "SYSTEM",
+    "policyVersion": "auth-login-owner-facts-v1"
+  },
+  {
+    "originalWorkloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/auth-service",
     "targetAudience": "urn:oes:service:tenant-org-service",
     "permissionCodes": ["tenant_org.internal.auth_session_tenant_lifecycle.resolve"],
     "scopeLevel": "SYSTEM",
