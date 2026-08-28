@@ -3,16 +3,18 @@
 ## Binding
 
 - Stage / feature: `global-runnability / business-journey`
-- State: `REPLACEMENT_CANDIDATE_READY_FOR_FEATURE_RI`
+- State: `REPLACEMENT_CANDIDATE_R2_READY_FOR_FEATURE_RI`
 - Human-visible Feature Lead: task `01a047c6-18ff-71e0-b2cc-b1bad08fd0e8`
 - Parent and sole return target: Stage Lead task `01a036e1-7ca5-76c2-8183-64edd7e1d086`
 - Feature branch: `codex/feature/business-journey-visible-recovery`
 - Feature base: `49e5090b565985e42e63a378370edecc794881c2`
 - Immutable rejected candidate and replacement parent:
   `1b4abcad40f2f305bfc981ead59a2e053029e464`
+- Immutable first replacement and R2 parent:
+  `6904b45ec9331fe3cf8ee2bb852f657de90cf50c`
 - Canonical `origin/main` observed at continuation: `51f78cc05db67d35f0129e678ad27a1034e22ad0`
-- Replacement candidate identity: the append-only commit containing this Packet; the exact SHA is
-  emitted in the `REPLACEMENT_CANDIDATE_READY_FOR_FEATURE_RI` handoff.
+- R2 replacement candidate identity: the append-only commit containing this Packet; the exact SHA
+  is emitted in the `REPLACEMENT_CANDIDATE_R2_READY_FOR_FEATURE_RI` handoff.
 - The superseded hidden owner is frozen read-only and owns no runtime or candidate state.
 
 ## Scope and protected boundary
@@ -47,7 +49,9 @@ The completed candidate keeps the accepted split:
 - Permission keeps BUSINESS management RPCs WEB-only and admits PDA only on the two exact INTERNAL
   foundation routes for account access summary and navigation resolution.
 - Gateway requires the opaque Terminal Device credential during employee-code preflight before
-  invoking Auth, and keeps protected Item routes Web-only before any Permission BUSINESS RPC.
+  invoking Auth. Exact route metadata keeps protected Item routes Web-only before any Permission
+  BUSINESS RPC while admitting canonical Web and Browser Extension sessions on extension CRM
+  routes.
 - Gateway-to-Terminal Device requires an exact deployment-projected peer SPIFFE ID and fails closed
   for absent, malformed, wildcard or mismatched identities without a trust-domain fallback.
 - Terminal Device maps domain credential failures into the standardized fail-closed gRPC envelope.
@@ -156,12 +160,37 @@ Fresh replacement evidence after final formatting:
 - `45-post-live-runtime-down.log` and `59-final-zero-residue-corrected.log`: launcher shutdown succeeds,
   PID files are absent and all application listeners settle closed.
 
+### FL-7 — route-scoped terminal remediation R2
+
+The first replacement `6904b45ec9331fe3cf8ee2bb852f657de90cf50c` remains immutable. R2 removes
+its global Web-only pre-Permission assumption and adds the smallest typed route-terminal declaration:
+
+- Item management declares exactly `WEB`, so PDA Item stops at the Gateway edge before metadata
+  creation or Permission RPC.
+- Extension CRM declares exactly `WEB, BROWSER_EXTENSION`, so both canonical clients reach
+  Permission for the existing `crm.account.create`, `crm.account.claim` and read Codes while PDA
+  stops at the Gateway edge.
+- A protected route without this exact metadata has no new global terminal allowlist; the existing
+  authenticated-session guard and downstream target policy retain ownership.
+- Missing or malformed session terminal values on a route that declares terminals fail closed.
+
+Fresh R2 evidence after final formatting:
+
+- `03-r2-final-format.log`: all ten R2 source/test files pass Prettier and `git diff --check`.
+- `04-r2-post-format-validation.log`: Common decorator tests pass 2/2; the Gateway guard and exact
+  Item/extension controller tests pass 44/44; Common and Gateway typechecks/builds all pass.
+- `05-r2-final-gates.log`: changed-scope, protected-path, high-confidence secret, diff, formatting,
+  runtime-zero and disk-floor gates pass for the staged R2 delta.
+- The R2 manifest, patch, bundle, literal verification record and executable rollback are emitted
+  with the exact append-only candidate identity.
+
 ## Review state and findings
 
 - Feature Lead self-review, protected-scope check, diff check and secret scan: passed for the
   replacement delta.
-- Independent Feature RI: changes requested for immutable candidate `1b4abcad`; all five findings
-  are remediated in the append-only replacement and await re-review by the same visible RI task.
+- Independent Feature RI: all five findings against immutable candidate `1b4abcad` are closed on
+  immutable first replacement `6904b45e`. Its one bounded route-scope regression is corrected by
+  the append-only R2 candidate and awaits re-review by the same visible RI task.
 - Candidate finding: repository ESLint configuration enables both `project` and `projectService`,
   so candidate-only lint stops before rule execution on all 39 changed TypeScript files. The
   config, package manifest and lockfile are byte-identical to the candidate base; evidence is in
@@ -172,6 +201,7 @@ Fresh replacement evidence after final formatting:
 - Runtime rollback: `OES_TASK_KEY=tmp_31d7ce4d pnpm local:trusted-runtime:down`.
 - The PDA fixture rollback leaves zero rows; owner process verification leaves zero live
   task-owned application processes.
-- Git rollback of only the append-only remediation: `git revert <replacement-candidate-sha>`.
-- Stop at the exact replacement candidate. No push, PR, `main` merge, cleanup or RI creation is
+- Git rollback of only the R2 route-scope correction: `git revert <r2-candidate-sha>`; this restores
+  immutable first-replacement tree `55ffeac5f8e3579e03f19b58bbcfc6d8f1ff2381`.
+- Stop at the exact R2 replacement candidate. No push, PR, `main` merge, cleanup or RI creation is
   part of this owner action.

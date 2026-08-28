@@ -1,6 +1,10 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common'
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger'
-import { CRM_MANAGEMENT_PERMISSION_CODES, RequirePermissions } from '@oes/common/authorization'
+import {
+  AdmitGatewaySessionTerminals,
+  CRM_MANAGEMENT_PERMISSION_CODES,
+  RequirePermissions
+} from '@oes/common/authorization'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 import { ExtensionCrmWorkspaceService } from '../../../extension-crm-workspace.service'
@@ -12,6 +16,7 @@ import {
 
 @ApiBearerAuth('JWT')
 @ApiTags('extension-crm-workspace')
+@AdmitGatewaySessionTerminals('WEB', 'BROWSER_EXTENSION')
 @Controller('extension/crm')
 // Exposes the browser-extension CRM Sales Workspace facade without moving CRM truth into the extension.
 export class ExtensionCrmWorkspaceController {

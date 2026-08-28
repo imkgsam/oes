@@ -3,6 +3,7 @@ import { plainToInstance } from 'class-transformer'
 import { validate } from 'class-validator'
 import {
   CRM_MANAGEMENT_PERMISSION_CODES,
+  GATEWAY_ROUTE_SESSION_TERMINALS_METADATA_KEY,
   REQUIRE_PERMISSIONS_METADATA_KEY
 } from '@oes/common/authorization'
 import { ExtensionCrmWorkspaceController } from './extension-crm-workspace.controller'
@@ -26,6 +27,10 @@ describe('ExtensionCrmWorkspaceController', () => {
 
   it('declares CRM permissions on extension workspace endpoints', () => {
     const reflector = new Reflector()
+
+    expect(
+      reflector.get(GATEWAY_ROUTE_SESSION_TERMINALS_METADATA_KEY, ExtensionCrmWorkspaceController)
+    ).toEqual(['WEB', 'BROWSER_EXTENSION'])
 
     expect(
       reflector.get(

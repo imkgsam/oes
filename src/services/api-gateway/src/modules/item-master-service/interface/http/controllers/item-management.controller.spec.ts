@@ -1,6 +1,9 @@
 import 'reflect-metadata'
 import { Reflector } from '@nestjs/core'
-import { REQUIRE_PERMISSIONS_METADATA_KEY } from '@oes/common/authorization'
+import {
+  GATEWAY_ROUTE_SESSION_TERMINALS_METADATA_KEY,
+  REQUIRE_PERMISSIONS_METADATA_KEY
+} from '@oes/common/authorization'
 import { ItemManagementController } from './item-management.controller'
 
 const source = {
@@ -51,6 +54,10 @@ describe('ItemManagementController V2', () => {
 
   it('attaches permissions to V2 ItemModel, Item, and BOM entrypoints', () => {
     const reflector = new Reflector()
+
+    expect(
+      reflector.get(GATEWAY_ROUTE_SESSION_TERMINALS_METADATA_KEY, ItemManagementController)
+    ).toEqual(['WEB'])
 
     expect(
       reflector.get(
@@ -155,7 +162,11 @@ describe('ItemManagementController V2', () => {
       controller.deleteItemCategory('tenant-1', 'category-1', source as never)
     ).resolves.toEqual({})
 
-    expect(itemManagementService.deleteItemCategory).toHaveBeenCalledWith('tenant-1', 'category-1', source)
+    expect(itemManagementService.deleteItemCategory).toHaveBeenCalledWith(
+      'tenant-1',
+      'category-1',
+      source
+    )
   })
 
   it('delegates hard packaging method deletion to the V2 BFF service', async () => {
@@ -165,7 +176,11 @@ describe('ItemManagementController V2', () => {
       controller.deletePackagingMethod('tenant-1', 'method-1', source as never)
     ).resolves.toEqual({})
 
-    expect(itemManagementService.deletePackagingMethod).toHaveBeenCalledWith('tenant-1', 'method-1', source)
+    expect(itemManagementService.deletePackagingMethod).toHaveBeenCalledWith(
+      'tenant-1',
+      'method-1',
+      source
+    )
   })
 
   it('delegates item category move commands to the V2 BFF service', async () => {

@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common'
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger'
-import { RequirePermissions } from '@oes/common/authorization'
+import { AdmitGatewaySessionTerminals, RequirePermissions } from '@oes/common/authorization'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 import { ItemManagementService } from '../../../item-management.service'
@@ -70,6 +70,7 @@ const ITEM_MANAGEMENT_PERMISSIONS = {
 
 @ApiBearerAuth('JWT')
 @ApiTags('item-management')
+@AdmitGatewaySessionTerminals('WEB')
 @Controller('item-management/tenants/:tenantId')
 // Exposes the tenant-scoped item-master V2 BFF surface without creating a second design truth source.
 export class ItemManagementController {
@@ -502,11 +503,7 @@ export class ItemManagementController {
     @Param('packagingMethodId') packagingMethodId: string,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
-    return this.itemManagementService.deletePackagingMethod(
-      tenantId,
-      packagingMethodId,
-      source
-    )
+    return this.itemManagementService.deletePackagingMethod(tenantId, packagingMethodId, source)
   }
 
   @Get('packaging/specs')

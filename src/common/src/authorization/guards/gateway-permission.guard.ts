@@ -15,12 +15,17 @@ import { PermissionCheckServiceClient } from '../../generated/permission_service
 import { InjectGrpcClient } from '../../transport/grpc/grpc-client.decorator'
 import { safeGrpcCall } from '../../transport/grpc/safe-grpc-call'
 import {
+  GATEWAY_ROUTE_SESSION_TERMINALS_METADATA_KEY,
   GATEWAY_PERMISSION_TRUSTED_METADATA_PROVIDER,
   REQUIRE_PERMISSIONS_METADATA_KEY
 } from '../constants'
-import { RequirePermissionsMetadata } from '../decorators'
+import type {
+  GatewayRouteSessionTerminalsMetadata,
+  RequirePermissionsMetadata
+} from '../decorators'
 import { getPermissionCodeDefinition } from '../permission-codes'
 import type { PermissionDefinition, PermissionScopeLevel } from '../permission-codes'
+import { TRUSTED_SESSION_TERMINALS } from '../trusted-execution/trusted-execution-context'
 
 const PERMISSION_CHECK_TIMEOUT_MS = 3000
 const TENANT_TARGET_ROUTE_PATTERN = /(?:^|\/):tenantId(?=\/|$)/
@@ -85,7 +90,15 @@ export class GatewayPermissionGuard implements CanActivate, OnModuleInit {
       return Boolean(isPublic) || !this.isTenantTargetRoute(request)
     }
 
-    if (request.user?.terminal !== 'WEB') return false
+    const routeTerminals = this.reflector.getAllAndOverride<unknown>(
+      GATEWAY_ROUTE_SESSION_TERMINALS_METADATA_KEY,
+      reflectionTargets
+    )
+    if (
+      routeTerminals !== undefined &&
+      !this.isRouteTerminalAdmitted(routeTerminals, request.user?.terminal)
+    )
+      return false
 
     const requirement = this.resolveRequirement(metadata)
     if (!requirement) return false
@@ -191,6 +204,26 @@ export class GatewayPermissionGuard implements CanActivate, OnModuleInit {
     }
 
     return value
+  }
+
+  /** Applies only an exact route terminal declaration and otherwise leaves admission to Permission. */
+  private isRouteTerminalAdmitted(value: unknown, terminal: unknown): boolean {
+    if (
+      !Array.isArray(value) ||
+      value.length === 0 ||
+      value.some(
+        (candidate) =>
+          !TRUSTED_SESSION_TERMINALS.includes(
+            candidate as (typeof TRUSTED_SESSION_TERMINALS)[number]
+          )
+      ) ||
+      new Set(value).size !== value.length ||
+      typeof terminal !== 'string'
+    )
+      return false
+    return (value as GatewayRouteSessionTerminalsMetadata).includes(
+      terminal as (typeof TRUSTED_SESSION_TERMINALS)[number]
+    )
   }
 
   /** Requires Permission's unchanged response to carry an explicit boolean decision. */
