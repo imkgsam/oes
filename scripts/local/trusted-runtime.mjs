@@ -82,6 +82,7 @@ export async function generateProfile({ basePort = Number(process.env.OES_TRUSTE
     })
     env.AUTH_EXECUTION_ISSUER = issuerUrl
     env.NODE_OPTIONS = [env.NODE_OPTIONS, `--require=${issuerResolver}`].filter(Boolean).join(' ')
+    env.NODE_EXTRA_CA_CERTS = join(trustRoot, entry.workload, 'current/ca.pem')
     if (entry.workload === 'notification-service') env.NOTIFICATION_DELIVERY_PAYLOAD_KEY = notificationPayloadKey
     const envPath = join(stateRoot, 'env', `${entry.workload}.env`)
     await writeFile(envPath, Object.entries(env).filter(([, value]) => value !== '').sort().map(([key, value]) => `${key}=${shellQuote(value)}`).join('\n') + '\n', { mode: 0o600 })
@@ -105,6 +106,7 @@ export async function generateProfile({ basePort = Number(process.env.OES_TRUSTE
   })
   gatewayEnvironment.AUTH_EXECUTION_ISSUER = issuerUrl
   gatewayEnvironment.NODE_OPTIONS = [gatewayEnvironment.NODE_OPTIONS, `--require=${issuerResolver}`].filter(Boolean).join(' ')
+  gatewayEnvironment.NODE_EXTRA_CA_CERTS = join(trustRoot, 'api-gateway/current/ca.pem')
   const gatewayEnvPath = join(stateRoot, 'env/api-gateway.env')
   await writeFile(gatewayEnvPath, Object.entries(gatewayEnvironment).filter(([, value]) => value !== '').sort().map(([key, value]) => `${key}=${shellQuote(value)}`).join('\n') + '\n', { mode: 0o600 })
   manifest.gateway = { workload: 'api-gateway', packageName: 'api-gateway', packageDirectory: gatewayDirectory, port: gatewayPort, envPath: gatewayEnvPath, certPath: gatewayEnvironment.OES_GRPC_TLS_CERT_PATH, logPath: join(stateRoot, 'logs/api-gateway.log'), pidPath: join(stateRoot, 'pids/api-gateway.pid') }
