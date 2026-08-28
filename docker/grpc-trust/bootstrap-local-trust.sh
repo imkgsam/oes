@@ -36,7 +36,7 @@ issue_workload_leaf() {
   mkdir -p "${workload_directory}"
   leaf_directory="$(mktemp -d "${workload_directory}/.leaf.XXXXXX")"
   extension_file="${leaf_directory}/leaf-ext.cnf"
-  local dns_names="DNS:${workload}"
+  local dns_names="DNS:${workload},DNS:${workload}.localhost"
   if [[ "${workload}" == "auth-service" ]]; then
     dns_names="${dns_names},DNS:issuer.local.oes.internal"
   fi

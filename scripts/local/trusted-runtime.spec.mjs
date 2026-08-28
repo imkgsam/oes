@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { generateProfile, readInventory } from './trusted-runtime.mjs'
+import { readFile } from 'node:fs/promises'
+
+test('inventory has exactly 21 unique listeners and canonical Collaboration port', async () => {
+  const entries = await readInventory()
+  assert.equal(entries.length, 21)
+  assert.equal(entries.find((entry) => entry.workload === 'collaboration-service')?.canonicalPort, 50068)
+})
+
+test('local trust leaves use workload-scoped DNS names rather than IP identity', async () => {
+  const source = await readFile('docker/grpc-trust/bootstrap-local-trust.sh', 'utf8')
+  assert.match(source, /DNS:\$\{workload\},DNS:\$\{workload\}\.localhost/)
+  assert.doesNotMatch(source, /IP:/)
+})
+
+test('offline profile validation does not require live Docker infrastructure', async () => {
+  const profile = await generateProfile({ basePort: 54050, requireInfrastructure: false })
+  assert.equal(profile.services.length, 21)
+  assert.equal(profile.nacos, '127.0.0.1:8848')
+  assert.equal(new Set(profile.services.map((service) => service.port)).size, 21)
+  assert.equal(new Set(profile.services.map((service) => service.certPath)).size, 21)
+})
+
+test('inventory rejects duplicate workload, listener port, or source', async () => {
+  await assert.rejects(() => readInventory('a|50050|a.ts\na|50051|b.ts\n'), /DUPLICATE_WORKLOAD/)
+  await assert.rejects(() => readInventory('a|50050|a.ts\nb|50050|b.ts\n'), /DUPLICATE_CANONICALPORT/)
+  await assert.rejects(() => readInventory('a|50050|a.ts\nb|50051|a.ts\n'), /DUPLICATE_SOURCE/)
+})
