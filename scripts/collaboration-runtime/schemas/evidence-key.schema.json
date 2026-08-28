@@ -7,10 +7,17 @@
     "schemaVersion",
     "kind",
     "candidateSha",
+    "candidateTreeSha",
+    "dependencyCandidates",
     "dependencyFingerprint",
+    "lockfileFingerprint",
+    "toolchainFingerprint",
+    "testConfigFingerprint",
+    "environmentFingerprint",
     "literalInputsFingerprint",
     "executionProfileFingerprint",
     "commandFingerprint",
+    "commandVersion",
     "literalResultFingerprint",
     "exitCode",
     "coverageIds",
@@ -20,13 +27,41 @@
     "schemaVersion": { "const": 1 },
     "kind": { "const": "OES_TEST_EVIDENCE_KEY" },
     "candidateSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "candidateTreeSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "dependencyCandidates": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["featureKey", "candidateSha", "candidateTreeSha"],
+        "properties": {
+          "featureKey": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+          },
+          "candidateSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+          "candidateTreeSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+        }
+      }
+    },
     "dependencyFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "lockfileFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "toolchainFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "testConfigFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "environmentFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "literalInputsFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "executionProfileFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "commandFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "commandVersion": { "type": "string", "minLength": 1 },
     "literalResultFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "exitCode": { "type": "integer" },
-    "coverageIds": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+    "coverageIds": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
     "evidenceFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
   }
 }

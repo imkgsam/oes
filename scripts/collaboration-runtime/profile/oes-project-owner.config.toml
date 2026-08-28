@@ -8,6 +8,10 @@ NPM_CONFIG_SHELL_EMULATOR = "true"
 [collaboration_runtime]
 trusted_authorization_root = "{{TRUSTED_AUTHORIZATION_ROOT}}"
 serial_admission_root = "{{SERIAL_ADMISSION_ROOT}}"
+resource_topology_version = "{{RESOURCE_TOPOLOGY_VERSION}}"
+owner_resource_binding_path = "{{OWNER_RESOURCE_BINDING_PATH}}"
+owner_resource_binding_sha256 = "{{OWNER_RESOURCE_BINDING_SHA256}}"
+owner_resource_binding_fingerprint = "{{OWNER_RESOURCE_BINDING_FINGERPRINT}}"
 
 [features]
 network_proxy = true

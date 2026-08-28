@@ -1,6 +1,7 @@
 import { validateStageCleanupAuthorization, validateStageCleanupResource } from './binding.ts'
 import { objectFingerprint } from './canonical.ts'
 import { fail } from './errors.ts'
+import { validateStableOwnerTaskTempRoot } from './resource-topology.ts'
 import type {
   CleanupDiffEntry,
   CleanupResourceDecision,
@@ -12,7 +13,7 @@ import type {
 
 /** Builds a stable identity for one cleanup resource. */
 function resourceKey(resource: StageCleanupResource): string {
-  return `${resource.kind}:${resource.path}:${resource.expectedSha ?? 'NONE'}`
+  return `${resource.resourceTopologyVersion ?? 'pre-cutover-v1'}:${resource.kind}:${resource.path}:${resource.expectedSha ?? 'NONE'}`
 }
 
 /** Requires one raw cleanup result object to contain no undeclared fields. */
@@ -29,9 +30,18 @@ function validateObservation(
   value: ObservedCleanupResource,
   field: string
 ): ObservedCleanupResource {
-  requireExactKeys(value, ['kind', 'path', 'expectedSha', 'exists', 'clean', 'actualSha'], field)
+  requireExactKeys(
+    value,
+    ['kind', 'path', 'expectedSha', 'resourceTopologyVersion', 'exists', 'clean', 'actualSha'],
+    field
+  )
   validateStageCleanupResource(
-    { kind: value.kind, path: value.path, expectedSha: value.expectedSha },
+    {
+      kind: value.kind,
+      path: value.path,
+      expectedSha: value.expectedSha,
+      resourceTopologyVersion: value.resourceTopologyVersion
+    },
     field
   )
   if (typeof value.exists !== 'boolean' || typeof value.clean !== 'boolean')
@@ -136,6 +146,15 @@ export function planChildSelfCleanup(
         observedBefore: current,
         observedAfter: current
       }
+    if (
+      resource.kind === 'task-temp' &&
+      resource.resourceTopologyVersion === 'stable-owner-exclusive-v1'
+    )
+      validateStableOwnerTaskTempRoot(
+        resource.path,
+        ownerTaskId,
+        'cleanupRemoval.taskTempRoot'
+      )
     return {
       resource,
       decision: 'REMOVE',

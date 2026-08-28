@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/design-risk-scan-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "featureKey",
+    "truthBaseline",
+    "scopeFingerprint",
+    "result",
+    "surfaces",
+    "gaps",
+    "scanFingerprint"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "OES_DESIGN_RISK_SCAN_RESULT" },
+    "featureKey": {
+      "type": "string",
+      "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+    },
+    "truthBaseline": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "scopeFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "result": { "enum": ["EXISTING_TRUTH_SUFFICIENT", "DESIGN_GAP"] },
+    "surfaces": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/surface" },
+      "allOf": [
+        {
+          "contains": {
+            "properties": { "surface": { "const": "CROSS_SERVICE_FACT_OWNERSHIP" } },
+            "required": ["surface"]
+          }
+        },
+        {
+          "contains": {
+            "properties": { "surface": { "const": "PRE_LOGIN_IDENTITY_AND_ACTOR_KIND" } },
+            "required": ["surface"]
+          }
+        },
+        {
+          "contains": {
+            "properties": { "surface": { "const": "PERMISSION_ROLE_GRANT_PROVISIONING" } },
+            "required": ["surface"]
+          }
+        },
+        {
+          "contains": {
+            "properties": { "surface": { "const": "TENANT_ORG_OPERATOR_TRACE_AUDIT" } },
+            "required": ["surface"]
+          }
+        },
+        {
+          "contains": {
+            "properties": { "surface": { "const": "EVENT_PUBLISHER_CONSUMER_DURABILITY_DLQ" } },
+            "required": ["surface"]
+          }
+        },
+        {
+          "contains": {
+            "properties": { "surface": { "const": "MIGRATION_OWNERSHIP" } },
+            "required": ["surface"]
+          }
+        },
+        {
+          "contains": {
+            "properties": { "surface": { "const": "DEPENDENCY_CYCLES" } },
+            "required": ["surface"]
+          }
+        }
+      ]
+    },
+    "gaps": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/gap" }
+    },
+    "scanFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  },
+  "$defs": {
+    "surfaceId": {
+      "enum": [
+        "CROSS_SERVICE_FACT_OWNERSHIP",
+        "PRE_LOGIN_IDENTITY_AND_ACTOR_KIND",
+        "PERMISSION_ROLE_GRANT_PROVISIONING",
+        "TENANT_ORG_OPERATOR_TRACE_AUDIT",
+        "EVENT_PUBLISHER_CONSUMER_DURABILITY_DLQ",
+        "MIGRATION_OWNERSHIP",
+        "DEPENDENCY_CYCLES"
+      ]
+    },
+    "surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface", "truthReferences", "conclusion", "gap"],
+      "properties": {
+        "surface": { "$ref": "#/$defs/surfaceId" },
+        "truthReferences": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(?!.*(?:^|/)\\.\\.?(?:/|$))docs/[^/]+(?:/[^/]+)*$"
+          }
+        },
+        "conclusion": { "type": "string", "minLength": 1 },
+        "gap": { "type": ["string", "null"], "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "gap": { "const": null } } },
+          "then": { "properties": { "truthReferences": { "minItems": 1 } } }
+        }
+      ]
+    },
+    "gap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface", "detail"],
+      "properties": {
+        "surface": { "$ref": "#/$defs/surfaceId" },
+        "detail": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "result": { "const": "EXISTING_TRUTH_SUFFICIENT" } } },
+      "then": { "properties": { "gaps": { "maxItems": 0 } } }
+    },
+    {
+      "if": { "properties": { "result": { "const": "DESIGN_GAP" } } },
+      "then": { "properties": { "gaps": { "minItems": 1 } } }
+    }
+  ]
+}

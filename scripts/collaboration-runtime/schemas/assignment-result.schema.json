@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/assignment-result.schema.json",
+  "title": "OES direct assignment result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "resultFingerprint",
+    "assignmentId",
+    "directExecutionParentTaskId",
+    "childTaskId",
+    "transitionId",
+    "dispatchStateVersion",
+    "typedResult",
+    "resultArtifact"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "OES_ASSIGNMENT_RESULT" },
+    "resultFingerprint": { "$ref": "#/$defs/fingerprint" },
+    "assignmentId": { "$ref": "#/$defs/fingerprint" },
+    "directExecutionParentTaskId": { "$ref": "#/$defs/token" },
+    "childTaskId": { "$ref": "#/$defs/token" },
+    "transitionId": { "$ref": "#/$defs/token" },
+    "dispatchStateVersion": { "type": "integer", "minimum": 1 },
+    "typedResult": { "$ref": "#/$defs/token" },
+    "resultArtifact": { "$ref": "#/$defs/artifact" }
+  },
+  "$defs": {
+    "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "token": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" },
+    "absolutePath": {
+      "type": "string",
+      "pattern": "^/(?!.*(?:^|/)\\.\\.?(?:/|$))[^/]+(?:/[^/]+)*$"
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "fingerprint"],
+      "properties": {
+        "path": { "$ref": "#/$defs/absolutePath" },
+        "sha256": { "$ref": "#/$defs/fingerprint" },
+        "fingerprint": { "$ref": "#/$defs/fingerprint" }
+      }
+    }
+  }
+}
