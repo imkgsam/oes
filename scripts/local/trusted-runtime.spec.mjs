@@ -27,6 +27,8 @@ test('offline profile validation does not require live Docker infrastructure', a
   const auth = profile.services.find((service) => service.workload === 'auth-service')
   const authEnvironment = await readFile(auth.envPath, 'utf8')
   assert.match(authEnvironment, /AUTH_EXECUTION_WORKLOAD_POLICIES=.*urn:oes:service:auth-service/u)
+  assert.match(authEnvironment, /AUTH_FOUNDATION_MACHINE_PRINCIPAL_ID=/u)
+  assert.match(authEnvironment, /AUTH_FOUNDATION_MACHINE_WORKLOAD_BINDING_ID=/u)
 })
 
 test('inventory rejects duplicate workload, listener port, or source', async () => {

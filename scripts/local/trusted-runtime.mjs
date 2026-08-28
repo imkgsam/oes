@@ -36,6 +36,7 @@ export async function generateProfile({ basePort = Number(process.env.OES_TRUSTE
   const inventory = await readInventory()
   const sourceEnvironment = parseEnv(await readFile(envSource, 'utf8'))
   const runtimePolicies = await runtimePolicyEnvironment()
+  const runtimeSelectors = await runtimeSelectorEnvironment()
   const nacosPort = process.env.OES_NACOS_HOST_PORT?.trim() || sourceEnvironment.NACOS_HOST_PORT || (requireInfrastructure ? resolveInfrastructurePort('nacos', '8848') : '8848')
   const postgresPort = requireInfrastructure ? resolveInfrastructurePort('postgres', '5432') : '5432'
   const redisPort = requireInfrastructure ? resolveInfrastructurePort('redis', '6379') : '6379'
@@ -52,7 +53,7 @@ export async function generateProfile({ basePort = Number(process.env.OES_TRUSTE
   for (const entry of inventory) {
     const packageDirectory = resolve(root, entry.source.split('/src/')[0])
     const packageJson = JSON.parse(await readFile(join(packageDirectory, 'package.json'), 'utf8'))
-    const env = { ...sourceEnvironment, ...(composeEnvironment[entry.workload] || {}), ...runtimePolicies }
+    const env = { ...sourceEnvironment, ...(composeEnvironment[entry.workload] || {}), ...runtimePolicies, ...(runtimeSelectors[entry.workload] || {}) }
     for (const [name, value] of Object.entries(env)) {
       if (name.endsWith('DATABASE_URL') && value) env[name] = rewriteDatabaseUrl(value, postgresPort)
     }
@@ -103,6 +104,31 @@ export async function generateProfile({ basePort = Number(process.env.OES_TRUSTE
   await writeFile(join(stateRoot, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n', { mode: 0o600 })
   await chmod(join(stateRoot, 'manifest.json'), 0o600)
   return manifest
+}
+
+/** Projects only provisioner-owned opaque selector references into their exact host process. */
+async function runtimeSelectorEnvironment() {
+  const profilePath = join(root, '.tmp/oes-database-lifecycle', taskKey, 'machine-selectors-v2.json')
+  const profile = JSON.parse(await readFile(profilePath, 'utf8'))
+  const selectors = new Map(profile.selectors.map((item) => [item.inventoryEntryKey, item]))
+  const mappings = {
+    'auth-service': ['AUTH_FOUNDATION', 'AUTH_NOTIFICATION'],
+    'crm-service': ['CRM_PARTY'],
+    'hr-service': ['HR_PARTY'],
+    'identity-service': ['IDENTITY_PARTY'],
+    'public-entry-service': ['PUBLIC_ENTRY_FOUNDATION'],
+    'srm-service': ['SRM_PARTY'],
+    'tenant-org-service': ['TENANT_ORG_PARTY']
+  }
+  return Object.fromEntries(Object.entries(mappings).map(([workload, prefixes]) => {
+    const selector = selectors.get(workload)
+    if (!selector) throw new Error(`TRUSTED_RUNTIME_SELECTOR_MISSING_${workload.toUpperCase().replaceAll('-', '_')}`)
+    return [workload, Object.fromEntries(prefixes.flatMap((prefix) => [
+      [`${prefix}_MACHINE_PRINCIPAL_ID`, selector.machinePrincipalId],
+      [`${prefix}_MACHINE_WORKLOAD_BINDING_ID`, selector.machineWorkloadBindingId],
+      [`${prefix}_MACHINE_WORKLOAD_BINDING_VERSION`, selector.machineWorkloadBindingVersion]
+    ]))]
+  }))
 }
 
 /** Projects the versioned trust registries directly so a retained lifecycle env cannot stale runtime admission. */
