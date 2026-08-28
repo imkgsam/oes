@@ -11,7 +11,8 @@ import {
   createLazyTrustedExecutionRuntime,
   ExecutionTokenVerifier,
   getAuthenticatedGrpcRequestContext,
-  TrustedExecutionGuard
+  TrustedExecutionGuard,
+  TrustedInternalExecutionGuard
 } from '@oes/common/authorization'
 import { GrpcWorkloadIdentityProvider } from '@oes/common/transport'
 import { IdentityPartyTrustedGrpcClient } from '../infrastructure/adaptors/party-trusted-grpc.client'
@@ -115,6 +116,15 @@ export class IdentityExternalCredentialAdmissionGuard implements CanActivate {
         identity: GrpcWorkloadIdentityProvider
       ) => new IdentityFoundationTrustedExecutionGuard(reflector, verifier, identity),
       inject: [Reflector, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider]
+    },
+    {
+      provide: TrustedInternalExecutionGuard,
+      useFactory: (
+        reflector: Reflector,
+        verifier: ExecutionTokenVerifier,
+        identity: GrpcWorkloadIdentityProvider
+      ) => new TrustedInternalExecutionGuard(reflector, verifier, identity, IDENTITY_AUDIENCE),
+      inject: [Reflector, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider]
     }
   ],
   exports: [
@@ -125,6 +135,7 @@ export class IdentityExternalCredentialAdmissionGuard implements CanActivate {
     ExecutionTokenVerifier,
     GrpcWorkloadIdentityProvider,
     IdentityFoundationTrustedExecutionGuard,
+    TrustedInternalExecutionGuard,
     IdentityExternalCredentialAdmissionGuard
   ]
 })

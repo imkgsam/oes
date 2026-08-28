@@ -13,7 +13,8 @@ import {
   getGrpcMetadataValue,
   getAuthenticatedGrpcRequestContext,
   inboundExecutionTokenCredentialScope,
-  TrustedExecutionGuard
+  TrustedExecutionGuard,
+  TrustedInternalExecutionGuard
 } from '@oes/common/authorization'
 import { GrpcWorkloadIdentityProvider } from '@oes/common/transport'
 import {
@@ -107,10 +108,20 @@ export class AuthTrustedExecutionGuard extends TrustedExecutionGuard implements 
         identity: GrpcWorkloadIdentityProvider
       ) => new AuthTrustedExecutionGuard(reflector, verifier, identity),
       inject: [Reflector, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider]
+    },
+    {
+      provide: TrustedInternalExecutionGuard,
+      useFactory: (
+        reflector: Reflector,
+        verifier: ExecutionTokenVerifier,
+        identity: GrpcWorkloadIdentityProvider
+      ) => new TrustedInternalExecutionGuard(reflector, verifier, identity, AUTH_AUDIENCE),
+      inject: [Reflector, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider]
     }
   ],
   exports: [
     AuthTrustedExecutionGuard,
+    TrustedInternalExecutionGuard,
     AuthIdentityTrustedGrpcClient,
     AuthPermissionTrustedGrpcClient,
     AuthHrTrustedGrpcClient,
