@@ -84,7 +84,9 @@ ADR 解释“为什么选择当前高影响方案”，而 architecture 解释�
 - Runbook只保存当前可执行的运维、故障处理与恢复步骤。
 - 已完成治理项目、一次性复盘、task状态和技术binding不进入长期治理文档。
 
-role task的标题、身份、Human可见性与parent binding遵循执行模型。Design、Direct、SL、FL、Feature RI和Stage RI必须在正常Codex项目任务列表中可发现、可打开、可继续；文档不得建立task registry、title migration ledger、隐藏owner清单或按标题推断owner的流程。
+role task的标题、身份、Human可见性与parent binding遵循执行模型。Planner、Design、Direct、SL、FL、Feature RI和Stage RI必须在正常Codex项目任务列表中可发现、可打开、可继续；文档不得建立task registry、title migration ledger、隐藏owner清单或按标题推断owner的流程。
+
+Planner的月、周、日项目组合建议是带生成时间和有效期的noncanonical task消息，不写入`docs/plans/`，不形成roadmap镜像、日报/周报/月报、task registry或第二状态源。需要冻结的稳定设计进入Design Owner → exact UD；Human选中的实现方向继续使用Direct、FL或SL的Packet和既有确认边界。
 
 ### 3.5 Direct文档维护
 
