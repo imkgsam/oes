@@ -188,6 +188,8 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
       defaultPoolConfig: { minSize: 3, maxSize: 3 }
     }),
 
+    GrpcTransportModule.forFeature([SERVICE_NAMES.PERMISSION]),
+
     ThrottlerModule.forRoot({
       throttlers: [
         {
