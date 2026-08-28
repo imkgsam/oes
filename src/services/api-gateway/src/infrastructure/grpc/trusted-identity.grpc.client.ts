@@ -14,10 +14,7 @@ export class TrustedIdentityGrpcClient {
       transport: Transport.GRPC,
       options: {
         package: 'identity_service',
-        protoPath: [
-          resolveCommonProtoPath('identity_service/identity_query.proto'),
-          resolveCommonProtoPath('identity_service/identity_management.proto')
-        ],
+        protoPath: resolveCommonProtoPath('identity_service/identity_query.proto'),
         loader: { includeDirs: [resolveCommonContractPath()] },
         url: resolveUrl(),
         credentials: createGrpcClientCredentials()
