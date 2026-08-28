@@ -3,6 +3,7 @@
     "spiffeId": "spiffe://local.oes.internal/ns/oes/sa/api-gateway",
     "audiences": [
       "urn:oes:service:auth-service",
+      "urn:oes:service:identity-service",
       "urn:oes:service:permission-service"
     ]
   },

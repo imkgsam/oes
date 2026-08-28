@@ -80,3 +80,10 @@ test('projects exact Collaboration HUMAN_OBO owner selectors and Permission uppe
   assert.match(source, /TRUSTED_RUNTIME_SELECTOR_MISSING_COLLABORATION/)
   assert.match(source, /selfAudience: 'urn:oes:service:collaboration-service'/)
 })
+
+test('projects exact Gateway Identity and Collaboration HUMAN_OBO targets without wildcard', async () => {
+  const source = await readFile('scripts/local/trusted-runtime.mjs', 'utf8')
+  assert.match(source, /'urn:oes:service:identity-service', 'urn:oes:service:collaboration-service'/)
+  assert.match(source, /targetAudiences: \['urn:oes:service:identity-service', 'urn:oes:service:permission-service', 'urn:oes:service:collaboration-service'\]/)
+  assert.doesNotMatch(source, /targetAudiences: \[[^\]]*['"]\*['"]/)
+})

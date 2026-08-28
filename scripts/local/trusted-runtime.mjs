@@ -153,13 +153,13 @@ async function runtimePolicyEnvironment() {
   if (!gatewaySelector) throw new Error('TRUSTED_RUNTIME_SELECTOR_MISSING_API_GATEWAY')
   const gateway = auth.find((entry) => entry.spiffeId === 'spiffe://local.oes.internal/ns/oes/sa/api-gateway')
   if (!gateway) throw new Error('TRUSTED_RUNTIME_AUTH_POLICY_MISSING_API_GATEWAY')
-  gateway.audiences = [...new Set([...gateway.audiences, 'urn:oes:service:collaboration-service'])]
+  gateway.audiences = [...new Set([...gateway.audiences, 'urn:oes:service:identity-service', 'urn:oes:service:collaboration-service'])]
   gateway.humanObo = {
     selfAudience: 'urn:oes:service:api-gateway',
     actorMachinePrincipalId: gatewaySelector.machinePrincipalId,
     actorBindingId: gatewaySelector.machineWorkloadBindingId,
     actorBindingVersion: gatewaySelector.machineWorkloadBindingVersion,
-    targetAudiences: ['urn:oes:service:permission-service', 'urn:oes:service:collaboration-service']
+    targetAudiences: ['urn:oes:service:identity-service', 'urn:oes:service:permission-service', 'urn:oes:service:collaboration-service']
   }
   const collaborationSelector = selectorProfile.selectors.find((entry) => entry.inventoryEntryKey === 'collaboration-service')
   if (!collaborationSelector) throw new Error('TRUSTED_RUNTIME_SELECTOR_MISSING_COLLABORATION')
