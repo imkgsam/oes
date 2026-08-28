@@ -1,4 +1,5 @@
-import { Controller, Inject } from '@nestjs/common'
+import { Controller, Inject, UseInterceptors } from '@nestjs/common'
+import { GrpcRequestContextInterceptor } from '@oes/common/authorization'
 import { ExecutionTokenServiceController, ExecutionTokenServiceControllerMethods, ExchangeExecutionTokenRequest, ExchangeExecutionTokenResponse, GetExecutionTokenJwksRequest, GetExecutionTokenJwksResponse } from '@oes/common/generated/auth_service'
 import { ExecutionTokenExchangeContextPort, EXECUTION_TOKEN_EXCHANGE_CONTEXT } from '../../application/ports/execution-token-exchange-context.port'
 import { ExecutionTokenExchangeService } from '../../application/services/execution-token-exchange.service'
@@ -7,6 +8,7 @@ import { ExecutionTokenJwksService } from '../../application/services/execution-
 /** Maps only frozen proto inputs while obtaining all principal and workload evidence from the verified runtime port. */
 @Controller()
 @ExecutionTokenServiceControllerMethods()
+@UseInterceptors(GrpcRequestContextInterceptor)
 export class ExecutionTokenGrpcController implements ExecutionTokenServiceController {
   constructor(private readonly exchangeService: ExecutionTokenExchangeService, private readonly jwksService: ExecutionTokenJwksService, @Inject(EXECUTION_TOKEN_EXCHANGE_CONTEXT) private readonly context: ExecutionTokenExchangeContextPort) {}
 
