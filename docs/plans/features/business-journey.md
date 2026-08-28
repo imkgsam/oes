@@ -85,3 +85,9 @@ The three login/session owner-fact Codes are now active Common catalog entries o
 Common build and focused catalog/profile tests passed. The first focused path calculation failed before reading the profile and is retained as a test-command correction; the corrected candidate-bound test passed 4/4.
 
 Remaining before live activation: merge these bounded fragments into the full generated task-owned runtime profile without replacing existing exact callers, inject the single profile consistently into Auth/Permission and affected target verifiers, bind selectors from the Identity provisioner output, and execute transport/cnf/rotation/disable/dependency negative tests. Task atomic fact/event reconstruction follows that runtime-profile slice.
+
+## Reconstruction checkpoint: Task idempotent atomic facts
+
+Task terminal command retries now distinguish semantic transition from an already-established state before entering the transaction port. `complete`, `cancel`, `archive` and `unarchive` return the stable loaded aggregate on an idempotent retry and append zero local audit facts, zero public outbox facts and zero persistence writes. First transitions retain the existing atomic task/audit/public-event transaction and the frozen public fact set. The decision uses status/archive-state transitions rather than timestamp coincidence.
+
+Focused Task command/outbox tests and Collaboration build passed. Runtime-profile composition and transport negative execution remain pending before live Task/event validation.

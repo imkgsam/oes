@@ -1,4 +1,8 @@
-import { TaskAssigneeNotActiveError, TaskInvalidStateError, TaskPermissionDeniedError } from '../../src/common/errors/task.errors'
+import {
+  TaskAssigneeNotActiveError,
+  TaskInvalidStateError,
+  TaskPermissionDeniedError
+} from '../../src/common/errors/task.errors'
 import { TaskEntity } from '../../src/domain/entities/task.entity'
 import { TaskRepository } from '../../src/domain/repositories/task.repository'
 import { TaskPriority, TaskStatus, TaskVisibility } from '../../src/domain/value-objects/task.enums'
@@ -27,9 +31,9 @@ describe('TaskCommandService', () => {
       isActiveTenantAccount: jest.fn().mockResolvedValue(true)
     }
     transaction = {
-      commit: jest.fn(async (input) => input.operation === 'CREATE'
-        ? repository.create(input.task)
-        : repository.save(input.task))
+      commit: jest.fn(async (input) =>
+        input.operation === 'CREATE' ? repository.create(input.task) : repository.save(input.task)
+      )
     }
     permissions = {
       canAssignTask: jest.fn().mockResolvedValue(false)
@@ -53,10 +57,12 @@ describe('TaskCommandService', () => {
     expect(task.visibility).toBe(TaskVisibility.PRIVATE)
     expect(task.status).toBe(TaskStatus.OPEN)
     expect(permissions.canAssignTask).not.toHaveBeenCalled()
-    expect(transaction.commit).toHaveBeenCalledWith(expect.objectContaining({
-      operation: 'CREATE',
-      audit: expect.objectContaining({ action: 'TASK_CREATED', result: 'SUCCEEDED' })
-    }))
+    expect(transaction.commit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'CREATE',
+        audit: expect.objectContaining({ action: 'TASK_CREATED', result: 'SUCCEEDED' })
+      })
+    )
     expect(transaction.commit.mock.calls[0][0].publicEvent).toBeUndefined()
   })
 
@@ -105,11 +111,16 @@ describe('TaskCommandService', () => {
     expect(task.assigneeAccountId).toBe(ASSIGNEE)
     expect(task.visibility).toBe(TaskVisibility.ASSIGNMENT_PARTICIPANTS)
     expect(task.priority).toBe(TaskPriority.HIGH)
-    expect(accountReference.isActiveTenantAccount).toHaveBeenCalledWith({ tenantId: TENANT_ID, accountId: ASSIGNEE })
-    expect(transaction.commit).toHaveBeenCalledWith(expect.objectContaining({
-      operation: 'CREATE',
-      publicEvent: expect.objectContaining({ type: 'collaboration.task.assigned' })
-    }))
+    expect(accountReference.isActiveTenantAccount).toHaveBeenCalledWith({
+      tenantId: TENANT_ID,
+      accountId: ASSIGNEE
+    })
+    expect(transaction.commit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'CREATE',
+        publicEvent: expect.objectContaining({ type: 'collaboration.task.assigned' })
+      })
+    )
   })
 
   it('enforces participant rules for start complete cancel and archive', async () => {
@@ -191,6 +202,46 @@ describe('TaskCommandService', () => {
     expect(cancelled.status).toBe(TaskStatus.CANCELLED)
     expect(cancelled.cancelReason).toBe('duplicate')
   })
+
+  it.each(['complete', 'cancel', 'archive', 'unarchive'] as const)(
+    'adds zero local or public facts for an idempotent %s retry',
+    async (operation) => {
+      const initial = buildTask({
+        status:
+          operation === 'cancel' || operation === 'complete'
+            ? TaskStatus.OPEN
+            : TaskStatus.COMPLETED,
+        ...(operation === 'unarchive'
+          ? {
+              archivedAt: new Date('2026-06-14T12:00:00.000Z'),
+              archivedByAccountId: CREATOR
+            }
+          : {})
+      })
+      await repository.create(initial)
+      const command = {
+        tenantId: TENANT_ID,
+        taskId: initial.id,
+        operatorAccountId: CREATOR,
+        traceId: TRACE_ID,
+        auditId: AUDIT_ID,
+        now: new Date('2026-06-14T13:00:00.000Z')
+      }
+      const invoke = async () => {
+        if (operation === 'complete') return service.completeTask(command)
+        if (operation === 'cancel') return service.cancelTask(command)
+        if (operation === 'archive') return service.archiveTask(command)
+        return service.unarchiveTask(command)
+      }
+
+      await invoke()
+      const committed = transaction.commit.mock.calls.length
+      const established = (await repository.findById(TENANT_ID, initial.id))!.snapshot()
+      await invoke()
+      expect(transaction.commit).toHaveBeenCalledTimes(committed)
+      expect((await repository.findById(TENANT_ID, initial.id))!.snapshot()).toEqual(established)
+    }
+  )
 })
 
 class InMemoryTaskRepository implements TaskRepository {

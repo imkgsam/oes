@@ -13,10 +13,7 @@ import {
   TaskNotFoundError,
   TaskPermissionDeniedError
 } from '../../common/errors/task.errors'
-import {
-  ACCOUNT_REFERENCE_PORT,
-  AccountReferencePort
-} from '../ports/account-reference.port'
+import { ACCOUNT_REFERENCE_PORT, AccountReferencePort } from '../ports/account-reference.port'
 import { TaskAuditAction, type TaskAuditPort } from '../ports/task-audit.port'
 import {
   TASK_COMMAND_TRANSACTION_PORT,
@@ -127,7 +124,8 @@ export class TaskCommandService {
       input,
       'TASK_COMPLETED',
       previousStatus,
-      input.completionNote
+      input.completionNote,
+      task.status !== previousStatus
     )
   }
 
@@ -141,7 +139,8 @@ export class TaskCommandService {
       input,
       'TASK_CANCELLED',
       previousStatus,
-      input.cancelReason
+      input.cancelReason,
+      task.status !== previousStatus
     )
   }
 
@@ -150,33 +149,38 @@ export class TaskCommandService {
     const task = await this.loadTask(input)
     const previousStatus = task.status
     task.reopen(input.operatorAccountId, input.now ?? new Date())
-    return this.saveAuditAndCommit(
-      task,
-      input,
-      'TASK_REOPENED',
-      previousStatus,
-      input.reopenReason
-    )
+    return this.saveAuditAndCommit(task, input, 'TASK_REOPENED', previousStatus, input.reopenReason)
   }
 
   /** archiveTask archives terminal tasks by creator only. */
   async archiveTask(input: TaskIdCommandInput): Promise<TaskEntity> {
     const task = await this.loadTask(input)
     const previousStatus = task.status
+    const wasArchived = task.archivedAt !== null
     task.archive(input.operatorAccountId, input.now ?? new Date())
-    return this.saveAuditAndCommit(task, input, 'TASK_ARCHIVED', previousStatus)
+    return this.saveAuditAndCommit(
+      task,
+      input,
+      'TASK_ARCHIVED',
+      previousStatus,
+      undefined,
+      !wasArchived && task.archivedAt !== null
+    )
   }
 
   /** unarchiveTask removes archive markers by creator only. */
   async unarchiveTask(input: TaskIdCommandInput): Promise<TaskEntity> {
     const task = await this.loadTask(input)
     const previousStatus = task.status
+    const wasArchived = task.archivedAt !== null
     task.unarchive(input.operatorAccountId, input.now ?? new Date())
     return this.saveAuditAndCommit(
       task,
       input,
       'TASK_UNARCHIVED',
-      previousStatus
+      previousStatus,
+      undefined,
+      wasArchived && task.archivedAt === null
     )
   }
 
@@ -216,17 +220,26 @@ export class TaskCommandService {
     input: TaskIdCommandInput,
     auditAction: TaskAuditAction,
     previousStatus: TaskStatus,
-    reasonSnapshot?: string | null
+    reasonSnapshot?: string | null,
+    transitioned = true
   ): Promise<TaskEntity> {
+    if (!transitioned) return task
     const occurredAt = input.now ?? new Date()
-    const eventType = task.status !== previousStatus
-      ? task.status === TaskStatus.COMPLETED ? 'TaskCompleted' : task.status === TaskStatus.CANCELLED ? 'TaskCancelled' : undefined
-      : undefined
+    const eventType =
+      task.status !== previousStatus
+        ? task.status === TaskStatus.COMPLETED
+          ? 'TaskCompleted'
+          : task.status === TaskStatus.CANCELLED
+            ? 'TaskCancelled'
+            : undefined
+        : undefined
     return this.transaction.commit({
       operation: 'UPDATE',
       task,
       audit: this.auditInput(auditAction, task, input, reasonSnapshot),
-      ...(eventType ? { publicEvent: this.publicEvent(eventType, task, input, occurredAt, previousStatus) } : {})
+      ...(eventType
+        ? { publicEvent: this.publicEvent(eventType, task, input, occurredAt, previousStatus) }
+        : {})
     })
   }
 
@@ -269,15 +282,19 @@ export class TaskCommandService {
       priority: task.priority,
       ...(task.dueAt ? { dueAt: task.dueAt.toISOString() } : {}),
       titleSnapshot: task.title,
-      ...(eventType === 'TaskCompleted' ? {
-        completedByAccountId: task.completedByAccountId,
-        completedAt: task.completedAt?.toISOString()
-      } : {}),
-      ...(eventType === 'TaskCancelled' ? {
-        cancelledByAccountId: task.cancelledByAccountId,
-        cancelledAt: task.cancelledAt?.toISOString(),
-        cancelReasonSnapshot: task.cancelReason
-      } : {})
+      ...(eventType === 'TaskCompleted'
+        ? {
+            completedByAccountId: task.completedByAccountId,
+            completedAt: task.completedAt?.toISOString()
+          }
+        : {}),
+      ...(eventType === 'TaskCancelled'
+        ? {
+            cancelledByAccountId: task.cancelledByAccountId,
+            cancelledAt: task.cancelledAt?.toISOString(),
+            cancelReasonSnapshot: task.cancelReason
+          }
+        : {})
     }
     return createOesCloudEvent({
       contract: contract as OesEventContract<typeof data>,
@@ -295,7 +312,9 @@ export class TaskCommandService {
 }
 
 /** contractForTaskFact maps only owner-approved public Task facts to their shared code descriptors. */
-function contractForTaskFact(eventType: 'TaskAssigned' | 'TaskCompleted' | 'TaskCancelled'): OesEventContract {
+function contractForTaskFact(
+  eventType: 'TaskAssigned' | 'TaskCompleted' | 'TaskCancelled'
+): OesEventContract {
   if (eventType === 'TaskAssigned') return COLLABORATION_TASK_ASSIGNED_EVENT_CONTRACT
   if (eventType === 'TaskCompleted') return COLLABORATION_TASK_COMPLETED_EVENT_CONTRACT
   return COLLABORATION_TASK_CANCELLED_EVENT_CONTRACT
