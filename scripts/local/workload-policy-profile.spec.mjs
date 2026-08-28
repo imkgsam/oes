@@ -6,6 +6,7 @@ test('composes the preserved Gateway tuple and exact Auth owner-fact additions',
   const output = renderWorkloadPolicyEnvironment()
   assert.match(output, /api-gateway/)
   assert.match(output, /urn:oes:service:auth-service/)
+  assert.match(output, /auth-service[^\n]+urn:oes:service:auth-service/)
   assert.match(output, /identity\.internal\.auth_login_account\.resolve/)
   assert.match(output, /hr\.internal\.auth_login_employee\.resolve/)
   assert.match(output, /tenant_org\.internal\.auth_session_tenant_lifecycle\.resolve/)
