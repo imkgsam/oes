@@ -272,7 +272,12 @@ export class CompositeSourceCredentialVerifier implements ExecutionTokenSourceCr
       return this.machine.verify(sourceCredential, workloadIdentity, request)
     if (isExecutionTokenProfile(sourceCredential)) {
       if (!this.subject || !request) throw new Error('EXECUTION_HUMAN_OBO_SUBJECT_INVALID')
-      return this.subject.verify(sourceCredential, workloadIdentity, request.targetAudience)
+      return this.subject.verify(
+        sourceCredential,
+        workloadIdentity,
+        request.targetAudience,
+        request
+      )
     }
     return this.human.verify(sourceCredential, workloadIdentity, request)
   }
