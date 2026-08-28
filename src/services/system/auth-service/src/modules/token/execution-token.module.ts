@@ -162,18 +162,21 @@ const PRINCIPAL_AUTHORIZATION_CODE =
       useFactory: (
         permissionClient: AuthPermissionTrustedGrpcClient,
         exchangeService: ExecutionTokenExchangeService,
-        configuration: ExecutionTokenRuntimeConfiguration
+        configuration: ExecutionTokenRuntimeConfiguration,
+        identity: IIdentityServicePort
       ) =>
         new PermissionDecisionGrpcResolver(
           permissionClient.getClient(),
           exchangeService,
           configuration.localWorkloadIdentity,
-          configuration.permissionIssuancePolicyVersion
+          configuration.permissionIssuancePolicyVersion,
+          identity
         ),
       inject: [
         AuthPermissionTrustedGrpcClient,
         ExecutionTokenExchangeService,
-        EXECUTION_TOKEN_RUNTIME_CONFIGURATION
+        EXECUTION_TOKEN_RUNTIME_CONFIGURATION,
+        IDENTITY_SERVICE
       ]
     },
     {
@@ -311,7 +314,8 @@ export class PermissionDecisionGrpcResolver implements ExecutionTokenPermissionD
     private readonly permissionClient: ClientGrpc,
     private readonly exchangeService: ExecutionTokenExchangeService,
     private readonly localWorkloadIdentity: VerifiedExecutionWorkload,
-    private readonly issuancePolicyVersion: string
+    private readonly issuancePolicyVersion: string,
+    private readonly identity: IIdentityServicePort
   ) {}
 
   /** Selects SELF, BUSINESS, or INTERNAL fail-closed resolution without granting from Code spelling. */
@@ -334,11 +338,14 @@ export class PermissionDecisionGrpcResolver implements ExecutionTokenPermissionD
     input: Parameters<ExecutionTokenPermissionDecisionResolver['resolve']>[0],
     requestedPermissionCodes: readonly string[]
   ): Promise<ExecutionTokenAuthorizationDecision> {
+    const machineExecution = await this.resolveFoundationMachine(input)
     const bootstrapDecision = await this.resolveWorkload(
       input,
       this.localWorkloadIdentity,
       [PRINCIPAL_AUTHORIZATION_CODE],
-      PERMISSION_SERVICE_AUDIENCE
+      PERMISSION_SERVICE_AUDIENCE,
+      machineExecution,
+      true
     )
     const permissionToken = await this.exchangeService.exchange({
       targetAudience: PERMISSION_SERVICE_AUDIENCE,
@@ -367,14 +374,49 @@ export class PermissionDecisionGrpcResolver implements ExecutionTokenPermissionD
     return principalDecision(response)
   }
 
+  /** Resolves the deployment-owned Auth SYSTEM selector before any principal authorization bootstrap. */
+  private async resolveFoundationMachine(
+    input: Parameters<ExecutionTokenPermissionDecisionResolver['resolve']>[0]
+  ): Promise<TrustedExecutionContext> {
+    const principalId = requireEnv('AUTH_FOUNDATION_MACHINE_PRINCIPAL_ID')
+    const bindingId = requireEnv('AUTH_FOUNDATION_MACHINE_WORKLOAD_BINDING_ID')
+    const bindingVersion = BigInt(requireEnv('AUTH_FOUNDATION_MACHINE_WORKLOAD_BINDING_VERSION'))
+    const decision = await this.identity.resolveMachinePrincipalForAuth({
+      machinePrincipalId: principalId,
+      bindingId,
+      bindingVersion,
+      workloadSpiffeId: this.localWorkloadIdentity.spiffeId,
+      requestId: input.requestId,
+      traceparent: input.traceparent,
+      tracestate: input.tracestate
+    })
+    if (
+      decision.allowed !== true ||
+      decision.principalId !== principalId ||
+      decision.principalType !== 'MACHINE' ||
+      decision.principalLifecycleStatus !== 'ACTIVE' ||
+      decision.bindingId !== bindingId ||
+      decision.bindingVersion !== bindingVersion ||
+      decision.bindingStatus !== 'ACTIVE' ||
+      decision.workloadSpiffeId !== this.localWorkloadIdentity.spiffeId ||
+      decision.scopeLevel !== 'SYSTEM' ||
+      decision.tenantId !== undefined ||
+      decision.orgId !== undefined
+    ) {
+      throw new Error('Auth foundation MACHINE selector is not active')
+    }
+    return Object.freeze({ subject: principalId, principalType: 'MACHINE', scopeLevel: 'SYSTEM' })
+  }
+
   /** Consumes the sole mTLS-only workload bootstrap decision with no Authorization metadata. */
   private async resolveWorkload(
     input: Parameters<ExecutionTokenPermissionDecisionResolver['resolve']>[0],
     originalWorkload: VerifiedExecutionWorkload,
     requestedPermissionCodes: readonly string[],
-    targetAudience = input.request.targetAudience
+    targetAudience = input.request.targetAudience,
+    workloadExecution = permissionWorkloadExecution(input.execution),
+    rebindToTarget = false
   ): Promise<ExecutionTokenAuthorizationDecision> {
-    const workloadExecution = permissionWorkloadExecution(input.execution)
     const response = await firstValueFrom(
       this.client().resolveWorkloadIssuance(
         {
@@ -391,7 +433,12 @@ export class PermissionDecisionGrpcResolver implements ExecutionTokenPermissionD
         correlationMetadata(input)
       )
     )
-    return bindWorkloadDecisionToExecution(response, workloadExecution, input.execution)
+    return bindWorkloadDecisionToExecution(
+      response,
+      workloadExecution,
+      input.execution,
+      rebindToTarget
+    )
   }
 
   /** Lazily resolves the generated client without creating a second transport or trust path. */
@@ -420,10 +467,11 @@ function permissionWorkloadExecution(execution: TrustedExecutionContext): Truste
 function bindWorkloadDecisionToExecution(
   response: ResolveWorkloadIssuanceResponse,
   workloadExecution: TrustedExecutionContext,
-  targetExecution: TrustedExecutionContext
+  targetExecution: TrustedExecutionContext,
+  forceRebind = false
 ): ExecutionTokenAuthorizationDecision {
   const decision = workloadDecision(response)
-  if (targetExecution.sourceTokenId === undefined) return decision
+  if (!forceRebind && targetExecution.sourceTokenId === undefined) return decision
   if (
     decision.principalType !== 'MACHINE' ||
     decision.principalId !== workloadExecution.subject ||
