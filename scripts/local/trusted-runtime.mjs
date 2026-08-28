@@ -3,6 +3,7 @@ import { chmod, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { statSync } from 'node:fs'
 import { spawn, spawnSync } from 'node:child_process'
 import { createConnection } from 'node:net'
+import { randomBytes } from 'node:crypto'
 import { dirname, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import process from 'node:process'
@@ -43,6 +44,8 @@ export async function generateProfile({ basePort = Number(process.env.OES_TRUSTE
   await mkdir(join(stateRoot, 'env'), { recursive: true, mode: 0o700 })
   await mkdir(join(stateRoot, 'logs'), { recursive: true, mode: 0o700 })
   await mkdir(join(stateRoot, 'pids'), { recursive: true, mode: 0o700 })
+  await mkdir(join(stateRoot, 'secrets'), { recursive: true, mode: 0o700 })
+  const notificationPayloadKey = await stableBase64Secret(join(stateRoot, 'secrets/notification-delivery-payload.key'), 32)
   const endpoints = Object.fromEntries(inventory.map((entry, index) => [entry.workload, basePort + index]))
   const manifest = { version: 1, taskKey, stateRoot, trustRoot, nacos: `127.0.0.1:${nacosPort}`, services: [] }
   for (const entry of inventory) {
@@ -69,6 +72,7 @@ export async function generateProfile({ basePort = Number(process.env.OES_TRUSTE
       NATS_URL: env.NATS_URL ? `nats://127.0.0.1:${natsPort}` : '',
       ASSET_S3_ENDPOINT: env.ASSET_S3_ENDPOINT ? `http://127.0.0.1:${minioPort}` : ''
     })
+    if (entry.workload === 'notification-service') env.NOTIFICATION_DELIVERY_PAYLOAD_KEY = notificationPayloadKey
     const envPath = join(stateRoot, 'env', `${entry.workload}.env`)
     await writeFile(envPath, Object.entries(env).filter(([, value]) => value !== '').sort().map(([key, value]) => `${key}=${shellQuote(value)}`).join('\n') + '\n', { mode: 0o600 })
     await chmod(envPath, 0o600)
@@ -257,6 +261,18 @@ function rewriteDatabaseUrl(value, hostPort) {
   const url = new URL(value)
   url.hostname = '127.0.0.1'; url.port = hostPort
   return url.toString()
+}
+
+/** Persists one task-owned opaque secret and reuses it for this isolated runtime. */
+async function stableBase64Secret(path, byteLength) {
+  try {
+    const existing = (await readFile(path, 'utf8')).trim()
+    if (Buffer.from(existing, 'base64').length === byteLength) return existing
+  } catch { /* Create the absent task-owned secret below. */ }
+  const value = randomBytes(byteLength).toString('base64')
+  await writeFile(path, `${value}\n`, { mode: 0o600 })
+  await chmod(path, 0o600)
+  return value
 }
 
 function parseEnv(text) { return Object.fromEntries(text.split(/\r?\n/u).filter((line) => line && !line.startsWith('#') && line.includes('=')).map((line) => { const index = line.indexOf('='); return [line.slice(0, index), unquote(line.slice(index + 1))] })) }

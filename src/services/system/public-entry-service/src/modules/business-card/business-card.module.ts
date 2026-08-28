@@ -24,6 +24,7 @@ import {
   PUBLIC_ENTRY_PERMISSION_GRPC_CLIENT
 } from '../../infrastructure/adapters/permission-business-card-authorization.adapter'
 import { ShortLinkModule } from '../short-link/short-link.module'
+import { PublicEntryTrustedExecutionModule } from '../public-entry-trusted-execution.module'
 
 // buildBusinessCardGrpcClients declares downstream clients consumed by BusinessCard application adapters.
 export function buildBusinessCardGrpcClients(): ClientProviderOptions[] {
@@ -114,6 +115,7 @@ export class BusinessCardResolverRegistration implements OnModuleInit {
     AuthorizationModule,
     PrismaModule,
     ShortLinkModule,
+    PublicEntryTrustedExecutionModule,
     ClientsModule.registerAsync(
       buildBusinessCardGrpcClients().map((client) => ({
         name: client.name,

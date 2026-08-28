@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { generateProfile, readInventory } from './trusted-runtime.mjs'
-import { readFile } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 
 test('inventory has exactly 21 unique listeners and canonical Collaboration port', async () => {
   const entries = await readInventory()
@@ -27,4 +28,18 @@ test('inventory rejects duplicate workload, listener port, or source', async () 
   await assert.rejects(() => readInventory('a|50050|a.ts\na|50051|b.ts\n'), /DUPLICATE_WORKLOAD/)
   await assert.rejects(() => readInventory('a|50050|a.ts\nb|50050|b.ts\n'), /DUPLICATE_CANONICALPORT/)
   await assert.rejects(() => readInventory('a|50050|a.ts\nb|50051|a.ts\n'), /DUPLICATE_SOURCE/)
+})
+
+test('notification payload protection key is stable and owner-private', async () => {
+  const first = await generateProfile({ basePort: 54050, requireInfrastructure: false })
+  const notification = first.services.find((service) => service.workload === 'notification-service')
+  assert.ok(notification)
+  const firstEnvironment = await readFile(notification.envPath, 'utf8')
+  const firstKey = firstEnvironment.match(/^NOTIFICATION_DELIVERY_PAYLOAD_KEY='([^']+)'$/mu)?.[1]
+  assert.equal(Buffer.from(firstKey ?? '', 'base64').length, 32)
+  await generateProfile({ basePort: 54050, requireInfrastructure: false })
+  const secondEnvironment = await readFile(notification.envPath, 'utf8')
+  assert.equal(secondEnvironment.match(/^NOTIFICATION_DELIVERY_PAYLOAD_KEY='([^']+)'$/mu)?.[1], firstKey)
+  const secret = await stat(join(dirname(dirname(notification.envPath)), 'secrets/notification-delivery-payload.key'))
+  assert.equal(secret.mode & 0o777, 0o600)
 })

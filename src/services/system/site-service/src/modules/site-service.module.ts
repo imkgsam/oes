@@ -6,6 +6,7 @@ import { GrpcTransportModule, readLocalVerifiedWorkloadIdentity } from '@oes/com
 import { NatsJetStreamModule, NatsJetStreamRuntimeConfig, NatsDurablePullRunner } from '@oes/common/events'
 import { AsyncLocalTransportPrivateSourceCredentialAccessor, AsyncLocalTrustedExecutionContextAccessor, CertificateBoundExecutionTokenCache, TrustedExecutionRegistry, TrustedGrpcMetadataProvider } from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
+import { resolveCommonProtoPath } from '@oes/common/contracts'
 import { AssetSiteMediaAvailabilityConsumer } from '../infrastructure/events/asset-site-media-availability.consumer'
 import { PrismaAssetSiteMediaInboxRepository } from '../infrastructure/repositories/prisma-asset-site-media-inbox.repository'
 import { createLazyTrustedExecutionRuntime, TrustedExecutionGuard, TrustedInternalExecutionGuard } from '@oes/common/authorization'
@@ -55,6 +56,16 @@ const siteTrustedRuntime = createLazyTrustedExecutionRuntime(SITE_AUDIENCE)
     }),
     LoggingModule.forRoot({ serviceName: 'site-service' }),
     RegistryModule,
+    GrpcTransportModule.forRoot({
+      services: {
+        [SERVICE_NAMES.ASSET]: {
+          serviceName: SERVICE_NAMES.ASSET,
+          protoPath: resolveCommonProtoPath('asset_service/site_media.proto'),
+          packageName: 'asset_service',
+          url: process.env.ASSET_SERVICE_GRPC_URL?.trim() || 'asset-service.localhost:50056'
+        }
+      }
+    }),
     GrpcTransportModule.forFeature([SERVICE_NAMES.ASSET]),
     NatsJetStreamModule.forRoot(deferredSiteNatsRuntimeOptions())
   ],
