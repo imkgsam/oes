@@ -36,6 +36,7 @@ import {
   ExecutionTokenExchangeResult,
   ExecutionTokenJwksCache,
   ExecutionTokenVerifier,
+  GATEWAY_PERMISSION_TRUSTED_METADATA_PROVIDER,
   GatewayPermissionGuard,
   GRPC_METADATA_PROPAGATION_FACTORY,
   RequirePermissions,
@@ -565,6 +566,10 @@ describe('Gateway tenant target real mTLS + ExecutionToken + Permission + Tenant
         MatrixSessionGuard,
         TenantTargetBindingGuard,
         GatewayPermissionGuard,
+        {
+          provide: GATEWAY_PERMISSION_TRUSTED_METADATA_PROVIDER,
+          useValue: { create: async () => new Metadata() }
+        },
         GatewayExceptionFilter,
         Reflector,
         { provide: getGrpcClientToken(SERVICE_NAMES.PERMISSION), useValue: permissionClient },

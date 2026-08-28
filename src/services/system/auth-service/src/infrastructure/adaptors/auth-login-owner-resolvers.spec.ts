@@ -4,13 +4,20 @@ import { join } from 'node:path'
 describe('Auth login owner resolver transport', () => {
   const source = readFileSync(join(__dirname, 'identity-service.adaptor.ts'), 'utf8')
 
-  it('uses only the exact Identity Auth-login INTERNAL Code for account candidates and employee binding', () => {
+  it('uses only the exact Identity Auth-login INTERNAL Code for every pre-HUMAN owner lookup', () => {
     expect(source).toContain(
       "const AUTH_LOGIN_ACCOUNT_RESOLVE_PERMISSION = 'identity.internal.auth_login_account.resolve'"
     )
-    expect(source).toContain('this.identityQueryService.listAuthLoginAccountCandidates(')
-    expect(source).toContain('this.identityQueryService.resolveAuthEmployeeLoginAccount(')
-    expect(source.match(/AUTH_LOGIN_ACCOUNT_RESOLVE_PERMISSION/g)).toHaveLength(3)
+    for (const [start, end] of [
+      ['async getAvailableAccountsByUserId', 'async getAccountById'],
+      ['async resolveAuthLoginAccount', 'async resolveEmployeeLoginAccount'],
+      ['async resolveEmployeeLoginAccount', '/** Reads Identity-owned machine']
+    ]) {
+      const block = source.slice(source.indexOf(start), source.indexOf(end))
+      expect(block).toContain('AUTH_LOGIN_ACCOUNT_RESOLVE_PERMISSION')
+      expect(block).not.toContain('identity.account.list')
+      expect(block).not.toContain('forBusinessCall')
+    }
   })
 
   it('does not use the generic BUSINESS account Code for the two pre-HUMAN owner lookups', () => {

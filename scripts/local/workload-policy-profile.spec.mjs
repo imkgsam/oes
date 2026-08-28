@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { renderWorkloadPolicyEnvironment, validate } from './workload-policy-profile.mjs'
+import {
+  renderWorkloadPolicyEnvironment,
+  validate,
+  WORKLOAD_POLICY_VERSION
+} from './workload-policy-profile.mjs'
 
 test('composes the preserved Gateway tuple and exact Auth owner-fact additions', () => {
   const output = renderWorkloadPolicyEnvironment()
@@ -30,7 +34,7 @@ test('rejects wildcard, duplicate, tenant and unregistered authority', () => {
       targetAudience: 'urn:oes:service:identity-service',
       permissionCodes: ['identity.internal.read'],
       scopeLevel: 'SYSTEM',
-      policyVersion: 'v1'
+      policyVersion: WORKLOAD_POLICY_VERSION
     }
   ]
   assert.doesNotThrow(() => validate(auth, permission))
@@ -47,4 +51,41 @@ test('rejects wildcard, duplicate, tenant and unregistered authority', () => {
     () => validate(auth, [{ ...permission[0], targetAudience: 'urn:oes:service:hr-service' }]),
     /NOT_REGISTERED/
   )
+})
+
+test('admits registered tuple growth while rejecting policy authority weakening', () => {
+  const identityAudience = 'urn:oes:service:identity-service'
+  const permissionAudience = 'urn:oes:service:permission-service'
+  const auth = [
+    {
+      spiffeId: 'spiffe://local/sa/auth',
+      audiences: [identityAudience, permissionAudience]
+    }
+  ]
+  const permission = [
+    {
+      originalWorkloadSpiffeId: auth[0].spiffeId,
+      targetAudience: identityAudience,
+      permissionCodes: ['identity.internal.read'],
+      scopeLevel: 'SYSTEM',
+      policyVersion: WORKLOAD_POLICY_VERSION
+    }
+  ]
+  const registeredGrowth = {
+    ...permission[0],
+    targetAudience: permissionAudience,
+    permissionCodes: ['permission.internal.account_access_summary.resolve']
+  }
+  assert.doesNotThrow(() => validate(auth, [...permission, registeredGrowth]))
+  for (const weakened of [
+    { ...registeredGrowth, targetAudience: 'urn:oes:service:*' },
+    { ...registeredGrowth, scopeLevel: 'TENANT' },
+    { ...registeredGrowth, permissionCodes: ['permission.read'] },
+    {
+      ...registeredGrowth,
+      permissionCodes: ['permission.internal.read', 'permission.internal.read']
+    },
+    { ...registeredGrowth, policyVersion: 'stale-v0' }
+  ])
+    assert.throws(() => validate(auth, [...permission, weakened]), /WORKLOAD_POLICY_/)
 })

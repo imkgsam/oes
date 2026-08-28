@@ -21,11 +21,7 @@ const runtime = createLazyTrustedExecutionRuntime(ITEM_MASTER_AUDIENCE)
 
 /** Binds Item Master BUSINESS RPC authorization to its exact target audience. */
 @Injectable()
-export class ItemMasterTrustedExecutionGuard extends TrustedExecutionGuard {
-  constructor(reflector: Reflector) {
-    super(reflector, runtime.verifier, runtime.workloadIdentityProvider, ITEM_MASTER_AUDIENCE)
-  }
-}
+export class ItemMasterTrustedExecutionGuard extends TrustedExecutionGuard {}
 
 /** Freezes each Item Master INTERNAL Code to its only admitted workload names. */
 export const ITEM_MASTER_INTERNAL_WORKLOAD_ALLOWLIST: Readonly<Record<string, readonly string[]>> =
@@ -44,10 +40,6 @@ export class ItemMasterTrustedInternalExecutionGuard
   extends TrustedInternalExecutionGuard
   implements CanActivate
 {
-  constructor(reflector: Reflector) {
-    super(reflector, runtime.verifier, runtime.workloadIdentityProvider, ITEM_MASTER_AUDIENCE)
-  }
-
   async canActivate(context: ExecutionContext): Promise<boolean> {
     await super.canActivate(context)
     const verified = getAuthenticatedGrpcRequestContext(
@@ -122,8 +114,28 @@ function isSystemMachineActor(actor: unknown): boolean {
 @Global()
 @Module({
   providers: [
-    ItemMasterTrustedExecutionGuard,
-    ItemMasterTrustedInternalExecutionGuard
+    {
+      provide: ItemMasterTrustedExecutionGuard,
+      useFactory: (reflector: Reflector) =>
+        new ItemMasterTrustedExecutionGuard(
+          reflector,
+          runtime.verifier,
+          runtime.workloadIdentityProvider,
+          ITEM_MASTER_AUDIENCE
+        ),
+      inject: [Reflector]
+    },
+    {
+      provide: ItemMasterTrustedInternalExecutionGuard,
+      useFactory: (reflector: Reflector) =>
+        new ItemMasterTrustedInternalExecutionGuard(
+          reflector,
+          runtime.verifier,
+          runtime.workloadIdentityProvider,
+          ITEM_MASTER_AUDIENCE
+        ),
+      inject: [Reflector]
+    }
   ],
   exports: [ItemMasterTrustedExecutionGuard, ItemMasterTrustedInternalExecutionGuard]
 })

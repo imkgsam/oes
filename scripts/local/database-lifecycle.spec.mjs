@@ -18,6 +18,10 @@ import {
   renderedNamedResources,
   resourceFingerprint
 } from './database-lifecycle.mjs'
+import {
+  validate as validateWorkloadPolicyProfile,
+  WORKLOAD_POLICY_VERSION
+} from './workload-policy-profile.mjs'
 
 const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../..')
 
@@ -49,9 +53,26 @@ test('generated Compose inputs keep secrets local and map every service to postg
   }
   const authPolicies = JSON.parse(values.get('AUTH_EXECUTION_WORKLOAD_POLICIES'))
   const permissionPolicies = JSON.parse(values.get('PERMISSION_WORKLOAD_ISSUANCE_POLICIES'))
+  const versionedPermissionPolicies = JSON.parse(
+    fs.readFileSync(
+      path.join(
+        repositoryRoot,
+        'scripts/local/runtime-config/permission-workload-issuance-policies.json'
+      ),
+      'utf8'
+    )
+  )
   assert.equal(authPolicies[0].spiffeId, 'spiffe://local.oes.internal/ns/oes/sa/api-gateway')
-  assert.equal(permissionPolicies.length, 3)
-  assert.equal(values.get('AUTH_PERMISSION_WORKLOAD_ISSUANCE_POLICY_VERSION'), 'auth-login-owner-facts-v1')
+  assert.deepEqual(permissionPolicies, versionedPermissionPolicies)
+  assert.doesNotThrow(() => validateWorkloadPolicyProfile(authPolicies, permissionPolicies))
+  assert.deepEqual(
+    [...new Set(permissionPolicies.map((policy) => policy.policyVersion))],
+    [WORKLOAD_POLICY_VERSION]
+  )
+  assert.equal(
+    values.get('AUTH_PERMISSION_WORKLOAD_ISSUANCE_POLICY_VERSION'),
+    WORKLOAD_POLICY_VERSION
+  )
   assert.match(values.get('NATS_NOTIFICATION_REPLAY_ASSIGNED_CREATE_SUBJECT'), /^'\$JS\.API\..*'$/)
 })
 
@@ -64,7 +85,10 @@ test('rollback rejects owner and fingerprint drift', () => {
     resourceFingerprint: resourceFingerprint(context)
   }
   assert.doesNotThrow(() => assertRollbackBinding(context, state))
-  assert.throws(() => assertRollbackBinding(context, { ...state, taskKey: 'foreign_task' }), /TASK_MISMATCH/)
+  assert.throws(
+    () => assertRollbackBinding(context, { ...state, taskKey: 'foreign_task' }),
+    /TASK_MISMATCH/
+  )
   assert.throws(
     () => assertRollbackBinding(context, { ...state, resourceFingerprint: '0'.repeat(64) }),
     /FINGERPRINT_MISMATCH/
@@ -138,7 +162,10 @@ test('service and Gateway images generate tracked proto outputs before Common bu
 })
 
 test('clean lifecycle prepares generated contracts and Common before TypeScript seed execution', () => {
-  const contents = fs.readFileSync(path.join(repositoryRoot, 'scripts/local/database-lifecycle.mjs'), 'utf8')
+  const contents = fs.readFileSync(
+    path.join(repositoryRoot, 'scripts/local/database-lifecycle.mjs'),
+    'utf8'
+  )
   const generated = contents.indexOf("run('pnpm', ['generated:all']")
   const common = contents.indexOf("run('pnpm', ['common:build']")
   const permissionSeed = contents.indexOf("['--filter', 'permission-service', 'seed:apply'")
@@ -155,7 +182,8 @@ test('Compose image policy covers main and infra rendered references', () => {
     )
   )
   assert.throws(
-    () => assertPinnedComposeImages({ services: { mutable: { image: 'alpine:3.21' } } }, 'fixture.yml'),
+    () =>
+      assertPinnedComposeImages({ services: { mutable: { image: 'alpine:3.21' } } }, 'fixture.yml'),
     /COMPOSE_IMAGE_MUTABLE/
   )
 })
@@ -182,7 +210,11 @@ test('baseline resolution checkpoint binds task, database identity, plan, and ex
     /CHECKPOINT_MISMATCH/
   )
   assert.throws(
-    () => assertBaselineResolutionCheckpoint({ ...checkpoint, targets: checkpoint.targets.slice(1) }, expected),
+    () =>
+      assertBaselineResolutionCheckpoint(
+        { ...checkpoint, targets: checkpoint.targets.slice(1) },
+        expected
+      ),
     /CHECKPOINT_MISMATCH/
   )
 })
@@ -224,7 +256,10 @@ test('custom database invariant digests detect definition drift', () => {
     () => assertDatabaseInvariantDigest(service, assertion, `${definition} WHERE active`),
     /DATABASE_INVARIANT_DRIFT/
   )
-  assert.throws(() => assertDatabaseInvariantDigest(service, assertion, ''), /DATABASE_INVARIANT_MISSING/)
+  assert.throws(
+    () => assertDatabaseInvariantDigest(service, assertion, ''),
+    /DATABASE_INVARIANT_MISSING/
+  )
 })
 
 test('repository lifecycle state stays under ignored task-local storage', () => {
@@ -243,7 +278,8 @@ test('baseline resolve plans preserve active migration bytes and detect drift', 
   fs.mkdirSync(path.dirname(baseline), { recursive: true })
   fs.writeFileSync(old, 'SELECT 1;\n')
   fs.writeFileSync(baseline, 'SELECT 2;\n')
-  const digest = (target) => crypto.createHash('sha256').update(fs.readFileSync(target)).digest('hex')
+  const digest = (target) =>
+    crypto.createHash('sha256').update(fs.readFileSync(target)).digest('hex')
   fs.writeFileSync(
     path.join(migrations, 'baseline-resolve.json'),
     JSON.stringify({

@@ -3,7 +3,7 @@
 ## Binding
 
 - Stage / feature: `global-runnability / business-journey`
-- State: `REPLACEMENT_CANDIDATE_R2_READY_FOR_FEATURE_RI`
+- State: `CI_REMEDIATION_CANDIDATE_READY`
 - Human-visible Feature Lead: task `01a047c6-18ff-71e0-b2cc-b1bad08fd0e8`
 - Parent and sole return target: Stage Lead task `01a036e1-7ca5-76c2-8183-64edd7e1d086`
 - Feature branch: `codex/feature/business-journey-visible-recovery`
@@ -12,9 +12,11 @@
   `1b4abcad40f2f305bfc981ead59a2e053029e464`
 - Immutable first replacement and R2 parent:
   `6904b45ec9331fe3cf8ee2bb852f657de90cf50c`
+- Immutable accepted and published R2 candidate / CI-remediation parent:
+  `7b289c99fb72c004513ab6e81d376e5a96d3c07d`
 - Canonical `origin/main` observed at continuation: `51f78cc05db67d35f0129e678ad27a1034e22ad0`
-- R2 replacement candidate identity: the append-only commit containing this Packet; the exact SHA
-  is emitted in the `REPLACEMENT_CANDIDATE_R2_READY_FOR_FEATURE_RI` handoff.
+- CI-remediation candidate identity: the append-only commit containing this Packet; the exact SHA
+  is emitted in the `CANDIDATE_CI_REMEDIATION_READY` handoff.
 - The superseded hidden owner is frozen read-only and owns no runtime or candidate state.
 
 ## Scope and protected boundary
@@ -184,13 +186,44 @@ Fresh R2 evidence after final formatting:
 - The R2 manifest, patch, bundle, literal verification record and executable rollback are emitted
   with the exact append-only candidate identity.
 
+### FL-8 — composed CI remediation
+
+The accepted R2 candidate `7b289c99fb72c004513ab6e81d376e5a96d3c07d` remains immutable. Its
+published Draft PR `#42` exposed two bounded classes of composed-test drift, now corrected without
+changing the accepted Web/PDA or route-terminal behavior:
+
+- Database lifecycle validation compares the generated Permission workload policies with the exact
+  versioned profile and validates tuple registration, SYSTEM scope, exact audiences, policy
+  version, unique INTERNAL Codes and fail-closed authority rules instead of a historical entry
+  count.
+- Gateway's two dynamic integration modules provide the existing trusted Permission metadata
+  provider; Auth, CRM, Item Master and Permission test composition is aligned with the accepted
+  declarations and runtime DI without weakening production authorization.
+- Item Master keeps its exact audience-bound lazy runtime but binds both named guards through
+  explicit factories, preserving runtime injection while allowing the L3 security matrix to supply
+  deterministic verifier and workload-identity fixtures.
+
+Fresh CI-remediation evidence:
+
+- `13-pnpm-test-tooling.log`: exact tooling command passes 48/48, including versioned workload
+  policy growth and weakening negatives.
+- `14-runtime-profile-specs.log` and `15-local-trusted-runtime-check.log`: affected runtime/profile
+  checks pass 16/16 and report `TRUSTED_RUNTIME_PROFILE_VALID services=21`.
+- `12-pnpm-test-unit-final.log`: all eight composed packages pass, totaling 448 suites and 2031
+  tests; the exact Gateway suites pass 144/144 and 739/739.
+- `16-pnpm-test-risk-final.log`: the original required CI command passes end-to-end, including
+  tooling 48/48, unit 448/2031, collaboration runtime 134/134 plus static checks, and foundation
+  trusted-gRPC invariants 5/5.
+- `17-affected-builds.log`: Common, Gateway, Auth, Item Master, Permission and CRM builds pass.
+
 ## Review state and findings
 
 - Feature Lead self-review, protected-scope check, diff check and secret scan: passed for the
   replacement delta.
 - Independent Feature RI: all five findings against immutable candidate `1b4abcad` are closed on
-  immutable first replacement `6904b45e`. Its one bounded route-scope regression is corrected by
-  the append-only R2 candidate and awaits re-review by the same visible RI task.
+  immutable first replacement `6904b45e`; its bounded route-scope regression is closed and R2
+  candidate `7b289c99` is accepted with no open P0/P1/P2 findings. The composed CI remediation is
+  routed to the same visible RI only if the Stage Lead requires changed-test-scope re-review.
 - Candidate finding: repository ESLint configuration enables both `project` and `projectService`,
   so candidate-only lint stops before rule execution on all 39 changed TypeScript files. The
   config, package manifest and lockfile are byte-identical to the candidate base; evidence is in
@@ -201,7 +234,8 @@ Fresh R2 evidence after final formatting:
 - Runtime rollback: `OES_TASK_KEY=tmp_31d7ce4d pnpm local:trusted-runtime:down`.
 - The PDA fixture rollback leaves zero rows; owner process verification leaves zero live
   task-owned application processes.
-- Git rollback of only the R2 route-scope correction: `git revert <r2-candidate-sha>`; this restores
-  immutable first-replacement tree `55ffeac5f8e3579e03f19b58bbcfc6d8f1ff2381`.
-- Stop at the exact R2 replacement candidate. No push, PR, `main` merge, cleanup or RI creation is
-  part of this owner action.
+- Git rollback of only this CI remediation: `git revert <ci-remediation-candidate-sha>`; this
+  restores immutable accepted candidate `7b289c99fb72c004513ab6e81d376e5a96d3c07d`.
+- Stop at the exact append-only CI-remediation candidate until the repository driver receives a
+  fresh parent-issued authorization for updating existing Draft PR `#42`. No `main` merge or
+  cleanup is part of this owner action.

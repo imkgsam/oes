@@ -2,6 +2,8 @@ jest.mock('@oes/common/authorization', () => ({
   getAuthenticatedGrpcRequestContext: jest.fn((rpcData: any) => rpcData?.__context),
   AuthenticatedOperatorGuard: class AuthenticatedOperatorGuard {},
   AuthorizeInternalCall: () => () => undefined,
+  createLazyTrustedExecutionRuntime: () => ({ verifier: {}, workloadIdentityProvider: {} }),
+  ExecutionTokenVerifier: class ExecutionTokenVerifier {},
   GrpcRequestContextInterceptor: class GrpcRequestContextInterceptor {},
   IDENTITY_MACHINE_PERMISSION_CODES: {
     CREATE_API_KEY: 'identity.machine.api_key.create',
@@ -11,6 +13,7 @@ jest.mock('@oes/common/authorization', () => ({
   InternalServiceGuard: class InternalServiceGuard {},
   PermissionGuard: class PermissionGuard {},
   RequirePermissions: () => () => undefined,
+  TrustedExecutionGuard: class TrustedExecutionGuard {},
   TrustedInternalExecutionGuard: class TrustedInternalExecutionGuard {}
 }))
 
@@ -57,7 +60,6 @@ const trustedCompromiseRequest = {
 }
 
 describe('ExternalApiKeyGrpcController', () => {
-
   it('maps create to the service and returns only one-time key plus safe id', async () => {
     const service: any = {
       create: jest.fn().mockResolvedValue({
@@ -182,7 +184,11 @@ describe('ExternalApiKeyGrpcController', () => {
       trustedGatewayRequest as any
     )
     expect(service.exchangeExternalApiKey).toHaveBeenCalledWith('oek_live_id.secret')
-    expect(response).toEqual({ accessToken: 'signed', tokenType: 'Bearer', expiresInSeconds: '300' })
+    expect(response).toEqual({
+      accessToken: 'signed',
+      tokenType: 'Bearer',
+      expiresInSeconds: '300'
+    })
   })
 
   it('maps the compromise RPC to the command bus using only trusted runtime workload facts', async () => {

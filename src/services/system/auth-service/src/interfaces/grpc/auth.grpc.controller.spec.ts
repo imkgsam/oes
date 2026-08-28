@@ -94,7 +94,9 @@ describe('AuthGrpcController', () => {
       getRpcAuthorizationModeDeclaration(AuthGrpcController.prototype, 'bootstrapUserLoginMethods')
     ).toEqual({
       mode: 'BUSINESS',
-      permissions: { all: [AUTH_MANAGEMENT_PERMISSION_CODES.BOOTSTRAP_ACCOUNT_CREDENTIALS] }
+      permissions: { all: [AUTH_MANAGEMENT_PERMISSION_CODES.BOOTSTRAP_ACCOUNT_CREDENTIALS] },
+      principalType: 'HUMAN',
+      sessionTerminals: ['WEB']
     })
   })
 
