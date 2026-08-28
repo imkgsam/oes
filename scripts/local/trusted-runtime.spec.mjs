@@ -45,3 +45,14 @@ test('notification payload protection key is stable and owner-private', async ()
   const secret = await stat(join(dirname(dirname(notification.envPath)), 'secrets/notification-delivery-payload.key'))
   assert.equal(secret.mode & 0o777, 0o600)
 })
+
+test('APISIX standalone profile routes only to the host-rewritable Gateway binding', async () => {
+  const [config, routes] = await Promise.all([
+    readFile('docker/apisix/config.yaml', 'utf8'),
+    readFile('docker/apisix/apisix.yaml', 'utf8')
+  ])
+  assert.match(config, /config_provider: yaml/u)
+  assert.match(config, /enable_admin: false/u)
+  assert.match(routes, /api-gateway:9101/u)
+  assert.match(routes, /#END/u)
+})

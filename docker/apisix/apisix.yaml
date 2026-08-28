@@ -1,0 +1,13 @@
+routes:
+  - id: oes-api-gateway
+    uri: /*
+    upstream_id: oes-api-gateway
+    plugins:
+      request-id:
+        include_in_response: true
+upstreams:
+  - id: oes-api-gateway
+    type: roundrobin
+    nodes:
+      api-gateway:9101: 1
+#END

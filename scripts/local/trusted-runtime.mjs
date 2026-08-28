@@ -119,7 +119,32 @@ async function up() {
   }
   await startService(manifest.gateway)
   await waitReady([manifest.gateway], 90_000)
+  await startApisix(manifest)
   await status(true)
+}
+
+/** Runs pinned APISIX as infrastructure against the task-owned host Gateway. */
+async function startApisix(manifest) {
+  const container = `oes_${taskKey}-apisix-host`
+  const runtimeConfig = join(stateRoot, 'apisix.yaml')
+  const source = await readFile(join(root, 'docker/apisix/apisix.yaml'), 'utf8')
+  if (!source.includes('api-gateway:9101')) throw new Error('TRUSTED_RUNTIME_APISIX_UPSTREAM_INVALID')
+  await writeFile(runtimeConfig, source.replaceAll('api-gateway:9101', `host.docker.internal:${manifest.gateway.port}`), { mode: 0o600 })
+  spawnSync('docker', ['rm', '--force', container], { encoding: 'utf8', timeout: 15_000 })
+  await spawnChecked('docker', ['run', '--detach', '--name', container, '--label', `oes.local.owner=${taskKey}`, '--label', 'oes.local.scope=gateway-events', '--add-host', 'host.docker.internal:host-gateway', '--publish', '127.0.0.1::9080', '--volume', `${join(root, 'docker/apisix/config.yaml')}:/usr/local/apisix/conf/config.yaml:ro`, '--volume', `${runtimeConfig}:/usr/local/apisix/conf/apisix.yaml:ro`, 'apache/apisix:3.13.0-debian@sha256:c5c7a55ebb5c07abc210dbb963a37f41030e12c91d23bacedbaa168fec633bd7'])
+  const port = resolvePublishedPort(container, '9080')
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/health/ready`, { signal: AbortSignal.timeout(1_000) })
+      if (response.ok) {
+        manifest.apisix = { container, port }
+        await writeFile(join(stateRoot, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n', { mode: 0o600 })
+        return
+      }
+    } catch { /* Keep polling the bounded task-owned route. */ }
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 500))
+  }
+  throw new Error('TRUSTED_RUNTIME_APISIX_NOT_READY')
 }
 
 async function startSigner(manifest) {
@@ -217,6 +242,12 @@ async function status(requireReady = false) {
     process.stdout.write(`${service.workload} pid=${pid || 'DOWN'} port=${service.port} reachable=${reachable}\n`)
     failed ||= !pid || !reachable
   }
+  if (manifest.apisix) {
+    const running = spawnSync('docker', ['inspect', '-f', '{{.State.Running}}', manifest.apisix.container], { encoding: 'utf8', timeout: 5_000 }).stdout.trim() === 'true'
+    const reachable = await canConnect('127.0.0.1', manifest.apisix.port)
+    process.stdout.write(`apisix container=${running ? 'UP' : 'DOWN'} port=${manifest.apisix.port} reachable=${reachable}\n`)
+    failed ||= !running || !reachable
+  }
   if (requireReady && failed) throw new Error('TRUSTED_RUNTIME_NOT_READY')
 }
 
@@ -232,6 +263,7 @@ async function down() {
   if (signerPid) process.kill(signerPid, 'SIGTERM')
   await rm(join(stateRoot, 'pids/signer.pid'), { force: true })
   if (!hostSoftHsmModule()) await spawnChecked('docker', ['compose', '--env-file', envSource, '-p', `oes_${taskKey}`, '-f', join(root, 'docker-compose.yml'), '-f', join(stateRoot, 'signer.compose.yml'), 'stop', 'execution-token-signer'])
+  if (manifest.apisix) spawnSync('docker', ['stop', manifest.apisix.container], { encoding: 'utf8', timeout: 15_000 })
 }
 
 function serviceGroup(workload) {
@@ -270,6 +302,14 @@ function resolveInfrastructurePort(service, containerPort) {
   const match = result.stdout.trim().match(/:(\d+)$/u)
   if (!match) throw new Error(`TRUSTED_RUNTIME_INFRA_PORT_INVALID_${service.toUpperCase()}`)
   return match[1]
+}
+
+/** Resolves a single loopback-only port published by one exact task container. */
+function resolvePublishedPort(container, containerPort) {
+  const result = spawnSync('docker', ['port', container, `${containerPort}/tcp`], { encoding: 'utf8', timeout: 5_000 })
+  const match = result.stdout.trim().match(/:(\d+)$/u)
+  if (result.status !== 0 || !match) throw new Error('TRUSTED_RUNTIME_PUBLISHED_PORT_INVALID')
+  return Number(match[1])
 }
 
 function renderComposeEnvironment() {
