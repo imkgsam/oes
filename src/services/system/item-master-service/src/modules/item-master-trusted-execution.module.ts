@@ -19,6 +19,14 @@ import {
 const ITEM_MASTER_AUDIENCE = 'urn:oes:service:item-master-service'
 const runtime = createLazyTrustedExecutionRuntime(ITEM_MASTER_AUDIENCE)
 
+/** Binds Item Master BUSINESS RPC authorization to its exact target audience. */
+@Injectable()
+export class ItemMasterTrustedExecutionGuard extends TrustedExecutionGuard {
+  constructor(reflector: Reflector) {
+    super(reflector, runtime.verifier, runtime.workloadIdentityProvider, ITEM_MASTER_AUDIENCE)
+  }
+}
+
 /** Freezes each Item Master INTERNAL Code to its only admitted workload names. */
 export const ITEM_MASTER_INTERNAL_WORKLOAD_ALLOWLIST: Readonly<Record<string, readonly string[]>> =
   Object.freeze({
@@ -36,6 +44,10 @@ export class ItemMasterTrustedInternalExecutionGuard
   extends TrustedInternalExecutionGuard
   implements CanActivate
 {
+  constructor(reflector: Reflector) {
+    super(reflector, runtime.verifier, runtime.workloadIdentityProvider, ITEM_MASTER_AUDIENCE)
+  }
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
     await super.canActivate(context)
     const verified = getAuthenticatedGrpcRequestContext(
@@ -110,29 +122,9 @@ function isSystemMachineActor(actor: unknown): boolean {
 @Global()
 @Module({
   providers: [
-    {
-      provide: TrustedExecutionGuard,
-      useFactory: (reflector: Reflector) =>
-        new TrustedExecutionGuard(
-          reflector,
-          runtime.verifier,
-          runtime.workloadIdentityProvider,
-          ITEM_MASTER_AUDIENCE
-        ),
-      inject: [Reflector]
-    },
-    {
-      provide: ItemMasterTrustedInternalExecutionGuard,
-      useFactory: (reflector: Reflector) =>
-        new ItemMasterTrustedInternalExecutionGuard(
-          reflector,
-          runtime.verifier,
-          runtime.workloadIdentityProvider,
-          ITEM_MASTER_AUDIENCE
-        ),
-      inject: [Reflector]
-    }
+    ItemMasterTrustedExecutionGuard,
+    ItemMasterTrustedInternalExecutionGuard
   ],
-  exports: [TrustedExecutionGuard, ItemMasterTrustedInternalExecutionGuard]
+  exports: [ItemMasterTrustedExecutionGuard, ItemMasterTrustedInternalExecutionGuard]
 })
 export class ItemMasterTrustedExecutionModule {}

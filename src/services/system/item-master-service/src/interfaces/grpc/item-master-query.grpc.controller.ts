@@ -1,9 +1,9 @@
 import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
 import {
   AuthorizeBusinessRpc,
-  GrpcRequestContextInterceptor,
-  TrustedExecutionGuard
+  GrpcRequestContextInterceptor
 } from '@oes/common/authorization'
+import { ItemMasterTrustedExecutionGuard } from '../../modules/item-master-trusted-execution.module'
 import { ITEM_MASTER_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
@@ -53,7 +53,7 @@ import { ItemMasterVerifiedTenantContextGuard } from './item-master-rpc-context.
 
 /** ItemMasterQueryGrpcController exposes Contract V2 item-master read-only RPCs. */
 @UseFilters(GrpcExceptionFilter)
-@UseGuards(TrustedExecutionGuard, ItemMasterVerifiedTenantContextGuard)
+@UseGuards(ItemMasterTrustedExecutionGuard, ItemMasterVerifiedTenantContextGuard)
 @UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @ItemMasterQueryServiceControllerMethods()

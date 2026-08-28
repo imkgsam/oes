@@ -1,6 +1,7 @@
 import { Controller, Inject, UseFilters, UseGuards } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
-import { AuthorizeBusinessRpc, AuthorizeInternalCall, TrustedExecutionGuard, ASSET_SITE_MEDIA_PERMISSION_CODES, getAuthenticatedGrpcRequestContext } from '@oes/common/authorization'
+import { AuthorizeBusinessRpc, AuthorizeInternalCall, ASSET_SITE_MEDIA_PERMISSION_CODES, getAuthenticatedGrpcRequestContext } from '@oes/common/authorization'
+import { SiteMediaTrustedExecutionGuard } from './site-media-trusted-execution.guard'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import { Observable } from 'rxjs'
 import { SiteMediaApplicationService } from '../../application/services/site-media-application.service'
@@ -34,7 +35,7 @@ export type SiteMediaExecutionAuthority = Readonly<{ subject: string; principalT
 
 /** Exposes the frozen Site Media wire surface and fails closed until its application use cases are wired. */
 @UseFilters(GrpcExceptionFilter)
-@UseGuards(TrustedExecutionGuard)
+@UseGuards(SiteMediaTrustedExecutionGuard)
 @Controller()
 @SiteMediaAssetServiceControllerMethods()
 export class SiteMediaGrpcController implements SiteMediaAssetServiceController {

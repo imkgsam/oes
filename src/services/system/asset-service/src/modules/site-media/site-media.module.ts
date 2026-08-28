@@ -13,10 +13,7 @@ import { CloudflareSiteMediaDeliveryPurgeAdaptor } from '../../infrastructure/ad
 import { AssetDeliveryPurgePort } from '../../domain/ports/asset-delivery-purge.port'
 import { SiteMediaLifecycleOperationWorker } from '../../infrastructure/workers/site-media-lifecycle-operation.worker'
 import { NatsAssetSiteMediaEventPublisher } from '../../infrastructure/events/nats-asset-site-media-event.publisher'
-import { Reflector } from '@nestjs/core'
-import { createLazyTrustedExecutionRuntime, TrustedExecutionGuard } from '@oes/common/authorization'
-
-const siteMediaTrustedRuntime = createLazyTrustedExecutionRuntime('urn:oes:service:asset-service')
+import { SiteMediaTrustedExecutionGuard } from '../../interfaces/grpc/site-media-trusted-execution.guard'
 
 export const SITE_MEDIA_STORAGE = Symbol('SITE_MEDIA_STORAGE')
 
@@ -24,7 +21,7 @@ export const SITE_MEDIA_STORAGE = Symbol('SITE_MEDIA_STORAGE')
 @Module({
   imports: [NatsJetStreamModule.forRoot(NatsJetStreamRuntimeConfig.fromEnvironment(process.env))],
   controllers: [SiteMediaGrpcController],
-  providers: [{ provide: TrustedExecutionGuard, useFactory: (reflector: Reflector) => new TrustedExecutionGuard(reflector, siteMediaTrustedRuntime.verifier, siteMediaTrustedRuntime.workloadIdentityProvider, 'urn:oes:service:asset-service'), inject: [Reflector] }, PrismaService, PrismaSiteMediaRepository, PrismaAssetSiteMediaOutboxStore, CloudflareSiteMediaDeliveryPurgeAdaptor, NatsAssetSiteMediaEventPublisher, { provide: SITE_MEDIA_STORAGE, useClass: CloudflareR2SiteMediaStorageAdaptor }, { provide: SiteMediaApplicationService, useFactory: (repository: PrismaSiteMediaRepository, storage: SiteMediaStoragePort, purge: AssetDeliveryPurgePort) => new SiteMediaApplicationService(repository, storage, purge), inject: [PrismaSiteMediaRepository, SITE_MEDIA_STORAGE, CloudflareSiteMediaDeliveryPurgeAdaptor] }, { provide: SiteMediaLifecycleOperationWorker, useFactory: (repository: PrismaSiteMediaRepository, purge: CloudflareSiteMediaDeliveryPurgeAdaptor) => new SiteMediaLifecycleOperationWorker(repository, purge), inject: [PrismaSiteMediaRepository, CloudflareSiteMediaDeliveryPurgeAdaptor] }, { provide: AssetSiteMediaOutboxRelay, useFactory: (store: PrismaAssetSiteMediaOutboxStore, publisher: NatsAssetSiteMediaEventPublisher) => new AssetSiteMediaOutboxRelay(store, publisher), inject: [PrismaAssetSiteMediaOutboxStore, NatsAssetSiteMediaEventPublisher] }, { provide: AssetSiteMediaOutboxWorker, useFactory: (relay: AssetSiteMediaOutboxRelay) => new AssetSiteMediaOutboxWorker(relay), inject: [AssetSiteMediaOutboxRelay] }],
+  providers: [SiteMediaTrustedExecutionGuard, PrismaService, PrismaSiteMediaRepository, PrismaAssetSiteMediaOutboxStore, CloudflareSiteMediaDeliveryPurgeAdaptor, NatsAssetSiteMediaEventPublisher, { provide: SITE_MEDIA_STORAGE, useClass: CloudflareR2SiteMediaStorageAdaptor }, { provide: SiteMediaApplicationService, useFactory: (repository: PrismaSiteMediaRepository, storage: SiteMediaStoragePort, purge: AssetDeliveryPurgePort) => new SiteMediaApplicationService(repository, storage, purge), inject: [PrismaSiteMediaRepository, SITE_MEDIA_STORAGE, CloudflareSiteMediaDeliveryPurgeAdaptor] }, { provide: SiteMediaLifecycleOperationWorker, useFactory: (repository: PrismaSiteMediaRepository, purge: CloudflareSiteMediaDeliveryPurgeAdaptor) => new SiteMediaLifecycleOperationWorker(repository, purge), inject: [PrismaSiteMediaRepository, CloudflareSiteMediaDeliveryPurgeAdaptor] }, { provide: AssetSiteMediaOutboxRelay, useFactory: (store: PrismaAssetSiteMediaOutboxStore, publisher: NatsAssetSiteMediaEventPublisher) => new AssetSiteMediaOutboxRelay(store, publisher), inject: [PrismaAssetSiteMediaOutboxStore, NatsAssetSiteMediaEventPublisher] }, { provide: AssetSiteMediaOutboxWorker, useFactory: (relay: AssetSiteMediaOutboxRelay) => new AssetSiteMediaOutboxWorker(relay), inject: [AssetSiteMediaOutboxRelay] }],
   exports: [SiteMediaApplicationService]
 })
 export class SiteMediaModule {}

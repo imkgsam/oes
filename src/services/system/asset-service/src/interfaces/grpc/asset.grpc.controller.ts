@@ -4,9 +4,9 @@ import {
   AuthorizeInternalCall,
   AuthorizeSelfServiceRpc,
   ASSET_INTERNAL_PERMISSION_CODES,
-  getAuthenticatedGrpcRequestContext,
-  TrustedExecutionGuard
+  getAuthenticatedGrpcRequestContext
 } from '@oes/common/authorization'
+import { AssetTrustedExecutionGuard } from './asset-trusted-execution.guard'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
@@ -38,7 +38,7 @@ import {
 import { AssetGrpcPresenter } from './asset-grpc.presenter'
 
 @UseFilters(GrpcExceptionFilter)
-@UseGuards(TrustedExecutionGuard)
+@UseGuards(AssetTrustedExecutionGuard)
 @Controller()
 @AssetServiceControllerMethods()
 // AssetGrpcController exposes the internal avatar asset gRPC contract to trusted callers.

@@ -97,12 +97,16 @@ async function up() {
 
 async function startSigner(manifest) {
   const signer = { pidPath: join(stateRoot, 'pids/signer.pid'), logPath: join(stateRoot, 'logs/signer.log') }
-  if (await livePid(signer.pidPath)) return
   // macOS limits Unix-domain socket paths to 104 bytes, so signer state uses a
   // short task-owned root rather than the deeper generated profile directory.
   const work = join('/private/tmp', `oes-signer-${taskKey}`)
   const ready = join(work, 'ready')
   const socket = join(work, 'signer.sock')
+  if (await livePid(signer.pidPath)) {
+    const keyReference = (await readFile(ready, 'utf8')).trim()
+    await appendEnvironment(manifest.services.find((service) => service.workload === 'auth-service').envPath, { AUTH_EXECUTION_SIGNER_SOCKET_PATH: socket, AUTH_EXECUTION_KMS_KEY_REF: keyReference })
+    return
+  }
   await mkdir(work, { recursive: true, mode: 0o700 })
   const module = await ensureTaskLocalSoftHsm()
   if (!module) return startDockerSigner(manifest, work, ready, socket)
