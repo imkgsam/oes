@@ -11,8 +11,10 @@ describe('PdaAccountResolutionService', () => {
   it('denies when no account candidate belongs to the device-bound tenant', async () => {
     const service = new PdaAccountResolutionService(
       {
-        getAvailableAccountsByUserId: jest.fn().mockResolvedValue([tenantAccount('account-1', 'tenant-other')]),
-        getAccountById: jest.fn()
+        getAvailableAccountsByUserId: jest
+          .fn()
+          .mockResolvedValue([tenantAccount('account-1', 'tenant-other')]),
+        resolveAuthLoginAccount: jest.fn()
       } as any,
       {
         resolveAccountTerminalAccess: jest.fn()
@@ -32,7 +34,7 @@ describe('PdaAccountResolutionService', () => {
         getAvailableAccountsByUserId: jest
           .fn()
           .mockResolvedValue([tenantAccount('account-1'), tenantAccount('account-2')]),
-        getAccountById: jest.fn()
+        resolveAuthLoginAccount: jest.fn()
       } as any,
       {
         resolveAccountTerminalAccess: jest.fn().mockResolvedValue({ allowed: true })
@@ -51,7 +53,7 @@ describe('PdaAccountResolutionService', () => {
       getAvailableAccountsByUserId: jest
         .fn()
         .mockResolvedValue([tenantAccount('account-1'), tenantAccount('account-2')]),
-      getAccountById: jest.fn().mockResolvedValue({
+      resolveAuthLoginAccount: jest.fn().mockResolvedValue({
         ...tenantAccount('account-2'),
         userId: 'user-1',
         isEnabled: true
@@ -66,7 +68,10 @@ describe('PdaAccountResolutionService', () => {
         matchedRoleIds: []
       }))
     }
-    const service = new PdaAccountResolutionService(identityService as any, permissionService as any)
+    const service = new PdaAccountResolutionService(
+      identityService as any,
+      permissionService as any
+    )
 
     await expect(
       service.resolve({ userId: 'user-1', deviceBoundTenantId: 'tenant-bound' })
@@ -96,5 +101,6 @@ describe('PdaAccountResolutionService', () => {
       scopeLevel: 'TENANT',
       terminal: 'PDA'
     })
+    expect(identityService.resolveAuthLoginAccount).toHaveBeenCalledWith('user-1', 'account-2')
   })
 })

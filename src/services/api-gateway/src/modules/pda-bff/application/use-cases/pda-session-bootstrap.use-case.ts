@@ -2,7 +2,6 @@ import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { DownstreamRequestSource } from '../../../../common/grpc/gateway-downstream-source.mapper'
 import { SessionAccessSummaryUseCase } from '../../../auth-bff/application/use-cases/session-access-summary.use-case'
 import { getAuthenticatedSelfContext } from '../../../auth-bff/application/use-cases/self-security-context'
-import { IdentityQueryGrpcAdapter } from '../../../auth-bff/infrastructure/downstream/identity-service/identity-query-grpc.adapter'
 import { PdaTerminalDeviceAdapter } from '../../infrastructure/downstream/terminal-device-service/pda-terminal-device.adapter'
 import { PdaBootstrapViewModel } from '../../interfaces/http/view-models/pda-bootstrap.view-model'
 
@@ -12,7 +11,6 @@ const PDA_IDLE_TIMEOUT_SECONDS = 900
 // Builds the PDA bootstrap payload from authenticated session context and managed device decision.
 export class PdaSessionBootstrapUseCase {
   constructor(
-    private readonly identityAdapter: IdentityQueryGrpcAdapter,
     private readonly sessionAccessSummaryUseCase: SessionAccessSummaryUseCase,
     private readonly terminalDeviceAdapter: PdaTerminalDeviceAdapter
   ) {}
@@ -32,19 +30,6 @@ export class PdaSessionBootstrapUseCase {
       throw new UnauthorizedException('PDA bootstrap requires a tenant account session')
     }
 
-    const accountResult = await this.identityAdapter.getAccountById(self.accountId, source)
-    const account = accountResult.account
-    if (
-      !account ||
-      account.id !== self.accountId ||
-      account.scopeLevel !== 'TENANT' ||
-      account.tenantId !== self.tenantId ||
-      account.isEnabled !== true
-    ) {
-      throw new UnauthorizedException('PDA bootstrap account ownership mismatch')
-    }
-
-    const access = await this.sessionAccessSummaryUseCase.execute(source)
     const decision = await this.terminalDeviceAdapter.resolveDeviceAccessDecision({
       tenantId: self.tenantId,
       terminalDeviceId,
@@ -65,13 +50,14 @@ export class PdaSessionBootstrapUseCase {
     if (!decision.allowed || decision.resolvedTenantId !== self.tenantId) {
       throw new UnauthorizedException('PDA bootstrap device access denied')
     }
+    const access = await this.sessionAccessSummaryUseCase.execute(source)
 
     return {
       account: {
         accountId: self.accountId,
         tenantId: self.tenantId,
-        scopeLevel: account.scopeLevel,
-        displayName: account.displayName
+        scopeLevel: self.scopeLevel,
+        displayName: source.user?.displayName
       },
       session: {
         sessionId: source.user?.sid,

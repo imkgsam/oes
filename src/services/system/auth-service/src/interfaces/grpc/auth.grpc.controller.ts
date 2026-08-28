@@ -2415,7 +2415,7 @@ applyAuthAdmission(
 )
 applyAuthAdmission(
   'logout',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB', 'PDA'] })
 )
 applyAuthAdmission(
   'logoutSession',

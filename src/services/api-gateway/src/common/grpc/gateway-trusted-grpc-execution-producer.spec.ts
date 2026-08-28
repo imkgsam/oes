@@ -84,6 +84,60 @@ describe('GatewayTrustedGrpcExecutionProducer', () => {
     expect(provider.forInternalCall).toHaveBeenCalledWith(AUDIENCE, ['asset.internal.resolve'])
   })
 
+  it('uses a self-audience subject token as the isolated source for a HUMAN_OBO INTERNAL hop', async () => {
+    const contextAccessor = new AsyncLocalTrustedExecutionContextAccessor()
+    const sourceCredentialAccessor = new AsyncLocalTransportPrivateSourceCredentialAccessor()
+    const issuer = new TransportPrivateSourceCredentialIssuer()
+    const selfToken = 'header.payload.signature'
+    const targetMetadata = new Metadata()
+    const provider = {
+      forBusinessCall: jest.fn(),
+      forSelfServiceCall: jest.fn(async () => {
+        expect(sourceCredentialAccessor.useCurrent((credential) => credential)).toBe(
+          SOURCE_CREDENTIAL
+        )
+        const metadata = new Metadata()
+        metadata.set('authorization', `Bearer ${selfToken}`)
+        return metadata
+      }),
+      forInternalCall: jest.fn(async () => {
+        expect(sourceCredentialAccessor.useCurrent((credential) => credential)).toBe(selfToken)
+        expect(contextAccessor.requireCurrent()).toEqual(
+          expect.objectContaining({
+            subject: 'account-123',
+            tenantId: 'tenant-123',
+            sessionId: 'session-123'
+          })
+        )
+        return targetMetadata
+      })
+    } as unknown as TrustedGrpcMetadataProvider
+    const producer = new GatewayTrustedGrpcExecutionProducer(
+      contextAccessor,
+      provider,
+      undefined,
+      sourceCredentialAccessor,
+      issuer
+    )
+
+    const result = await sourceCredentialAccessor.run(
+      issuer.issueVerifiedSessionAccessCredential(SOURCE_CREDENTIAL),
+      () =>
+        producer.forHumanOboInternalCall(
+          trustedSessionSource(),
+          'urn:oes:service:api-gateway',
+          'urn:oes:service:permission-service',
+          ['permission.internal.account_navigation.resolve']
+        )
+    )
+
+    expect(result).toBe(targetMetadata)
+    expect(provider.forSelfServiceCall).toHaveBeenCalledWith('urn:oes:service:api-gateway')
+    expect(provider.forInternalCall).toHaveBeenCalledWith('urn:oes:service:permission-service', [
+      'permission.internal.account_navigation.resolve'
+    ])
+  })
+
   it('keeps the verified session bearer in a separate transport-private scope', async () => {
     const contextAccessor = new AsyncLocalTrustedExecutionContextAccessor()
     const sourceCredentialAccessor = new AsyncLocalTransportPrivateSourceCredentialAccessor()

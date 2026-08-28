@@ -27,6 +27,7 @@ import {
 export const AUTH_AUDIENCE = 'urn:oes:service:auth-service'
 export const AUTH_PUBLIC_ADMISSION_KEY = 'oes:auth:public-admission'
 const runtime = createLazyTrustedExecutionRuntime(AUTH_AUDIENCE)
+const AUTH_PROTECTED_HUMAN_SESSION_TERMINALS = new Set(['WEB', 'PDA'])
 
 /** Declares one Auth-owned pre-execution admission without manufacturing an ExecutionToken. */
 export const AuthorizeAuthPublicAdmission = (
@@ -80,8 +81,11 @@ export class AuthTrustedExecutionGuard extends TrustedExecutionGuard implements 
       context.switchToRpc().getData()
     )?.verifiedExecutionToken
     const workload = readWorkloadName(verified?.clientId ?? '')
-    if (verified?.principalType !== 'HUMAN' || verified.sessionTerminal !== 'WEB') {
-      throw new ForbiddenException('Auth protected execution requires HUMAN WEB context')
+    if (
+      verified?.principalType !== 'HUMAN' ||
+      !AUTH_PROTECTED_HUMAN_SESSION_TERMINALS.has(verified.sessionTerminal ?? '')
+    ) {
+      throw new ForbiddenException('Auth protected execution requires an admitted HUMAN terminal')
     }
     const allowed = verified.actor
       ? ['hr-service', 'tenant-org-service'].includes(workload)
@@ -94,7 +98,11 @@ export class AuthTrustedExecutionGuard extends TrustedExecutionGuard implements 
 /** Binds generic Auth INTERNAL methods to the Auth audience without constructor string injection. */
 @Injectable()
 export class AuthAudienceTrustedInternalExecutionGuard extends TrustedInternalExecutionGuard {
-  constructor(reflector: Reflector, verifier: ExecutionTokenVerifier, identity: GrpcWorkloadIdentityProvider) {
+  constructor(
+    reflector: Reflector,
+    verifier: ExecutionTokenVerifier,
+    identity: GrpcWorkloadIdentityProvider
+  ) {
     super(reflector, verifier, identity, AUTH_AUDIENCE)
   }
 }

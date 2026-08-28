@@ -1,107 +1,129 @@
 # Business Journey Feature Packet
 
-## Recovery binding
+## Binding
 
-- Stage: `global-runnability`
-- Feature: `business-journey`
-- Owner: exact legacy FL-6 task `01a038f3-e41c-78a0-9a62-8483db4a0694`
-- Parent and return target: exact Stage Lead `01a036e1-7ca5-76c2-8183-64edd7e1d086`
-- Recovery transition: `global-runnability:recover-fl6-after-acceptance-revision:3`
-- Acceptance transition: `global-runnability:pda-foundation-acceptance-revision:2`
-- Current truth and integration base: `4f22678908a1416e0b115a9a02514b2737da1dd3`
-- Surviving dependency: `tests-ci@10213ad967ab5563c67e66e23709c3f5ac00dd25`
-- Superseded provenance only: missing prior FL head `de606fb24919026ce9fe097a9815de124de260bf`; no ancestry or byte-recovery claim is made.
+- Stage / feature: `global-runnability / business-journey`
+- State: `CANDIDATE_READY_FOR_FEATURE_RI`
+- Human-visible Feature Lead: task `01a047c6-18ff-71e0-b2cc-b1bad08fd0e8`
+- Parent and sole return target: Stage Lead task `01a036e1-7ca5-76c2-8183-64edd7e1d086`
+- Feature branch: `codex/feature/business-journey-visible-recovery`
+- Candidate base and parent: `49e5090b565985e42e63a378370edecc794881c2`
+- Canonical `origin/main` observed at continuation: `51f78cc05db67d35f0129e678ad27a1034e22ad0`
+- Candidate identity: the commit containing this Packet; the exact SHA is emitted in the
+  `CANDIDATE_READY_FOR_FEATURE_RI` handoff.
+- The superseded hidden owner is frozen read-only and owns no runtime or candidate state.
 
-## Recovery lineage
+## Scope and protected boundary
 
-The replacement lineage begins at current canonical main and merges the surviving dependency in this fixed order:
+This feature proves the representative isolated business journey and its local trusted runtime.
+The completed candidate keeps the accepted split:
 
-1. first parent: `4f22678908a1416e0b115a9a02514b2737da1dd3`;
-2. second parent: `10213ad967ab5563c67e66e23709c3f5ac00dd25`;
-3. recovery merge: `72824be4adc01c2c396c56b86fdd549458eb81e9`.
+- Web evidence covers the end-to-end business journey, event/downstream observation, audit, trace,
+  denial, duplicate behavior and dependency outage/recovery.
+- PDA evidence covers only managed-device login, device ownership and access decision,
+  session/bootstrap, signed account/tenant/access summary and trace, security negatives,
+  dependency outage/recovery and rollback.
+- PDA Item access remains an expected `403` under Item's Web-only terminal contract.
+- No PDA Task, Item, WMS, MES or other business capability is introduced.
+- No stable Proto, database schema, public event or cross-service ownership contract changes.
+- Docker is infrastructure-only; OES applications run through the task-owned host-native launcher.
 
-All earlier FL-6 code and evidence are invalidated because their Git objects and evidence root were lost. Only semantics retained in this Packet and exact canonical truth may guide later reconstruction.
+## Candidate behavior
 
-## Scope and acceptance split
+- The local runtime composes the Gateway's exact selector, SPIFFE identity, leaf/key/CA, target
+  authority and workload-policy mappings for Auth, Permission, Terminal Device and Item.
+- Gateway-to-Terminal Device uses a dedicated mandatory-mTLS channel. Machine source credentials
+  carry exact request/trace correlation, and device calls preserve the full downstream source.
+- Gateway performs the existing two-hop HUMAN delegation for Permission account access summary and
+  navigation: Gateway self-audience execution followed by exact target-audience HUMAN OBO
+  execution.
+- PDA session context and bootstrap consume the Auth-validated signed session snapshot instead of
+  invoking Web-only Identity or TenantOrg business reads.
+- Auth rechecks the exact owner-bound `userId + accountId` pair, admits PDA on the explicitly
+  declared logout path, and continues to reject undeclared terminal/method combinations.
+- Permission admits only WEB and PDA HUMAN session terminals; other HUMAN terminals remain denied.
+- Terminal Device maps domain credential failures into the standardized fail-closed gRPC envelope.
+- Response trace resolution prefers a valid active OpenTelemetry trace and otherwise accepts only a
+  canonical non-zero W3C trace identifier.
 
-The feature remains the representative isolated business journey across login, tenant/org, Permission, Gateway/APISIX, business write/read, event/downstream observation, Web/PDA, audit and trace, including normal, denied, duplicate and outage/recovery behavior.
+## Slices and acceptance evidence
 
-Acceptance is now split explicitly:
+### FL-1 — local trusted runtime and service topology
 
-- Web proves the end-to-end business journey.
-- PDA proves terminal foundation, session/bootstrap/device ownership and fail-closed negatives.
-- PDA Item access returning `403` is expected under the current Web-only Item terminal contract.
-- No PDA business capability is introduced or claimed.
+Freshly revalidated:
 
-Stable service/data ownership, internal gRPC, event transport, tenant/org/operator/trace/audit semantics and protected scope remain unchanged.
+- `12-trusted-runtime-check.log`: `TRUSTED_RUNTIME_PROFILE_VALID services=21`.
+- `13-trust-static.log`: 24/24 static invariants, including unique listeners, mandatory mTLS,
+  workload-scoped certificates, exact selector/policy projection and wildcard/duplicate rejection.
+- `17-trusted-runtime-up.log` and `18-trusted-runtime-status.log`: task-owned host-native service
+  startup/status with Docker restricted to infrastructure.
 
-## Recovery state
+### FL-2 — trust transport and rotation
 
-State: `RESOURCE_RECOVERY_READY`.
+Freshly revalidated:
 
-This recovery creates no candidate, review, RI, remote branch, PR, product merge or cleanup. Runtime containers referencing the recovered path are stopped and retained. The pre-recovery non-Git residue is preserved below the owner evidence root.
+- `14-trust-live-transport.log`: correct certificate accepted; wrong workload, missing/expired
+  client certificate and rotated-certificate replay rejected; current rotated certificate accepted.
+- `15-common-trust-focused.log`: 4 suites / 38 tests for mTLS identity, audience, token/cnf and
+  trusted metadata verification.
+- `16-terminal-trust-focused.log`: 3/3 device credential rotation, suspended and revoked
+  fail-closed tests.
 
-## Invalidated and unreconstructable material
+### FL-3 — existing Web journey, event and outage acceptance
 
-The following prior material is unavailable as trusted bytes and must be reconstructed and freshly verified during later implementation:
+The inherited 21-service, Web, event and outage evidence remains reusable only for unchanged
+fingerprints. The accepted continuation evidence index has SHA-256
+`1d5fc9ac08b4d65839866412291a5b8c98a3c21752df47cb9bbc3edf39c58589`.
+Candidate-affected shared Gateway/Auth/Permission/Terminal paths were freshly covered by the focused
+tests and builds below rather than mechanically rerunning unaffected suites.
 
-- all product/config/test hunks unique to the missing FL-6 lineage through `de606fb2`;
-- the former Feature Packet revisions and evidence manifest;
-- prior live journey, outage, PDA, migration, security-negative and candidate-review logs;
-- prior generated environment, selector, signer, database and container state.
+### FL-4 — PDA foundation matrix
 
-No FL-1 through FL-5 resource is mutated. Their evidence may be reused later only when candidate, dependency, input, environment and command fingerprints remain valid.
+Fresh `128-pda-foundation-matrix.log` proves:
 
-## Next legal action
+- real enrollment and ACTIVE DeviceAccessDecision;
+- RS256 PDA session with exact account, tenant, session and terminal-device binding;
+- session context, access summary, bootstrap and four signed trace results;
+- fail-closed missing/wrong credential, inactive device, tenant mismatch and stale session/cnf;
+- Terminal Device outage `500` with recovery `200`;
+- expected Item `403`;
+- logout followed by stale-session rejection;
+- zero rows remaining in all six fixture tables and `scope=PDA_FOUNDATION_ONLY`.
 
-After Stage Lead accepts resource recovery, reconstruct the bounded FL-6 implementation append-only from canonical truth and this task's surviving history, then execute the affected acceptance matrix and normal feature gates. Remote publication, product main merge and cleanup remain gated.
+### FL-5 — candidate-focused static and build gates
 
-## Reconstruction checkpoint: Identity fixed SYSTEM inventory
+Freshly revalidated after formatting:
 
-The recovered lineage now contains a versioned Identity-owned fixed SYSTEM inventory with immutable v1 entries and additive v2 Collaboration entry. The deployment-only reconciler distinguishes truly empty state, complete v1, and complete v2 before mutation; exact v2 reruns are no-op, exact v1 advances additively in one transaction, while unreceipted, partial, mixed, reordered, removed, repointed or otherwise divergent owner facts fail closed. Receipt foreign keys restrict deletion and retain original provisioning provenance while migration advances only manifest metadata and emits an Identity-local migration audit. Selector output contains only non-secret principal/binding references and positive binding version.
+- `132-candidate-static-and-ci-inputs.log`: runtime/profile tests 10/10, Proto lint, Proto breaking
+  against `origin/main`, and test-matrix configuration all pass.
+- `141-post-format-gateway-focused.log`: Gateway typecheck, PDA login 6/6, eleven affected suites
+  53/53 and Gateway build pass.
+- `142-post-format-services-focused.log`: Auth typecheck, 46/46 tests and build; Permission 8/8
+  tests and build; Terminal Device 1/1 filter test and build pass.
+- `149-gateway-module-integration-pass.log`: Gateway module and Auth BFF request-level integration
+  suites pass 25/25, followed by Gateway typecheck and build.
+- `152-candidate-format-check-pass.log`: the complete tracked and newly added candidate file set
+  passes the final formatting check.
+- Final diff-check, secret scan, changed-file hashes, disk result and rollback are recorded in the
+  candidate evidence manifest emitted with the exact candidate SHA.
 
-Checkpoint evidence is owner-local under `/private/tmp/oes-fl-business-journey-artifacts`; paths are not stable truth. State-machine tests, Prisma generation/validation, Identity build, CLI syntax and diff hygiene passed. The first validation attempt without `DATABASE_URL` is retained as a command-input correction; the exact explicit isolated-format URL input passed without making a connection.
+## Review state and findings
 
-Remaining next slice: reconstruct Auth-only Identity/HR/TenantOrg INTERNAL owner resolvers, exact workload inventory/policies, and their mTLS/audience/Code/cnf/selector negatives before task/event and live journey work.
+- Feature Lead self-review, protected-scope check, diff check and secret scan: passed.
+- Independent Feature RI: pending exact candidate.
+- Candidate finding: repository ESLint configuration enables both `project` and `projectService`,
+  so candidate-only lint stops before rule execution on all 39 changed TypeScript files. The
+  config, package manifest and lockfile are byte-identical to the candidate base; evidence is in
+  `153-final-candidate-eslint.log` and `154-final-eslint-baseline-classification.log`.
+- Inherited finding: the full Gateway login suite has a pre-existing tenant-name hydration
+  expectation failure outside the changed PDA path. The changed PDA tests, all affected neighboring
+  suites, typecheck and build pass.
 
-## Reconstruction checkpoint: Auth-only Identity owner resolvers
+## Rollback and stop point
 
-Identity now exposes the three canonical Auth-only INTERNAL login owner resolvers with the single exact `identity.internal.auth_login_account.resolve` method declaration. Candidate listing filters disabled accounts, account resolution verifies the user/account owner pair, and employee resolution verifies the requested tenant while returning only the frozen minimal projection. Auth candidate and employee pre-HUMAN paths now request a target-audience INTERNAL execution using that Code instead of `identity.account.list`; no role, grant, wildcard or BUSINESS fallback was added.
-
-Focused proto lint/generation, Common/Identity/Auth builds and Identity/Auth resolver tests passed. The initial Auth build before its generated Prisma client existed is retained as environment command-order evidence and was corrected by the standard frozen Prisma generation step.
-
-Remaining within this slice: migrate account-selection/MFA owner recheck to `ResolveAuthLoginAccount`; add HR `ResolveAuthLoginEmployee` and TenantOrg `ResolveAuthSessionTenantLifecycle`; project their exact Permission catalog/workload policies and runtime profiles; complete mTLS/audience/Code/cnf/selector/status/dependency negatives.
-
-## Reconstruction checkpoint: login owner rechecks across targets
-
-Account selection and MFA completion now recheck the exact `user_id + account_id` pair through Identity `ResolveAuthLoginAccount`. HR employee-code login uses only `ResolveAuthLoginEmployee` with `hr.internal.auth_login_employee.resolve`; TenantOrg session lifecycle uses only `ResolveAuthSessionTenantLifecycle` with `tenant_org.internal.auth_session_tenant_lifecycle.resolve`. Each target exposes a minimal INTERNAL projection and keeps its generic BUSINESS query unchanged for existing consumers. Auth rejects mismatched owner/tenant echoes and preserves its existing dependency-unavailable mapping. No business grant, role, wildcard or fallback was introduced.
-
-Focused account/MFA, target adapter, proto and affected builds passed after standard Prisma generation. Exact deployment catalog/workload profile projection and certificate/audience/selector negative matrix remain the next bounded reconstruction item before Task/event work.
-
-## Reconstruction checkpoint: Auth owner-fact Code and workload upper bound
-
-The three login/session owner-fact Codes are now active Common catalog entries owned by their target services. Each is `INTERNAL`, SYSTEM-only, `WORKLOAD_POLICY`-only and non-external. A versioned deployment profile binds only exact `spiffe://oes/auth-service` to the exact Identity, HR and TenantOrg audiences/Codes; it contains no tenant, role, grant or wildcard. The matching Auth audience profile is an exact target allowlist and carries no selector or credential.
-
-Common build and focused catalog/profile tests passed. The first focused path calculation failed before reading the profile and is retained as a test-command correction; the corrected candidate-bound test passed 4/4.
-
-Remaining before live activation: merge these bounded fragments into the full generated task-owned runtime profile without replacing existing exact callers, inject the single profile consistently into Auth/Permission and affected target verifiers, bind selectors from the Identity provisioner output, and execute transport/cnf/rotation/disable/dependency negative tests. Task atomic fact/event reconstruction follows that runtime-profile slice.
-
-## Reconstruction checkpoint: Task idempotent atomic facts
-
-Task terminal command retries now distinguish semantic transition from an already-established state before entering the transaction port. `complete`, `cancel`, `archive` and `unarchive` return the stable loaded aggregate on an idempotent retry and append zero local audit facts, zero public outbox facts and zero persistence writes. First transitions retain the existing atomic task/audit/public-event transaction and the frozen public fact set. The decision uses status/archive-state transitions rather than timestamp coincidence.
-
-Focused Task command/outbox tests and Collaboration build passed. Runtime-profile composition and transport negative execution remain pending before live Task/event validation.
-
-## Reconstruction checkpoint: additive runtime caller registries
-
-The preserved deployment base is `trust-foundation@ee959bce`, file blob `2bb90322dbf9cb34f836a5c23bb7427d0cb1b666` (SHA-256 `d9c4abd01e24d6f80d94570cacfaaba0154ce508e99506ad48d7d36e3bac454d`). Its sole Auth tuple, exact `api-gateway` SPIFFE to Permission audience, is retained. The formerly absent Permission base remains empty. The composed versioned registries add only the three canonical Auth owner-fact audiences and their one-for-one SYSTEM/INTERNAL workload policies, using inventory-v2's exact Auth SPIFFE; provenance is recorded per tuple. No wildcard, tenant policy, role, grant, shared identity or credential is present.
-
-The database lifecycle now projects these versioned registries into its ignored mode-0600 task-owned Compose environment. Compose receives the same Auth registry at every lazy trusted-runtime service and the exact Permission registry only at Permission. Static schema/duplicate/coverage/authority tests, Auth registry negatives, Permission repository negatives, Common build, lifecycle tests and full 21-backend Compose interpolation passed. Evidence: `76-workload-registry-focused.log`, `79-database-policy-projection-test.log`, and `80-db-config-policy-projection.log` under the owner-local evidence root.
-
-Remaining before live activation: bind any required HUMAN OBO actor blocks only after their Identity selector receipts are generated, execute current-leaf/cnf/rotation-disable/dependency live negatives, then recreate task-owned runtime and validate Web Task/event/Notification plus PDA foundation.
-
-## Reconstruction checkpoint: protected signer and HTTPS issuer
-
-The exact per-Auth protected provider is restored as the existing Go `execution-token-signer-agent` with the approved SoftHSM2 asset. It has no network, drops all capabilities, runs as an unprivileged user with a read-only root, and shares one UDS volume read-only with Auth only. PIN, token objects, manifests and raw key material remain task-owned ephemeral provider state; Auth receives only the required absolute socket and an opaque non-secret deployment reference. Runtime mode uses a separately tested bounded 24-hour local signing window and 48-hour retirement window, while the short lifecycle mode remains unchanged for rotation/outage tests.
-
-The exact HTTPS issuer is a metadata/JWKS-only nginx publisher in Auth's network namespace. It uses the Auth workload leaf, whose local certificate adds only the canonical issuer DNS SAN, and proxies only the two frozen paths to Auth over loopback. There is no host port, plaintext external publisher or new workload inventory entry. Static isolation/mount/route checks, Go provider tests, Compose interpolation and Auth build pass in evidence `82-signer-issuer-focused.log`.
+- Runtime rollback: `OES_TASK_KEY=tmp_31d7ce4d pnpm local:trusted-runtime:down`.
+- Git rollback after any later integration: `git revert <candidate-sha>`.
+- The PDA fixture rollback leaves zero rows; owner process verification leaves zero live
+  task-owned application processes.
+- Stop at exact candidate. No push, PR, `main` merge, cleanup or RI creation is part of this
+  owner action.

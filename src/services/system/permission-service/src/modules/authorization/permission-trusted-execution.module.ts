@@ -26,6 +26,7 @@ const ALLOWED_CALLERS = new Set([
   'collaboration-service',
   'public-entry-service'
 ])
+const ALLOWED_HUMAN_SESSION_TERMINALS = new Set(['WEB', 'PDA'])
 
 /** Enforces Permission BUSINESS/INTERNAL caller shape after Common verifies audience, Code, time and certificate binding. */
 @Injectable()
@@ -49,8 +50,11 @@ export class PermissionFoundationTrustedExecutionGuard
     const workload = readWorkloadName(token?.clientId ?? '')
     if (!ALLOWED_CALLERS.has(workload))
       throw new ForbiddenException('Permission caller workload is not permitted')
-    if (token?.principalType === 'HUMAN' && token.sessionTerminal !== 'WEB')
-      throw new ForbiddenException('Permission HUMAN execution requires WEB terminal')
+    if (
+      token?.principalType === 'HUMAN' &&
+      !ALLOWED_HUMAN_SESSION_TERMINALS.has(token.sessionTerminal ?? '')
+    )
+      throw new ForbiddenException('Permission HUMAN execution terminal is not permitted')
     if (
       token?.principalType === 'MACHINE' &&
       !['auth-service', 'public-entry-service'].includes(workload)

@@ -384,6 +384,7 @@ describe('LoginUseCase', () => {
     expect(terminalDeviceAdapter.resolveLoginDeviceContext).toHaveBeenCalledWith({
       terminalDeviceId: 'terminal-device-1',
       deviceCredential: 'credential-1',
+      source: { requestId: 'req-1', traceId: 'trace-1' },
       deviceMetadata: expect.objectContaining({
         deviceName: 'Warehouse PDA',
         manufacturerSerial: 'SEUIC-SN-123456',

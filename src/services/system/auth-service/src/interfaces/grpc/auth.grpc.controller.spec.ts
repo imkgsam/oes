@@ -98,6 +98,21 @@ describe('AuthGrpcController', () => {
     })
   })
 
+  it('admits logout from the current WEB or PDA session without widening other session controls', () => {
+    expect(getRpcAuthorizationModeDeclaration(AuthGrpcController.prototype, 'logout')).toEqual({
+      mode: 'SELF_SERVICE',
+      allowDelegated: false,
+      sessionTerminals: ['WEB', 'PDA']
+    })
+    expect(
+      getRpcAuthorizationModeDeclaration(AuthGrpcController.prototype, 'logoutSession')
+    ).toEqual({
+      mode: 'SELF_SERVICE',
+      allowDelegated: false,
+      sessionTerminals: ['WEB']
+    })
+  })
+
   it('should map requestLoginMfaFactorChallenge requests into factor-specific otp responses', async () => {
     const commandBus = {
       execute: jest.fn().mockResolvedValue({

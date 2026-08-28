@@ -7,7 +7,10 @@ import { dirname, join } from 'node:path'
 test('inventory has exactly 21 unique listeners and canonical Collaboration port', async () => {
   const entries = await readInventory()
   assert.equal(entries.length, 21)
-  assert.equal(entries.find((entry) => entry.workload === 'collaboration-service')?.canonicalPort, 50068)
+  assert.equal(
+    entries.find((entry) => entry.workload === 'collaboration-service')?.canonicalPort,
+    50068
+  )
 })
 
 test('local trust leaves use workload-scoped DNS names rather than IP identity', async () => {
@@ -24,16 +27,38 @@ test('offline profile validation does not require live Docker infrastructure', a
   assert.equal(new Set(profile.services.map((service) => service.certPath)).size, 21)
   assert.equal(profile.gateway.workload, 'api-gateway')
   assert.equal(profile.gateway.port, 52101)
+  const gatewayEnvironment = await readFile(profile.gateway.envPath, 'utf8')
+  assert.match(gatewayEnvironment, /GATEWAY_MACHINE_PRINCIPAL_ID=/u)
+  assert.match(gatewayEnvironment, /GATEWAY_MACHINE_WORKLOAD_BINDING_ID=/u)
+  assert.match(gatewayEnvironment, /GATEWAY_MACHINE_WORKLOAD_BINDING_VERSION=/u)
   const auth = profile.services.find((service) => service.workload === 'auth-service')
   const authEnvironment = await readFile(auth.envPath, 'utf8')
   assert.match(authEnvironment, /AUTH_EXECUTION_WORKLOAD_POLICIES=.*urn:oes:service:auth-service/u)
   assert.match(authEnvironment, /AUTH_FOUNDATION_MACHINE_PRINCIPAL_ID=/u)
   assert.match(authEnvironment, /AUTH_FOUNDATION_MACHINE_WORKLOAD_BINDING_ID=/u)
+  assert.match(gatewayEnvironment, /urn:oes:service:terminal-device-service/u)
+  assert.match(gatewayEnvironment, /urn:oes:service:item-master-service/u)
+  assert.match(gatewayEnvironment, /terminal-device\.internal\.gateway\.enrollment\.activate/u)
+  assert.match(gatewayEnvironment, /terminal-device\.internal\.gateway\.access\.resolve/u)
+  assert.match(gatewayEnvironment, /permission\.internal\.account_access_summary\.resolve/u)
+  assert.match(gatewayEnvironment, /permission\.internal\.account_navigation\.resolve/u)
+  const terminalDevice = profile.services.find(
+    (service) => service.workload === 'terminal-device-service'
+  )
+  assert.ok(terminalDevice)
+  const terminalDeviceEnvironment = await readFile(terminalDevice.envPath, 'utf8')
+  assert.match(
+    terminalDeviceEnvironment,
+    /GATEWAY_TERMINAL_DEVICE_SPIFFE_ID='spiffe:\/\/local\.oes\.internal\/ns\/oes\/sa\/api-gateway'/u
+  )
 })
 
 test('inventory rejects duplicate workload, listener port, or source', async () => {
   await assert.rejects(() => readInventory('a|50050|a.ts\na|50051|b.ts\n'), /DUPLICATE_WORKLOAD/)
-  await assert.rejects(() => readInventory('a|50050|a.ts\nb|50050|b.ts\n'), /DUPLICATE_CANONICALPORT/)
+  await assert.rejects(
+    () => readInventory('a|50050|a.ts\nb|50050|b.ts\n'),
+    /DUPLICATE_CANONICALPORT/
+  )
   await assert.rejects(() => readInventory('a|50050|a.ts\nb|50051|a.ts\n'), /DUPLICATE_SOURCE/)
 })
 
@@ -46,8 +71,13 @@ test('notification payload protection key is stable and owner-private', async ()
   assert.equal(Buffer.from(firstKey ?? '', 'base64').length, 32)
   await generateProfile({ basePort: 54050, requireInfrastructure: false })
   const secondEnvironment = await readFile(notification.envPath, 'utf8')
-  assert.equal(secondEnvironment.match(/^NOTIFICATION_DELIVERY_PAYLOAD_KEY='([^']+)'$/mu)?.[1], firstKey)
-  const secret = await stat(join(dirname(dirname(notification.envPath)), 'secrets/notification-delivery-payload.key'))
+  assert.equal(
+    secondEnvironment.match(/^NOTIFICATION_DELIVERY_PAYLOAD_KEY='([^']+)'$/mu)?.[1],
+    firstKey
+  )
+  const secret = await stat(
+    join(dirname(dirname(notification.envPath)), 'secrets/notification-delivery-payload.key')
+  )
   assert.equal(secret.mode & 0o777, 0o600)
 })
 
@@ -63,27 +93,50 @@ test('APISIX standalone profile routes only to the host-rewritable Gateway bindi
 })
 
 test('projects exact Collaboration HUMAN_OBO owner selectors and Permission upper bound', async () => {
-  const auth = JSON.parse(await readFile('scripts/local/runtime-config/auth-execution-workload-policies.json', 'utf8'))
-  const permission = JSON.parse(await readFile('scripts/local/runtime-config/permission-workload-issuance-policies.json', 'utf8'))
+  const auth = JSON.parse(
+    await readFile('scripts/local/runtime-config/auth-execution-workload-policies.json', 'utf8')
+  )
+  const permission = JSON.parse(
+    await readFile(
+      'scripts/local/runtime-config/permission-workload-issuance-policies.json',
+      'utf8'
+    )
+  )
   const source = await readFile('scripts/local/trusted-runtime.mjs', 'utf8')
-  assert.deepEqual(auth.find((entry) => entry.spiffeId.endsWith('/collaboration-service')), {
-    spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/collaboration-service',
-    audiences: ['urn:oes:service:collaboration-service', 'urn:oes:service:identity-service', 'urn:oes:service:permission-service']
-  })
-  assert.deepEqual(permission.find((entry) => entry.originalWorkloadSpiffeId.endsWith('/collaboration-service')), {
-    originalWorkloadSpiffeId: 'spiffe://local.oes.internal/ns/oes/sa/collaboration-service',
-    targetAudience: 'urn:oes:service:permission-service',
-    permissionCodes: ['permission.internal.account_access_summary.resolve'],
-    scopeLevel: 'SYSTEM',
-    policyVersion: 'auth-login-owner-facts-v1'
-  })
+  assert.deepEqual(
+    auth.find((entry) => entry.spiffeId.endsWith('/collaboration-service')),
+    {
+      spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/collaboration-service',
+      audiences: [
+        'urn:oes:service:collaboration-service',
+        'urn:oes:service:identity-service',
+        'urn:oes:service:permission-service'
+      ]
+    }
+  )
+  assert.deepEqual(
+    permission.find((entry) => entry.originalWorkloadSpiffeId.endsWith('/collaboration-service')),
+    {
+      originalWorkloadSpiffeId: 'spiffe://local.oes.internal/ns/oes/sa/collaboration-service',
+      targetAudience: 'urn:oes:service:permission-service',
+      permissionCodes: ['permission.internal.account_access_summary.resolve'],
+      scopeLevel: 'SYSTEM',
+      policyVersion: 'auth-login-owner-facts-v1'
+    }
+  )
   assert.match(source, /TRUSTED_RUNTIME_SELECTOR_MISSING_COLLABORATION/)
   assert.match(source, /selfAudience: 'urn:oes:service:collaboration-service'/)
 })
 
 test('projects exact Gateway Identity and Collaboration HUMAN_OBO targets without wildcard', async () => {
   const source = await readFile('scripts/local/trusted-runtime.mjs', 'utf8')
-  assert.match(source, /'urn:oes:service:identity-service', 'urn:oes:service:collaboration-service'/)
-  assert.match(source, /targetAudiences: \['urn:oes:service:identity-service', 'urn:oes:service:permission-service', 'urn:oes:service:collaboration-service'\]/)
+  assert.match(
+    source,
+    /'urn:oes:service:identity-service', 'urn:oes:service:collaboration-service'/
+  )
+  assert.match(
+    source,
+    /targetAudiences: \['urn:oes:service:identity-service', 'urn:oes:service:permission-service', 'urn:oes:service:collaboration-service'\]/
+  )
   assert.doesNotMatch(source, /targetAudiences: \[[^\]]*['"]\*['"]/)
 })

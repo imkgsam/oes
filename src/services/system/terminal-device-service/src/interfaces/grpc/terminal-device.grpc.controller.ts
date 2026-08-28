@@ -1,4 +1,4 @@
-import { Controller, Inject, Optional, UseGuards } from '@nestjs/common'
+import { Controller, Inject, Optional, UseFilters, UseGuards } from '@nestjs/common'
 import {
   AuthorizeBusinessRpc,
   AuthorizeInternalCall,
@@ -106,8 +106,10 @@ import { TerminalDeviceRepository } from '../../domain/repositories/terminal-dev
 import { TerminalDeviceError } from '../../domain/errors/terminal-device.error'
 import { TerminalDeviceGrpcPresenter } from './terminal-device-grpc.presenter'
 import { TerminalDeviceTrustedExecutionGuard } from '../../modules/terminal-device/terminal-device-trusted-execution.guard'
+import { TerminalDeviceGrpcExceptionFilter } from './terminal-device-grpc-exception.filter'
 
 @Controller()
+@UseFilters(TerminalDeviceGrpcExceptionFilter)
 @UseGuards(TerminalDeviceTrustedExecutionGuard)
 @TerminalDeviceEnrollmentServiceControllerMethods()
 @TerminalDeviceAccessDecisionServiceControllerMethods()

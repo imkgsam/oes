@@ -4,7 +4,9 @@
     "audiences": [
       "urn:oes:service:auth-service",
       "urn:oes:service:identity-service",
-      "urn:oes:service:permission-service"
+      "urn:oes:service:item-master-service",
+      "urn:oes:service:permission-service",
+      "urn:oes:service:terminal-device-service"
     ]
   },
   {

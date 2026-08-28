@@ -158,7 +158,12 @@ class GatewayFoundationExecutionTokenExchangeClient implements ExecutionTokenExc
             getVerifiedWorkloadIdentity: async () => readLocalVerifiedWorkloadIdentity()
           }
         })
-        return new GatewayFoundationTrustedGrpcExecutionProducer(context, metadata)
+        return new GatewayFoundationTrustedGrpcExecutionProducer(
+          context,
+          metadata,
+          undefined,
+          source
+        )
       },
       inject: [
         AsyncLocalTransportPrivateSourceCredentialAccessor,

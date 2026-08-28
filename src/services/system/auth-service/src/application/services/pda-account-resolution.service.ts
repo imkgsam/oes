@@ -1,10 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants'
 import { ExceptionFactory } from '@oes/common/exceptions'
-import {
-  IdentityAccountSummary,
-  IIdentityServicePort
-} from '../ports/identity-service.port'
+import { IdentityAccountSummary, IIdentityServicePort } from '../ports/identity-service.port'
 import {
   AccountTerminalAccessDecision,
   IPermissionServicePort
@@ -34,8 +31,9 @@ export class PdaAccountResolutionService {
   // Applies identity account facts and permission terminal policy to choose one PDA login account.
   async resolve(input: ResolvePdaAccountInput): Promise<ResolvedPdaAccount> {
     const deviceBoundTenantId = input.deviceBoundTenantId.trim()
-    const candidates = (await this.identityService.getAvailableAccountsByUserId(input.userId))
-      .filter((account) => account.tenantId === deviceBoundTenantId)
+    const candidates = (
+      await this.identityService.getAvailableAccountsByUserId(input.userId)
+    ).filter((account) => account.tenantId === deviceBoundTenantId)
 
     const decisions = await Promise.all(
       candidates.map(async (account) => ({
@@ -63,7 +61,10 @@ export class PdaAccountResolutionService {
       })
     }
 
-    const account = await this.identityService.getAccountById(allowedAccounts[0].accountId)
+    const account = await this.identityService.resolveAuthLoginAccount(
+      input.userId,
+      allowedAccounts[0].accountId
+    )
     if (
       !account ||
       account.userId !== input.userId ||

@@ -2,17 +2,6 @@ import { PdaSessionBootstrapUseCase } from './pda-session-bootstrap.use-case'
 
 describe('PdaSessionBootstrapUseCase', () => {
   it('builds the managed PDA bootstrap payload from session context and device decision', async () => {
-    const identityAdapter = {
-      getAccountById: jest.fn().mockResolvedValue({
-        account: {
-          id: 'account-1',
-          tenantId: 'tenant-1',
-          scopeLevel: 'TENANT',
-          displayName: 'Worker One',
-          isEnabled: true
-        }
-      })
-    }
     const sessionAccessSummaryUseCase = {
       execute: jest.fn().mockResolvedValue({
         roles: [{ code: 'tenant.worker' }],
@@ -40,7 +29,6 @@ describe('PdaSessionBootstrapUseCase', () => {
       })
     }
     const useCase = new PdaSessionBootstrapUseCase(
-      identityAdapter as any,
       sessionAccessSummaryUseCase as any,
       terminalDeviceAdapter as any
     )
@@ -52,6 +40,7 @@ describe('PdaSessionBootstrapUseCase', () => {
           holderId: 'account-1',
           tenantId: 'tenant-1',
           scopeLevel: 'TENANT',
+          displayName: 'Worker One',
           sid: 'session-1',
           terminal: 'PDA'
         }
@@ -116,11 +105,6 @@ describe('PdaSessionBootstrapUseCase', () => {
     ['signed tenant mismatch', { terminal: 'PDA', tenantId: 'tenant-2' }, 'tenant-1'],
     ['device tenant mismatch', { terminal: 'PDA', tenantId: 'tenant-1' }, 'tenant-2']
   ])('fails closed for %s', async (_label, userOverrides, resolvedTenantId) => {
-    const identityAdapter = {
-      getAccountById: jest.fn().mockResolvedValue({
-        account: { id: 'account-1', tenantId: 'tenant-1', scopeLevel: 'TENANT', isEnabled: true }
-      })
-    }
     const access = { execute: jest.fn().mockResolvedValue({ roles: [], actionCodes: [] }) }
     const device = {
       resolveDeviceAccessDecision: jest.fn().mockResolvedValue({
@@ -130,11 +114,7 @@ describe('PdaSessionBootstrapUseCase', () => {
         deviceStatus: 'ACTIVE'
       })
     }
-    const useCase = new PdaSessionBootstrapUseCase(
-      identityAdapter as any,
-      access as any,
-      device as any
-    )
+    const useCase = new PdaSessionBootstrapUseCase(access as any, device as any)
 
     await expect(
       useCase.execute(
@@ -152,17 +132,43 @@ describe('PdaSessionBootstrapUseCase', () => {
     ).rejects.toThrow()
   })
 
-  it('does not invoke Identity, Permission or Terminal dependencies for a non-PDA session', async () => {
-    const identity = { getAccountById: jest.fn() }
+  it('does not invoke Permission or Terminal dependencies for a non-PDA session', async () => {
     const access = { execute: jest.fn() }
     const device = { resolveDeviceAccessDecision: jest.fn() }
-    const useCase = new PdaSessionBootstrapUseCase(identity as any, access as any, device as any)
+    const useCase = new PdaSessionBootstrapUseCase(access as any, device as any)
 
     await expect(
       useCase.execute({ user: { terminal: 'WEB' } } as any, 'device-1', 'credential-1')
     ).rejects.toThrow('PDA bootstrap requires a PDA terminal session')
-    expect(identity.getAccountById).not.toHaveBeenCalled()
     expect(access.execute).not.toHaveBeenCalled()
     expect(device.resolveDeviceAccessDecision).not.toHaveBeenCalled()
+  })
+
+  it('does not resolve account access when the managed device decision is denied', async () => {
+    const access = { execute: jest.fn() }
+    const device = {
+      resolveDeviceAccessDecision: jest.fn().mockResolvedValue({
+        allowed: false,
+        resolvedTenantId: 'tenant-1'
+      })
+    }
+    const useCase = new PdaSessionBootstrapUseCase(access as any, device as any)
+
+    await expect(
+      useCase.execute(
+        {
+          user: {
+            userId: 'user-1',
+            holderId: 'account-1',
+            tenantId: 'tenant-1',
+            scopeLevel: 'TENANT',
+            terminal: 'PDA'
+          }
+        } as any,
+        'device-1',
+        'wrong-credential'
+      )
+    ).rejects.toThrow('PDA bootstrap device access denied')
+    expect(access.execute).not.toHaveBeenCalled()
   })
 })

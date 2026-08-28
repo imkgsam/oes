@@ -4,6 +4,7 @@ import { INestApplication, INestMicroservice } from '@nestjs/common'
 import { GrpcMethod, MicroserviceOptions, RpcException, Transport } from '@nestjs/microservices'
 import { Metadata } from '@grpc/grpc-js'
 import { GatewayMachineTrustedGrpcExecutionProducer } from '../../../../../common/grpc/gateway-machine-trusted-grpc-execution-producer'
+import { GatewayTerminalDeviceGrpcClient } from '../../../../../common/grpc/gateway-terminal-device-grpc.client'
 import {
   GatewayAssetGrpcClient,
   GatewayTrustedGrpcExecutionProducer
@@ -13,7 +14,11 @@ import { APP_GUARD } from '@nestjs/core'
 import request from 'supertest'
 import { ConfigModule } from '@nestjs/config'
 import { CommonJwtModule, CommonJwtService } from '@oes/common/auth'
-import { AsyncLocalTransportPrivateSourceCredentialAccessor, GatewayPermissionGuard } from '@oes/common/authorization'
+import {
+  AsyncLocalTransportPrivateSourceCredentialAccessor,
+  GATEWAY_PERMISSION_TRUSTED_METADATA_PROVIDER,
+  GatewayPermissionGuard
+} from '@oes/common/authorization'
 import { LoggingModule } from '@oes/common/logging'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { getGrpcClientToken, GrpcTransportModule } from '@oes/common/transport'
@@ -168,14 +173,14 @@ class TestAuthGrpcController implements AuthServiceController {
     return { success: true, passwordSetupRequired: false }
   }
 
-  listAuditEvents(
-    _request?: unknown,
-    metadata?: { getMap?: () => Record<string, unknown> }
-  ): any {
+  listAuditEvents(_request?: unknown, metadata?: { getMap?: () => Record<string, unknown> }): any {
     const map = metadata?.getMap?.() ?? {}
     observedState.listAuditEventsOperatorContext = String(map['x-operator-context'] ?? '')
 
-    return { items: [{ eventId: 'audit-1', eventType: 'SESSION_REVOKED', tenantId: 'tenant-1' }], nextCursor: '' }
+    return {
+      items: [{ eventId: 'audit-1', eventType: 'SESSION_REVOKED', tenantId: 'tenant-1' }],
+      nextCursor: ''
+    }
   }
 
   listLoginHistory(request: { userId?: string }): any {
@@ -382,11 +387,17 @@ class TestAuthGrpcController implements AuthServiceController {
   }
 
   enableMfaBinding(): any {
-    return { success: true, binding: { bindingId: 'binding-1', type: 1, enabled: true, available: true } }
+    return {
+      success: true,
+      binding: { bindingId: 'binding-1', type: 1, enabled: true, available: true }
+    }
   }
 
   disableMfaBinding(): any {
-    return { success: true, binding: { bindingId: 'binding-1', type: 1, enabled: false, available: true } }
+    return {
+      success: true,
+      binding: { bindingId: 'binding-1', type: 1, enabled: false, available: true }
+    }
   }
 
   initializeTotpBinding(): any {
@@ -398,7 +409,10 @@ class TestAuthGrpcController implements AuthServiceController {
   }
 
   activateTotpBinding(): any {
-    return { success: true, binding: { bindingId: 'binding-1', type: 3, enabled: true, available: true } }
+    return {
+      success: true,
+      binding: { bindingId: 'binding-1', type: 3, enabled: true, available: true }
+    }
   }
 
   initializeRecoveryCodes(): any {
@@ -954,9 +968,7 @@ class TestPermissionGrpcController implements PermissionCheckServiceController {
 // Provides the PolicyInstance management surface now initialized by the gateway permission module.
 @Controller()
 @PolicyInstanceManagementServiceControllerMethods()
-class TestPolicyInstanceManagementGrpcController
-  implements PolicyInstanceManagementServiceController
-{
+class TestPolicyInstanceManagementGrpcController implements PolicyInstanceManagementServiceController {
   createPolicyInstance(): any {
     return { id: 'policy-instance-test' }
   }
@@ -991,9 +1003,7 @@ class TestPolicyInstancePreviewGrpcController implements PolicyInstancePreviewSe
 // Resolves terminal eligibility in auth-bff integration tests without bypassing the permission gRPC contract.
 @Controller()
 @PermissionTerminalAccessServiceControllerMethods()
-class TestPermissionTerminalAccessGrpcController
-  implements PermissionTerminalAccessServiceController
-{
+class TestPermissionTerminalAccessGrpcController implements PermissionTerminalAccessServiceController {
   resolveAccountTerminalAccess(request: {
     accountId?: string
     tenantId?: string
@@ -1148,7 +1158,8 @@ class TestTerminalDeviceGrpcController implements TerminalDeviceAccessDecisionSe
         decisionCode: DeviceAccessDecisionCode.DEVICE_ACCESS_DECISION_CODE_ALLOW,
         resolvedTenantId: 'tenant-1',
         terminalDeviceId: request.terminalDeviceId ?? 'terminal-device-1',
-        terminalDeviceType: request.terminalDeviceType ?? TerminalDeviceType.TERMINAL_DEVICE_TYPE_PDA,
+        terminalDeviceType:
+          request.terminalDeviceType ?? TerminalDeviceType.TERMINAL_DEVICE_TYPE_PDA,
         deviceStatus: TerminalDeviceStatus.TERMINAL_DEVICE_STATUS_ACTIVE
       }
     }
@@ -1213,7 +1224,8 @@ class TestTerminalDeviceGrpcModule {}
       SERVICE_NAMES.IDENTITY,
       SERVICE_NAMES.PERMISSION,
       SERVICE_NAMES.PARTY,
-      SERVICE_NAMES.TENANT_ORG
+      SERVICE_NAMES.TENANT_ORG,
+      SERVICE_NAMES.TERMINAL_DEVICE
     ])
   ],
   providers: [
@@ -1243,7 +1255,8 @@ class TestTerminalDeviceGrpcModule {}
         forAuthPublicAdmission: (source: unknown) => testTrustedMetadata(source),
         forBusinessCall: async (source: unknown) => testTrustedMetadata(source),
         forSelfServiceCall: async (source: unknown) => testTrustedMetadata(source),
-        forInternalCall: async (source: unknown) => testTrustedMetadata(source)
+        forInternalCall: async (source: unknown) => testTrustedMetadata(source),
+        forHumanOboInternalCall: async (source: unknown) => testTrustedMetadata(source)
       }
     },
     {
@@ -1259,6 +1272,11 @@ class TestTerminalDeviceGrpcModule {}
       provide: GatewayAssetGrpcClient,
       useFactory: (client: any) => ({ getService: () => client.getService('AssetService') }),
       inject: [getGrpcClientToken(SERVICE_NAMES.ASSET)]
+    },
+    {
+      provide: GatewayTerminalDeviceGrpcClient,
+      useFactory: (client: any) => ({ getClient: () => client }),
+      inject: [getGrpcClientToken(SERVICE_NAMES.TERMINAL_DEVICE)]
     },
     {
       provide: GatewayTrustedGrpcExecutionProducer,
@@ -1282,6 +1300,7 @@ class TestTerminalDeviceGrpcModule {}
     GatewayFoundationTrustedGrpcExecutionProducer,
     GatewayMachineTrustedGrpcExecutionProducer,
     GatewayAssetGrpcClient,
+    GatewayTerminalDeviceGrpcClient,
     GatewayTrustedGrpcExecutionProducer,
     PartyDedicatedClient
   ]
@@ -1367,6 +1386,10 @@ class TestTrustedDownstreamModule {}
     ...createGatewaySourceCredentialProviders(),
     AsyncLocalTransportPrivateSourceCredentialAccessor,
     GatewayExceptionFilter,
+    {
+      provide: GATEWAY_PERMISSION_TRUSTED_METADATA_PROVIDER,
+      useValue: { create: async (source: unknown) => testTrustedMetadata(source) }
+    },
     GatewayPermissionGuard,
     { provide: APP_GUARD, useClass: GatewaySessionAuthGuard },
     { provide: APP_GUARD, useExisting: GatewayPermissionGuard }
@@ -1390,14 +1413,17 @@ describe('AuthBff gateway integration', () => {
     process.env.NODE_ENV = 'test'
     process.env.ACCESS_TOKEN_VALIDITY_SEC = '3600'
     process.env.REFRESH_TOKEN_VALIDITY_SEC = '86400'
-    authMicroservice = await NestFactory.createMicroservice<MicroserviceOptions>(TestAuthGrpcModule, {
-      transport: Transport.GRPC,
-      options: {
-        package: 'auth_service',
-        protoPath: resolveCommonProtoPath('auth_service/auth.proto'),
-        url: `127.0.0.1:${AUTH_PORT}`
+    authMicroservice = await NestFactory.createMicroservice<MicroserviceOptions>(
+      TestAuthGrpcModule,
+      {
+        transport: Transport.GRPC,
+        options: {
+          package: 'auth_service',
+          protoPath: resolveCommonProtoPath('auth_service/auth.proto'),
+          url: `127.0.0.1:${AUTH_PORT}`
+        }
       }
-    })
+    )
 
     permissionMicroservice = await NestFactory.createMicroservice<MicroserviceOptions>(
       TestPermissionGrpcModule,

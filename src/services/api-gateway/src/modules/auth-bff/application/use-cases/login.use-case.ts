@@ -75,7 +75,9 @@ export class LoginUseCase {
     const pdaDeviceContext = await this.resolvePdaDeviceContextIfNeeded(
       dto,
       clientContext,
-      terminal, deviceCredential
+      terminal,
+      deviceCredential,
+      source
     )
     if (pdaDeviceContext && !pdaDeviceContext.allowed) {
       return this.toPdaTerminalDeviceDeniedResponse(pdaDeviceContext.reasonCode)
@@ -177,7 +179,9 @@ export class LoginUseCase {
     const pdaDeviceContext = await this.resolvePdaDeviceContextIfNeeded(
       dto,
       clientContext,
-      terminal
+      terminal,
+      undefined,
+      source
     )
     if (pdaDeviceContext && !pdaDeviceContext.allowed) {
       return {
@@ -202,7 +206,8 @@ export class LoginUseCase {
 
     return {
       allowed: Boolean(result.allowed),
-      reasonCode: result.reasonCode || (result.allowed ? 'READY_FOR_PIN' : 'EMPLOYEE_CODE_LOGIN_UNAVAILABLE'),
+      reasonCode:
+        result.reasonCode || (result.allowed ? 'READY_FOR_PIN' : 'EMPLOYEE_CODE_LOGIN_UNAVAILABLE'),
       message: result.message || result.reasonCode || ''
     }
   }
@@ -320,7 +325,8 @@ export class LoginUseCase {
     dto: PdaDeviceMetadataCarrier,
     clientContext: LoginClientContext,
     terminal: LoginTerminal,
-    deviceCredential?: string
+    deviceCredential: string | undefined,
+    source: Pick<DownstreamRequestSource, 'requestId' | 'traceparent' | 'tracestate'>
   ): Promise<(PdaLoginDeviceContext & { allowed: boolean; reasonCode?: string }) | undefined> {
     if (terminal !== 'PDA') {
       return undefined
@@ -341,7 +347,8 @@ export class LoginUseCase {
     return this.terminalDeviceAdapter.resolveLoginDeviceContext({
       terminalDeviceId,
       deviceMetadata: this.toPdaDeviceMetadata(dto, { deviceName, userAgent, ipAddress }),
-      deviceCredential: deviceCredential?.trim() ?? ''
+      deviceCredential: deviceCredential?.trim() ?? '',
+      source
     })
   }
 
@@ -361,7 +368,11 @@ export class LoginUseCase {
         'manufacturer',
         'model'
       ]),
-      ...this.normalizedObject(dto.device?.software, ['androidVersion', 'webViewVersion', 'appVersion'])
+      ...this.normalizedObject(dto.device?.software, [
+        'androidVersion',
+        'webViewVersion',
+        'appVersion'
+      ])
     }
   }
 
