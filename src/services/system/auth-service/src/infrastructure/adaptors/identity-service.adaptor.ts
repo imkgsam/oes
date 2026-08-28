@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common'
+import { Metadata } from '@grpc/grpc-js'
 import { ExceptionFactory, InfrastructureException } from '@oes/common/exceptions'
 import {
   GetAccountByIdRequest,
@@ -31,11 +32,11 @@ import {
   AuthFoundationTrustedGrpcExecutionProducer,
   AuthIdentityTrustedGrpcClient
 } from './foundation-trusted-grpc.clients'
+import { inboundExecutionTokenCredentialScope } from '@oes/common/authorization'
 
 const IDENTITY_QUERY_SERVICE_NAME = 'IdentityQueryService'
 const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:identity-service'
 const AUTH_INTERNAL_PERMISSION = 'identity.internal.integration_machine.resolve'
-const MACHINE_PRINCIPAL_RESOLVE_PERMISSION = 'identity.internal.machine_principal.resolve'
 const AUTH_LOGIN_ACCOUNT_RESOLVE_PERMISSION = 'identity.internal.auth_login_account.resolve'
 
 @Injectable()
@@ -300,10 +301,11 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
     tenantId?: string
     orgId?: string
   }> {
-    const metadata = await this.trusted.forInternalCall(
-      'identity-service',
-      MACHINE_PRINCIPAL_RESOLVE_PERMISSION
-    )
+    const correlation = inboundExecutionTokenCredentialScope.requireCorrelation()
+    const metadata = new Metadata()
+    metadata.set('x-request-id', correlation.requestId)
+    metadata.set('traceparent', correlation.traceparent)
+    if (correlation.tracestate) metadata.set('tracestate', correlation.tracestate)
     const response = await safeGrpcCall<ResolveMachinePrincipalForAuthResponse>(
       this.identityQueryService.resolveMachinePrincipalForAuth(
         {
