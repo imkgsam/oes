@@ -1,4 +1,4 @@
-const { Metadata } = require('@grpc/grpc-js')
+import { Metadata } from '@grpc/grpc-js'
 const { of } = require('rxjs')
 const {
   INTERNAL_SERVICE_NAME_METADATA_KEY,

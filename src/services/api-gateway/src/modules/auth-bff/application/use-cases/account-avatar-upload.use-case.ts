@@ -24,6 +24,11 @@ export class AccountAvatarUploadUseCase {
       throw new BadRequestException('avatar file is required')
     }
 
+    const self = getAuthenticatedSelfContext(source)
+    if (!self.accountId) {
+      throw new UnauthorizedException('authenticated session context is missing current account id')
+    }
+
     const result = await this.assetAdapter.uploadAccountAvatar(
       {
         contentType: file.mimetype,

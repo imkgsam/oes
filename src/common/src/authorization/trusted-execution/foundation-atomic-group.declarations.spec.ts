@@ -11,7 +11,7 @@ function applied(source: string, helper: string): string[] {
   )
 }
 
-/** Locks the five-service atomic group to 217 one-mode admissions and the exact new INTERNAL vocabulary. */
+/** Locks the five-service atomic group to 217 one-mode admissions and the exact frozen INTERNAL vocabulary. */
 describe('foundation atomic trusted gRPC declarations', () => {
   it('covers the exact 217-member arithmetic without dual declarations', () => {
     const auth = applied(
@@ -45,13 +45,25 @@ describe('foundation atomic trusted gRPC declarations', () => {
         read(
           'src/services/system/tenant-org-service/src/interfaces/grpc/tenant-org-management.grpc.controller.ts'
         ),
-        'applyTenantOrgDeclaration'
+        'applyTenantOrgBusinessDeclaration'
       ),
       ...applied(
         read(
           'src/services/system/tenant-org-service/src/interfaces/grpc/tenant-org-query.grpc.controller.ts'
         ),
-        'applyTenantOrgDeclaration'
+        'applyTenantOrgBusinessDeclaration'
+      ),
+      ...applied(
+        read(
+          'src/services/system/tenant-org-service/src/interfaces/grpc/tenant-org-management.grpc.controller.ts'
+        ),
+        'applyTenantOrgTargetDeclaration'
+      ),
+      ...applied(
+        read(
+          'src/services/system/tenant-org-service/src/interfaces/grpc/tenant-org-query.grpc.controller.ts'
+        ),
+        'applyTenantOrgSystemTargetDeclaration'
       )
     ]
     expect([
@@ -77,7 +89,7 @@ describe('foundation atomic trusted gRPC declarations', () => {
     expect(atomicTotal).toBe(217)
   })
 
-  it('registers exactly the six frozen Permission transport Codes', () => {
+  it('registers exactly the seven frozen Permission transport Codes', () => {
     const generated = read(
       'src/common/src/authorization/permission-codes/permission/internal.permission-codes.ts'
     )
@@ -95,7 +107,8 @@ describe('foundation atomic trusted gRPC declarations', () => {
       'permission.internal.resource.check',
       'permission.internal.query_scope.build',
       'permission.internal.account_access_summary.resolve',
-      'permission.internal.account_navigation.resolve'
+      'permission.internal.account_navigation.resolve',
+      'permission.internal.external_machine.snapshot.resolve'
     ])
   })
 })

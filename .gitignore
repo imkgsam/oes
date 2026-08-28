@@ -26,6 +26,9 @@ otel/
 !/docker/grpc-trust/execution-token-signer/**
 !/docker/nats/
 !/docker/nats/**
+!/docker/Dockerfile.service
+!/docker/nacos/
+!/docker/nacos/mysql-schema.sql
 
 app/demo/
 

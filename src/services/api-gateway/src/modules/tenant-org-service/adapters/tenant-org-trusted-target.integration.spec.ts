@@ -368,6 +368,8 @@ function issueServerCertificate(workspace: string, workload: string) {
     join(workspace, 'ca.pem'),
     '-CAkey',
     join(workspace, 'ca-key.pem'),
+    '-CAserial',
+    join(workspace, 'matrix-ca.srl'),
     '-CAcreateserial',
     '-out',
     certPath,

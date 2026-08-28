@@ -4,6 +4,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices'
 import type { ClientProviderOptions } from '@nestjs/microservices/module/interfaces'
 import { AuthorizationModule, GrpcRequestContextInterceptor } from '@oes/common/authorization'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
+import { createGrpcClientCredentials } from '@oes/common/transport'
 import { BusinessCardApplicationService } from '../../application/services/business-card-application.service'
 import { PublicEntryBusinessCardGrpcController } from '../../interfaces/grpc/public-entry-business-card.grpc.controller'
 import { ShortLinkApplicationService } from '../../application/services/short-link-application.service'
@@ -77,6 +78,23 @@ export function buildBusinessCardGrpcClients(): ClientProviderOptions[] {
   ]
 }
 
+/** Adds mandatory workload credentials and rejects an unresolved Public Entry downstream URL. */
+function createMtlsClientProvider(client: ClientProviderOptions): ClientProviderOptions {
+  if (
+    !('transport' in client) ||
+    client.transport !== Transport.GRPC ||
+    !('options' in client) ||
+    !('url' in client.options) ||
+    !client.options.url
+  ) {
+    throw new Error('PUBLIC_ENTRY_FOUNDATION_EXECUTION_UNAVAILABLE')
+  }
+  return {
+    ...client,
+    options: { ...client.options, credentials: createGrpcClientCredentials() }
+  } as ClientProviderOptions
+}
+
 // BusinessCardResolverRegistration registers the BUSINESS_CARD target resolver with the ShortLink module registry.
 @Injectable()
 export class BusinessCardResolverRegistration implements OnModuleInit {
@@ -96,7 +114,12 @@ export class BusinessCardResolverRegistration implements OnModuleInit {
     AuthorizationModule,
     PrismaModule,
     ShortLinkModule,
-    ClientsModule.register(buildBusinessCardGrpcClients())
+    ClientsModule.registerAsync(
+      buildBusinessCardGrpcClients().map((client) => ({
+        name: client.name,
+        useFactory: () => createMtlsClientProvider(client)
+      }))
+    )
   ],
   controllers: [PublicEntryBusinessCardGrpcController],
   providers: [

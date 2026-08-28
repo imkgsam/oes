@@ -6,7 +6,7 @@ import {
 } from '@oes/common/contracts'
 import {
   EventContractError,
-  validateCloudEvent,
+  decodeCloudEvent,
   type EventPublishOutcome,
   type OesCloudEvent,
   type OesEventContract
@@ -17,24 +17,47 @@ export interface CollaborationTaskOutboxClaim {
   readonly eventId: string
   readonly eventType: string
   readonly eventVersion: number
-  readonly cloudEventBody: unknown
+  readonly cloudEventBody: Uint8Array
   readonly attemptCount: number
   readonly leaseToken: string
 }
 
 /** Defines the Collaboration-owned persistence operations needed by its relay worker. */
 export interface CollaborationTaskOutboxStore {
-  claimPending(input: { readonly now: Date; readonly limit: number; readonly leaseMs: number }): Promise<readonly CollaborationTaskOutboxClaim[]>
-  markPublished(input: { readonly eventId: string; readonly leaseToken: string; readonly publishedAt: Date }): Promise<void>
-  scheduleRetry(input: { readonly eventId: string; readonly leaseToken: string; readonly code: string; readonly message: string; readonly nextAttemptAt: Date }): Promise<void>
-  quarantine(input: { readonly eventId: string; readonly leaseToken: string; readonly code: string; readonly message: string; readonly quarantinedAt: Date }): Promise<void>
+  claimPending(input: {
+    readonly now: Date
+    readonly limit: number
+    readonly leaseMs: number
+  }): Promise<readonly CollaborationTaskOutboxClaim[]>
+  markPublished(input: {
+    readonly eventId: string
+    readonly leaseToken: string
+    readonly publishedAt: Date
+  }): Promise<void>
+  scheduleRetry(input: {
+    readonly eventId: string
+    readonly leaseToken: string
+    readonly code: string
+    readonly message: string
+    readonly nextAttemptAt: Date
+  }): Promise<void>
+  quarantine(input: {
+    readonly eventId: string
+    readonly leaseToken: string
+    readonly code: string
+    readonly message: string
+    readonly quarantinedAt: Date
+  }): Promise<void>
 }
 
 export const COLLABORATION_TASK_OUTBOX_STORE = Symbol('COLLABORATION_TASK_OUTBOX_STORE')
 
 /** Defines the injected common transport adapter boundary used by the Collaboration relay. */
 export interface CollaborationPublicEventPublisher {
-  publish<TData>(event: OesCloudEvent<TData>, contract: OesEventContract<TData>): Promise<EventPublishOutcome>
+  publishStored<TData>(
+    body: Uint8Array,
+    contract: OesEventContract<TData>
+  ): Promise<EventPublishOutcome>
 }
 
 export const COLLABORATION_PUBLIC_EVENT_PUBLISHER = Symbol('COLLABORATION_PUBLIC_EVENT_PUBLISHER')
@@ -48,7 +71,8 @@ export class CollaborationTaskOutboxRelay {
 
   constructor(
     @Inject(COLLABORATION_TASK_OUTBOX_STORE) private readonly outbox: CollaborationTaskOutboxStore,
-    @Inject(COLLABORATION_PUBLIC_EVENT_PUBLISHER) private readonly publisher: CollaborationPublicEventPublisher
+    @Inject(COLLABORATION_PUBLIC_EVENT_PUBLISHER)
+    private readonly publisher: CollaborationPublicEventPublisher
   ) {}
 
   /** relayOnce claims a bounded batch, publishes canonical bodies, and persists each definitive delivery outcome. */
@@ -67,8 +91,8 @@ export class CollaborationTaskOutboxRelay {
   private async relayClaim(row: CollaborationTaskOutboxClaim, now: Date): Promise<void> {
     try {
       const contract = contractFor(row.eventType, row.eventVersion)
-      const event = validateStoredCloudEvent(row.cloudEventBody, contract)
-      const outcome = await this.publisher.publish(event, contract)
+      validateStoredCloudEvent(row.cloudEventBody, contract)
+      const outcome = await this.publisher.publishStored(row.cloudEventBody, contract)
       await this.recordOutcome(row, outcome, now)
     } catch (error) {
       if (error instanceof EventContractError) {
@@ -79,7 +103,9 @@ export class CollaborationTaskOutboxRelay {
           message: error.message,
           quarantinedAt: now
         })
-        this.logger.error(`Collaboration outbox quarantined: eventId=${row.eventId}; code=${error.code}`)
+        this.logger.error(
+          `Collaboration outbox quarantined: eventId=${row.eventId}; code=${error.code}`
+        )
         return
       }
       await this.outbox.scheduleRetry({
@@ -93,9 +119,17 @@ export class CollaborationTaskOutboxRelay {
   }
 
   /** recordOutcome records acknowledgement, bounded retry, or deterministic quarantine without rebuilding the body. */
-  private async recordOutcome(row: CollaborationTaskOutboxClaim, outcome: EventPublishOutcome, now: Date): Promise<void> {
+  private async recordOutcome(
+    row: CollaborationTaskOutboxClaim,
+    outcome: EventPublishOutcome,
+    now: Date
+  ): Promise<void> {
     if (outcome.kind === 'ACKNOWLEDGED') {
-      await this.outbox.markPublished({ eventId: row.eventId, leaseToken: row.leaseToken, publishedAt: now })
+      await this.outbox.markPublished({
+        eventId: row.eventId,
+        leaseToken: row.leaseToken,
+        publishedAt: now
+      })
       return
     }
     if (outcome.kind === 'RETRYABLE_FAILURE') {
@@ -115,7 +149,9 @@ export class CollaborationTaskOutboxRelay {
       message: outcome.message,
       quarantinedAt: now
     })
-    this.logger.error(`Collaboration outbox quarantined: eventId=${row.eventId}; code=${outcome.code}`)
+    this.logger.error(
+      `Collaboration outbox quarantined: eventId=${row.eventId}; code=${outcome.code}`
+    )
   }
 }
 
@@ -125,14 +161,19 @@ function contractFor(eventType: string, eventVersion: number): OesEventContract 
     COLLABORATION_TASK_ASSIGNED_EVENT_CONTRACT,
     COLLABORATION_TASK_COMPLETED_EVENT_CONTRACT,
     COLLABORATION_TASK_CANCELLED_EVENT_CONTRACT
-  ].find((candidate) => candidate.eventType === eventType && candidate.eventVersion === eventVersion)
+  ].find(
+    (candidate) => candidate.eventType === eventType && candidate.eventVersion === eventVersion
+  )
   if (!contract) throw new EventContractError('EVENT_CONTRACT_UNSUPPORTED')
   return contract
 }
 
 /** Validates and freezes the persisted body instead of reconstructing event fields in the relay. */
-function validateStoredCloudEvent<TData>(body: unknown, contract: OesEventContract<TData>): OesCloudEvent<TData> {
-  return validateCloudEvent(body, contract)
+function validateStoredCloudEvent<TData>(
+  body: Uint8Array,
+  contract: OesEventContract<TData>
+): OesCloudEvent<TData> {
+  return decodeCloudEvent(body, contract)
 }
 
 /** Calculates capped exponential retry delays so transient broker failures do not spin forever. */

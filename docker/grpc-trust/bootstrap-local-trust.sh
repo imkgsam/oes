@@ -51,6 +51,7 @@ EOF
     -in "${leaf_directory}/request.pem" \
     -CA "${output_directory}/ca.pem" \
     -CAkey "${output_directory}/ca-key.pem" \
+    -CAserial "${output_directory}/ca.srl" \
     -CAcreateserial \
     -out "${leaf_directory}/cert.pem" \
     -days 1 \
@@ -100,7 +101,8 @@ main() {
     chmod 0444 "${output_directory}/ca.pem"
   fi
 
-  while IFS= read -r workload || [[ -n "${workload}" ]]; do
+  while IFS='|' read -r workload _ || [[ -n "${workload}" ]]; do
+    workload="${workload//[[:space:]]/}"
     [[ -z "${workload}" || "${workload}" == \#* ]] && continue
     if needs_renewal "${output_directory}/${workload}/current/cert.pem"; then
       issue_workload_leaf "${workload}"

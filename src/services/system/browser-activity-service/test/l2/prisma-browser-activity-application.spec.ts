@@ -61,7 +61,8 @@ describe('browser-activity-service Prisma application L2', () => {
   })
 
   it('persists tenant policy and visit summaries for fresh application reads', async () => {
-    const service = new PrismaBrowserActivityApplication(prisma)
+    const now = () => Date.parse('2026-06-25T09:02:00.000Z')
+    const service = new PrismaBrowserActivityApplication(prisma, { now })
     const tenantId = `${prefix}_tenant_1`
 
     await service.updatePolicy({
@@ -97,7 +98,7 @@ describe('browser-activity-service Prisma application L2', () => {
       tenantId
     })
 
-    const fresh = new PrismaBrowserActivityApplication(prisma)
+    const fresh = new PrismaBrowserActivityApplication(prisma, { now })
     await expect(fresh.getPolicy({ tenantId })).resolves.toEqual({
       aggregateRetentionDays: 365,
       enabled: true,

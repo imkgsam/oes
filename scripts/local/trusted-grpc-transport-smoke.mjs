@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFile } from 'node:child_process'
-import { readdir, readFile, mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, readdir, readFile, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, resolve } from 'node:path'
 import { connect, createServer } from 'node:tls'
@@ -17,7 +17,7 @@ async function run(command, arguments_, options = {}) {
   return execFileAsync(command, arguments_, {
     ...options,
     encoding: 'utf8',
-    maxBuffer: 1024 * 1024,
+    maxBuffer: 1024 * 1024
   })
 }
 
@@ -29,7 +29,7 @@ async function readCertificateFingerprint(certificatePath) {
     certificatePath,
     '-noout',
     '-fingerprint',
-    '-sha256',
+    '-sha256'
   ])
   return stdout.trim().split('=')[1]
 }
@@ -40,9 +40,79 @@ async function readWorkloadIdentity(workspace, workload) {
   const [ca, cert, key] = await Promise.all([
     readFile(resolve(directory, 'ca.pem')),
     readFile(resolve(directory, 'cert.pem')),
-    readFile(resolve(directory, 'key.pem')),
+    readFile(resolve(directory, 'key.pem'))
   ])
   return { ca, cert, directory, key, workload }
+}
+
+/** Issues one already-expired CA-signed client leaf to exercise the live TLS expiry path. */
+async function issueExpiredClientIdentity(workspace, trustDomain) {
+  const directory = resolve(workspace, 'expired-client')
+  const newCertificatesDirectory = resolve(directory, 'newcerts')
+  await mkdir(newCertificatesDirectory, { recursive: true })
+  await Promise.all([
+    writeFile(resolve(directory, 'index.txt'), ''),
+    writeFile(resolve(directory, 'serial'), '1000\n')
+  ])
+  const configPath = resolve(directory, 'ca.cnf')
+  const workload = 'grpc-transport-smoke-expired'
+  await writeFile(
+    configPath,
+    `[ca]
+default_ca=CA_default
+[CA_default]
+database=${resolve(directory, 'index.txt')}
+new_certs_dir=${newCertificatesDirectory}
+certificate=${resolve(workspace, 'ca.pem')}
+private_key=${resolve(workspace, 'ca-key.pem')}
+serial=${resolve(directory, 'serial')}
+default_md=sha256
+policy=policy_any
+x509_extensions=leaf
+[policy_any]
+commonName=supplied
+[leaf]
+basicConstraints=critical,CA:FALSE
+keyUsage=critical,digitalSignature,keyEncipherment
+extendedKeyUsage=critical,clientAuth
+subjectAltName=critical,URI:${trustDomain}/ns/oes/sa/${workload}
+`
+  )
+  await run('openssl', [
+    'req',
+    '-new',
+    '-newkey',
+    'rsa:2048',
+    '-nodes',
+    '-keyout',
+    resolve(directory, 'key.pem'),
+    '-out',
+    resolve(directory, 'request.pem'),
+    '-subj',
+    `/CN=${workload}`
+  ])
+  await run('openssl', [
+    'ca',
+    '-batch',
+    '-notext',
+    '-config',
+    configPath,
+    '-in',
+    resolve(directory, 'request.pem'),
+    '-out',
+    resolve(directory, 'cert.pem'),
+    '-startdate',
+    '20200101000000Z',
+    '-enddate',
+    '20200102000000Z'
+  ])
+  return {
+    ca: await readFile(resolve(workspace, 'ca.pem')),
+    cert: await readFile(resolve(directory, 'cert.pem')),
+    key: await readFile(resolve(directory, 'key.pem')),
+    directory,
+    workload
+  }
 }
 
 /** readPeerSpiffeId extracts the URI SAN supplied by the peer during the authenticated TLS handshake. */
@@ -62,7 +132,7 @@ async function startMtlsServer(serverIdentity, expectedSpiffeId, expectedFingerp
       key: serverIdentity.key,
       minVersion: 'TLSv1.2',
       rejectUnauthorized: true,
-      requestCert: true,
+      requestCert: true
     },
     (socket) => {
       const peerCertificate = socket.getPeerCertificate(true)
@@ -75,7 +145,7 @@ async function startMtlsServer(serverIdentity, expectedSpiffeId, expectedFingerp
         return
       }
       socket.end('ACCEPT')
-    },
+    }
   )
   await new Promise((resolveListen, rejectListen) => {
     server.once('error', rejectListen)
@@ -85,7 +155,10 @@ async function startMtlsServer(serverIdentity, expectedSpiffeId, expectedFingerp
   assert.ok(address && typeof address !== 'string')
   return {
     port: address.port,
-    close: () => new Promise((resolveClose, rejectClose) => server.close((error) => (error ? rejectClose(error) : resolveClose()))),
+    close: () =>
+      new Promise((resolveClose, rejectClose) =>
+        server.close((error) => (error ? rejectClose(error) : resolveClose()))
+      )
   }
 }
 
@@ -100,7 +173,7 @@ async function callMtlsServer(clientIdentity, serverName, port) {
       key: clientIdentity.key,
       port,
       rejectUnauthorized: true,
-      servername: serverName,
+      servername: serverName
     })
     socket.setEncoding('utf8')
     socket.on('data', (chunk) => {
@@ -111,30 +184,63 @@ async function callMtlsServer(clientIdentity, serverName, port) {
   })
 }
 
+/** Attempts a TLS connection without a client identity; the mTLS server must terminate it. */
+async function callWithoutClientCertificate(ca, serverName, port) {
+  return new Promise((resolveCall, rejectCall) => {
+    let response = ''
+    const socket = connect({
+      ca,
+      host: '127.0.0.1',
+      port,
+      rejectUnauthorized: true,
+      servername: serverName
+    })
+    socket.setEncoding('utf8')
+    socket.on('data', (chunk) => {
+      response += chunk
+    })
+    socket.once('end', () => resolveCall(response))
+    socket.once('error', rejectCall)
+  })
+}
+
 /** main verifies that the local deployment foundation can issue and rotate isolated workload certificates. */
 async function main() {
-  const environments = JSON.parse(await readFile(resolve(trustDirectory, 'environments.json'), 'utf8'))
+  const environments = JSON.parse(
+    await readFile(resolve(trustDirectory, 'environments.json'), 'utf8')
+  )
   const values = Object.values(environments)
   assert.deepEqual(Object.keys(environments).sort(), ['local', 'production', 'staging'])
   assert.equal(new Set(values.map((environment) => environment.trustDomain)).size, values.length)
   assert.equal(new Set(values.map((environment) => environment.issuer)).size, values.length)
-  assert.equal(new Set(values.map((environment) => environment.signingKeySecretRef)).size, values.length)
+  assert.equal(
+    new Set(values.map((environment) => environment.signingKeySecretRef)).size,
+    values.length
+  )
   assert.ok(environments.local.leafTtlSeconds <= 24 * 60 * 60)
   assert.equal(environments.local.renewBeforeLifetimeFraction, '2/3')
   await assert.rejects(
-    run('bash', [bootstrapScript, '--output', resolve(tmpdir(), 'oes-staging-trust-must-not-exist')], {
-      env: { ...process.env, OES_TRUST_ENV: 'staging' },
-    }),
-    /only creates the local trust domain/,
+    run(
+      'bash',
+      [bootstrapScript, '--output', resolve(tmpdir(), 'oes-staging-trust-must-not-exist')],
+      {
+        env: { ...process.env, OES_TRUST_ENV: 'staging' }
+      }
+    ),
+    /only creates the local trust domain/
   )
 
   const workspace = await mkdtemp(resolve(tmpdir(), 'oes-trusted-grpc-'))
   try {
     await run('bash', [bootstrapScript, '--output', workspace], {
-      env: { ...process.env, OES_TRUST_ENV: 'local' },
+      env: { ...process.env, OES_TRUST_ENV: 'local' }
     })
 
     const clientIdentity = await readWorkloadIdentity(workspace, 'grpc-transport-smoke-client')
+    const expiredIdentity = await issueExpiredClientIdentity(
+      workspace,
+      environments.local.trustDomain
+    )
     const rogueIdentity = await readWorkloadIdentity(workspace, 'grpc-transport-smoke-rogue')
     const serverIdentity = await readWorkloadIdentity(workspace, 'grpc-transport-smoke-server')
     const clientCertificate = resolve(clientIdentity.directory, 'cert.pem')
@@ -144,27 +250,63 @@ async function main() {
     let endpoint = await startMtlsServer(serverIdentity, expectedClientSpiffeId, beforeRotation)
     try {
       assert.equal(await callMtlsServer(clientIdentity, serverName, endpoint.port), 'ACCEPT')
-      assert.equal(await callMtlsServer(rogueIdentity, serverName, endpoint.port), 'REJECT:SPIFFE_ID')
+      assert.equal(
+        await callMtlsServer(rogueIdentity, serverName, endpoint.port),
+        'REJECT:SPIFFE_ID'
+      )
+      const missingCertificateResult = await callWithoutClientCertificate(
+        clientIdentity.ca,
+        serverName,
+        endpoint.port
+      ).catch(() => 'TLS_REJECTED')
+      assert.notEqual(missingCertificateResult, 'ACCEPT')
+    } finally {
+      await endpoint.close()
+    }
+
+    const expiredFingerprint = await readCertificateFingerprint(
+      resolve(expiredIdentity.directory, 'cert.pem')
+    )
+    const expiredSpiffeId = `${environments.local.trustDomain}/ns/oes/sa/${expiredIdentity.workload}`
+    endpoint = await startMtlsServer(serverIdentity, expiredSpiffeId, expiredFingerprint)
+    try {
+      const expiredCertificateResult = await callMtlsServer(
+        expiredIdentity,
+        serverName,
+        endpoint.port
+      ).catch(() => 'TLS_REJECTED')
+      assert.notEqual(expiredCertificateResult, 'ACCEPT')
     } finally {
       await endpoint.close()
     }
 
     await run('bash', [bootstrapScript, '--output', workspace], {
-      env: { ...process.env, OES_FORCE_RENEW: 'true', OES_TRUST_ENV: 'local' },
+      env: { ...process.env, OES_FORCE_RENEW: 'true', OES_TRUST_ENV: 'local' }
     })
     const afterRotation = await readCertificateFingerprint(clientCertificate)
-    assert.notEqual(afterRotation, beforeRotation, 'forced renewal must replace the workload leaf certificate')
-    const clientLeafDirectories = (await readdir(resolve(workspace, clientIdentity.workload))).filter((entry) =>
-      entry.startsWith('.leaf.'),
+    assert.notEqual(
+      afterRotation,
+      beforeRotation,
+      'forced renewal must replace the workload leaf certificate'
     )
-    assert.equal(clientLeafDirectories.length, 1, 'rotation must not retain a superseded private leaf directory')
+    const clientLeafDirectories = (
+      await readdir(resolve(workspace, clientIdentity.workload))
+    ).filter((entry) => entry.startsWith('.leaf.'))
+    assert.equal(
+      clientLeafDirectories.length,
+      1,
+      'rotation must not retain a superseded private leaf directory'
+    )
 
-    const rotatedClientIdentity = await readWorkloadIdentity(workspace, 'grpc-transport-smoke-client')
+    const rotatedClientIdentity = await readWorkloadIdentity(
+      workspace,
+      'grpc-transport-smoke-client'
+    )
     endpoint = await startMtlsServer(serverIdentity, expectedClientSpiffeId, beforeRotation)
     try {
       assert.equal(
         await callMtlsServer(rotatedClientIdentity, serverName, endpoint.port),
-        'REJECT:CERTIFICATE_BINDING',
+        'REJECT:CERTIFICATE_BINDING'
       )
     } finally {
       await endpoint.close()
@@ -182,8 +324,18 @@ async function main() {
       clientCertificate,
       '-noout',
       '-checkend',
-      String(Math.floor(environments.local.leafTtlSeconds / 3)),
+      String(Math.floor(environments.local.leafTtlSeconds / 3))
     ])
+    console.log(
+      JSON.stringify({
+        validCertificate: 'ACCEPT',
+        wrongWorkload: 'REJECT:SPIFFE_ID',
+        missingClientCertificate: 'REJECTED',
+        expiredClientCertificate: 'REJECTED',
+        rotatedCertificateReplay: 'REJECT:CERTIFICATE_BINDING',
+        rotatedCertificate: 'ACCEPT'
+      })
+    )
   } finally {
     await rm(workspace, { force: true, recursive: true })
   }
@@ -194,5 +346,5 @@ main().then(
   (error) => {
     console.error(error.stack || error)
     process.exitCode = 1
-  },
+  }
 )

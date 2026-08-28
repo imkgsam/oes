@@ -44,6 +44,7 @@ describe('CompleteStepUpMfaChallengeHandler', () => {
       userId: 'user-1',
       accountId: 'account-1',
       tenantId: 'tenant-1',
+      scopeLevel: 'TENANT',
       scenario: 'CHANGE_CONTACT'
     })
     expect(result).toEqual({

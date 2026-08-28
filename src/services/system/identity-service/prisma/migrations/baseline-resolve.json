@@ -1,0 +1,59 @@
+{
+  "strategy": "PRISMA_BASELINE_RESOLVE",
+  "baselineMigration": "20260825000000_baseline",
+  "baselineSha256": "464615f317db65cb64823c92091c13b6c27d842725e5cc930ede2671edb3880e",
+  "supersededMigrations": [
+    {
+      "name": "20260324_account_contact_asset_work_email",
+      "sha256": "a3fe86d056d96566343420008be607d5403ebdeb7ba723e0db7a311415ad4af4"
+    },
+    {
+      "name": "20260324_account_display_name_and_primary_org_constraint",
+      "sha256": "009920a9b5e0407fd6c30bcba56e4b59709c00905b7fc2a4584da1db4b126890"
+    },
+    {
+      "name": "20260324_account_org_membership_relation_type",
+      "sha256": "03e6065eea136d9805aa084f2598789110ea0774e541abb021ababb9e20d3c9c"
+    },
+    {
+      "name": "20260325_machine_principal_foundation",
+      "sha256": "c847390a92f60953ff795e7eb0d67a10be58b8391e99801cf2a9a17e74bb6716"
+    },
+    {
+      "name": "20260328_api_key_foundation",
+      "sha256": "5367e96917695b9ae735b8623056e0c5206e91a8a242fc5b52b3f509543a49d7"
+    },
+    {
+      "name": "20260328_api_key_usage_and_rotation",
+      "sha256": "089718a4577b4e16db9821cfe396506fcbfa769b9608b8040e9e87fbc0496ddc"
+    },
+    {
+      "name": "20260331_identity_audit_event_foundation",
+      "sha256": "4c98a28415c40b415f66a7bbe9a99d94077948a4386e60281f95a4f6fe00d74f"
+    },
+    {
+      "name": "20260411_scope_aware_user_account",
+      "sha256": "2f1d2e029f10fb3411b8fd151a7e59071cb4a5b321c715a44069ac15cb97bb72"
+    },
+    {
+      "name": "20260416_user_account_bio",
+      "sha256": "c1e7c559d20c4c66f4f4500ce9acd59dbe6ccb67919ee195c5f7e9c9214c1659"
+    },
+    {
+      "name": "20260502_remove_identity_tenant_org_truth",
+      "sha256": "b960591cce2ecf96cc7f86bcdd4bfeddcdac3df52c564e6260aa47e1a6ff6c55"
+    },
+    {
+      "name": "20260608_contact_asset_phase1",
+      "sha256": "c2275b57367eb073f174f2765c03d50e8576f7affa19749717621fcdcbed0d21"
+    },
+    {
+      "name": "20260610_tenant_party_account_subject",
+      "sha256": "dc4bd5a30532ea7e10d9244cbc7f356421b041cf86b5141c7ce7252e5adeb908"
+    },
+    {
+      "name": "20260806_machine_workload_binding",
+      "sha256": "9c274fcdf9022ca42dc2a4e148d8c400c498053cb83954e06e26afae9f33dbc0"
+    }
+  ]
+}

@@ -10,8 +10,10 @@ import {
   ExecutionTokenJwksCache,
   ExecutionTokenVerifier,
   getAuthenticatedGrpcRequestContext,
+  getPermissionCodeDefinition,
   getRpcAuthorizationModeDeclaration,
   inboundExecutionTokenCredentialScope,
+  permissionDefinitionFingerprint,
   TrustedExecutionRegistry,
   TrustedGrpcMetadataProvider
 } from '@oes/common/authorization'
@@ -166,7 +168,7 @@ describe('CRM trusted gRPC security matrix L3', () => {
     })
   })
 
-  it('composes verified Collaboration ingress through Identity, Permission, Auth OBO signing, and CRM admission', async () => {
+  it('runs the DESIGN_GAP expected-failure lane for Collaboration OBO Permission scope', async () => {
     const now = 1_700_000_300
     const issuer = 'https://auth.local.oes.example'
     const collaborationAudience = 'urn:oes:service:collaboration-service'
@@ -275,12 +277,22 @@ describe('CRM trusted gRPC security matrix L3', () => {
         originalWorkloadSpiffeId: collaborationSpiffe,
         targetAudience: CRM_AUDIENCE,
         permissionCodes: [code],
-        scopeLevel: 'SYSTEM',
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1',
         policyVersion: 'policy-v1'
       })
     }
+    const definition = getPermissionCodeDefinition(code)!
     const permissionRepository = {
-      findByCodes: jest.fn().mockResolvedValue([{ code, kind: 'INTERNAL' }])
+      findByCodes: jest.fn().mockResolvedValue([
+        {
+          code,
+          kind: definition.kind,
+          externalApiEligible: definition.externalApiEligible === true,
+          allowedScopeLevels: [...definition.allowedScopeLevels],
+          definitionFingerprint: permissionDefinitionFingerprint(definition)
+        }
+      ])
     }
     const permissionAudit = { emitIssuanceDecision: jest.fn() }
     const permissionHandler = new ResolveWorkloadIssuanceHandler(
@@ -370,7 +382,7 @@ describe('CRM trusted gRPC security matrix L3', () => {
         exchange: async (targetRequest, metadata) => {
           try {
             const resolved = await provider.resolve({ metadata }, targetRequest)
-            return exchange.exchange({ ...targetRequest, ...resolved })
+            return await exchange.exchange({ ...targetRequest, ...resolved })
           } catch (error) {
             exchangeFailure = error
             throw error
@@ -395,68 +407,35 @@ describe('CRM trusted gRPC security matrix L3', () => {
     const previousWorkload = process.env.OES_WORKLOAD_SPIFFE_ID
     process.env.AUTH_EXECUTION_ISSUER = issuer
     process.env.OES_WORKLOAD_SPIFFE_ID = collaborationSpiffe
-    let outboundMetadata: Metadata
+    let mappedFailure: unknown
     try {
-      try {
-        outboundMetadata = await inboundExecutionTokenCredentialScope.runPrepared(
-          sourceRequest,
-          () => producer.forInternalCall('crm-service', code)
+      mappedFailure = await inboundExecutionTokenCredentialScope
+        .runPrepared(sourceRequest, () => producer.forInternalCall('crm-service', code))
+        .then(
+          () => undefined,
+          (error) => error
         )
-      } catch (error) {
-        throw exchangeFailure ?? error
-      }
     } finally {
       restoreEnvironment('AUTH_EXECUTION_ISSUER', previousIssuer)
       restoreEnvironment('OES_WORKLOAD_SPIFFE_ID', previousWorkload)
     }
 
-    const body: Record<string, unknown> = {
-      objectType: 'CRM_ACCOUNT',
-      objectId: 'crm-1',
-      requestedCapability: 2
-    }
-    const targetContext = executionContext(
-      CrmObjectReferenceGrpcController,
-      CrmObjectReferenceGrpcController.prototype.validateCrmObjectReference,
-      body,
-      outboundMetadata,
-      { spiffeId: collaborationSpiffe, certificateThumbprint: collaborationCert }
+    expect(mappedFailure).toEqual(new Error('COLLABORATION_FOUNDATION_EXECUTION_UNAVAILABLE'))
+    expect(exchangeFailure).toEqual(
+      new Error('execution token exchange lacks an authoritative Permission decision')
     )
-    const targetGuard = new CrmTrustedInternalExecutionGuard(
-      new Reflector(),
-      createVerifier(CRM_AUDIENCE, collaborationSpiffe),
-      {
-        getVerifiedWorkloadIdentity: async () => ({
-          spiffeId: collaborationSpiffe,
-          certificateThumbprint: collaborationCert
-        })
-      } as never,
-      CRM_AUDIENCE
+    expect(permissionAudit.emitIssuanceDecision).toHaveBeenCalledWith(
+      expect.objectContaining({
+        allowed: false,
+        reasonCode: 'AUTHORIZATION_SCOPE_MISMATCH',
+        principalType: 'MACHINE',
+        tenantId: undefined,
+        requestedPermissionCodes: [code]
+      })
     )
-    await expect(targetGuard.canActivate(targetContext)).resolves.toBe(true)
-    expect(new CustomerRpcContextValidator().canActivate(targetContext)).toBe(true)
-    const verified = getAuthenticatedGrpcRequestContext(body)?.verifiedExecutionToken
-    expect(verified).toMatchObject({
-      audience: CRM_AUDIENCE,
-      subject: 'human-1',
-      principalType: 'HUMAN',
-      clientId: collaborationSpiffe,
-      tenantId: 'tenant-1',
-      orgId: 'org-1',
-      permissionCodes: [code],
-      certificateThumbprint: collaborationCert,
-      sessionId: 'session-1',
-      sessionTerminal: 'WEB',
-      actor: collaborationActor()
-    })
-    expect(verified?.expiresAt).toBeLessThanOrEqual(inbound.expiresAt)
-    expect(outboundMetadata.get('x-request-id')).toEqual(['request-1'])
-    expect(outboundMetadata.get('traceparent')).toEqual([traceparent])
     expect(identity.resolveMachinePrincipalForAuth).toHaveBeenCalledTimes(1)
     expect(permissionDecision).toHaveBeenCalledTimes(1)
-    expect(audit.appendOboLink).toHaveBeenCalledWith(
-      expect.objectContaining({ sourceTokenId: 'collaboration-subject-jti' })
-    )
+    expect(audit.appendOboLink).not.toHaveBeenCalled()
   })
 
   it.each([

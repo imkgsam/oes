@@ -1,5 +1,9 @@
 import { Injectable, OnModuleInit } from '@nestjs/common'
-import { OesSiteRuntimeService, type StoredPublishedResource } from '@oes/site-runtime-kit'
+import {
+  NodeSqlitePublishedStore,
+  OesSiteRuntimeService,
+  type StoredPublishedResource
+} from '@oes/site-runtime-kit'
 
 // TemplatePublishedDataSeedService seeds generic local public views for template-only local preview.
 @Injectable()
@@ -14,14 +18,22 @@ export class TemplatePublishedDataSeedService implements OnModuleInit {
     const runtime = this.runtimeService.getRuntime()
     const siteId = runtime.credential.siteId
     const now = new Date('2026-06-16T00:00:00.000Z').toISOString()
-    await runtime.store.upsertPublishedResources(seedResources(siteId, now))
-    await runtime.store.updatePublishState({
-      siteId,
-      localPublishVersion: 1,
-      latestSyncId: 'template-local-seed',
-      lastSuccessfulSyncAt: now,
-      lastKnownRemotePublishVersion: 1
+    const store = new NodeSqlitePublishedStore({
+      path: process.env.OES_SITE_STORE_PATH ?? './data/site-runtime.sqlite'
     })
+    await store.init()
+    try {
+      await store.upsertPublishedResources(seedResources(siteId, now))
+      await store.updatePublishState({
+        siteId,
+        localPublishVersion: 1,
+        latestSyncId: 'template-local-seed',
+        lastSuccessfulSyncAt: now,
+        lastKnownRemotePublishVersion: 1
+      })
+    } finally {
+      await store.close()
+    }
   }
 }
 

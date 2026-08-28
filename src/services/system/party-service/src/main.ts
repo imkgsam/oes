@@ -3,6 +3,7 @@ import { MicroserviceOptions, Transport } from '@nestjs/microservices'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
 import { initOtelSdk } from '@oes/common/tracing'
 import { AppLogger } from '@oes/common/logging'
+import { createGrpcServerCredentials } from '@oes/common/transport'
 import { AppModule } from './app.module'
 
 async function bootstrap() {
@@ -13,7 +14,8 @@ async function bootstrap() {
     options: {
       package: 'party_service',
       protoPath: [resolveCommonProtoPath('party_service/party.proto')],
-      url: `${process.env.GRPC_LISTEN_HOST || '0.0.0.0'}:${process.env.GRPC_LISTEN_PORT || '50053'}`
+      url: `${process.env.GRPC_LISTEN_HOST || '0.0.0.0'}:${process.env.GRPC_LISTEN_PORT || '50053'}`,
+      credentials: createGrpcServerCredentials()
     }
   })
 

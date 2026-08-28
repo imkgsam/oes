@@ -1,0 +1,11 @@
+{
+  "strategy": "PRISMA_BASELINE_RESOLVE",
+  "baselineMigration": "20260825000000_baseline",
+  "baselineSha256": "fcfd02a38d9022db9ca9b6d0debf1d5a14c5961356a97490410a5fc12d8eddf9",
+  "supersededMigrations": [
+    {
+      "name": "202608110001_terminal_device_credential",
+      "sha256": "8aa9b960554d38d5603870bc817b4aafe9fc08da239ed93a689c238382d7192d"
+    }
+  ]
+}

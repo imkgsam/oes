@@ -22,7 +22,8 @@
     "dev": "concurrently -k -n build,run \"pnpm run dev:build\" \"pnpm run dev:start\"",
     "start": "node dist/main.js",
     "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo",
-    "clear:nm": "rimraf node_modules"
+    "clear:nm": "rimraf node_modules",
+    "prisma:migrate:deploy": "prisma migrate deploy --schema=./prisma/schema.prisma"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

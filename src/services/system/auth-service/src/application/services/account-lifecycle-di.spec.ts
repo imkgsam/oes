@@ -22,6 +22,14 @@ describe('account lifecycle DI wiring', () => {
             save: jest.fn()
           }
         },
+        {
+          provide: REPO.PASSWORD_SETUP_REQUIREMENT,
+          useValue: {
+            findActiveByUserId: jest.fn(),
+            markCompleted: jest.fn(),
+            save: jest.fn()
+          }
+        },
         BootstrapUserLoginMethodsHandler,
         CompleteFirstLoginPasswordSetupHandler,
         PasswordSetupRequirementService

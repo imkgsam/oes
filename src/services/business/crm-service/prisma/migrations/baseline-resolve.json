@@ -1,0 +1,15 @@
+{
+  "strategy": "PRISMA_BASELINE_RESOLVE",
+  "baselineMigration": "20260825000000_baseline",
+  "baselineSha256": "14e270a5a5d2468934d3c44684e66925b02bbd45032fa4610e2a1d90174833ac",
+  "supersededMigrations": [
+    {
+      "name": "20260627_crm_account_profile_items",
+      "sha256": "71427033483cd76ee34056e5456874254adc2851f18f3d8bfa6b0449c48c2fad"
+    },
+    {
+      "name": "20260628_crm_account_lead_legal_name",
+      "sha256": "03efe060994523efd8f0374180835cec6f5b3b9d1e28de1782023163e3a25ad7"
+    }
+  ]
+}

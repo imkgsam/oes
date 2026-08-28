@@ -49,10 +49,30 @@ export class NotificationEventDlqTransfer implements NotificationEventDlqPort {
 function extractEnvelopeForDlq(body: Uint8Array): OesCloudEvent | undefined {
   try {
     const value: unknown = JSON.parse(Buffer.from(body).toString('utf8'))
-    return typeof value === 'object' && value !== null && !Array.isArray(value)
-      ? (value as OesCloudEvent)
-      : undefined
+    if (!hasOriginalDlqIdentity(value)) return undefined
+    return value as OesCloudEvent
   } catch {
     return undefined
   }
+}
+
+/** Requires every original identity field consumed by the immutable DLQ record without inventing defaults. */
+function hasOriginalDlqIdentity(value: unknown): value is OesCloudEvent {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  const event = value as Record<string, unknown>
+  return (
+    isNonBlank(event.id) &&
+    isNonBlank(event.source) &&
+    isNonBlank(event.type) &&
+    isNonBlank(event.time) &&
+    Number.isSafeInteger(event.oeseventversion) &&
+    (event.oeseventversion as number) > 0 &&
+    isNonBlank(event.oestenantid) &&
+    isNonBlank(event.oestraceid)
+  )
+}
+
+/** Recognizes one supplied nonblank string while preserving the original value byte-for-byte. */
+function isNonBlank(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
 }

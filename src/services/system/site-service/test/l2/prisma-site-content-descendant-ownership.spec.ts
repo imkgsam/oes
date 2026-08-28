@@ -192,7 +192,7 @@ describe('Prisma Site Content descendant ownership L2', () => {
     }
   )
 
-  it('creates a missing owned locale child and preserves scoped slug history on later updates', async () => {
+  it('creates a missing owned locale child and releases the unpublished draft slug on later updates', async () => {
     await expect(
       repository.updateContentLocaleVersion(
         updateInput({ siteId: siteA, contentId: parentOnly, marker: 'first' })
@@ -220,7 +220,7 @@ describe('Prisma Site Content descendant ownership L2', () => {
           contentId: parentOnly,
           locale: 'en-US',
           slug: 'second-slug',
-          historicalSlugs: ['first-slug']
+          historicalSlugs: []
         })
       })
     )
@@ -356,9 +356,7 @@ describe('Prisma Site Content descendant ownership L2', () => {
     })
     expect(rows).toHaveLength(1)
     expect(['race-a-slug', 'race-b-slug']).toContain(rows[0].slug)
-    expect(rows[0].historicalSlugs).toEqual(
-      expect.arrayContaining([rows[0].slug === 'race-a-slug' ? 'race-b-slug' : 'race-a-slug'])
-    )
+    expect(rows[0].historicalSlugs).toEqual([])
   })
 
   it('preserves the committed intermediate slug across concurrent updates of one existing locale', async () => {
@@ -392,12 +390,7 @@ describe('Prisma Site Content descendant ownership L2', () => {
       select: { slug: true, historicalSlugs: true }
     })
     expect(['existing-a-slug', 'existing-b-slug']).toContain(row?.slug)
-    expect(row?.historicalSlugs).toEqual(
-      expect.arrayContaining([
-        'owned-a-slug',
-        row?.slug === 'existing-a-slug' ? 'existing-b-slug' : 'existing-a-slug'
-      ])
-    )
+    expect(row?.historicalSlugs).toEqual([])
   })
 
   it('rolls back Content unpublish status, sync pending, and audit when unpublish audit fails', async () => {

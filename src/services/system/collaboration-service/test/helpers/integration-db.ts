@@ -18,6 +18,12 @@ function parseEnvValue(raw: string): string {
 
 /** ensureIntegrationDatabaseUrl loads collaboration-service DATABASE_URL for L2 tests. */
 export function ensureIntegrationDatabaseUrl(): string {
+  const taskOwnedUrl = process.env.OES_L2_DATABASE_URL?.trim()
+  if (taskOwnedUrl) {
+    process.env.DATABASE_URL = taskOwnedUrl
+    return taskOwnedUrl
+  }
+
   const directUrl = process.env.COLLABORATION_DATABASE_URL || process.env.DATABASE_URL
   if (directUrl) {
     process.env.DATABASE_URL = withCollaborationSchema(directUrl)

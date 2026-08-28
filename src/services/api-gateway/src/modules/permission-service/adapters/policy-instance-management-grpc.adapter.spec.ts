@@ -8,12 +8,15 @@ describe('PolicyInstanceManagementGrpcAdapter', () => {
     listPolicyInstances: jest.fn(),
     setPolicyInstanceEnabled: jest.fn()
   }
-  const client = {
+  const grpcClient = {
     getService: jest.fn(() => grpcService)
+  }
+  const client = {
+    getClient: jest.fn(() => grpcClient)
   }
   const metadata = { metadata: true }
   const metadataFactory = {
-    createOperatorScopedMetadata: jest.fn(() => metadata)
+    forBusinessCall: jest.fn(async () => metadata)
   }
   const adapter = new PolicyInstanceManagementGrpcAdapter(client as any, metadataFactory as any)
   const source = {
@@ -28,7 +31,7 @@ describe('PolicyInstanceManagementGrpcAdapter', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    client.getService.mockReturnValue(grpcService)
+    grpcClient.getService.mockReturnValue(grpcService)
     adapter.onModuleInit()
   })
 

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { encodeCloudEvent } from '@oes/common'
 import { Prisma } from '../../../prisma/generated/prisma'
 import { TaskCommandTransactionPort } from '../../application/ports/task-command-transaction.port'
 import { TaskEntity } from '../../domain/entities/task.entity'
@@ -13,9 +14,13 @@ export class PrismaTaskCommandTransaction implements TaskCommandTransactionPort 
   /** commit uses one Collaboration database transaction and never publishes to a broker inside it. */
   async commit(input: Parameters<TaskCommandTransactionPort['commit']>[0]): Promise<TaskEntity> {
     return this.prisma.$transaction(async (transaction) => {
-      const task = input.operation === 'CREATE'
-        ? await transaction.collaborationTask.create({ data: taskPersistence(input.task) })
-        : await transaction.collaborationTask.update({ where: { id: input.task.id }, data: taskPersistence(input.task) })
+      const task =
+        input.operation === 'CREATE'
+          ? await transaction.collaborationTask.create({ data: taskPersistence(input.task) })
+          : await transaction.collaborationTask.update({
+              where: { id: input.task.id },
+              data: taskPersistence(input.task)
+            })
       await transaction.collaborationTaskAuditEnvelope.create({
         data: {
           tenantId: input.audit.tenantId,
@@ -42,7 +47,7 @@ export class PrismaTaskCommandTransaction implements TaskCommandTransactionPort 
             aggregateType: input.publicEvent.oesaggregatetype,
             aggregateId: input.publicEvent.oesaggregateid,
             occurredAt: new Date(input.publicEvent.time),
-            cloudEventBody: input.publicEvent as unknown as Prisma.InputJsonValue
+            cloudEventBody: Buffer.from(encodeCloudEvent(input.publicEvent).body)
           }
         })
       }

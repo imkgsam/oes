@@ -1,6 +1,7 @@
 import {
   COLLABORATION_TASK_ASSIGNED_EVENT_CONTRACT,
   createOesCloudEvent,
+  digestCanonicalBody,
   type SafeRedeliveryRequest
 } from '@oes/common'
 import { NotificationEventOperationsService } from '../../src/infrastructure/events/operations/notification-event-operations.service'
@@ -34,18 +35,24 @@ describe('NotificationSafeRedeliveryJob L1', () => {
       }
     })
     const handlerCalls: string[] = []
+    const originalBody = Buffer.from(JSON.stringify(event, null, 2), 'utf8')
     const runtimeCalls: any[] = []
     const runner = {
       runOnce: async (input: any) => {
         runtimeCalls.push(input)
-        if (runtimeCalls.length === 1) await input.handle(event)
+        if (runtimeCalls.length === 1) await input.handle(event, originalBody)
         return { kind: runtimeCalls.length === 1 ? 'ACKED' : 'EMPTY' }
       }
     }
     const job = new NotificationSafeRedeliveryJob(
       new NotificationEventOperationsService(repository),
       runner as any,
-      { handle: async (received: any) => { handlerCalls.push(received.id); return { kind: 'DUPLICATE' as const } } } as any
+      {
+        handle: async (received: any, identity: any) => {
+          handlerCalls.push(`${received.id}:${identity.canonicalBodyDigest}`)
+          return { kind: 'DUPLICATE' as const }
+        }
+      } as any
     )
 
     await job.execute({
@@ -54,7 +61,7 @@ describe('NotificationSafeRedeliveryJob L1', () => {
       maximumPulls: 8
     })
 
-    expect(handlerCalls).toEqual(['evt-replay-1'])
+    expect(handlerCalls).toEqual([`evt-replay-1:${digestCanonicalBody(originalBody)}`])
     expect(runtimeCalls[0]).toMatchObject({
       stream: 'OES_BUSINESS_EVENTS',
       approvedSubjects: [

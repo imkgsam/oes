@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "assertions": [
+    {
+      "kind": "index",
+      "name": "MachineWorkloadBinding_one_active_per_principal_spiffe",
+      "sha256": "17861f084909270b5750a113449765cb005f35a6454a55badd00d5a045f55e69"
+    }
+  ]
+}

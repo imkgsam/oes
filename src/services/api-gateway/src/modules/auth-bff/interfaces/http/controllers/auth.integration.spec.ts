@@ -1,17 +1,30 @@
-import { Controller, Module, UseFilters, ValidationPipe } from '@nestjs/common'
+import { Controller, Global, Module, UseFilters, ValidationPipe } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import { INestApplication, INestMicroservice } from '@nestjs/common'
 import { GrpcMethod, MicroserviceOptions, RpcException, Transport } from '@nestjs/microservices'
+import { Metadata } from '@grpc/grpc-js'
+import { GatewayMachineTrustedGrpcExecutionProducer } from '../../../../../common/grpc/gateway-machine-trusted-grpc-execution-producer'
+import {
+  GatewayAssetGrpcClient,
+  GatewayTrustedGrpcExecutionProducer
+} from '../../../../../common/grpc'
 import { NestFactory } from '@nestjs/core'
 import { APP_GUARD } from '@nestjs/core'
 import request from 'supertest'
 import { ConfigModule } from '@nestjs/config'
 import { CommonJwtModule, CommonJwtService } from '@oes/common/auth'
-import { GatewayPermissionGuard } from '@oes/common/authorization'
+import { AsyncLocalTransportPrivateSourceCredentialAccessor, GatewayPermissionGuard } from '@oes/common/authorization'
 import { LoggingModule } from '@oes/common/logging'
 import { SERVICE_NAMES } from '@oes/common/constants'
-import { GrpcTransportModule } from '@oes/common/transport'
+import { getGrpcClientToken, GrpcTransportModule } from '@oes/common/transport'
 import { AuthBffModule } from '../../../auth-bff.module'
+import {
+  GatewayFoundationTrustedGrpcExecutionProducer,
+  TrustedAuthGrpcClient
+} from '../../../../../infrastructure/grpc/trusted-auth.grpc.client'
+import { TrustedIdentityGrpcClient } from '../../../../../infrastructure/grpc/trusted-identity.grpc.client'
+import { TrustedPermissionGrpcClient } from '../../../../../infrastructure/grpc/trusted-permission.grpc.client'
+import { TrustedTenantOrgGrpcClient } from '../../../../../infrastructure/grpc/trusted-tenant-org.grpc.client'
 import { resolveCommonContractPath, resolveCommonProtoPath } from '@oes/common/contracts'
 import {
   AuthServiceController,
@@ -39,6 +52,8 @@ import {
 import { GatewaySessionAuthGuard } from '../../../../../common/guards/gateway-session-auth.guard'
 import { GrpcExceptionFilter } from '../../../../../../../../common/dist/core/filters'
 import { GatewayExceptionFilter } from '../../../../../common/filters/gateway-exception.filter'
+import { createGatewaySourceCredentialProviders } from '../../../../../security'
+import { PartyDedicatedClient } from '../../../../party-service/adapters/party-dedicated-client'
 
 const AUTH_PORT = 56050
 const PERMISSION_PORT = 56051
@@ -113,6 +128,28 @@ const observedState: ObservedCallState = {
 }
 
 const allowedPermissions = new Set<string>()
+
+// Builds the task-local plaintext metadata envelope while preserving operator and correlation assertions.
+function testTrustedMetadata(source?: any): Metadata {
+  const metadata = new Metadata()
+  if (source?.requestId) metadata.set('x-request-id', source.requestId)
+  if (source?.traceparent) metadata.set('traceparent', source.traceparent)
+  if (source?.traceId) metadata.set('x-trace-id', source.traceId)
+  if (source?.user) {
+    metadata.set(
+      'x-operator-context',
+      JSON.stringify({
+        operator_id: source.user.aid ?? source.user.sub ?? '',
+        operator_type: 'USER',
+        tenant_id: source.user.tid ?? source.user.tenantId ?? '',
+        org_id: source.user.oid ?? source.user.orgId ?? '',
+        request_id: source.requestId ?? '',
+        trace_id: source.traceId ?? ''
+      })
+    )
+  }
+  return metadata
+}
 
 // Implements the downstream auth-service gRPC contract used by the auth-bff integration test.
 @Controller()
@@ -872,6 +909,22 @@ class TestPermissionGrpcController implements PermissionCheckServiceController {
     return { decisions: [] }
   }
 
+  resolveExternalMachineAuthorizationSnapshot(): any {
+    return { allowed: true, permissionCodes: [] }
+  }
+
+  resolvePrincipalAuthorization(): any {
+    return { allowed: true, permissionCodes: [] }
+  }
+
+  resolveWorkloadIssuance(): any {
+    return { allowed: true, permissionCodes: [] }
+  }
+
+  resolveDelegatedAuthorization(): any {
+    return { allowed: true, permissionCodes: [] }
+  }
+
   @GrpcMethod('PermissionAccessSummaryService', 'GetAccountAccessSummary')
   getAccountAccessSummary(request: { accountId?: string; tenantId?: string }) {
     return {
@@ -1150,6 +1203,91 @@ class TestTenantOrgGrpcModule {}
 })
 class TestTerminalDeviceGrpcModule {}
 
+// Adapts task-local plaintext test channels to the immutable trusted-client interfaces used by AuthBff.
+@Global()
+@Module({
+  imports: [
+    GrpcTransportModule.forFeature([
+      SERVICE_NAMES.AUTH,
+      SERVICE_NAMES.ASSET,
+      SERVICE_NAMES.IDENTITY,
+      SERVICE_NAMES.PERMISSION,
+      SERVICE_NAMES.PARTY,
+      SERVICE_NAMES.TENANT_ORG
+    ])
+  ],
+  providers: [
+    {
+      provide: TrustedAuthGrpcClient,
+      useFactory: (client: any) => ({ getClient: () => client }),
+      inject: [getGrpcClientToken(SERVICE_NAMES.AUTH)]
+    },
+    {
+      provide: TrustedIdentityGrpcClient,
+      useFactory: (client: any) => ({ getClient: () => client }),
+      inject: [getGrpcClientToken(SERVICE_NAMES.IDENTITY)]
+    },
+    {
+      provide: TrustedPermissionGrpcClient,
+      useFactory: (client: any) => ({ getClient: () => client }),
+      inject: [getGrpcClientToken(SERVICE_NAMES.PERMISSION)]
+    },
+    {
+      provide: TrustedTenantOrgGrpcClient,
+      useFactory: (client: any) => ({ getClient: () => client }),
+      inject: [getGrpcClientToken(SERVICE_NAMES.TENANT_ORG)]
+    },
+    {
+      provide: GatewayFoundationTrustedGrpcExecutionProducer,
+      useValue: {
+        forAuthPublicAdmission: (source: unknown) => testTrustedMetadata(source),
+        forBusinessCall: async (source: unknown) => testTrustedMetadata(source),
+        forSelfServiceCall: async (source: unknown) => testTrustedMetadata(source),
+        forInternalCall: async (source: unknown) => testTrustedMetadata(source)
+      }
+    },
+    {
+      provide: GatewayMachineTrustedGrpcExecutionProducer,
+      useValue: {
+        forInternalCall: async (_audience: string, _code: string, _trace: unknown, callback: any) =>
+          callback(new Metadata()),
+        forBusinessCall: async (_audience: string, _code: string, _trace: unknown, callback: any) =>
+          callback(new Metadata())
+      }
+    },
+    {
+      provide: GatewayAssetGrpcClient,
+      useFactory: (client: any) => ({ getService: () => client.getService('AssetService') }),
+      inject: [getGrpcClientToken(SERVICE_NAMES.ASSET)]
+    },
+    {
+      provide: GatewayTrustedGrpcExecutionProducer,
+      useValue: {
+        forBusinessCall: async () => new Metadata(),
+        forSelfServiceCall: async () => new Metadata(),
+        forInternalCall: async () => new Metadata()
+      }
+    },
+    {
+      provide: PartyDedicatedClient,
+      useFactory: (client: any) => ({ query: () => client.getService('PartyQueryService') }),
+      inject: [getGrpcClientToken(SERVICE_NAMES.PARTY)]
+    }
+  ],
+  exports: [
+    TrustedAuthGrpcClient,
+    TrustedIdentityGrpcClient,
+    TrustedPermissionGrpcClient,
+    TrustedTenantOrgGrpcClient,
+    GatewayFoundationTrustedGrpcExecutionProducer,
+    GatewayMachineTrustedGrpcExecutionProducer,
+    GatewayAssetGrpcClient,
+    GatewayTrustedGrpcExecutionProducer,
+    PartyDedicatedClient
+  ]
+})
+class TestTrustedDownstreamModule {}
+
 // Hosts the minimal gateway application wiring needed to run auth-bff HTTP to gRPC integration tests.
 @Module({
   imports: [
@@ -1160,7 +1298,11 @@ class TestTerminalDeviceGrpcModule {}
       services: {
         [SERVICE_NAMES.AUTH]: {
           serviceName: SERVICE_NAMES.AUTH,
-          protoPath: resolveCommonProtoPath('auth_service/auth.proto'),
+          protoPath: [
+            resolveCommonProtoPath('auth_service/auth.proto'),
+            resolveCommonProtoPath('auth_service/external_api_key.proto')
+          ],
+          loader: { includeDirs: [COMMON_CONTRACTS_ROOT] },
           packageName: 'auth_service',
           url: `127.0.0.1:${AUTH_PORT}`
         },
@@ -1218,9 +1360,12 @@ class TestTerminalDeviceGrpcModule {}
       SERVICE_NAMES.TENANT_ORG,
       SERVICE_NAMES.TERMINAL_DEVICE
     ]),
+    TestTrustedDownstreamModule,
     AuthBffModule
   ],
   providers: [
+    ...createGatewaySourceCredentialProviders(),
+    AsyncLocalTransportPrivateSourceCredentialAccessor,
     GatewayExceptionFilter,
     GatewayPermissionGuard,
     { provide: APP_GUARD, useClass: GatewaySessionAuthGuard },
@@ -1823,11 +1968,11 @@ describe('AuthBff gateway integration', () => {
 
     const token = jwtService.signAccessToken({
       sub: 'operator-user-1',
-      holderId: 'account-admin-1',
+      holderId: 'account-system-admin-1',
       userId: 'operator-user-1',
-      tenantId: 'tenant-1',
       sid: 'session-admin-1',
-      roles: ['tenant-admin'],
+      scopeLevel: 'SYSTEM',
+      roles: ['system-admin'],
       typ: 'USER'
     })
 

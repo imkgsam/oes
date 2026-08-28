@@ -166,29 +166,25 @@ describe('site-service dynamic slug ledger L2', () => {
     const blogCategory = await admin.createContentCategory({
       context,
       siteId,
-      appliesTo: 'blog'
+      initialLocaleVersion: {
+        locale: 'en-US',
+        slug: 'blog-category-draft',
+        displayName: 'Blog category'
+      }
     })
     const newsCategory = await admin.createContentCategory({
       context,
       siteId,
-      appliesTo: 'news'
+      initialLocaleVersion: {
+        locale: 'en-US',
+        slug: 'news-category-draft',
+        displayName: 'News category'
+      }
     })
-    await saveCategory(
-      admin,
-      siteId,
-      context,
-      blogCategory.category.categoryId,
-      'shared-category'
-    )
+    await saveCategory(admin, siteId, context, blogCategory.category.categoryId, 'shared-category')
 
     await expect(
-      saveCategory(
-        admin,
-        siteId,
-        context,
-        newsCategory.category.categoryId,
-        'shared-category'
-      )
+      saveCategory(admin, siteId, context, newsCategory.category.categoryId, 'shared-category')
     ).rejects.toThrow()
   })
 
@@ -198,7 +194,9 @@ describe('site-service dynamic slug ledger L2', () => {
     await saveContent(admin, siteId, context, contentId, 'stable-slug')
     await sync(admin, siteId, context)
     await saveContent(admin, siteId, context, contentId, 'failed-slug')
-    jest.spyOn(repository, 'upsertPublicView').mockRejectedValueOnce(new Error('public view failed'))
+    jest
+      .spyOn(repository, 'upsertPublicView')
+      .mockRejectedValueOnce(new Error('public view failed'))
 
     await expect(sync(admin, siteId, context)).rejects.toThrow('public view failed')
 
@@ -238,7 +236,7 @@ describe('site-service dynamic slug ledger L2', () => {
       traceId: `${prefix}_trace`
     }
     const site = await admin.createSite({
-      ...context,
+      context,
       siteName: `${prefix} Site`,
       siteType: 'brand',
       defaultLocale: 'en-US'
