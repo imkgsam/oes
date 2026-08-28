@@ -4,7 +4,11 @@ import { Metadata } from '@grpc/grpc-js'
 import { CqrsModule, QueryBus } from '@nestjs/cqrs'
 import { ClientGrpc } from '@nestjs/microservices'
 import { firstValueFrom } from 'rxjs'
-import { requireTrustedSessionTerminal, TrustedSessionTerminal } from '@oes/common/authorization'
+import {
+  inboundExecutionTokenCredentialScope,
+  requireTrustedSessionTerminal,
+  TrustedSessionTerminal
+} from '@oes/common/authorization'
 import {
   AuthorizationPrincipalTypeProto,
   AuthorizationScopeLevelProto,
@@ -205,12 +209,28 @@ export class AuthSessionSourceCredentialVerifier implements ExecutionTokenSource
   /** Converts the active-session query result into principal facts without copying roles or requested Codes. */
   async verify(
     sourceCredential: string,
-    _workloadIdentity: VerifiedExecutionWorkload
+    _workloadIdentity: VerifiedExecutionWorkload,
+    request?: {
+      requestId?: string
+      traceparent?: string
+      tracestate?: string
+    }
   ): Promise<TrustedExecutionContext> {
-    const session = await this.queryBus.execute<
-      ValidateAccessTokenQuery,
-      ValidateAccessTokenResult
-    >(new ValidateAccessTokenQuery(sourceCredential))
+    const requestId = request?.requestId
+    const traceparent = request?.traceparent
+    if (!requestId || !traceparent)
+      throw new Error('Verified session source correlation is required')
+    const scopeKey = {}
+    inboundExecutionTokenCredentialScope.preparePublicCorrelation(scopeKey, {
+      requestId,
+      traceparent,
+      ...(request?.tracestate === undefined ? {} : { tracestate: request.tracestate })
+    })
+    const session = await inboundExecutionTokenCredentialScope.runPrepared(scopeKey, () =>
+      this.queryBus.execute<ValidateAccessTokenQuery, ValidateAccessTokenResult>(
+        new ValidateAccessTokenQuery(sourceCredential)
+      )
+    )
     return Object.freeze({
       subject: session.accountId,
       principalType: 'HUMAN',

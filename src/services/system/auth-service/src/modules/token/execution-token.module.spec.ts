@@ -70,10 +70,17 @@ describe('ExecutionTokenModule authority wiring', () => {
     })
     const verifier = new AuthSessionSourceCredentialVerifier({ execute } as any)
 
-    const result = await verifier.verify('verified.session.access-token', {
-      spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
-      certificateThumbprint: 'A'.repeat(43)
-    })
+    const result = await verifier.verify(
+      'verified.session.access-token',
+      {
+        spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
+        certificateThumbprint: 'A'.repeat(43)
+      },
+      {
+        requestId: 'request-session-source',
+        traceparent: '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01'
+      }
+    )
 
     expect(execute.mock.calls[0][0]).toEqual(
       expect.objectContaining({ accessToken: 'verified.session.access-token' })
@@ -102,10 +109,17 @@ describe('ExecutionTokenModule authority wiring', () => {
       } as any)
 
       await expect(
-        verifier.verify('verified.session.access-token', {
-          spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
-          certificateThumbprint: 'A'.repeat(43)
-        })
+        verifier.verify(
+          'verified.session.access-token',
+          {
+            spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
+            certificateThumbprint: 'A'.repeat(43)
+          },
+          {
+            requestId: 'request-session-source',
+            traceparent: '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01'
+          }
+        )
       ).rejects.toThrow('session terminal')
     }
   )
