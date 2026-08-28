@@ -50,6 +50,9 @@ export async function generateProfile({ basePort = Number(process.env.OES_TRUSTE
   const notificationPayloadKey = await stableBase64Secret(join(stateRoot, 'secrets/notification-delivery-payload.key'), 32)
   const endpoints = Object.fromEntries(inventory.map((entry, index) => [entry.workload, basePort + index]))
   const manifest = { version: 1, taskKey, stateRoot, trustRoot, nacos: `127.0.0.1:${nacosPort}`, services: [] }
+  const issuerPort = Number(process.env.OES_TRUSTED_RUNTIME_ISSUER_PORT || 52102)
+  const issuerUrl = `https://issuer.local.oes.internal:${issuerPort}`
+  const issuerResolver = join(root, 'scripts/local/runtime-config/issuer-dns.cjs')
   for (const entry of inventory) {
     const packageDirectory = resolve(root, entry.source.split('/src/')[0])
     const packageJson = JSON.parse(await readFile(join(packageDirectory, 'package.json'), 'utf8'))
@@ -77,6 +80,8 @@ export async function generateProfile({ basePort = Number(process.env.OES_TRUSTE
       NATS_URL: env.NATS_URL ? `nats://127.0.0.1:${natsPort}` : '',
       ASSET_S3_ENDPOINT: env.ASSET_S3_ENDPOINT ? `http://127.0.0.1:${minioPort}` : ''
     })
+    env.AUTH_EXECUTION_ISSUER = issuerUrl
+    env.NODE_OPTIONS = [env.NODE_OPTIONS, `--require=${issuerResolver}`].filter(Boolean).join(' ')
     if (entry.workload === 'notification-service') env.NOTIFICATION_DELIVERY_PAYLOAD_KEY = notificationPayloadKey
     const envPath = join(stateRoot, 'env', `${entry.workload}.env`)
     await writeFile(envPath, Object.entries(env).filter(([, value]) => value !== '').sort().map(([key, value]) => `${key}=${shellQuote(value)}`).join('\n') + '\n', { mode: 0o600 })
@@ -98,9 +103,12 @@ export async function generateProfile({ basePort = Number(process.env.OES_TRUSTE
     OES_WORKLOAD_SPIFFE_ID: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
     GATEWAY_READINESS_TARGETS: Object.entries(endpoints).map(([workload, port]) => `${workload}=grpcs://${workload}.localhost:${port}`).join(',')
   })
+  gatewayEnvironment.AUTH_EXECUTION_ISSUER = issuerUrl
+  gatewayEnvironment.NODE_OPTIONS = [gatewayEnvironment.NODE_OPTIONS, `--require=${issuerResolver}`].filter(Boolean).join(' ')
   const gatewayEnvPath = join(stateRoot, 'env/api-gateway.env')
   await writeFile(gatewayEnvPath, Object.entries(gatewayEnvironment).filter(([, value]) => value !== '').sort().map(([key, value]) => `${key}=${shellQuote(value)}`).join('\n') + '\n', { mode: 0o600 })
   manifest.gateway = { workload: 'api-gateway', packageName: 'api-gateway', packageDirectory: gatewayDirectory, port: gatewayPort, envPath: gatewayEnvPath, certPath: gatewayEnvironment.OES_GRPC_TLS_CERT_PATH, logPath: join(stateRoot, 'logs/api-gateway.log'), pidPath: join(stateRoot, 'pids/api-gateway.pid') }
+  manifest.issuer = { port: issuerPort, pidPath: join(stateRoot, 'pids/issuer.pid'), logPath: join(stateRoot, 'logs/issuer.log') }
   await writeFile(join(stateRoot, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n', { mode: 0o600 })
   await chmod(join(stateRoot, 'manifest.json'), 0o600)
   return manifest
@@ -149,6 +157,7 @@ async function up() {
   await spawnChecked(join(root, 'docker/grpc-trust/bootstrap-local-trust.sh'), ['--output', trustRoot], { OES_TRUST_OUTPUT_DIRECTORY: trustRoot })
   const manifest = await generateProfile({ requireInfrastructure: true })
   await startSigner(manifest)
+  await startIssuer(manifest)
   await spawnChecked('pnpm', ['proto:gen'])
   await spawnChecked('pnpm', ['prisma:generate:all'])
   await spawnChecked('pnpm', ['common:build'])
@@ -161,6 +170,31 @@ async function up() {
   await waitReady([manifest.gateway], 90_000)
   await startApisix(manifest)
   await status(true)
+}
+
+/** Starts the Auth-bound HTTPS metadata publisher before any verifier can refresh JWKS. */
+async function startIssuer(manifest) {
+  if (await livePid(manifest.issuer.pidPath)) return
+  const out = await openAppend(manifest.issuer.logPath)
+  const child = spawn(process.execPath, [join(root, 'scripts/local/trusted-runtime-issuer.mjs')], {
+    cwd: root,
+    env: {
+      ...process.env,
+      OES_ISSUER_PORT: String(manifest.issuer.port),
+      OES_AUTH_HTTP_PORT: '50051',
+      OES_ISSUER_CERT_PATH: join(trustRoot, 'auth-service/current/cert.pem'),
+      OES_ISSUER_KEY_PATH: join(trustRoot, 'auth-service/current/key.pem')
+    },
+    detached: true,
+    stdio: ['ignore', out, out]
+  })
+  child.unref()
+  await writeFile(manifest.issuer.pidPath, `${child.pid}\n`, { mode: 0o600 })
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    if (await canConnect('127.0.0.1', manifest.issuer.port)) return
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 250))
+  }
+  throw new Error('TRUSTED_RUNTIME_ISSUER_NOT_READY')
 }
 
 /** Runs pinned APISIX as infrastructure against the task-owned host Gateway. */
@@ -288,6 +322,12 @@ async function status(requireReady = false) {
     process.stdout.write(`apisix container=${running ? 'UP' : 'DOWN'} port=${manifest.apisix.port} reachable=${reachable}\n`)
     failed ||= !running || !reachable
   }
+  if (manifest.issuer) {
+    const pid = await livePid(manifest.issuer.pidPath)
+    const reachable = await canConnect('127.0.0.1', manifest.issuer.port)
+    process.stdout.write(`issuer pid=${pid || 'DOWN'} port=${manifest.issuer.port} reachable=${reachable}\n`)
+    failed ||= !pid || !reachable
+  }
   if (requireReady && failed) throw new Error('TRUSTED_RUNTIME_NOT_READY')
 }
 
@@ -302,6 +342,9 @@ async function down() {
   const signerPid = await livePid(join(stateRoot, 'pids/signer.pid'))
   if (signerPid) process.kill(signerPid, 'SIGTERM')
   await rm(join(stateRoot, 'pids/signer.pid'), { force: true })
+  const issuerPid = manifest.issuer ? await livePid(manifest.issuer.pidPath) : null
+  if (issuerPid) process.kill(issuerPid, 'SIGTERM')
+  if (manifest.issuer) await rm(manifest.issuer.pidPath, { force: true })
   if (!hostSoftHsmModule()) await spawnChecked('docker', ['compose', '--env-file', envSource, '-p', `oes_${taskKey}`, '-f', join(root, 'docker-compose.yml'), '-f', join(stateRoot, 'signer.compose.yml'), 'stop', 'execution-token-signer'])
   if (manifest.apisix) spawnSync('docker', ['stop', manifest.apisix.container], { encoding: 'utf8', timeout: 15_000 })
 }
