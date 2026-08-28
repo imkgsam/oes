@@ -37,7 +37,7 @@ Stable service/data ownership, internal gRPC, event transport, tenant/org/operat
 
 ## Recovery state
 
-State: `RESOURCE_RECOVERY_READY_PENDING_COMMIT`.
+State: `RESOURCE_RECOVERY_READY`.
 
 This recovery creates no candidate, review, RI, remote branch, PR, product merge or cleanup. Runtime containers referencing the recovered path are stopped and retained. The pre-recovery non-Git residue is preserved below the owner evidence root.
 
