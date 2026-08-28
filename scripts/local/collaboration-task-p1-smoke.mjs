@@ -5,18 +5,16 @@ import { createTaskP1SmokeSeed, runCollaborationTaskP1SmokeFlow } from './collab
 const require = createRequire(import.meta.url)
 const { PrismaClient } = require('../../src/services/system/collaboration-service/prisma/generated/prisma')
 
-const DEFAULT_LOCAL_DATABASE_URL = 'postgres://imkgsam:imkgsam@localhost:5432/collaborationdb'
 const gatewayBaseUrl =
   process.env.COLLABORATION_TASK_SMOKE_GATEWAY_BASE_URL ||
-  process.env.API_GATEWAY_BASE_URL ||
-  'http://127.0.0.1:9101/api/v1'
+  process.env.API_GATEWAY_BASE_URL
+if (!gatewayBaseUrl) throw new Error('TASK_OWNED_GATEWAY_BASE_URL_REQUIRED')
 
 /** resolveCollaborationDatabaseUrl keeps smoke audit reads inside collaboration-service storage. */
 function resolveCollaborationDatabaseUrl() {
   const rawDatabaseUrl =
     process.env.COLLABORATION_DATABASE_URL ||
-    process.env.DATABASE_URL ||
-    (process.env.NODE_ENV !== 'production' ? DEFAULT_LOCAL_DATABASE_URL : '')
+    process.env.DATABASE_URL
   if (!rawDatabaseUrl) {
     throw new Error('COLLABORATION_DATABASE_URL or DATABASE_URL is required for production Task P1 smoke.')
   }
