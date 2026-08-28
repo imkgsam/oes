@@ -3,7 +3,7 @@
 ## Binding
 
 - Stage / feature: `global-runnability / business-journey`
-- State: `CI_REMEDIATION_CANDIDATE_READY`
+- State: `R4_CANDIDATE_READY_FOR_FEATURE_RI`
 - Human-visible Feature Lead: task `01a047c6-18ff-71e0-b2cc-b1bad08fd0e8`
 - Parent and sole return target: Stage Lead task `01a036e1-7ca5-76c2-8183-64edd7e1d086`
 - Feature branch: `codex/feature/business-journey-visible-recovery`
@@ -14,9 +14,11 @@
   `6904b45ec9331fe3cf8ee2bb852f657de90cf50c`
 - Immutable accepted and published R2 candidate / CI-remediation parent:
   `7b289c99fb72c004513ab6e81d376e5a96d3c07d`
+- Immutable accepted R3 CI-remediation candidate / R4 parent:
+  `af5ec4b740b33e58a61a5061cf907a871591f958`
 - Canonical `origin/main` observed at continuation: `51f78cc05db67d35f0129e678ad27a1034e22ad0`
-- CI-remediation candidate identity: the append-only commit containing this Packet; the exact SHA
-  is emitted in the `CANDIDATE_CI_REMEDIATION_READY` handoff.
+- R4 candidate identity: the append-only commit containing this Packet; the exact SHA is emitted in
+  the `R4_CANDIDATE_READY_FOR_FEATURE_RI` handoff.
 - The superseded hidden owner is frozen read-only and owns no runtime or candidate state.
 
 ## Scope and protected boundary
@@ -216,14 +218,40 @@ Fresh CI-remediation evidence:
   trusted-gRPC invariants 5/5.
 - `17-affected-builds.log`: Common, Gateway, Auth, Item Master, Permission and CRM builds pass.
 
+### FL-9 — existing Draft PR fast-forward remediation R4
+
+The accepted R3 candidate `af5ec4b740b33e58a61a5061cf907a871591f958` remains immutable. R4
+repairs the repository driver's bounded `publish-pr` profile defect without changing application
+behavior or remote state:
+
+- An existing owner branch is amendable only when its exact open Draft PR number (when bound), base,
+  head ref, draft state and title match the binding, its pull head equals the observed branch head,
+  and that head is a strict locally proven ancestor of the new candidate.
+- A normal non-force push fast-forwards only the exact owner ref. An existing Draft PR is PATCHed by
+  exact number only when its bound title or body differs; new-branch/new-PR publication remains
+  unchanged.
+- The postcondition requires the exact candidate branch and pull head, PR number, head/base refs,
+  Draft state, title and body. Diverged or unknown heads and any mismatched PR identity fail closed.
+- A failed push leaves the PR untouched. A failed PR PATCH leaves the successfully advanced branch
+  recoverable: the same binding retries only the missing PATCH, while a completely satisfied retry
+  performs no mutation.
+
+Fresh R4 evidence:
+
+- `05-r4-final-driver-validation.log`: post-format focused GitHub adapter scenarios pass 12/12;
+  typecheck, 140/140 complete Collaboration Runtime tests and static checks also pass.
+- `06-r4-final-test-risk.log`: post-format exact required risk gate passes with tooling 48/48, unit
+  packages 8 / suites 448 / tests 2031, Collaboration Runtime 140/140 plus static checks, and
+  foundation invariants 5/5.
+
 ## Review state and findings
 
 - Feature Lead self-review, protected-scope check, diff check and secret scan: passed for the
   replacement delta.
 - Independent Feature RI: all five findings against immutable candidate `1b4abcad` are closed on
   immutable first replacement `6904b45e`; its bounded route-scope regression is closed and R2
-  candidate `7b289c99` is accepted with no open P0/P1/P2 findings. The composed CI remediation is
-  routed to the same visible RI only if the Stage Lead requires changed-test-scope re-review.
+  candidate `7b289c99` is accepted with no open P0/P1/P2 findings. R3 `af5ec4b7` closes the composed
+  CI drift. Only the changed repository-driver scope in R4 returns to the same visible RI task.
 - Candidate finding: repository ESLint configuration enables both `project` and `projectService`,
   so candidate-only lint stops before rule execution on all 39 changed TypeScript files. The
   config, package manifest and lockfile are byte-identical to the candidate base; evidence is in
@@ -234,8 +262,7 @@ Fresh CI-remediation evidence:
 - Runtime rollback: `OES_TASK_KEY=tmp_31d7ce4d pnpm local:trusted-runtime:down`.
 - The PDA fixture rollback leaves zero rows; owner process verification leaves zero live
   task-owned application processes.
-- Git rollback of only this CI remediation: `git revert <ci-remediation-candidate-sha>`; this
-  restores immutable accepted candidate `7b289c99fb72c004513ab6e81d376e5a96d3c07d`.
-- Stop at the exact append-only CI-remediation candidate until the repository driver receives a
-  fresh parent-issued authorization for updating existing Draft PR `#42`. No `main` merge or
-  cleanup is part of this owner action.
+- Git rollback of only the R4 repository-driver repair: `git revert <r4-candidate-sha>`; this
+  restores immutable accepted R3 candidate `af5ec4b740b33e58a61a5061cf907a871591f958`.
+- Stop at the exact append-only R4 candidate for the same visible RI. Draft PR `#42` remains at
+  `7b289c99`; no remote mutation, `main` merge or cleanup is part of this owner action.
