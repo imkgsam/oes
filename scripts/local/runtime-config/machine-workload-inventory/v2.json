@@ -6,14 +6,14 @@
       "displayName": "Auth Service",
       "machineType": "INTERNAL_SERVICE",
       "scopeLevel": "SYSTEM",
-      "workloadSpiffeId": "spiffe://oes/auth-service"
+      "workloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/auth-service"
     },
     {
       "inventoryEntryKey": "collaboration-service",
       "displayName": "Collaboration Service",
       "machineType": "INTERNAL_SERVICE",
       "scopeLevel": "SYSTEM",
-      "workloadSpiffeId": "spiffe://oes/collaboration-service"
+      "workloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/collaboration-service"
     }
   ]
 }

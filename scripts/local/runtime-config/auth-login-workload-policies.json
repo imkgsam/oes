@@ -1,6 +1,6 @@
 [
   {
-    "spiffeId": "spiffe://oes/auth-service",
+    "spiffeId": "spiffe://local.oes.internal/ns/oes/sa/auth-service",
     "audiences": [
       "urn:oes:service:hr-service",
       "urn:oes:service:identity-service",

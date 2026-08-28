@@ -6,7 +6,7 @@
       "displayName": "Auth Service",
       "machineType": "INTERNAL_SERVICE",
       "scopeLevel": "SYSTEM",
-      "workloadSpiffeId": "spiffe://oes/auth-service"
+      "workloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/auth-service"
     }
   ]
 }

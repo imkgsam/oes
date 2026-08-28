@@ -32,7 +32,7 @@ export function normalizeInventory(manifest) {
     if (normalized.machineType !== 'INTERNAL_SERVICE' || normalized.scopeLevel !== 'SYSTEM') {
       throw new Error('SYSTEM_MACHINE_INVENTORY_AUTHORITY_INVALID')
     }
-    if (!/^spiffe:\/\/oes\/[a-z0-9-]+$/.test(normalized.workloadSpiffeId)) {
+    if (!isExactSpiffeId(normalized.workloadSpiffeId)) {
       throw new Error('SYSTEM_MACHINE_INVENTORY_SPIFFE_INVALID')
     }
     if (keys.has(normalized.inventoryEntryKey) || spiffeIds.has(normalized.workloadSpiffeId)) {
@@ -44,6 +44,26 @@ export function normalizeInventory(manifest) {
   })
 
   return { version: manifest.version, entries }
+}
+
+// Accepts one exact SPIFFE workload URI without wildcard, credential, query or fragment.
+function isExactSpiffeId(value) {
+  try {
+    const parsed = new URL(value)
+    return (
+      parsed.protocol === 'spiffe:' &&
+      parsed.hostname.length > 0 &&
+      parsed.pathname.length > 1 &&
+      parsed.username === '' &&
+      parsed.password === '' &&
+      parsed.search === '' &&
+      parsed.hash === '' &&
+      !value.includes('*') &&
+      parsed.toString() === value
+    )
+  } catch {
+    return false
+  }
 }
 
 // Produces a stable digest without allowing array reordering to masquerade as an additive migration.

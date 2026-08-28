@@ -34,7 +34,7 @@ describe('Auth login owner-fact permission catalog and deployment profile', () =
     expect(profile).toHaveLength(3)
     expect(profile.map((entry: any) => entry.permissionCodes[0]).sort()).toEqual(codes)
     for (const entry of profile) {
-      expect(entry.originalWorkloadSpiffeId).toBe('spiffe://oes/auth-service')
+      expect(entry.originalWorkloadSpiffeId).toBe('spiffe://local.oes.internal/ns/oes/sa/auth-service')
       expect(entry.scopeLevel).toBe('SYSTEM')
       expect(entry.targetAudience).toMatch(/^urn:oes:service:(hr|identity|tenant-org)-service$/)
       expect(JSON.stringify(entry)).not.toContain('*')
