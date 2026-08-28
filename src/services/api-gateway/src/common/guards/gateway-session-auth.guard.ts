@@ -45,7 +45,9 @@ export class GatewaySessionAuthGuard implements CanActivate {
     try {
       result = await this.authAdapter.validateAccessToken(token, {
         requestId: this.normalizeHeader(request.headers['x-request-id']),
-        traceId: this.normalizeHeader(request.headers['x-trace-id'])
+        traceId: this.normalizeHeader(request.headers['x-trace-id']),
+        traceparent: this.normalizeHeader(request.headers.traceparent),
+        tracestate: this.normalizeHeader(request.headers.tracestate)
       })
     } catch (error) {
       if (this.isInvalidTokenError(error)) {
