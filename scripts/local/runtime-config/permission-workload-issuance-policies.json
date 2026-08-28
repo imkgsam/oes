@@ -1,5 +1,15 @@
 [
   {
+    "originalWorkloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/api-gateway",
+    "targetAudience": "urn:oes:service:permission-service",
+    "permissionCodes": [
+      "permission.internal.permission.check",
+      "permission.internal.principal_authorization.resolve"
+    ],
+    "scopeLevel": "SYSTEM",
+    "policyVersion": "auth-login-owner-facts-v1"
+  },
+  {
     "originalWorkloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/auth-service",
     "targetAudience": "urn:oes:service:hr-service",
     "permissionCodes": ["hr.internal.auth_login_employee.resolve"],

@@ -143,12 +143,26 @@ async function runtimeSelectorEnvironment() {
 
 /** Projects the versioned trust registries directly so a retained lifecycle env cannot stale runtime admission. */
 async function runtimePolicyEnvironment() {
-  const [auth, permission] = await Promise.all([
+  const [authSource, permission] = await Promise.all([
     readFile(join(root, 'scripts/local/runtime-config/auth-execution-workload-policies.json'), 'utf8'),
     readFile(join(root, 'scripts/local/runtime-config/permission-workload-issuance-policies.json'), 'utf8')
   ])
+  const auth = JSON.parse(authSource)
+  const selectorProfile = JSON.parse(await readFile(join(root, '.tmp/oes-database-lifecycle', taskKey, 'machine-selectors-v2.json'), 'utf8'))
+  const gatewaySelector = selectorProfile.selectors.find((entry) => entry.inventoryEntryKey === 'api-gateway')
+  if (!gatewaySelector) throw new Error('TRUSTED_RUNTIME_SELECTOR_MISSING_API_GATEWAY')
+  const gateway = auth.find((entry) => entry.spiffeId === 'spiffe://local.oes.internal/ns/oes/sa/api-gateway')
+  if (!gateway) throw new Error('TRUSTED_RUNTIME_AUTH_POLICY_MISSING_API_GATEWAY')
+  gateway.audiences = [...new Set([...gateway.audiences, 'urn:oes:service:collaboration-service'])]
+  gateway.humanObo = {
+    selfAudience: 'urn:oes:service:api-gateway',
+    actorMachinePrincipalId: gatewaySelector.machinePrincipalId,
+    actorBindingId: gatewaySelector.machineWorkloadBindingId,
+    actorBindingVersion: gatewaySelector.machineWorkloadBindingVersion,
+    targetAudiences: ['urn:oes:service:permission-service', 'urn:oes:service:collaboration-service']
+  }
   return {
-    AUTH_EXECUTION_WORKLOAD_POLICIES: JSON.stringify(JSON.parse(auth)),
+    AUTH_EXECUTION_WORKLOAD_POLICIES: JSON.stringify(auth),
     PERMISSION_WORKLOAD_ISSUANCE_POLICIES: JSON.stringify(JSON.parse(permission)),
     AUTH_PERMISSION_WORKLOAD_ISSUANCE_POLICY_VERSION: 'auth-login-owner-facts-v1'
   }
