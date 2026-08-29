@@ -170,12 +170,12 @@ model MachineWorkloadProvisioningReceipt {
   deploymentRevision       String
   auditReference           String                 @unique
   serviceAccount           ServiceAccount         @relation(fields: [serviceAccountId], references: [id], onDelete: Restrict)
-  machineWorkloadBinding   MachineWorkloadBinding @relation(fields: [machineWorkloadBindingId], references: [id], onDelete: Restrict)
+  machineWorkloadBinding   MachineWorkloadBinding @relation(fields: [machineWorkloadBindingId], references: [id], onDelete: Restrict, map: "MachineWorkloadProvisioningReceipt_machineWorkloadBindingId_fke")
   audit                    AuditEvent             @relation("MachineWorkloadProvisioningAudit", fields: [auditReference], references: [eventId], onDelete: Restrict)
 
   @@unique([serviceAccountId])
   @@unique([machineWorkloadBindingId])
-  @@index([manifestVersion, manifestDigest])
+  @@index([manifestVersion, manifestDigest], map: "MachineWorkloadProvisioningReceipt_manifestVersion_manifestDige")
 }
 
 enum MachinePrincipalScopeLevel {
