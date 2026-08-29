@@ -29,6 +29,7 @@ export interface IIdentityServicePort {
   getUserByPhone(phone: string): Promise<IdentityUserSummary | null>
   getAvailableAccountsByUserId(userId: string): Promise<AccountCandidateSummary[]>
   getAccountById(accountId: string): Promise<IdentityAccountSummary | null>
+  resolveAuthLoginAccount(userId: string, accountId: string): Promise<IdentityAccountSummary | null>
   resolveEmployeeLoginAccount(input: {
     tenantId: string
     employeeId: string
@@ -38,5 +39,24 @@ export interface IIdentityServicePort {
     bindingId: string
     bindingVersion: bigint
     workloadSpiffeId: string
-  }): Promise<{ allowed: boolean; reasonCode?: string; principalId?: string; principalType?: string; machineType?: string; principalLifecycleStatus?: string; principalLifecycleVersion?: string; bindingId?: string; bindingVersion?: bigint; bindingStatus?: 'ACTIVE'; workloadSpiffeId?: string; decisionReference?: string; scopeLevel?: 'SYSTEM' | 'TENANT'; tenantId?: string; orgId?: string }>
+    requestId?: string
+    traceparent?: string
+    tracestate?: string
+  }): Promise<{
+    allowed: boolean
+    reasonCode?: string
+    principalId?: string
+    principalType?: string
+    machineType?: string
+    principalLifecycleStatus?: string
+    principalLifecycleVersion?: string
+    bindingId?: string
+    bindingVersion?: bigint
+    bindingStatus?: 'ACTIVE'
+    workloadSpiffeId?: string
+    decisionReference?: string
+    scopeLevel?: 'SYSTEM' | 'TENANT'
+    tenantId?: string
+    orgId?: string
+  }>
 }

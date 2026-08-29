@@ -6,24 +6,25 @@ import { PdaDeviceController } from '../../interfaces/http/controllers/pda-devic
 
 describe('PDA managed device BFF flow', () => {
   it('bootstrap resolves device decision using the authenticated PDA session tenant', async () => {
-    const sessionContextUseCase = {
-      execute: jest.fn().mockResolvedValue({
-        operator: { userId: 'user-1', displayName: 'Worker One', scopeLevel: 'TENANT' },
-        account: { accountId: 'account-1', name: 'Worker One', scopeLevel: 'TENANT' },
-        tenant: { tenantId: 'tenant-1', name: 'Tenant One' },
-        access: { actionCodes: ['pda.home'] },
-        terminal: 'PDA',
-        allowedTerminals: ['PDA']
-      })
+    const sessionAccessSummaryUseCase = {
+      execute: jest.fn().mockResolvedValue({ actionCodes: ['pda.home'], roles: [] })
     }
     const terminalDeviceAdapter = {
       resolveDeviceAccessDecision: jest.fn().mockResolvedValue(allowDecision())
     }
-    const useCase = new PdaSessionBootstrapUseCase(sessionContextUseCase as any, terminalDeviceAdapter as any)
+    const useCase = new PdaSessionBootstrapUseCase(
+      sessionAccessSummaryUseCase as any,
+      terminalDeviceAdapter as any
+    )
 
     const result = await useCase.execute(
       {
         user: {
+          userId: 'user-1',
+          holderId: 'account-1',
+          tenantId: 'tenant-1',
+          scopeLevel: 'TENANT',
+          displayName: 'Worker One',
           sid: 'session-1',
           terminal: 'PDA'
         }
@@ -68,20 +69,24 @@ describe('PDA managed device BFF flow', () => {
     }
     const useCase = new PdaDeviceHeartbeatUseCase(terminalDeviceAdapter as any)
 
-    const result = await useCase.execute({
-      device: managedDevice('tdv-1'),
-      runtime: {
-        networkStatus: 'ONLINE',
-        networkType: 'WIFI',
-        appState: 'FOREGROUND'
+    const result = await useCase.execute(
+      {
+        device: managedDevice('tdv-1'),
+        runtime: {
+          networkStatus: 'ONLINE',
+          networkType: 'WIFI',
+          appState: 'FOREGROUND'
+        },
+        session: {
+          accountId: 'account-1',
+          tenantId: 'tenant-1',
+          sessionId: 'session-1'
+        },
+        clientTime: '2026-05-16T10:10:00.000Z'
       },
-      session: {
-        accountId: 'account-1',
-        tenantId: 'tenant-1',
-        sessionId: 'session-1'
-      },
-      clientTime: '2026-05-16T10:10:00.000Z'
-    }, trustedSource(), 'credential-1')
+      trustedSource(),
+      'credential-1'
+    )
 
     expect(terminalDeviceAdapter.recordHeartbeat).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -119,27 +124,31 @@ describe('PDA managed device BFF flow', () => {
     }
     const useCase = new PdaDeviceLogsUseCase(store, terminalDeviceAdapter as any)
 
-    const result = await useCase.execute({
-      device: managedDevice('tdv-1'),
-      session: {
-        accountId: 'account-1',
-        tenantId: 'tenant-1',
-        sessionId: 'session-1'
-      },
-      logs: [
-        {
-          clientTime: '2026-05-16T10:20:00.000Z',
-          level: 'INFO',
-          eventType: 'SCAN_RECEIVED',
-          message: 'Scan result received',
-          diagnosticMode: false,
-          details: {
-            scanValue: 'PB202605140001',
-            accessToken: 'token-must-not-survive'
+    const result = await useCase.execute(
+      {
+        device: managedDevice('tdv-1'),
+        session: {
+          accountId: 'account-1',
+          tenantId: 'tenant-1',
+          sessionId: 'session-1'
+        },
+        logs: [
+          {
+            clientTime: '2026-05-16T10:20:00.000Z',
+            level: 'INFO',
+            eventType: 'SCAN_RECEIVED',
+            message: 'Scan result received',
+            diagnosticMode: false,
+            details: {
+              scanValue: 'PB202605140001',
+              accessToken: 'token-must-not-survive'
+            }
           }
-        }
-      ]
-    }, trustedSource(), 'credential-1')
+        ]
+      },
+      trustedSource(),
+      'credential-1'
+    )
 
     expect(terminalDeviceAdapter.resolveDeviceAccessDecision).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -178,7 +187,10 @@ describe('PDA managed device BFF flow', () => {
       deviceCredentialExpiresAt: '2026-06-15T10:00:00.000Z',
       deviceCredentialVersion: 2
     }
-    Object.defineProperty(activation, 'deviceCredential', { value: 'credential-1', enumerable: false })
+    Object.defineProperty(activation, 'deviceCredential', {
+      value: 'credential-1',
+      enumerable: false
+    })
     const controller = new PdaDeviceController(
       { execute: jest.fn().mockResolvedValue(activation) } as any,
       {} as any,
@@ -188,8 +200,16 @@ describe('PDA managed device BFF flow', () => {
 
     const result = await controller.enroll({} as any, {} as any, response)
 
-    expect(response.setHeader).toHaveBeenCalledWith('X-OES-Terminal-Device-Credential', 'credential-1')
-    expect(JSON.parse(JSON.stringify(result))).toEqual(expect.objectContaining({ deviceCredentialExpiresAt: '2026-06-15T10:00:00.000Z', deviceCredentialVersion: 2 }))
+    expect(response.setHeader).toHaveBeenCalledWith(
+      'X-OES-Terminal-Device-Credential',
+      'credential-1'
+    )
+    expect(JSON.parse(JSON.stringify(result))).toEqual(
+      expect.objectContaining({
+        deviceCredentialExpiresAt: '2026-06-15T10:00:00.000Z',
+        deviceCredentialVersion: 2
+      })
+    )
     expect(JSON.stringify(result)).not.toContain('credential-1')
   })
 
@@ -199,21 +219,40 @@ describe('PDA managed device BFF flow', () => {
       deviceCredentialExpiresAt: '2026-06-15T10:00:00.000Z',
       deviceCredentialVersion: 2
     }
-    Object.defineProperty(rotation, 'rotatedDeviceCredential', { value: 'rotated-credential-2', enumerable: false })
+    Object.defineProperty(rotation, 'rotatedDeviceCredential', {
+      value: 'rotated-credential-2',
+      enumerable: false
+    })
     const heartbeatUseCase = {
-      execute: jest.fn()
-        .mockResolvedValueOnce(rotation)
-        .mockResolvedValueOnce({ accepted: true })
+      execute: jest.fn().mockResolvedValueOnce(rotation).mockResolvedValueOnce({ accepted: true })
     }
     const controller = new PdaDeviceController({} as any, heartbeatUseCase as any, {} as any)
     const rotatedResponse = { setHeader: jest.fn() }
     const unchangedResponse = { setHeader: jest.fn() }
 
-    const rotated = await controller.heartbeat({} as any, 'credential-1', {} as any, rotatedResponse)
-    const unchanged = await controller.heartbeat({} as any, 'credential-1', {} as any, unchangedResponse)
+    const rotated = await controller.heartbeat(
+      {} as any,
+      'credential-1',
+      {} as any,
+      rotatedResponse
+    )
+    const unchanged = await controller.heartbeat(
+      {} as any,
+      'credential-1',
+      {} as any,
+      unchangedResponse
+    )
 
-    expect(rotatedResponse.setHeader).toHaveBeenCalledWith('X-OES-Terminal-Device-Credential', 'rotated-credential-2')
-    expect(JSON.parse(JSON.stringify(rotated))).toEqual(expect.objectContaining({ deviceCredentialExpiresAt: '2026-06-15T10:00:00.000Z', deviceCredentialVersion: 2 }))
+    expect(rotatedResponse.setHeader).toHaveBeenCalledWith(
+      'X-OES-Terminal-Device-Credential',
+      'rotated-credential-2'
+    )
+    expect(JSON.parse(JSON.stringify(rotated))).toEqual(
+      expect.objectContaining({
+        deviceCredentialExpiresAt: '2026-06-15T10:00:00.000Z',
+        deviceCredentialVersion: 2
+      })
+    )
     expect(JSON.stringify(rotated)).not.toContain('rotated-credential-2')
     expect(unchangedResponse.setHeader).not.toHaveBeenCalled()
     expect(unchanged).not.toHaveProperty('deviceCredentialExpiresAt')

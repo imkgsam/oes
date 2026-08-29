@@ -61,3 +61,11 @@ test('tenant-web auth seed keeps identity account and HR employee tenantPartyId 
     assert.equal(account.tenantPartyId, employee.tenantPartyId)
   }
 })
+
+test('tenant-web auth seed writes only exact managed HUMAN principal bindings', () => {
+  assert.doesNotMatch(source, /tx\.accountRole/)
+  assert.match(source, /tx\.principalRoleBinding\.deleteMany/)
+  assert.match(source, /principalType:\s*PrincipalType\.HUMAN/)
+  assert.match(source, /principalId:\s*\{ in: managedHumanPrincipalIds \}/)
+  assert.doesNotMatch(source, /\{ scopeLevel: ScopeLevel\.TENANT \}/)
+})

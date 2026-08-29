@@ -2,10 +2,7 @@ import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { Inject } from '@nestjs/common'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import { IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants'
-import {
-  IdentityAccountSummary,
-  IIdentityServicePort
-} from '../../ports/identity-service.port'
+import { IdentityAccountSummary, IIdentityServicePort } from '../../ports/identity-service.port'
 import {
   AccountSessionEstablishmentService,
   EstablishedAccountSession
@@ -50,9 +47,10 @@ export interface SelectAccountMfaRequiredResult {
 export type SelectAccountResult = SelectAccountMfaRequiredResult | SelectAccountSuccessResult
 
 @CommandHandler(SelectAccountCommand)
-export class SelectAccountHandler
-  implements ICommandHandler<SelectAccountCommand, SelectAccountResult>
-{
+export class SelectAccountHandler implements ICommandHandler<
+  SelectAccountCommand,
+  SelectAccountResult
+> {
   constructor(
     @Inject(IDENTITY_SERVICE)
     private readonly identityService: IIdentityServicePort,
@@ -65,7 +63,10 @@ export class SelectAccountHandler
   ) {}
 
   async execute(command: SelectAccountCommand): Promise<SelectAccountResult> {
-    const account = await this.identityService.getAccountById(command.accountId)
+    const account = await this.identityService.resolveAuthLoginAccount(
+      command.userId,
+      command.accountId
+    )
     this.ensureAccountIsUsable(command.userId, command.accountId, account)
     await this.ensureTenantScopeCanStartSession(account)
     const terminalAccess = await this.permissionService.resolveAccountTerminalAccess({

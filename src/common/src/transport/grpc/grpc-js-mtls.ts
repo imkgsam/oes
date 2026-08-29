@@ -135,12 +135,24 @@ function serverIdentityError(
   subjectAltName: string | undefined,
   expectedPeerSpiffeId: string
 ): Error | undefined {
-  if (!expectedPeerSpiffeId.startsWith('spiffe://')) {
-    return new Error('gRPC target workload SPIFFE identity is invalid')
+  try {
+    assertGrpcServerWorkloadIdentity(subjectAltName, expectedPeerSpiffeId)
+    return undefined
+  } catch (error) {
+    return error as Error
   }
-  return readSpiffeId(subjectAltName) === expectedPeerSpiffeId
-    ? undefined
-    : new Error('gRPC TLS server SPIFFE identity does not match the expected workload')
+}
+
+/** Requires a TLS server certificate to carry the exact deployment-projected peer SPIFFE URI. */
+export function assertGrpcServerWorkloadIdentity(
+  subjectAltName: string | undefined,
+  expectedPeerSpiffeId: string
+): void {
+  if (!expectedPeerSpiffeId.startsWith('spiffe://')) {
+    throw new Error('gRPC target workload SPIFFE identity is invalid')
+  }
+  if (readSpiffeId(subjectAltName) !== expectedPeerSpiffeId)
+    throw new Error('gRPC TLS server SPIFFE identity does not match the expected workload')
 }
 
 function requireValue(environment: NodeJS.ProcessEnv, name: string): string {

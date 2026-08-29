@@ -8,15 +8,52 @@ import { createGrpcClientCredentials, safeGrpcCall } from '@oes/common/transport
 export class GatewayAuthMachineWorkloadSourceCredentialClient {
   private client?: ClientGrpc
   private service?: MachineWorkloadSourceCredentialServiceClient
-  async issue(): Promise<string> {
-    const principal = process.env.GATEWAY_MACHINE_PRINCIPAL_ID?.trim(); const binding = process.env.GATEWAY_MACHINE_WORKLOAD_BINDING_ID?.trim(); const version = process.env.GATEWAY_MACHINE_WORKLOAD_BINDING_VERSION?.trim()
-    if (!principal || !binding || !version) throw new Error('MACHINE_WORKLOAD_SOURCE_CONFIGURATION_REQUIRED')
-    const response = await safeGrpcCall(this.getService().issueMachineWorkloadSourceCredential({ machinePrincipalId: principal, machineWorkloadBindingId: binding, machineWorkloadBindingVersion: version }, new Metadata()), { caller: 'api-gateway', method: 'auth.issueMachineWorkloadSourceCredential' })
-    if (!response.sourceCredential?.trim() || response.tokenType !== 'Bearer') throw new Error('MACHINE_SOURCE_CREDENTIAL_INVALID')
+  async issue(
+    correlation: Readonly<{ requestId: string; traceparent: string; tracestate?: string }>
+  ): Promise<string> {
+    const principal = process.env.GATEWAY_MACHINE_PRINCIPAL_ID?.trim()
+    const binding = process.env.GATEWAY_MACHINE_WORKLOAD_BINDING_ID?.trim()
+    const version = process.env.GATEWAY_MACHINE_WORKLOAD_BINDING_VERSION?.trim()
+    if (!principal || !binding || !version)
+      throw new Error('MACHINE_WORKLOAD_SOURCE_CONFIGURATION_REQUIRED')
+    if (!correlation?.requestId?.trim() || !correlation.traceparent?.trim())
+      throw new Error('MACHINE_SOURCE_CORRELATION_REQUIRED')
+    const metadata = new Metadata()
+    metadata.set('x-request-id', correlation.requestId)
+    metadata.set('traceparent', correlation.traceparent)
+    if (correlation.tracestate?.trim()) metadata.set('tracestate', correlation.tracestate)
+    const response = await safeGrpcCall(
+      this.getService().issueMachineWorkloadSourceCredential(
+        {
+          machinePrincipalId: principal,
+          machineWorkloadBindingId: binding,
+          machineWorkloadBindingVersion: version
+        },
+        metadata
+      ),
+      { caller: 'api-gateway', method: 'auth.issueMachineWorkloadSourceCredential' }
+    )
+    if (!response.sourceCredential?.trim() || response.tokenType !== 'Bearer')
+      throw new Error('MACHINE_SOURCE_CREDENTIAL_INVALID')
     return response.sourceCredential
   }
   private getService(): MachineWorkloadSourceCredentialServiceClient {
-    if (!this.service) { this.client = ClientProxyFactory.create({ transport: Transport.GRPC, options: { package: 'auth_service', protoPath: resolveCommonProtoPath('auth_service/machine_workload_source_credential.proto'), url: `${process.env.AUTH_SERVICE_HOST ?? '127.0.0.1'}:${process.env.AUTH_SERVICE_PORT ?? '50050'}`, credentials: createGrpcClientCredentials() } }) as unknown as ClientGrpc; this.service = this.client.getService<MachineWorkloadSourceCredentialServiceClient>('MachineWorkloadSourceCredentialService') }
+    if (!this.service) {
+      this.client = ClientProxyFactory.create({
+        transport: Transport.GRPC,
+        options: {
+          package: 'auth_service',
+          protoPath: resolveCommonProtoPath(
+            'auth_service/machine_workload_source_credential.proto'
+          ),
+          url: `${process.env.AUTH_SERVICE_HOST ?? '127.0.0.1'}:${process.env.AUTH_SERVICE_PORT ?? '50050'}`,
+          credentials: createGrpcClientCredentials()
+        }
+      }) as unknown as ClientGrpc
+      this.service = this.client.getService<MachineWorkloadSourceCredentialServiceClient>(
+        'MachineWorkloadSourceCredentialService'
+      )
+    }
     return this.service
   }
 }

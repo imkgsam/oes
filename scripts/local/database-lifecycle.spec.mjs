@@ -3,21 +3,31 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { spawnSync } from 'node:child_process'
 import test from 'node:test'
 import {
   assertBaselineResolutionCheckpoint,
   assertDatabaseInvariantDigest,
+  assertExactLifecycleOwnerResources,
   assertPinnedComposeImages,
   assertResourceOwnershipRecord,
   assertRollbackBinding,
   baselinePlanFingerprint,
   composeEnvironment,
+  DATABASE_LIFECYCLE_INIT_SERVICES,
+  databaseLifecycleComposeArgs,
+  databaseRollbackComposeArgs,
   loadBaselineResolvePlan,
   loadDatabaseContext,
+  ownerNamedResourceListArgs,
   probeHttpReadiness,
   renderedNamedResources,
   resourceFingerprint
 } from './database-lifecycle.mjs'
+import {
+  validate as validateWorkloadPolicyProfile,
+  WORKLOAD_POLICY_VERSION
+} from './workload-policy-profile.mjs'
 
 const repositoryRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../..')
 
@@ -47,6 +57,28 @@ test('generated Compose inputs keep secrets local and map every service to postg
   ]) {
     assert.match(values.get(key), /^n[a-f0-9]{31}$/)
   }
+  const authPolicies = JSON.parse(values.get('AUTH_EXECUTION_WORKLOAD_POLICIES'))
+  const permissionPolicies = JSON.parse(values.get('PERMISSION_WORKLOAD_ISSUANCE_POLICIES'))
+  const versionedPermissionPolicies = JSON.parse(
+    fs.readFileSync(
+      path.join(
+        repositoryRoot,
+        'scripts/local/runtime-config/permission-workload-issuance-policies.json'
+      ),
+      'utf8'
+    )
+  )
+  assert.equal(authPolicies[0].spiffeId, 'spiffe://local.oes.internal/ns/oes/sa/api-gateway')
+  assert.deepEqual(permissionPolicies, versionedPermissionPolicies)
+  assert.doesNotThrow(() => validateWorkloadPolicyProfile(authPolicies, permissionPolicies))
+  assert.deepEqual(
+    [...new Set(permissionPolicies.map((policy) => policy.policyVersion))],
+    [WORKLOAD_POLICY_VERSION]
+  )
+  assert.equal(
+    values.get('AUTH_PERMISSION_WORKLOAD_ISSUANCE_POLICY_VERSION'),
+    WORKLOAD_POLICY_VERSION
+  )
   assert.match(values.get('NATS_NOTIFICATION_REPLAY_ASSIGNED_CREATE_SUBJECT'), /^'\$JS\.API\..*'$/)
 })
 
@@ -59,11 +91,61 @@ test('rollback rejects owner and fingerprint drift', () => {
     resourceFingerprint: resourceFingerprint(context)
   }
   assert.doesNotThrow(() => assertRollbackBinding(context, state))
-  assert.throws(() => assertRollbackBinding(context, { ...state, taskKey: 'foreign_task' }), /TASK_MISMATCH/)
+  assert.throws(
+    () => assertRollbackBinding(context, { ...state, taskKey: 'foreign_task' }),
+    /TASK_MISMATCH/
+  )
   assert.throws(
     () => assertRollbackBinding(context, { ...state, resourceFingerprint: '0'.repeat(64) }),
     /FINGERPRINT_MISMATCH/
   )
+})
+
+test('rollback command is bound to infra Compose without application interpolation or orphan deletion', () => {
+  const context = loadDatabaseContext(repositoryRoot)
+  const args = databaseRollbackComposeArgs(context, '/tmp/fixture-compose.env')
+  assert.equal(args[args.indexOf('-f') + 1], 'docker-compose.infra.yml')
+  assert.equal(args.includes('docker-compose.yml'), false)
+  assert.equal(args.includes('--remove-orphans'), false)
+  assert.deepEqual(args.slice(-4), ['down', '--volumes', '--timeout', '30'])
+  assert.deepEqual(ownerNamedResourceListArgs(context, 'network'), [
+    'network',
+    'ls',
+    '--format',
+    '{{.Name}}',
+    '--filter',
+    `label=oes.local.owner=${context.taskKey}`
+  ])
+})
+
+test('infra Compose remains renderable when application runtime selectors are missing', () => {
+  const context = loadDatabaseContext(repositoryRoot)
+  const environment = { ...process.env, ...Object.fromEntries(composeEnvironment(context)) }
+  for (const key of [
+    'SRM_PARTY_MACHINE_WORKLOAD_BINDING_ID',
+    'PUBLIC_ENTRY_FOUNDATION_MACHINE_PRINCIPAL_ID'
+  ]) {
+    delete environment[key]
+  }
+  const result = spawnSync(
+    'docker',
+    databaseLifecycleComposeArgs(context, '/dev/null', ['config', '--quiet']),
+    { cwd: repositoryRoot, env: environment, encoding: 'utf8' }
+  )
+  assert.equal(result.status, 0, result.stderr)
+})
+
+test('database lifecycle provisions every exact one-shot infrastructure dependency', () => {
+  assert.deepEqual(DATABASE_LIFECYCLE_INIT_SERVICES, [
+    'nats-bootstrap',
+    'minio-init',
+    'nacos-auth-bootstrap'
+  ])
+  const infra = fs.readFileSync(path.join(repositoryRoot, 'docker-compose.infra.yml'), 'utf8')
+  for (const service of DATABASE_LIFECYCLE_INIT_SERVICES) {
+    assert.match(infra, new RegExp(`^  ${service}:`, 'm'))
+  }
+  assert.match(infra, /nacos-auth-bootstrap:[\s\S]*INSERT INTO users[\s\S]*INSERT INTO roles/)
 })
 
 test('named Docker resource ownership rejects foreign task and project labels', () => {
@@ -91,7 +173,7 @@ test('named Docker resource ownership rejects foreign task and project labels', 
   )
 })
 
-test('main resource enumeration guards the optional trust volume', () => {
+test('unexpected same-owner main-only residue fails closed before lifecycle deletion', () => {
   const context = loadDatabaseContext(repositoryRoot)
   const resources = renderedNamedResources({
     networks: { oes_network: { name: context.projectName + '_oes_network' } },
@@ -106,15 +188,13 @@ test('main resource enumeration guards the optional trust volume', () => {
     logicalName: 'grpc_trust_runtime',
     name: context.projectName + '_grpc_trust_runtime'
   })
+  const infraVolume = context.projectName + '_postgres_data'
+  assert.doesNotThrow(() =>
+    assertExactLifecycleOwnerResources('volume', [infraVolume], [infraVolume])
+  )
   assert.throws(
-    () =>
-      assertResourceOwnershipRecord(context, trust.kind, trust.name, {
-        Labels: {
-          'oes.local.owner': 'foreign-task',
-          'com.docker.compose.project': context.projectName
-        }
-      }),
-    /RESOURCE_OWNER_MISMATCH/
+    () => assertExactLifecycleOwnerResources('volume', [infraVolume], [infraVolume, trust.name]),
+    /ROLLBACK_UNEXPECTED_OWNER_RESOURCE.*grpc_trust_runtime/
   )
 })
 
@@ -133,7 +213,10 @@ test('service and Gateway images generate tracked proto outputs before Common bu
 })
 
 test('clean lifecycle prepares generated contracts and Common before TypeScript seed execution', () => {
-  const contents = fs.readFileSync(path.join(repositoryRoot, 'scripts/local/database-lifecycle.mjs'), 'utf8')
+  const contents = fs.readFileSync(
+    path.join(repositoryRoot, 'scripts/local/database-lifecycle.mjs'),
+    'utf8'
+  )
   const generated = contents.indexOf("run('pnpm', ['generated:all']")
   const common = contents.indexOf("run('pnpm', ['common:build']")
   const permissionSeed = contents.indexOf("['--filter', 'permission-service', 'seed:apply'")
@@ -150,7 +233,8 @@ test('Compose image policy covers main and infra rendered references', () => {
     )
   )
   assert.throws(
-    () => assertPinnedComposeImages({ services: { mutable: { image: 'alpine:3.21' } } }, 'fixture.yml'),
+    () =>
+      assertPinnedComposeImages({ services: { mutable: { image: 'alpine:3.21' } } }, 'fixture.yml'),
     /COMPOSE_IMAGE_MUTABLE/
   )
 })
@@ -177,7 +261,11 @@ test('baseline resolution checkpoint binds task, database identity, plan, and ex
     /CHECKPOINT_MISMATCH/
   )
   assert.throws(
-    () => assertBaselineResolutionCheckpoint({ ...checkpoint, targets: checkpoint.targets.slice(1) }, expected),
+    () =>
+      assertBaselineResolutionCheckpoint(
+        { ...checkpoint, targets: checkpoint.targets.slice(1) },
+        expected
+      ),
     /CHECKPOINT_MISMATCH/
   )
 })
@@ -219,7 +307,10 @@ test('custom database invariant digests detect definition drift', () => {
     () => assertDatabaseInvariantDigest(service, assertion, `${definition} WHERE active`),
     /DATABASE_INVARIANT_DRIFT/
   )
-  assert.throws(() => assertDatabaseInvariantDigest(service, assertion, ''), /DATABASE_INVARIANT_MISSING/)
+  assert.throws(
+    () => assertDatabaseInvariantDigest(service, assertion, ''),
+    /DATABASE_INVARIANT_MISSING/
+  )
 })
 
 test('repository lifecycle state stays under ignored task-local storage', () => {
@@ -238,7 +329,8 @@ test('baseline resolve plans preserve active migration bytes and detect drift', 
   fs.mkdirSync(path.dirname(baseline), { recursive: true })
   fs.writeFileSync(old, 'SELECT 1;\n')
   fs.writeFileSync(baseline, 'SELECT 2;\n')
-  const digest = (target) => crypto.createHash('sha256').update(fs.readFileSync(target)).digest('hex')
+  const digest = (target) =>
+    crypto.createHash('sha256').update(fs.readFileSync(target)).digest('hex')
   fs.writeFileSync(
     path.join(migrations, 'baseline-resolve.json'),
     JSON.stringify({

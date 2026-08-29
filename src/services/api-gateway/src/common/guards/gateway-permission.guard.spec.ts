@@ -2,6 +2,8 @@ import { ExecutionContext, ServiceUnavailableException } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { IS_PUBLIC_KEY } from '@oes/common/auth'
 import {
+  AdmitGatewaySessionTerminals,
+  GATEWAY_ROUTE_SESSION_TERMINALS_METADATA_KEY,
   GatewayPermissionGuard,
   RequirePermissions,
   REQUIRE_PERMISSIONS_METADATA_KEY
@@ -19,6 +21,7 @@ type GuardFixtureOptions = {
   definitions?: Record<string, unknown>
   isPublic?: boolean
   requiredPermissions?: unknown
+  routeSessionTerminals?: unknown
 }
 
 type ContinuationSpies = {
@@ -40,7 +43,7 @@ function createContext(
       getRequest: () => ({
         params: { tenantId: pathTenantId },
         route: { path: routePath },
-        user
+        user: user ? { terminal: 'WEB', ...user } : undefined
       })
     })
   } as unknown as ExecutionContext
@@ -50,7 +53,7 @@ function createContext(
 function createGuard(options: GuardFixtureOptions = {}) {
   const internalMetadata = { internal: 'metadata' }
   const metadataFactory = {
-    createInternalCallMetadata: jest.fn().mockReturnValue(internalMetadata)
+    create: jest.fn().mockResolvedValue(internalMetadata)
   }
   const definitions =
     options.definitions ??
@@ -83,6 +86,9 @@ function createGuard(options: GuardFixtureOptions = {}) {
         if (metadataKey === IS_PUBLIC_KEY) return options.isPublic
         if (metadataKey === REQUIRE_PERMISSIONS_METADATA_KEY) {
           return options.requiredPermissions
+        }
+        if (metadataKey === GATEWAY_ROUTE_SESSION_TERMINALS_METADATA_KEY) {
+          return options.routeSessionTerminals
         }
         return undefined
       })
@@ -142,6 +148,16 @@ describe('GatewayPermissionGuard', () => {
     })
   })
 
+  it('writes exact class-level Gateway route terminal metadata', () => {
+    @AdmitGatewaySessionTerminals('WEB', 'BROWSER_EXTENSION')
+    class ExtensionController {}
+
+    const reflector = new Reflector()
+    expect(
+      reflector.get(GATEWAY_ROUTE_SESSION_TERMINALS_METADATA_KEY, ExtensionController)
+    ).toEqual(['WEB', 'BROWSER_EXTENSION'])
+  })
+
   it('denies a protected tenant-target route with no route Code before every continuation', async () => {
     const { guard, checkPermission } = createGuard()
     const continuation = createContinuation()
@@ -178,6 +194,75 @@ describe('GatewayPermissionGuard', () => {
     ).resolves.toBe(true)
     expect(publicFixture.checkPermission).not.toHaveBeenCalled()
     expect(selfServiceFixture.checkPermission).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['Web Item', ['WEB'], 'WEB', true],
+    ['PDA Item', ['WEB'], 'PDA', false],
+    ['Web extension CRM', ['WEB', 'BROWSER_EXTENSION'], 'WEB', true],
+    ['Browser Extension extension CRM', ['WEB', 'BROWSER_EXTENSION'], 'BROWSER_EXTENSION', true],
+    ['PDA extension CRM', ['WEB', 'BROWSER_EXTENSION'], 'PDA', false]
+  ] as const)(
+    '%s follows the exact route terminal declaration before Permission',
+    async (_label, routeSessionTerminals, terminal, expected) => {
+      const { guard, checkPermission, metadataFactory } = createGuard({
+        requiredPermissions: { all: [TENANT_CODE] },
+        routeSessionTerminals
+      })
+
+      await expect(
+        guard.canActivate(
+          createContext({
+            id: 'account-1',
+            scopeLevel: 'TENANT',
+            tenantId: 'tenant-1',
+            terminal
+          })
+        )
+      ).resolves.toBe(expected)
+      expect(checkPermission).toHaveBeenCalledTimes(expected ? 1 : 0)
+      expect(metadataFactory.create).toHaveBeenCalledTimes(expected ? 1 : 0)
+    }
+  )
+
+  it.each([undefined, 'UNKNOWN', null, 42])(
+    'keeps missing or invalid route-bound session terminal %p fail closed',
+    async (terminal) => {
+      const { guard, checkPermission, metadataFactory } = createGuard({
+        requiredPermissions: { all: [TENANT_CODE] },
+        routeSessionTerminals: ['WEB']
+      })
+      await expect(
+        guard.canActivate(
+          createContext({
+            id: 'account-1',
+            scopeLevel: 'TENANT',
+            tenantId: 'tenant-1',
+            terminal
+          })
+        )
+      ).resolves.toBe(false)
+      expect(checkPermission).not.toHaveBeenCalled()
+      expect(metadataFactory.create).not.toHaveBeenCalled()
+    }
+  )
+
+  it('does not impose a global WEB assumption on an unbound protected route', async () => {
+    const { guard, checkPermission, metadataFactory } = createGuard({
+      requiredPermissions: { all: [TENANT_CODE] }
+    })
+    await expect(
+      guard.canActivate(
+        createContext({
+          id: 'account-1',
+          scopeLevel: 'TENANT',
+          tenantId: 'tenant-1',
+          terminal: 'BROWSER_EXTENSION'
+        })
+      )
+    ).resolves.toBe(true)
+    expect(checkPermission).toHaveBeenCalledTimes(1)
+    expect(metadataFactory.create).toHaveBeenCalledTimes(1)
   })
 
   it('admits TENANT scope and sends only the authenticated subject tenant to Permission', async () => {

@@ -14,7 +14,7 @@ export class NacosRegistryService implements ServiceRegistry, OnModuleInit, OnMo
     private readonly logger: AppLogger
   ) {
     const ip = process.env.SERVICE_REGISTRY_IP ?? getLocalIP()
-    const port = Number(process.env.SERVICE_REGISTRY_PORT)
+    const port = resolveRegistryPort(process.env)
     this.logger.warn(`Initializing NacosRegistryService with IP: ${ip}, Port: ${port}`)
     this.instance = {
       instanceId: `${ip}:${port}`,
@@ -71,6 +71,16 @@ export class NacosRegistryService implements ServiceRegistry, OnModuleInit, OnMo
   async onModuleDestroy(): Promise<void> {
     await this.deregister()
   }
+}
+
+/** Resolves the explicit registry override or the service's actual configured listener port. */
+export function resolveRegistryPort(environment: NodeJS.ProcessEnv): number {
+  const raw = environment.SERVICE_REGISTRY_PORT ?? environment.GRPC_LISTEN_PORT ?? environment.SERVICE_PORT
+  const port = Number(raw)
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error('SERVICE_REGISTRY_PORT must resolve to the exact service listener port')
+  }
+  return port
 }
 
 function getLocalIP(): string {

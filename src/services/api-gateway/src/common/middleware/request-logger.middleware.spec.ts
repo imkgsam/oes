@@ -110,6 +110,31 @@ describe('RequestLoggerMiddleware', () => {
 
     expect(request.headers['x-request-id']).toEqual(expect.any(String))
     expect(request.headers['x-request-id']).not.toHaveLength(0)
+    expect(request.headers.traceparent).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/)
     expect(next).toHaveBeenCalled()
+  })
+
+  it('preserves a valid W3C parent and replaces malformed or zero correlation', () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as any
+    const middleware = new RequestLoggerMiddleware(logger)
+    const response = new EventEmitter() as EventEmitter & { statusCode: number }
+    response.statusCode = 200
+    const valid = '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01'
+    const request = (traceparent: string) => ({
+      method: 'POST', originalUrl: '/api/v1/auth/login', ip: '127.0.0.1',
+      headers: { traceparent } as Record<string, string>,
+      get(name: string) { return this.headers[name.toLowerCase()] }
+    })
+
+    const accepted = request(valid)
+    middleware.use(accepted as any, response as any, jest.fn())
+    expect(accepted.headers.traceparent).toBe(valid)
+
+    for (const invalid of ['malformed', '00-00000000000000000000000000000000-0000000000000000-01']) {
+      const replaced = request(invalid)
+      middleware.use(replaced as any, response as any, jest.fn())
+      expect(replaced.headers.traceparent).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/)
+      expect(replaced.headers.traceparent).not.toBe(invalid)
+    }
   })
 })

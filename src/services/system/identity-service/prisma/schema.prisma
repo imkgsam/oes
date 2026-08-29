@@ -21,22 +21,22 @@ model User {
 }
 
 model UserAccount {
-  id             String                     @id @default(uuid())
-  tenantId       String?
-  tenantPartyId  String?                    @db.Uuid
-  userId         String
-  scopeLevel     UserAccountScopeLevel      @default(TENANT)
-  contextKey     String
-  displayName    String?
-  isEnable       Boolean                    @default(true)
-  avatarUrl      String?
-  avatarAssetId  String?
-  bio            String?
-  contactAssets  AccountContactAsset[]
+  id              String                      @id @default(uuid())
+  tenantId        String?
+  tenantPartyId   String?                     @db.Uuid
+  userId          String
+  scopeLevel      UserAccountScopeLevel       @default(TENANT)
+  contextKey      String
+  displayName     String?
+  isEnable        Boolean                     @default(true)
+  avatarUrl       String?
+  avatarAssetId   String?
+  bio             String?
+  contactAssets   AccountContactAsset[]
   employeeBinding UserAccountEmployeeBinding?
-  createdAt      DateTime                   @default(now())
-  updatedAt      DateTime                   @updatedAt
-  User           User                       @relation(fields: [userId], references: [id])
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
+  User            User                        @relation(fields: [userId], references: [id])
 
   @@unique([userId, scopeLevel, contextKey])
   @@index([scopeLevel])
@@ -114,20 +114,21 @@ enum AccountContactAssetStatus {
 }
 
 model ServiceAccount {
-  id          String                     @id @default(uuid())
-  tenantId    String?
-  scopeLevel  MachinePrincipalScopeLevel
-  type        MachinePrincipalType
-  name        String
-  description String?
-  status      MachinePrincipalStatus     @default(ACTIVE)
-  apiKeys     APIKey[]
-  machineWorkloadBindings MachineWorkloadBinding[]
-  createdAt   DateTime                   @default(now())
-  updatedAt   DateTime                   @updatedAt
-  createdBy   String?
-  disabledAt  DateTime?
-  disabledBy  String?
+  id                           String                               @id @default(uuid())
+  tenantId                     String?
+  scopeLevel                   MachinePrincipalScopeLevel
+  type                         MachinePrincipalType
+  name                         String
+  description                  String?
+  status                       MachinePrincipalStatus               @default(ACTIVE)
+  apiKeys                      APIKey[]
+  machineWorkloadBindings      MachineWorkloadBinding[]
+  workloadProvisioningReceipts MachineWorkloadProvisioningReceipt[]
+  createdAt                    DateTime                             @default(now())
+  updatedAt                    DateTime                             @updatedAt
+  createdBy                    String?
+  disabledAt                   DateTime?
+  disabledBy                   String?
 
   @@index([tenantId])
   @@index([scopeLevel])
@@ -136,26 +137,45 @@ model ServiceAccount {
 }
 
 model MachineWorkloadBinding {
-  id                 String   @id @default(uuid())
-  serviceAccountId   String
-  workloadSpiffeId   String
-  idempotencyKey     String   @unique
-  status             String   @default("ACTIVE")
-  version            BigInt   @default(1)
-  createdBy          String?
-  disabledAt         DateTime?
-  disabledBy         String?
-  disableReasonCode  String?
-  enrollmentAuditRef String   @unique
-  disableAuditRef    String?  @unique
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  serviceAccount     ServiceAccount @relation(fields: [serviceAccountId], references: [id], onDelete: Restrict)
-  enrollmentAudit    AuditEvent @relation("MachineWorkloadBindingEnrollmentAudit", fields: [enrollmentAuditRef], references: [eventId])
-  disableAudit       AuditEvent? @relation("MachineWorkloadBindingDisableAudit", fields: [disableAuditRef], references: [eventId])
+  id                   String                               @id @default(uuid())
+  serviceAccountId     String
+  workloadSpiffeId     String
+  idempotencyKey       String                               @unique
+  status               String                               @default("ACTIVE")
+  version              BigInt                               @default(1)
+  createdBy            String?
+  disabledAt           DateTime?
+  disabledBy           String?
+  disableReasonCode    String?
+  enrollmentAuditRef   String                               @unique
+  disableAuditRef      String?                              @unique
+  createdAt            DateTime                             @default(now())
+  updatedAt            DateTime                             @updatedAt
+  serviceAccount       ServiceAccount                       @relation(fields: [serviceAccountId], references: [id], onDelete: Restrict)
+  enrollmentAudit      AuditEvent                           @relation("MachineWorkloadBindingEnrollmentAudit", fields: [enrollmentAuditRef], references: [eventId])
+  disableAudit         AuditEvent?                          @relation("MachineWorkloadBindingDisableAudit", fields: [disableAuditRef], references: [eventId])
+  provisioningReceipts MachineWorkloadProvisioningReceipt[]
 
   @@index([serviceAccountId, status])
   @@index([workloadSpiffeId, status])
+}
+
+model MachineWorkloadProvisioningReceipt {
+  inventoryEntryKey        String                 @id
+  manifestVersion          String
+  manifestDigest           String
+  serviceAccountId         String
+  machineWorkloadBindingId String
+  provisionedAt            DateTime               @default(now())
+  deploymentRevision       String
+  auditReference           String                 @unique
+  serviceAccount           ServiceAccount         @relation(fields: [serviceAccountId], references: [id], onDelete: Restrict)
+  machineWorkloadBinding   MachineWorkloadBinding @relation(fields: [machineWorkloadBindingId], references: [id], onDelete: Restrict, map: "MachineWorkloadProvisioningReceipt_machineWorkloadBindingId_fke")
+  audit                    AuditEvent             @relation("MachineWorkloadProvisioningAudit", fields: [auditReference], references: [eventId], onDelete: Restrict)
+
+  @@unique([serviceAccountId])
+  @@unique([machineWorkloadBindingId])
+  @@index([manifestVersion, manifestDigest], map: "MachineWorkloadProvisioningReceipt_manifestVersion_manifestDige")
 }
 
 enum MachinePrincipalScopeLevel {
@@ -176,15 +196,15 @@ enum MachinePrincipalStatus {
 }
 
 model APIKey {
-  id               String       @id @default(uuid())
+  id               String         @id @default(uuid())
   serviceAccountId String
-  keyCode          String       @unique
-  hashedValue      String       @unique
-  status           APIKeyStatus @default(ACTIVE)
+  keyCode          String         @unique
+  hashedValue      String         @unique
+  status           APIKeyStatus   @default(ACTIVE)
   expiresAt        DateTime?
   lastUsedAt       DateTime?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
   createdBy        String?
   revokedAt        DateTime?
   revokedBy        String?
@@ -200,23 +220,24 @@ enum APIKeyStatus {
 }
 
 model AuditEvent {
-  eventId      String             @id
-  service      String
-  module       String
-  eventType    String
-  occurredAt   DateTime
-  result       AuditEventResult
-  operatorId   String?
-  operatorType AuditOperatorType
-  tenantId     String?
-  orgId        String?
-  traceId      String?
-  resourceType String
-  resourceId   String?
-  details      Json
-  createdAt    DateTime           @default(now())
-  machineWorkloadBindingEnrollmentAudit MachineWorkloadBinding[] @relation("MachineWorkloadBindingEnrollmentAudit")
-  machineWorkloadBindingDisableAudit    MachineWorkloadBinding[] @relation("MachineWorkloadBindingDisableAudit")
+  eventId                               String                               @id
+  service                               String
+  module                                String
+  eventType                             String
+  occurredAt                            DateTime
+  result                                AuditEventResult
+  operatorId                            String?
+  operatorType                          AuditOperatorType
+  tenantId                              String?
+  orgId                                 String?
+  traceId                               String?
+  resourceType                          String
+  resourceId                            String?
+  details                               Json
+  createdAt                             DateTime                             @default(now())
+  machineWorkloadBindingEnrollmentAudit MachineWorkloadBinding[]             @relation("MachineWorkloadBindingEnrollmentAudit")
+  machineWorkloadBindingDisableAudit    MachineWorkloadBinding[]             @relation("MachineWorkloadBindingDisableAudit")
+  machineWorkloadProvisioningAudit      MachineWorkloadProvisioningReceipt[] @relation("MachineWorkloadProvisioningAudit")
 
   @@index([service, occurredAt])
   @@index([module, occurredAt])

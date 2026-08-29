@@ -9,15 +9,21 @@ import {
 import { Reflector } from '@nestjs/core'
 import {
   createLazyTrustedExecutionRuntime,
+  ExecutionTokenVerifier,
   getAuthenticatedGrpcRequestContext,
   ITEM_MASTER_INTERNAL_PERMISSION_CODES,
   RPC_AUTHORIZATION_MODE_METADATA_KEY,
   TrustedExecutionGuard,
   TrustedInternalExecutionGuard
 } from '@oes/common/authorization'
+import { GrpcWorkloadIdentityProvider } from '@oes/common/transport'
 
 const ITEM_MASTER_AUDIENCE = 'urn:oes:service:item-master-service'
 const runtime = createLazyTrustedExecutionRuntime(ITEM_MASTER_AUDIENCE)
+
+/** Binds Item Master BUSINESS RPC authorization to its exact target audience. */
+@Injectable()
+export class ItemMasterTrustedExecutionGuard extends TrustedExecutionGuard {}
 
 /** Freezes each Item Master INTERNAL Code to its only admitted workload names. */
 export const ITEM_MASTER_INTERNAL_WORKLOAD_ALLOWLIST: Readonly<Record<string, readonly string[]>> =
@@ -110,29 +116,36 @@ function isSystemMachineActor(actor: unknown): boolean {
 @Global()
 @Module({
   providers: [
+    { provide: ExecutionTokenVerifier, useFactory: () => runtime.verifier },
+    { provide: GrpcWorkloadIdentityProvider, useFactory: () => runtime.workloadIdentityProvider },
+    { provide: String, useValue: ITEM_MASTER_AUDIENCE },
     {
-      provide: TrustedExecutionGuard,
-      useFactory: (reflector: Reflector) =>
-        new TrustedExecutionGuard(
-          reflector,
-          runtime.verifier,
-          runtime.workloadIdentityProvider,
-          ITEM_MASTER_AUDIENCE
-        ),
-      inject: [Reflector]
+      provide: ItemMasterTrustedExecutionGuard,
+      useFactory: (
+        reflector: Reflector,
+        verifier: ExecutionTokenVerifier,
+        identity: GrpcWorkloadIdentityProvider,
+        audience: string
+      ) => new ItemMasterTrustedExecutionGuard(reflector, verifier, identity, audience),
+      inject: [Reflector, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider, String]
     },
     {
       provide: ItemMasterTrustedInternalExecutionGuard,
-      useFactory: (reflector: Reflector) =>
-        new ItemMasterTrustedInternalExecutionGuard(
-          reflector,
-          runtime.verifier,
-          runtime.workloadIdentityProvider,
-          ITEM_MASTER_AUDIENCE
-        ),
-      inject: [Reflector]
+      useFactory: (
+        reflector: Reflector,
+        verifier: ExecutionTokenVerifier,
+        identity: GrpcWorkloadIdentityProvider,
+        audience: string
+      ) => new ItemMasterTrustedInternalExecutionGuard(reflector, verifier, identity, audience),
+      inject: [Reflector, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider, String]
     }
   ],
-  exports: [TrustedExecutionGuard, ItemMasterTrustedInternalExecutionGuard]
+  exports: [
+    ExecutionTokenVerifier,
+    GrpcWorkloadIdentityProvider,
+    String,
+    ItemMasterTrustedExecutionGuard,
+    ItemMasterTrustedInternalExecutionGuard
+  ]
 })
 export class ItemMasterTrustedExecutionModule {}

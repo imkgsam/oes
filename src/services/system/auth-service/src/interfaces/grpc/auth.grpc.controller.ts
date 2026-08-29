@@ -1,5 +1,9 @@
 import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
-import { AuthorizeBusinessRpc, AuthorizeSelfServiceRpc } from '@oes/common/authorization'
+import {
+  AuthorizeBusinessRpc,
+  AuthorizeSelfServiceRpc,
+  type RpcPermissionRequirement
+} from '@oes/common/authorization'
 import {
   AuthTrustedExecutionGuard,
   AuthorizeAuthPublicAdmission
@@ -17,6 +21,7 @@ import {
   InternalServiceGuard,
   OPERATOR_CONTEXT_MISSING
 } from '@oes/common/authorization'
+
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { ACCESS_DENIED, ExceptionFactory } from '@oes/common/exceptions'
 import { GrpcExceptionFilter } from '../../../../../../common/dist/core/filters'
@@ -2415,7 +2420,7 @@ applyAuthAdmission(
 )
 applyAuthAdmission(
   'logout',
-  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
+  AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB', 'PDA'] })
 )
 applyAuthAdmission(
   'logoutSession',
@@ -2429,89 +2434,96 @@ applyAuthAdmission(
   'logoutAll',
   AuthorizeSelfServiceRpc({ allowDelegated: false, sessionTerminals: ['WEB'] })
 )
-applyAuthAdmission('listAuditEvents', AuthorizeBusinessRpc({ all: ['auth.audit.list'] }))
+/** Declares every Auth management RPC as HUMAN WEB-only. */
+const AuthorizeAuthBusinessRpc = (permissions: RpcPermissionRequirement) =>
+  AuthorizeBusinessRpc(permissions, { principalType: 'HUMAN', sessionTerminals: ['WEB'] })
+
+applyAuthAdmission('listAuditEvents', AuthorizeAuthBusinessRpc({ all: ['auth.audit.list'] }))
 applyAuthAdmission(
   'bootstrapUserLoginMethods',
-  AuthorizeBusinessRpc({ all: ['auth.account_credentials.bootstrap'] })
+  AuthorizeAuthBusinessRpc({ all: ['auth.account_credentials.bootstrap'] })
 )
 applyAuthAdmission(
   'requirePasswordSetup',
-  AuthorizeBusinessRpc({ all: ['auth.account_credentials.bootstrap'] })
+  AuthorizeAuthBusinessRpc({ all: ['auth.account_credentials.bootstrap'] })
 )
 applyAuthAdmission(
   'requireTerminalPinReset',
-  AuthorizeBusinessRpc({ all: ['auth.account_credentials.bootstrap'] })
+  AuthorizeAuthBusinessRpc({ all: ['auth.account_credentials.bootstrap'] })
 )
 applyAuthAdmission(
   'disableUserTerminalPin',
-  AuthorizeBusinessRpc({ all: ['auth.account_credentials.bootstrap'] })
+  AuthorizeAuthBusinessRpc({ all: ['auth.account_credentials.bootstrap'] })
 )
 applyAuthAdmission(
   'setLoginMethodEnabled',
-  AuthorizeBusinessRpc({ all: ['auth.account_login_methods.manage'] })
+  AuthorizeAuthBusinessRpc({ all: ['auth.account_login_methods.manage'] })
 )
-applyAuthAdmission('getTenantMfaPolicy', AuthorizeBusinessRpc({ all: ['auth.mfa_policy.manage'] }))
+applyAuthAdmission(
+  'getTenantMfaPolicy',
+  AuthorizeAuthBusinessRpc({ all: ['auth.mfa_policy.manage'] })
+)
 applyAuthAdmission(
   'updateTenantMfaPolicy',
-  AuthorizeBusinessRpc({ all: ['auth.mfa_policy.manage'] })
+  AuthorizeAuthBusinessRpc({ all: ['auth.mfa_policy.manage'] })
 )
 applyAuthAdmission(
   'getTenantTerminalMfaPolicy',
-  AuthorizeBusinessRpc({ all: ['auth.mfa_policy.manage'] })
+  AuthorizeAuthBusinessRpc({ all: ['auth.mfa_policy.manage'] })
 )
 applyAuthAdmission(
   'updateTenantTerminalMfaPolicy',
-  AuthorizeBusinessRpc({ all: ['auth.mfa_policy.manage'] })
+  AuthorizeAuthBusinessRpc({ all: ['auth.mfa_policy.manage'] })
 )
 applyAuthAdmission(
   'getPlatformMfaPolicy',
-  AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] })
+  AuthorizeAuthBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] })
 )
 applyAuthAdmission(
   'updatePlatformMfaPolicy',
-  AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] })
+  AuthorizeAuthBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] })
 )
 applyAuthAdmission(
   'getPlatformTerminalLoginPolicy',
-  AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] })
+  AuthorizeAuthBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] })
 )
 applyAuthAdmission(
   'updatePlatformTerminalLoginPolicy',
-  AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] })
+  AuthorizeAuthBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] })
 )
 applyAuthAdmission(
   'getPlatformDefaultTerminalMfaPolicy',
-  AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] })
+  AuthorizeAuthBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] })
 )
 applyAuthAdmission(
   'updatePlatformDefaultTerminalMfaPolicy',
-  AuthorizeBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] })
+  AuthorizeAuthBusinessRpc({ all: ['auth.platform_mfa_policy.manage'] })
 )
 applyAuthAdmission(
   'handleTerminalDeviceUnavailable',
-  AuthorizeBusinessRpc({ all: ['auth.session.admin.view'] })
+  AuthorizeAuthBusinessRpc({ all: ['auth.session.admin.view'] })
 )
 applyAuthAdmission(
   'adminListOnlineUsers',
-  AuthorizeBusinessRpc({ all: ['auth.session.admin.view'] })
+  AuthorizeAuthBusinessRpc({ all: ['auth.session.admin.view'] })
 )
 applyAuthAdmission(
   'adminListUserSessions',
-  AuthorizeBusinessRpc({ all: ['auth.session.admin.view'] })
+  AuthorizeAuthBusinessRpc({ all: ['auth.session.admin.view'] })
 )
 applyAuthAdmission(
   'adminListTerminalDeviceSessions',
-  AuthorizeBusinessRpc({ all: ['auth.session.admin.view'] })
+  AuthorizeAuthBusinessRpc({ all: ['auth.session.admin.view'] })
 )
 applyAuthAdmission(
   'adminRevokeSession',
-  AuthorizeBusinessRpc({ all: ['auth.session.admin.revoke'] })
+  AuthorizeAuthBusinessRpc({ all: ['auth.session.admin.revoke'] })
 )
 applyAuthAdmission(
   'adminDeleteAccountSessions',
-  AuthorizeBusinessRpc({ all: ['auth.session.admin.revoke'] })
+  AuthorizeAuthBusinessRpc({ all: ['auth.session.admin.revoke'] })
 )
 applyAuthAdmission(
   'revokeTenantSessions',
-  AuthorizeBusinessRpc({ all: ['auth.session.admin.revoke'] })
+  AuthorizeAuthBusinessRpc({ all: ['auth.session.admin.revoke'] })
 )

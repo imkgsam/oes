@@ -11,6 +11,7 @@ x-service-defaults: &service-defaults
     redis: { condition: service_healthy }
     otel-collector: { condition: service_started }
     grpc-trust-bootstrap: { condition: service_completed_successfully }
+    nacos-auth-bootstrap: { condition: service_completed_successfully }
   volumes:
     - grpc_trust_runtime:/var/run/oes-grpc-trust:ro
   restart: unless-stopped
@@ -23,6 +24,7 @@ x-event-service-defaults: &event-service-defaults
     otel-collector: { condition: service_started }
     nats-bootstrap: { condition: service_completed_successfully }
     grpc-trust-bootstrap: { condition: service_completed_successfully }
+    nacos-auth-bootstrap: { condition: service_completed_successfully }
 
 x-service-environment: &service-environment
   NODE_ENV: development
@@ -30,15 +32,45 @@ x-service-environment: &service-environment
   REDIS_HOST: redis
   REDIS_PORT: 6379
   NACOS_SERVER: nacos:8848
+  NACOS_USERNAME: ${NACOS_USERNAME:?run pnpm db:config}
+  NACOS_PASSWORD: ${NACOS_PASSWORD:?run pnpm db:config}
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
   AUTH_SERVICE_HOST: auth-service
   AUTH_SERVICE_PORT: 50050
   AUTH_EXECUTION_ISSUER: https://issuer.local.oes.internal
+  AUTH_EXECUTION_WORKLOAD_POLICIES: ${AUTH_EXECUTION_WORKLOAD_POLICIES:?run node scripts/local/workload-policy-profile.mjs and project into the task-owned env}
+  AUTH_PERMISSION_WORKLOAD_ISSUANCE_POLICY_VERSION: ${AUTH_PERMISSION_WORKLOAD_ISSUANCE_POLICY_VERSION:-auth-login-owner-facts-v1}
   OES_GRPC_TLS_ENABLED: 'true'
   OES_GRPC_TLS_MIN_VERSION: TLSv1.2
   OES_GRPC_TLS_CA_PATH: /var/run/oes-grpc-trust/ca.pem
 
 services:
+  execution-token-signer:
+    build:
+      context: ./docker/grpc-trust/execution-token-signer
+      dockerfile: local/softhsm2/Dockerfile
+    labels:
+      oes.local.owner: ${OES_TASK_KEY:?run pnpm env:bootstrap}
+      oes.local.scope: business-journey
+    network_mode: none
+    read_only: true
+    user: '65532:65532'
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    environment:
+      EXECUTION_SIGNER_HOST_WORK_DIR: /tmp/signer
+      EXECUTION_SIGNER_RUNTIME_MODE: '1'
+      AUTH_EXECUTION_SIGNER_SOCKET_PATH: /execution-signer/signer.sock
+      EXECUTION_SIGNER_READY_PATH: /execution-signer/ready
+    healthcheck:
+      test: [CMD-SHELL, 'test -S /execution-signer/signer.sock && test -s /execution-signer/ready']
+      interval: 5s
+      timeout: 2s
+      retries: 30
+    restart: unless-stopped
+    tmpfs: ['/tmp:mode=1777,exec,size=256m']
+    volumes: [execution_signer_runtime:/execution-signer]
+
   grpc-trust-bootstrap:
     image: alpine:3.21@sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d65087abc07d
     labels:
@@ -165,6 +197,11 @@ services:
       timeout: 3s
       retries: 45
       start_period: 5s
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes-grpc-trust
+        read_only: true
 
   apisix:
     image: apache/apisix:3.13.0-debian@sha256:c5c7a55ebb5c07abc210dbb963a37f41030e12c91d23bacedbaa168fec633bd7
@@ -205,7 +242,17 @@ services:
       ASSET_S3_BUCKET: ${MINIO_BUCKET:-oes-local-assets}
       ASSET_S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:?run pnpm db:config}
       ASSET_S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?run pnpm db:config}
+      ASSET_MEDIA_LIFECYCLE_INTERVAL_MS: ${ASSET_MEDIA_LIFECYCLE_INTERVAL_MS:-1000}
+      ASSET_MEDIA_OUTBOX_INTERVAL_MS: ${ASSET_MEDIA_OUTBOX_INTERVAL_MS:-1000}
+      NATS_URL: nats://nats:4222
+      NATS_USER: ${NATS_ASSET_USER:?run pnpm db:config}
+      NATS_PASSWORD: ${NATS_ASSET_PASSWORD:?run pnpm db:config}
     expose: ['50056']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes-grpc-trust
+        read_only: true
 
   auth-service:
     <<: *service-defaults
@@ -224,7 +271,62 @@ services:
       DATABASE_URL: ${OES_DB_AUTH_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50050
       AUTH_HTTP_PORT: 50051
+      AUTH_EXECUTION_SIGNER_SOCKET_PATH: /execution-signer/signer.sock
+      AUTH_EXECUTION_KMS_KEY_REF: pkcs11:deployment-owned-local-reference
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      otel-collector: { condition: service_started }
+      grpc-trust-bootstrap: { condition: service_completed_successfully }
+      execution-token-signer: { condition: service_healthy }
     expose: ['50050']
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:50051/.well-known/jwks.json').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks:
+      oes_network:
+        aliases: [issuer.local.oes.internal]
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes-grpc-trust
+        read_only: true
+      - type: volume
+        source: execution_signer_runtime
+        target: /execution-signer
+        read_only: true
+
+  execution-token-issuer:
+    image: nginx:1.27.5-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+    labels:
+      oes.local.owner: ${OES_TASK_KEY:?run pnpm env:bootstrap}
+      oes.local.scope: business-journey
+    network_mode: service:auth-service
+    depends_on:
+      auth-service: { condition: service_healthy }
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETGID, SETUID]
+    tmpfs:
+      - '/tmp:mode=1777,size=16m'
+      - '/var/cache/nginx:mode=0755,size=16m'
+      - '/var/run:mode=0755,size=1m'
+    volumes:
+      - ./scripts/local/runtime-config/execution-token-issuer.nginx.conf:/etc/nginx/nginx.conf:ro
+      - type: volume
+        source: grpc_trust_runtime
+        target: /auth-trust
+        read_only: true
+        volume:
+          subpath: auth-service
+    restart: unless-stopped
 
   browser-activity-service:
     <<: *service-defaults
@@ -243,6 +345,11 @@ services:
       DATABASE_URL: ${OES_DB_BROWSER_ACTIVITY_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50070
     expose: ['50070']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes-grpc-trust
+        read_only: true
 
   collaboration-service:
     <<: *event-service-defaults
@@ -266,6 +373,11 @@ services:
       COLLABORATION_OUTBOX_INTERVAL_MS: 1000
       COLLABORATION_DATABASE_URL: ${OES_DB_COLLABORATION_SERVICE_URL:?run pnpm db:config}
     expose: ['50068']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes-grpc-trust
+        read_only: true
 
   hr-service:
     <<: *service-defaults
@@ -284,6 +396,11 @@ services:
       DATABASE_URL: ${OES_DB_HR_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50055
     expose: ['50055']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes-grpc-trust
+        read_only: true
 
   identity-service:
     <<: *service-defaults
@@ -302,6 +419,11 @@ services:
       DATABASE_URL: ${OES_DB_IDENTITY_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50052
     expose: ['50052']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes-grpc-trust
+        read_only: true
 
   item-master-service:
     <<: *service-defaults
@@ -320,6 +442,11 @@ services:
       DATABASE_URL: ${OES_DB_ITEM_MASTER_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50058
     expose: ['50058']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes-grpc-trust
+        read_only: true
 
   notification-service:
     <<: *event-service-defaults
@@ -341,6 +468,11 @@ services:
       NATS_NOTIFICATION_PASSWORD: ${NATS_NOTIFICATION_PASSWORD:?run pnpm db:config}
       NATS_URL: nats://nats:4222
     expose: ['50066']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes-grpc-trust
+        read_only: true
 
   party-service:
     <<: *service-defaults
@@ -359,6 +491,11 @@ services:
       DATABASE_URL: ${OES_DB_PARTY_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50053
     expose: ['50053']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes-grpc-trust
+        read_only: true
 
   permission-service:
     <<: *service-defaults
@@ -376,7 +513,15 @@ services:
       OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/permission-service
       DATABASE_URL: ${OES_DB_PERMISSION_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50051
+      PERMISSION_WORKLOAD_ISSUANCE_POLICIES: ${PERMISSION_WORKLOAD_ISSUANCE_POLICIES:?run node scripts/local/workload-policy-profile.mjs and project into the task-owned env}
+      AUTH_PERMISSION_WORKLOAD_ISSUANCE_POLICY_VERSION: ${AUTH_PERMISSION_WORKLOAD_ISSUANCE_POLICY_VERSION:-auth-login-owner-facts-v1}
+      PERMISSION_AUTH_SERVICE_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/auth-service
     expose: ['50051']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes-grpc-trust
+        read_only: true
 
   public-entry-service:
     <<: *service-defaults
@@ -394,7 +539,15 @@ services:
       OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/public-entry-service
       DATABASE_URL: ${OES_DB_PUBLIC_ENTRY_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50067
+      PUBLIC_ENTRY_FOUNDATION_MACHINE_PRINCIPAL_ID: ${PUBLIC_ENTRY_FOUNDATION_MACHINE_PRINCIPAL_ID:?run identity selector projection}
+      PUBLIC_ENTRY_FOUNDATION_MACHINE_WORKLOAD_BINDING_ID: ${PUBLIC_ENTRY_FOUNDATION_MACHINE_WORKLOAD_BINDING_ID:?run identity selector projection}
+      PUBLIC_ENTRY_FOUNDATION_MACHINE_WORKLOAD_BINDING_VERSION: ${PUBLIC_ENTRY_FOUNDATION_MACHINE_WORKLOAD_BINDING_VERSION:?run identity selector projection}
     expose: ['50067']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes-grpc-trust
+        read_only: true
 
   site-service:
     <<: *service-defaults
@@ -412,7 +565,16 @@ services:
       OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/site-service
       DATABASE_URL: ${OES_DB_SITE_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50069
+      SITE_PREVIEW_TOKEN_SECRET: ${SITE_PREVIEW_TOKEN_SECRET:?run pnpm db:config}
+      NATS_URL: nats://nats:4222
+      NATS_USER: ${NATS_SITE_USER:?run pnpm db:config}
+      NATS_PASSWORD: ${NATS_SITE_PASSWORD:?run pnpm db:config}
     expose: ['50069']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes-grpc-trust
+        read_only: true
 
   tenant-org-service:
     <<: *service-defaults
@@ -431,6 +593,11 @@ services:
       DATABASE_URL: ${OES_DB_TENANT_ORG_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50054
     expose: ['50054']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes-grpc-trust
+        read_only: true
 
   terminal-device-service:
     <<: *service-defaults
@@ -449,6 +616,11 @@ services:
       DATABASE_URL: ${OES_DB_TERMINAL_DEVICE_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50057
     expose: ['50057']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes-grpc-trust
+        read_only: true
 
   crm-service:
     <<: *service-defaults
@@ -466,7 +638,15 @@ services:
       OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/crm-service
       DATABASE_URL: ${OES_DB_CRM_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50060
+      CRM_PARTY_MACHINE_PRINCIPAL_ID: ${CRM_PARTY_MACHINE_PRINCIPAL_ID:?run identity selector projection}
+      CRM_PARTY_MACHINE_WORKLOAD_BINDING_ID: ${CRM_PARTY_MACHINE_WORKLOAD_BINDING_ID:?run identity selector projection}
+      CRM_PARTY_MACHINE_WORKLOAD_BINDING_VERSION: ${CRM_PARTY_MACHINE_WORKLOAD_BINDING_VERSION:?run identity selector projection}
     expose: ['50060']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes-grpc-trust
+        read_only: true
 
   finance-service:
     <<: *service-defaults
@@ -485,6 +665,11 @@ services:
       DATABASE_URL: ${OES_DB_FINANCE_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50063
     expose: ['50063']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes-grpc-trust
+        read_only: true
 
   mes-service:
     <<: *service-defaults
@@ -503,6 +688,11 @@ services:
       DATABASE_URL: ${OES_DB_MES_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50065
     expose: ['50065']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes-grpc-trust
+        read_only: true
 
   procurement-service:
     <<: *service-defaults
@@ -521,6 +711,11 @@ services:
       DATABASE_URL: ${OES_DB_PROCUREMENT_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50062
     expose: ['50062']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes-grpc-trust
+        read_only: true
 
   sales-service:
     <<: *service-defaults
@@ -539,6 +734,11 @@ services:
       DATABASE_URL: ${OES_DB_SALES_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50059
     expose: ['50059']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes-grpc-trust
+        read_only: true
 
   srm-service:
     <<: *service-defaults
@@ -556,7 +756,15 @@ services:
       OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/srm-service
       DATABASE_URL: ${OES_DB_SRM_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50061
+      SRM_PARTY_MACHINE_PRINCIPAL_ID: ${SRM_PARTY_MACHINE_PRINCIPAL_ID:?run identity selector projection}
+      SRM_PARTY_MACHINE_WORKLOAD_BINDING_ID: ${SRM_PARTY_MACHINE_WORKLOAD_BINDING_ID:?run identity selector projection}
+      SRM_PARTY_MACHINE_WORKLOAD_BINDING_VERSION: ${SRM_PARTY_MACHINE_WORKLOAD_BINDING_VERSION:?run identity selector projection}
     expose: ['50061']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes-grpc-trust
+        read_only: true
 
   wms-service:
     <<: *service-defaults
@@ -575,8 +783,17 @@ services:
       DATABASE_URL: ${OES_DB_WMS_SERVICE_URL:?run pnpm db:config}
       GRPC_LISTEN_PORT: 50064
     expose: ['50064']
+    volumes:
+      - type: volume
+        source: grpc_trust_runtime
+        target: /var/run/oes-grpc-trust
+        read_only: true
 
 volumes:
+  execution_signer_runtime:
+    labels:
+      oes.local.owner: ${OES_TASK_KEY:?run pnpm env:bootstrap}
+      oes.local.scope: business-journey
   grpc_trust_runtime:
     labels:
       oes.local.owner: ${OES_TASK_KEY:?run pnpm env:bootstrap}

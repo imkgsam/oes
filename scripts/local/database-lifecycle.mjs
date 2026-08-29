@@ -18,7 +18,15 @@ import {
 const STATE_VERSION = 1
 const INFRA_COMPOSE = 'docker-compose.infra.yml'
 const MAIN_COMPOSE = 'docker-compose.yml'
-const COMPLETED_SERVICES = new Set(['nats-bootstrap', 'minio-init', 'grpc-trust-bootstrap'])
+export const DATABASE_LIFECYCLE_INIT_SERVICES = Object.freeze([
+  'nats-bootstrap',
+  'minio-init',
+  'nacos-auth-bootstrap'
+])
+const COMPLETED_SERVICES = new Set([
+  ...DATABASE_LIFECYCLE_INIT_SERVICES,
+  'grpc-trust-bootstrap'
+])
 const HEALTHY_SERVICES = new Set(['postgres', 'redis', 'nats', 'minio', 'mysql'])
 const HTTP_READINESS = Object.freeze({
   tempo: { path: '/ready', port: 3200 },
@@ -51,6 +59,11 @@ const LONG_RUNNING_INFRA_SERVICES = Object.freeze([
   'grafana',
   'mysql',
   'nacos'
+])
+const LIFECYCLE_INFRA_SERVICES = Object.freeze([
+  ...LONG_RUNNING_INFRA_SERVICES,
+  ...DATABASE_LIFECYCLE_INIT_SERVICES,
+  'nats-advisory-monitor'
 ])
 
 /** Runs a command with literal output and fails on a non-zero exit status. */
@@ -231,21 +244,54 @@ export function loadDatabaseInvariantPlan(service) {
 /** Produces the ignored Compose environment for one exact local worktree. */
 export function composeEnvironment(context) {
   const { rootValues, services, taskKey } = context
+  const authWorkloadPolicies = JSON.stringify(
+    JSON.parse(
+      fs.readFileSync(
+        path.join(context.repositoryRoot, 'scripts/local/runtime-config/auth-execution-workload-policies.json'),
+        'utf8'
+      )
+    )
+  )
+  const permissionWorkloadPolicies = JSON.stringify(
+    JSON.parse(
+      fs.readFileSync(
+        path.join(context.repositoryRoot, 'scripts/local/runtime-config/permission-workload-issuance-policies.json'),
+        'utf8'
+      )
+    )
+  )
+  const nacosUsername = `oes_${taskKey}`
+  const nacosPassword = fixture(taskKey, 'nacos-user', 32)
+  const nacosPasswordHash = spawnSync('htpasswd', ['-niBC', '10', nacosUsername], {
+    encoding: 'utf8',
+    input: `${nacosPassword}\n`
+  })
+  if (nacosPasswordHash.error || nacosPasswordHash.status !== 0) {
+    throw new Error('NACOS_PASSWORD_HASH_GENERATION_FAILED')
+  }
   const values = new Map([
     ['OES_COMPOSE_PROJECT', context.projectName],
     ['OES_TASK_KEY', taskKey],
     ['OES_POSTGRES_USER', rootValues.get('OES_POSTGRES_USER')],
     ['OES_POSTGRES_PASSWORD', rootValues.get('OES_POSTGRES_PASSWORD')],
+    ['AUTH_EXECUTION_WORKLOAD_POLICIES', authWorkloadPolicies],
+    ['PERMISSION_WORKLOAD_ISSUANCE_POLICIES', permissionWorkloadPolicies],
+    ['AUTH_PERMISSION_WORKLOAD_ISSUANCE_POLICY_VERSION', 'auth-login-owner-facts-v1'],
     ['NATS_COLLABORATION_USER', `collaboration_${taskKey}`],
     ['NATS_COLLABORATION_PASSWORD', natsPassword(taskKey, 'nats-collaboration')],
     ['NATS_NOTIFICATION_USER', `notification_${taskKey}`],
     ['NATS_NOTIFICATION_PASSWORD', natsPassword(taskKey, 'nats-notification')],
+    ['NATS_ASSET_USER', `asset_${taskKey}`],
+    ['NATS_ASSET_PASSWORD', natsPassword(taskKey, 'nats-asset')],
+    ['NATS_SITE_USER', `site_${taskKey}`],
+    ['NATS_SITE_PASSWORD', natsPassword(taskKey, 'nats-site')],
     ['NATS_NOTIFICATION_REPLAY_USER', `notification_replay_${taskKey}`],
     ['NATS_NOTIFICATION_REPLAY_PASSWORD', natsPassword(taskKey, 'nats-replay')],
     ['NATS_NOTIFICATION_RECOVERY_USER', `notification_recovery_${taskKey}`],
     ['NATS_NOTIFICATION_RECOVERY_PASSWORD', natsPassword(taskKey, 'nats-recovery')],
     ['NATS_OPERATOR_USER', `operator_${taskKey}`],
     ['NATS_OPERATOR_PASSWORD', natsPassword(taskKey, 'nats-operator')],
+    ['SITE_PREVIEW_TOKEN_SECRET', fixture(taskKey, 'site-preview-token', 48)],
     ['MINIO_ROOT_USER', `minio_${taskKey}`],
     ['MINIO_ROOT_PASSWORD', fixture(taskKey, 'minio', 40)],
     ['MINIO_BUCKET', `oes-${taskKey.replaceAll('_', '-')}-assets`],
@@ -256,6 +302,12 @@ export function composeEnvironment(context) {
     ['NACOS_AUTH_TOKEN', Buffer.from(fixture(taskKey, 'nacos-token', 48)).toString('base64')],
     ['NACOS_AUTH_IDENTITY_KEY', 'serverIdentity'],
     ['NACOS_AUTH_IDENTITY_VALUE', fixture(taskKey, 'nacos-identity', 32)]
+    ,['NACOS_USERNAME', nacosUsername]
+    ,['NACOS_PASSWORD', nacosPassword]
+    ,[
+      'NACOS_PASSWORD_BCRYPT',
+      nacosPasswordHash.stdout.trim().split(':').slice(1).join(':').replace(/^\$2y\$/, '$2a$')
+    ]
   ])
   const replayConsumer = (state) => `notification-service__replay__${taskKey}__${state}`
   const subject = (state) => `oes.events.collaboration.task.${state}`
@@ -325,14 +377,8 @@ export function resourceFingerprint(context) {
           .createHash('sha256')
           .update(fs.readFileSync(path.join(context.repositoryRoot, INFRA_COMPOSE)))
           .digest('hex'),
-        mainCompose: crypto
-          .createHash('sha256')
-          .update(fs.readFileSync(path.join(context.repositoryRoot, MAIN_COMPOSE)))
-          .digest('hex'),
-        resources: {
-          infra: EXPECTED_INFRA_RESOURCES,
-          mainOnly: { volume: ['grpc_trust_runtime'] }
-        }
+        resources: EXPECTED_INFRA_RESOURCES,
+        services: LIFECYCLE_INFRA_SERVICES
       })
     )
     .digest('hex')
@@ -391,6 +437,21 @@ function composeArgs(context, environmentPath, composeFile, args) {
   ]
 }
 
+/** Builds one command bound only to the Compose model owned by the database lifecycle. */
+export function databaseLifecycleComposeArgs(context, environmentPath, args) {
+  return composeArgs(context, environmentPath, INFRA_COMPOSE, args)
+}
+
+/** Builds the exact non-orphan-deleting rollback command for lifecycle-owned infrastructure. */
+export function databaseRollbackComposeArgs(context, environmentPath) {
+  return databaseLifecycleComposeArgs(context, environmentPath, [
+    'down',
+    '--volumes',
+    '--timeout',
+    '30'
+  ])
+}
+
 function compose(context, environmentPath, composeFile, args) {
   return run('docker', composeArgs(context, environmentPath, composeFile, args), {
     cwd: context.repositoryRoot
@@ -446,6 +507,18 @@ function projectContainerIds(context) {
   return result.stdout.trim().split(/\s+/).filter(Boolean)
 }
 
+/** Lists containers carrying the exact lifecycle owner label across every Compose project. */
+function ownerContainerIds(context) {
+  const result = spawnSync(
+    'docker',
+    ['ps', '-aq', '--filter', `label=oes.local.owner=${context.taskKey}`],
+    { encoding: 'utf8' }
+  )
+  if (result.error) throw result.error
+  if (result.status !== 0) throw new Error(`DOCKER_PS_FAILED exit=${result.status}`)
+  return result.stdout.trim().split(/\s+/).filter(Boolean)
+}
+
 /** Ensures every discovered project container carries the exact owner label. */
 function assertContainerOwnership(context) {
   const ids = projectContainerIds(context)
@@ -457,6 +530,18 @@ function assertContainerOwnership(context) {
       id
     ])
     if (owner !== context.taskKey) throw new Error(`RESOURCE_OWNER_MISMATCH container=${id}`)
+  }
+  const lifecycleServices = new Set(LIFECYCLE_INFRA_SERVICES)
+  for (const id of ownerContainerIds(context)) {
+    const payload = JSON.parse(capture('docker', ['inspect', id]))[0]
+    const labels = payload?.Config?.Labels ?? {}
+    const project = labels['com.docker.compose.project']
+    const service = labels['com.docker.compose.service']
+    if (project !== context.projectName || !lifecycleServices.has(service)) {
+      throw new Error(
+        `ROLLBACK_UNEXPECTED_OWNER_CONTAINER container=${id} project=${project ?? 'NONE'} service=${service ?? 'NONE'}`
+      )
+    }
   }
   return ids
 }
@@ -472,14 +557,44 @@ export function assertResourceOwnershipRecord(context, kind, name, record) {
   }
 }
 
+/** Rejects same-owner named resources outside the exact lifecycle-owned resource set. */
+export function assertExactLifecycleOwnerResources(kind, expectedNames, actualNames) {
+  const expected = new Set(expectedNames)
+  const unexpected = [...new Set(actualNames)].filter((name) => !expected.has(name)).sort()
+  if (unexpected.length > 0) {
+    throw new Error(
+      `ROLLBACK_UNEXPECTED_OWNER_RESOURCE kind=${kind} resources=${unexpected.join(',')}`
+    )
+  }
+}
+
+/** Builds a name-preserving owner-label query for Docker volumes and networks. */
+export function ownerNamedResourceListArgs(context, kind) {
+  return [
+    kind,
+    'ls',
+    '--format',
+    '{{.Name}}',
+    '--filter',
+    `label=oes.local.owner=${context.taskKey}`
+  ]
+}
+
+/** Lists named Docker resources carrying the exact lifecycle owner label. */
+function ownerNamedResourceNames(context, kind) {
+  return capture('docker', ownerNamedResourceListArgs(context, kind)).split(/\s+/).filter(Boolean)
+}
+
 /** Checks exact named volumes/networks before creation or destructive rollback. */
 function assertNamedResourceOwnership(context, environmentPath, { requireExisting }) {
   const rendered = renderedCompose(context, environmentPath)
   for (const [kind, logicalNames] of Object.entries(EXPECTED_INFRA_RESOURCES)) {
     const definitions = kind === 'volume' ? rendered.volumes : rendered.networks
+    const expectedNames = []
     for (const logicalName of logicalNames) {
       const name = definitions?.[logicalName]?.name
       if (!name) throw new Error(`RESOURCE_NAME_UNRESOLVED kind=${kind} logical=${logicalName}`)
+      expectedNames.push(name)
       const result = spawnSync('docker', [kind, 'inspect', name], { encoding: 'utf8' })
       if (result.error) throw result.error
       if (result.status !== 0) {
@@ -490,22 +605,7 @@ function assertNamedResourceOwnership(context, environmentPath, { requireExistin
       assertResourceOwnershipRecord(context, kind, name, record)
       process.stdout.write(`RESOURCE_OWNER kind=${kind} resource=${name} status=PASS\n`)
     }
-  }
-}
-
-/** Checks every existing named resource in main Compose, including optional main-only volumes. */
-function assertAllMainResourceOwnership(context, environmentPath) {
-  const rendered = renderedCompose(context, environmentPath, MAIN_COMPOSE)
-  for (const { kind, name } of renderedNamedResources(rendered)) {
-    const result = spawnSync('docker', [kind, 'inspect', name], { encoding: 'utf8' })
-    if (result.error) throw result.error
-    if (result.status !== 0) {
-      if (/not found|No such/i.test(result.stderr ?? '')) continue
-      throw new Error('RESOURCE_INSPECT_FAILED kind=' + kind + ' resource=' + name + ' exit=' + result.status)
-    }
-    const [record] = JSON.parse(result.stdout)
-    assertResourceOwnershipRecord(context, kind, name, record)
-    process.stdout.write('RESOURCE_OWNER kind=' + kind + ' resource=' + name + ' status=PASS\n')
+    assertExactLifecycleOwnerResources(kind, expectedNames, ownerNamedResourceNames(context, kind))
   }
 }
 
@@ -883,8 +983,9 @@ function up(context, environmentPath) {
     '240',
     ...LONG_RUNNING_INFRA_SERVICES
   ])
-  compose(context, environmentPath, INFRA_COMPOSE, ['up', '--no-deps', 'nats-bootstrap'])
-  compose(context, environmentPath, INFRA_COMPOSE, ['up', '--no-deps', 'minio-init'])
+  for (const service of DATABASE_LIFECYCLE_INIT_SERVICES) {
+    compose(context, environmentPath, INFRA_COMPOSE, ['up', '--no-deps', service])
+  }
   compose(context, environmentPath, INFRA_COMPOSE, [
     'up',
     '-d',
@@ -1065,10 +1166,15 @@ function rollback(context, environmentPath) {
   assertRollbackBinding(context, state)
   assertContainerOwnership(context)
   assertNamedResourceOwnership(context, environmentPath, { requireExisting: true })
-  assertAllMainResourceOwnership(context, environmentPath)
-  compose(context, environmentPath, MAIN_COMPOSE, ['down', '--volumes', '--remove-orphans', '--timeout', '30'])
+  run('docker', databaseRollbackComposeArgs(context, environmentPath), {
+    cwd: context.repositoryRoot
+  })
   const remaining = projectContainerIds(context)
   if (remaining.length !== 0) throw new Error(`ROLLBACK_CONTAINERS_REMAIN count=${remaining.length}`)
+  const remainingOwnerContainers = ownerContainerIds(context)
+  if (remainingOwnerContainers.length !== 0) {
+    throw new Error(`ROLLBACK_OWNER_CONTAINERS_REMAIN count=${remainingOwnerContainers.length}`)
+  }
   const resourceQueries = [
     ['volume', 'ls', '-q', '--filter', `label=oes.local.owner=${context.taskKey}`],
     ['network', 'ls', '-q', '--filter', `label=oes.local.owner=${context.taskKey}`]

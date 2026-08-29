@@ -2,8 +2,8 @@ import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { ExceptionFactory, InfrastructureException } from '@oes/common/exceptions'
 import {
   HrQueryServiceClient,
-  ResolveActiveEmployeeByCodeRequest,
-  ResolveActiveEmployeeByCodeResponse
+  ResolveAuthLoginEmployeeRequest,
+  ResolveAuthLoginEmployeeResponse
 } from '@oes/common/generated/hr_service'
 import { safeGrpcCall } from '@oes/common/transport'
 import {
@@ -17,6 +17,7 @@ import {
 } from './foundation-trusted-grpc.clients'
 
 const HR_QUERY_SERVICE_NAME = 'HrQueryService'
+const AUTH_LOGIN_EMPLOYEE_RESOLVE = 'hr.internal.auth_login_employee.resolve'
 
 @Injectable()
 // Adapts auth-service employee login orchestration to HR's active employee query contract.
@@ -38,28 +39,28 @@ export class HrServiceAdaptor implements IHrServicePort, OnModuleInit {
     employeeCode: string
   }): Promise<ActiveEmployeeByCodeSummary | null> {
     try {
-      const response = await safeGrpcCall<ResolveActiveEmployeeByCodeResponse>(
-        this.hrQueryService.resolveActiveEmployeeByCode(
+      const response = await safeGrpcCall<ResolveAuthLoginEmployeeResponse>(
+        this.hrQueryService.resolveAuthLoginEmployee(
           {
             tenantId: input.tenantId,
             employeeCode: input.employeeCode
-          } as ResolveActiveEmployeeByCodeRequest,
-          await this.trusted.forBusinessCall('hr-service', ['hr.employee.get_by_id'])
+          } as ResolveAuthLoginEmployeeRequest,
+          await this.trusted.forInternalCall('hr-service', AUTH_LOGIN_EMPLOYEE_RESOLVE)
         ),
         {
           caller: 'auth-service',
-          method: 'HrQueryService.resolveActiveEmployeeByCode'
+          method: 'HrQueryService.resolveAuthLoginEmployee'
         }
       )
 
-      if (!response.employee?.id || !response.activeEmployment?.id) {
+      if (!response.employeeId || !response.activeEmploymentId) {
         return null
       }
 
       return {
-        employeeId: response.employee.id,
-        employeeCode: response.employee.employeeCode ?? input.employeeCode,
-        employmentId: response.activeEmployment.id
+        employeeId: response.employeeId,
+        employeeCode: input.employeeCode,
+        employmentId: response.activeEmploymentId
       }
     } catch (error) {
       if (error instanceof InfrastructureException) {

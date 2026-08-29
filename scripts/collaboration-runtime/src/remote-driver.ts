@@ -39,6 +39,8 @@ export function remoteMutationSatisfied(binding: RemoteDriverBinding, truth: Rem
       truth.branchHead === binding.candidateSha &&
       truth.pullRequest?.state === 'OPEN' &&
       truth.pullRequest.draft === true &&
+      (binding.pullRequest.number === null ||
+        truth.pullRequest.number === binding.pullRequest.number) &&
       truth.pullRequest.baseRef === 'main' &&
       truth.pullRequest.headRef === binding.headRef &&
       truth.pullRequest.headSha === binding.candidateSha &&

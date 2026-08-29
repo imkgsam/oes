@@ -17,7 +17,11 @@ export interface ExecutionTokenSourceCredentialVerifier {
   verify(
     sourceCredential: string,
     workloadIdentity: VerifiedExecutionWorkload,
-    request?: Pick<ExchangeExecutionTokenInput, 'targetAudience' | 'requestedPermissionCodes'>
+    request?: Pick<ExchangeExecutionTokenInput, 'targetAudience' | 'requestedPermissionCodes'> & {
+      requestId?: string
+      traceparent?: string
+      tracestate?: string
+    }
   ): Promise<TrustedExecutionContext>
 }
 
@@ -51,17 +55,23 @@ export class VerifiedExecutionTokenContextProvider implements ExecutionTokenExch
     const sourceCredential = getGrpcAuthorizationBearer(metadata)
     if (!sourceCredential) throw new Error('verified source credential is required')
 
+    const correlation = {
+      ...optionalMetadata(metadata, 'x-request-id', 'requestId'),
+      ...optionalMetadata(metadata, 'traceparent', 'traceparent'),
+      ...optionalMetadata(metadata, 'tracestate', 'tracestate')
+    }
     const execution = Object.freeze({
-      ...(await this.sourceCredentialVerifier.verify(sourceCredential, workloadIdentity, request))
+      ...(await this.sourceCredentialVerifier.verify(sourceCredential, workloadIdentity, {
+        ...request,
+        ...correlation
+      }))
     })
     const authorizationDecision = Object.freeze(
       await this.permissionDecisionResolver.resolve({
         request,
         workloadIdentity,
         execution,
-        ...optionalMetadata(metadata, 'x-request-id', 'requestId'),
-        ...optionalMetadata(metadata, 'traceparent', 'traceparent'),
-        ...optionalMetadata(metadata, 'tracestate', 'tracestate')
+        ...correlation
       })
     )
     return Object.freeze({ workloadIdentity, execution, authorizationDecision })

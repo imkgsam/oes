@@ -17,6 +17,7 @@ import {
 import { GatewayFoundationTrustedGrpcExecutionProducer } from '../../../../../infrastructure/grpc/trusted-auth.grpc.client'
 
 const CALLER = 'api-gateway'
+const GATEWAY_SELF_AUDIENCE = 'urn:oes:service:api-gateway'
 
 @Injectable()
 // Bridges auth-bff access-summary reads to the downstream permission-service self-context gRPC contract.
@@ -41,9 +42,12 @@ export class PermissionAccessSummaryGrpcAdapter implements OnModuleInit {
     return safeGrpcCall(
       this.svc.getAccountAccessSummary(
         request,
-        await this.trusted.forInternalCall(source, PERMISSION_TARGET_AUDIENCE, [
-          'permission.internal.account_access_summary.resolve'
-        ])
+        await this.trusted.forHumanOboInternalCall(
+          source,
+          GATEWAY_SELF_AUDIENCE,
+          PERMISSION_TARGET_AUDIENCE,
+          ['permission.internal.account_access_summary.resolve']
+        )
       ),
       this.opts('getAccountAccessSummary')
     )
@@ -57,9 +61,12 @@ export class PermissionAccessSummaryGrpcAdapter implements OnModuleInit {
     return safeGrpcCall(
       this.svc.resolveAccountNavigation(
         request,
-        await this.trusted.forInternalCall(source, PERMISSION_TARGET_AUDIENCE, [
-          'permission.internal.account_navigation.resolve'
-        ])
+        await this.trusted.forHumanOboInternalCall(
+          source,
+          GATEWAY_SELF_AUDIENCE,
+          PERMISSION_TARGET_AUDIENCE,
+          ['permission.internal.account_navigation.resolve']
+        )
       ),
       this.opts('resolveAccountNavigation')
     )

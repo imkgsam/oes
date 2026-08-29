@@ -5,7 +5,8 @@ import {
   type CommandResult,
   type CommandRunner
 } from '../src/github-adapter.ts'
-import type { RemoteTruth } from '../src/types.ts'
+import { remoteMutationSatisfied } from '../src/remote-driver.ts'
+import type { PullRequestTruth, RemoteTruth } from '../src/types.ts'
 import { remoteBinding } from './helpers.ts'
 
 const emptyGate = {
@@ -22,11 +23,25 @@ class ScenarioRunner implements CommandRunner {
   readonly main: string
   readonly ruleset: Record<string, unknown>
   pullExists = false
+  branchHead: string | null
+  pullNumber = 12
+  pullState = 'open'
+  pullDraft = true
+  pullBaseRef = 'main'
+  pullHeadRef = 'codex/feature/runtime'
+  pullHeadSha: string
+  pullTitle = 'Runtime'
+  pullBody = 'Exact candidate'
+  failPush = false
+  failPatch = false
+  readonly nonAncestorHeads = new Set<string>()
 
   constructor(candidate: string, main: string, ruleset: Record<string, unknown> = rulesetDetail()) {
     this.candidate = candidate
     this.main = main
     this.ruleset = ruleset
+    this.branchHead = candidate
+    this.pullHeadSha = candidate
   }
 
   run(command: string, args: string[]): CommandResult {
@@ -38,10 +53,18 @@ class ScenarioRunner implements CommandRunner {
     if (command === 'git' && args[0] === 'branch') return ok('codex/feature/runtime\n')
     if (command === 'git' && args[0] === 'ls-remote') {
       const ref = args.at(-1)
-      const sha = ref === 'refs/heads/main' ? this.main : this.candidate
-      return ok(`${sha}\t${ref}\n`)
+      const sha = ref === 'refs/heads/main' ? this.main : this.branchHead
+      return sha ? ok(`${sha}\t${ref}\n`) : ok('')
     }
-    if (command === 'git' && ['fetch', 'merge-base'].includes(args[0])) return ok('')
+    if (command === 'git' && args[0] === 'merge-base')
+      return this.nonAncestorHeads.has(String(args[2])) ? failed('not an ancestor') : ok('')
+    if (command === 'git' && args[0] === 'fetch') return ok('')
+    if (command === 'git' && args[0] === 'push') {
+      if (this.failPush) return failed('push rejected')
+      this.branchHead = this.candidate
+      if (this.pullExists) this.pullHeadSha = this.candidate
+      return ok('')
+    }
     if (command === 'git' && args[0] === 'cat-file')
       return ok(`tree ${'a'.repeat(40)}\nparent ${'b'.repeat(40)}\n`)
     if (command === 'gh' && args[0] === 'api') {
@@ -50,15 +73,15 @@ class ScenarioRunner implements CommandRunner {
         const pulls = this.pullExists
           ? [
               {
-                number: 12,
-                state: 'open',
-                draft: true,
+                number: this.pullNumber,
+                state: this.pullState,
+                draft: this.pullDraft,
                 merged_at: null,
                 merge_commit_sha: null,
-                title: 'Runtime',
-                body: 'Exact candidate',
-                head: { ref: 'codex/feature/runtime', sha: this.candidate },
-                base: { ref: 'main' }
+                title: this.pullTitle,
+                body: this.pullBody,
+                head: { ref: this.pullHeadRef, sha: this.pullHeadSha },
+                base: { ref: this.pullBaseRef }
               }
             ]
           : []
@@ -67,6 +90,14 @@ class ScenarioRunner implements CommandRunner {
       if (args.includes('--method') && args.includes('POST')) {
         this.pullExists = true
         return ok(JSON.stringify({ number: 12 }))
+      }
+      if (args.includes('--method') && args.includes('PATCH')) {
+        if (this.failPatch) return failed('patch rejected')
+        for (const value of args.filter((arg) => arg.startsWith('title=')))
+          this.pullTitle = value.slice('title='.length)
+        for (const value of args.filter((arg) => arg.startsWith('body=')))
+          this.pullBody = value.slice('body='.length)
+        return ok(JSON.stringify({ number: this.pullNumber }))
       }
       if (endpoint.endsWith('/actions/permissions/workflow'))
         return ok(
@@ -112,6 +143,9 @@ class ScenarioRunner implements CommandRunner {
 function ok(stdout: string): CommandResult {
   return { stdout, stderr: '', exitCode: 0 }
 }
+function failed(stderr: string): CommandResult {
+  return { stdout: '', stderr, exitCode: 1 }
+}
 function rulesetDetail(): Record<string, unknown> {
   return {
     bypass_actors: [],
@@ -138,6 +172,38 @@ function rulesetDetail(): Record<string, unknown> {
   }
 }
 
+/** Builds one exact publish truth with bounded pull overrides. */
+function publishTruth(
+  binding: ReturnType<typeof remoteBinding>,
+  branchHead: string | null,
+  pullOverrides: Partial<PullRequestTruth> | null
+): RemoteTruth {
+  return {
+    branchHead,
+    mergeQueueEntry: null,
+    mainHead: binding.integrationBase,
+    pullRequest:
+      pullOverrides === null
+        ? null
+        : {
+            number: binding.pullRequest.number ?? 12,
+            state: 'OPEN',
+            draft: true,
+            baseRef: 'main',
+            headRef: binding.headRef,
+            headSha: branchHead ?? binding.candidateSha,
+            mergeCommitSha: null,
+            title: binding.pullRequest.title,
+            body: binding.pullRequest.body,
+            ...pullOverrides
+          },
+    requiredChecks: [],
+    mainParents: [],
+    pullMergeParents: [],
+    reviewGate: emptyGate
+  }
+}
+
 test('partial publish recovery creates the missing Draft PR without repeating a matched branch push', async () => {
   const binding = remoteBinding()
   const runner = new ScenarioRunner(binding.candidateSha, binding.integrationBase)
@@ -159,6 +225,219 @@ test('partial publish recovery creates the missing Draft PR without repeating a 
     false
   )
   assert.equal(runner.commands.filter((command) => command.includes(' --method POST ')).length, 1)
+})
+
+test('publish amendment fast-forwards one exact Draft PR and patches only its changed presentation', async () => {
+  const binding = remoteBinding({
+    pullRequest: {
+      baseRef: 'main',
+      draft: true,
+      number: 42,
+      requiredChecks: ['Baseline Checks'],
+      title: 'Runtime',
+      body: 'Replacement candidate'
+    }
+  })
+  const prior = '4'.repeat(40)
+  const runner = new ScenarioRunner(binding.candidateSha, binding.integrationBase)
+  runner.branchHead = prior
+  runner.pullExists = true
+  runner.pullNumber = 42
+  runner.pullHeadSha = prior
+  runner.pullBody = 'Prior candidate'
+  const adapter = new GitHubRemoteAdapter(runner)
+  const truth = publishTruth(binding, prior, { body: runner.pullBody })
+
+  await adapter.preflight(binding, truth)
+  const receipt = await adapter.mutate(binding, truth)
+
+  assert.equal(receipt.branchHead, binding.candidateSha)
+  assert.equal(receipt.pullRequestNumber, 42)
+  assert.equal(runner.branchHead, binding.candidateSha)
+  assert.equal(runner.pullBody, binding.pullRequest.body)
+  assert.deepEqual(
+    runner.commands.filter((command) => command.startsWith('git push ')),
+    [`git push origin ${binding.candidateSha}:refs/heads/${binding.headRef}`]
+  )
+  assert.equal(
+    runner.commands.some((command) => command.includes(' --force')),
+    false
+  )
+  assert.equal(runner.commands.filter((command) => command.includes(' --method PATCH ')).length, 1)
+  assert.equal(runner.commands.filter((command) => command.includes(' --method POST ')).length, 0)
+})
+
+test('an already complete publish amendment is satisfied without another push or PR patch', async () => {
+  const binding = remoteBinding({
+    pullRequest: {
+      baseRef: 'main',
+      draft: true,
+      number: 42,
+      requiredChecks: ['Baseline Checks'],
+      title: 'Runtime',
+      body: 'Exact candidate'
+    }
+  })
+  const runner = new ScenarioRunner(binding.candidateSha, binding.integrationBase)
+  runner.pullExists = true
+  runner.pullNumber = 42
+  const adapter = new GitHubRemoteAdapter(runner)
+  const truth = publishTruth(binding, binding.candidateSha, {})
+
+  await adapter.preflight(binding, truth)
+  assert.equal(remoteMutationSatisfied(binding, truth), true)
+  assert.equal(
+    remoteMutationSatisfied(binding, {
+      ...truth,
+      pullRequest: { ...truth.pullRequest!, number: 41 }
+    }),
+    false
+  )
+  assert.equal(
+    remoteMutationSatisfied(binding, {
+      ...truth,
+      pullRequest: { ...truth.pullRequest!, headRef: 'codex/feature/other' }
+    }),
+    false
+  )
+  assert.equal(
+    runner.commands.some((command) => command.startsWith('git push ')),
+    false
+  )
+  assert.equal(
+    runner.commands.some((command) => command.includes(' --method PATCH ')),
+    false
+  )
+})
+
+test('publish amendment rejects an existing owner head that is not a local candidate ancestor', async () => {
+  const binding = remoteBinding({
+    pullRequest: {
+      baseRef: 'main',
+      draft: true,
+      number: 42,
+      requiredChecks: ['Baseline Checks'],
+      title: 'Runtime',
+      body: 'Replacement candidate'
+    }
+  })
+  const unrelated = '4'.repeat(40)
+  const runner = new ScenarioRunner(binding.candidateSha, binding.integrationBase)
+  runner.nonAncestorHeads.add(unrelated)
+  const adapter = new GitHubRemoteAdapter(runner)
+  await assert.rejects(
+    adapter.preflight(binding, publishTruth(binding, unrelated, { body: 'Prior candidate' })),
+    /REMOTE_OWNER_BRANCH_DIVERGED/
+  )
+  assert.equal(
+    runner.commands.some((command) => command.startsWith('git push ')),
+    false
+  )
+})
+
+test('publish amendment rejects wrong PR number, ref, base, state, draft, or title', async () => {
+  const binding = remoteBinding({
+    pullRequest: {
+      baseRef: 'main',
+      draft: true,
+      number: 42,
+      requiredChecks: ['Baseline Checks'],
+      title: 'Runtime',
+      body: 'Replacement candidate'
+    }
+  })
+  const cases: Array<[string, Partial<PullRequestTruth>, RegExp]> = [
+    ['number', { number: 41 }, /PULL_REQUEST_NUMBER_MISMATCH/],
+    ['head ref', { headRef: 'codex/feature/other' }, /PULL_REQUEST_BINDING_MISMATCH/],
+    ['base ref', { baseRef: 'develop' }, /PULL_REQUEST_BINDING_MISMATCH/],
+    ['state', { state: 'CLOSED' }, /PULL_REQUEST_REF_REUSED/],
+    ['draft', { draft: false }, /PULL_REQUEST_BINDING_MISMATCH/],
+    ['title', { title: 'Unbound title' }, /PULL_REQUEST_BINDING_MISMATCH/]
+  ]
+  for (const [label, overrides, expected] of cases) {
+    const runner = new ScenarioRunner(binding.candidateSha, binding.integrationBase)
+    const adapter = new GitHubRemoteAdapter(runner)
+    await assert.rejects(
+      adapter.preflight(binding, publishTruth(binding, binding.candidateSha, overrides)),
+      expected,
+      label
+    )
+    assert.equal(
+      runner.commands.some((command) => command.startsWith('git push ')),
+      false,
+      label
+    )
+  }
+})
+
+test('publish amendment preserves the old PR when the fast-forward push fails', async () => {
+  const binding = remoteBinding({
+    pullRequest: {
+      baseRef: 'main',
+      draft: true,
+      number: 42,
+      requiredChecks: ['Baseline Checks'],
+      title: 'Runtime',
+      body: 'Replacement candidate'
+    }
+  })
+  const prior = '4'.repeat(40)
+  const runner = new ScenarioRunner(binding.candidateSha, binding.integrationBase)
+  runner.branchHead = prior
+  runner.pullExists = true
+  runner.pullNumber = 42
+  runner.pullHeadSha = prior
+  runner.pullBody = 'Prior candidate'
+  runner.failPush = true
+  const adapter = new GitHubRemoteAdapter(runner)
+  const truth = publishTruth(binding, prior, { body: runner.pullBody })
+  await adapter.preflight(binding, truth)
+
+  await assert.rejects(adapter.mutate(binding, truth), /REMOTE_COMMAND_FAILED/)
+  assert.equal(runner.branchHead, prior)
+  assert.equal(runner.pullHeadSha, prior)
+  assert.equal(runner.pullBody, 'Prior candidate')
+  assert.equal(
+    runner.commands.some((command) => command.includes(' --method PATCH ')),
+    false
+  )
+})
+
+test('publish amendment retries only the PR patch after a successful fast-forward', async () => {
+  const binding = remoteBinding({
+    pullRequest: {
+      baseRef: 'main',
+      draft: true,
+      number: 42,
+      requiredChecks: ['Baseline Checks'],
+      title: 'Runtime',
+      body: 'Replacement candidate'
+    }
+  })
+  const prior = '4'.repeat(40)
+  const runner = new ScenarioRunner(binding.candidateSha, binding.integrationBase)
+  runner.branchHead = prior
+  runner.pullExists = true
+  runner.pullNumber = 42
+  runner.pullHeadSha = prior
+  runner.pullBody = 'Prior candidate'
+  runner.failPatch = true
+  const adapter = new GitHubRemoteAdapter(runner)
+  const truth = publishTruth(binding, prior, { body: runner.pullBody })
+  await adapter.preflight(binding, truth)
+
+  await assert.rejects(adapter.mutate(binding, truth), /REMOTE_COMMAND_FAILED/)
+  assert.equal(runner.branchHead, binding.candidateSha)
+  assert.equal(runner.pullBody, 'Prior candidate')
+  runner.failPatch = false
+  const retryTruth = publishTruth(binding, binding.candidateSha, { body: runner.pullBody })
+  await adapter.preflight(binding, retryTruth)
+  const receipt = await adapter.mutate(binding, retryTruth)
+
+  assert.equal(receipt.branchHead, binding.candidateSha)
+  assert.equal(runner.pullBody, binding.pullRequest.body)
+  assert.equal(runner.commands.filter((command) => command.startsWith('git push ')).length, 1)
+  assert.equal(runner.commands.filter((command) => command.includes(' --method PATCH ')).length, 2)
 })
 
 test('preflight rejects latest-main drift before merge or publication', async () => {

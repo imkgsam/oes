@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, OnModuleInit } from '@nestjs/common'
+import { ForbiddenException, Injectable, OnModuleInit, Optional } from '@nestjs/common'
 import {
   PARTY_QUERY_SERVICE_NAME,
   PartyQueryServiceClient
@@ -26,7 +26,7 @@ export class PartyQueryGrpcAdapter implements OnModuleInit {
 
   constructor(
     private readonly machine: GatewayMachineTrustedGrpcExecutionProducer,
-    private readonly client = new PartyDedicatedClient()
+    @Optional() private readonly client: PartyDedicatedClient = new PartyDedicatedClient()
   ) {}
 
   onModuleInit(): void {

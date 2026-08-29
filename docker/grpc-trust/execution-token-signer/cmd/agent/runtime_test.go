@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -66,6 +68,61 @@ func TestDispatchUsesExactSignParameters(t *testing.T) {
 	signature, err := base64.RawURLEncoding.DecodeString(response.SignatureBase64URL)
 	if err != nil || len(signature) != 64 {
 		t.Fatalf("invalid JOSE signature: %d, %v", len(signature), err)
+	}
+}
+
+// TestRuntimeSerializesProtectedProviderOperations proves concurrent UDS requests cannot share one PKCS#11 session at the same time.
+func TestRuntimeSerializesProtectedProviderOperations(t *testing.T) {
+	now := time.Date(2026, 7, 29, 12, 0, 0, 0, time.UTC)
+	var active int32
+	var maximum int32
+	protectedOperation := func(result []byte) []byte {
+		current := atomic.AddInt32(&active, 1)
+		for {
+			observed := atomic.LoadInt32(&maximum)
+			if current <= observed || atomic.CompareAndSwapInt32(&maximum, observed, current) {
+				break
+			}
+		}
+		time.Sleep(time.Millisecond)
+		atomic.AddInt32(&active, -1)
+		return result
+	}
+	runtime := NewRuntime([]resolvedKey{{
+		binding:  Binding{Selector: manifest.Selector{TokenSerial: "serial", ID: []byte{1}}, ExpectedKID: "active"},
+		response: KeyResponse{KID: "active", PublicJWK: PublicJWK{Kty: "EC", Crv: "P-256", X: "x", Y: "y"}, PublishNotBeforeUnixSeconds: now.Add(-time.Hour).Unix(), SigningNotBeforeUnixSeconds: now.Add(-time.Minute).Unix(), SigningNotAfterUnixSeconds: now.Add(time.Minute).Unix(), RetireAfterUnixSeconds: now.Add(time.Hour).Unix()},
+		sign:     func([]byte) ([]byte, error) { return protectedOperation(bytes.Repeat([]byte{7}, 64)), nil },
+	}}, now)
+	runtime.AttachVerifierRuntime([]resolvedVerifier{{
+		response: ExternalApiKeyVerifierVersionResponse{VerifierKeyVersion: "active-verifier", State: string(verifiermanifest.Active), ActivatedAtUnixSeconds: now.Add(-time.Hour).Unix()},
+		compute:  func([]byte) ([]byte, error) { return protectedOperation(bytes.Repeat([]byte{0x33}, 32)), nil },
+	}})
+	identifier := base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{0x11}, 18))
+	secret := base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{0x22}, 32))
+	var group sync.WaitGroup
+	errors := make(chan error, 16)
+	for index := 0; index < 8; index++ {
+		group.Add(2)
+		go func() {
+			defer group.Done()
+			_, err := runtime.SignES256("active", []byte("input"))
+			errors <- err
+		}()
+		go func() {
+			defer group.Done()
+			_, err := runtime.ComputeExternalApiKeyVerifier("ISSUE", identifier, secret, "")
+			errors <- err
+		}()
+	}
+	group.Wait()
+	close(errors)
+	for err := range errors {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if maximum != 1 {
+		t.Fatalf("protected-provider maximum concurrency = %d, want 1", maximum)
 	}
 }
 

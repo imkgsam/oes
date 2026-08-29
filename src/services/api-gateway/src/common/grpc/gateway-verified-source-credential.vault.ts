@@ -1,4 +1,7 @@
-import { TransportPrivateSourceCredential } from '@oes/common/authorization'
+import {
+  AsyncLocalTransportPrivateSourceCredentialAccessor,
+  TransportPrivateSourceCredential
+} from '@oes/common/authorization'
 
 /** Defines the minimal terminal response lifecycle needed to clear a request-private credential. */
 type GatewayCredentialResponseLifecycle = {
@@ -38,6 +41,17 @@ export class GatewayVerifiedSourceCredentialVault {
     const entry = this.entries.get(request)
     this.clear(request)
     return entry
+  }
+
+  /** Runs an earlier guard-time operation with the admitted opaque credential without consuming handler scope. */
+  run<T>(
+    request: object,
+    accessor: AsyncLocalTransportPrivateSourceCredentialAccessor,
+    callback: () => T
+  ): T {
+    const entry = this.entries.get(request)
+    if (entry === undefined) throw new Error('Verified source credential is required')
+    return accessor.run(entry.credential, callback)
   }
 
   /** Removes an entry after a later guard denial or a terminal HTTP lifecycle event. */

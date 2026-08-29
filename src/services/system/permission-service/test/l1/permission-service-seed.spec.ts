@@ -8,6 +8,7 @@ import {
   BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES,
   CRM_MANAGEMENT_PERMISSION_CODES,
   IDENTITY_ACCOUNT_PERMISSION_CODES,
+  ITEM_MASTER_INTERNAL_PERMISSION_CODES,
   TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES
 } from '../../src/scripts/permission-catalog'
 import { Modules } from '../../prisma/generated/prisma'
@@ -32,7 +33,7 @@ describe('permission service seed source', () => {
     const seed = buildPermissionServiceSeed()
 
     expect(validatePermissionServiceSeed(seed)).toEqual([])
-    expect(seed.permissionCodes).toHaveLength(289)
+    expect(seed.permissionCodes).toHaveLength(292)
     expect(Object.values(TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES)).toEqual([
       ...EXPECTED_TERMINAL_DEVICE_PERMISSION_CODES
     ])
@@ -53,7 +54,8 @@ describe('permission service seed source', () => {
         BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES.OVERVIEW_READ,
         BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES.EMPLOYEE_DETAIL_READ,
         BROWSER_ACTIVITY_AUDIT_PERMISSION_CODES.URL_DETAIL_READ,
-        COLLABORATION_TASK_PERMISSION_CODES.ASSIGN
+        COLLABORATION_TASK_PERMISSION_CODES.ASSIGN,
+        ...Object.values(ITEM_MASTER_INTERNAL_PERMISSION_CODES)
       ])
     )
     expect(
@@ -108,7 +110,7 @@ describe('permission service seed source', () => {
 
   it('renders a stable dry-run summary for audit output', () => {
     expect(renderPermissionServiceSeedDryRunSummary(buildPermissionServiceSeed())).toEqual({
-      permissionCodeCount: 289,
+      permissionCodeCount: 292,
       deprecatedPermissionCodeCount: 31,
       roleCount: 9,
       rolePermissionCount: 223,

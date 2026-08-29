@@ -16,7 +16,8 @@ const RELEASE = 'asset.internal.site_media.publication.release'
 @Injectable()
 export class SiteTrustedAssetGrpcAdapter implements AssetSiteMediaPort {
   private readonly client: SiteMediaAssetServiceClient
-  constructor(@InjectGrpcClient(SERVICE_NAMES.ASSET) private readonly grpc: ClientGrpc, private readonly provider: TrustedGrpcMetadataProvider, private readonly context: AsyncLocalTrustedExecutionContextAccessor, private readonly source: AsyncLocalTransportPrivateSourceCredentialAccessor, private readonly issuer = new TransportPrivateSourceCredentialIssuer()) { this.client = grpc.getService<SiteMediaAssetServiceClient>(SITE_MEDIA_ASSET_SERVICE_NAME) }
+  private readonly issuer = new TransportPrivateSourceCredentialIssuer()
+  constructor(@InjectGrpcClient(SERVICE_NAMES.ASSET) private readonly grpc: ClientGrpc, private readonly provider: TrustedGrpcMetadataProvider, private readonly context: AsyncLocalTrustedExecutionContextAccessor, private readonly source: AsyncLocalTransportPrivateSourceCredentialAccessor) { this.client = grpc.getService<SiteMediaAssetServiceClient>(SITE_MEDIA_ASSET_SERVICE_NAME) }
   async resolve(input: { siteId: string; assetId: string; requiredMediaKind: string }) { return this.call(RESOLVE, (metadata) => this.client.resolveSiteMediaForPublication(input, metadata)) }
   async protect(input: { idempotencyKey: string; siteId: string; publishVersion: string; assetIds: string[] }) { return this.call(PROTECT, (metadata) => this.client.protectSitePublicationReferences(input, metadata)) }
   async release(input: { idempotencyKey: string; siteId: string; publishVersion: string }) { return this.call(RELEASE, (metadata) => this.client.releaseSitePublicationReferences(input, metadata)) }

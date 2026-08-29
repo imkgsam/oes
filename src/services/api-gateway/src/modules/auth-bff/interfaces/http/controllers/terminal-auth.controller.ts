@@ -67,10 +67,7 @@ abstract class TerminalAuthControllerBase {
   ): Promise<AuthResponseViewModel> {
     return this.loginUseCase.execute(
       dto,
-      {
-        requestId: source.requestId,
-        traceId: source.traceId
-      },
+      source,
       { userAgent, ipAddress },
       this.terminal,
       deviceCredential
@@ -85,16 +82,15 @@ abstract class TerminalAuthControllerBase {
     @Body() dto: EmployeeCodePinPreflightDto,
     @DownstreamSource() source: DownstreamRequestSource,
     @Headers('user-agent') userAgent?: string,
-    @Ip() ipAddress?: string
+    @Ip() ipAddress?: string,
+    @Headers('x-oes-terminal-device-credential') deviceCredential?: string
   ): Promise<EmployeeCodePinPreflightViewModel> {
     return this.loginUseCase.preflightEmployeeCodePin(
       dto,
-      {
-        requestId: source.requestId,
-        traceId: source.traceId
-      },
+      source,
       { userAgent, ipAddress },
-      this.terminal
+      this.terminal,
+      deviceCredential
     )
   }
 
@@ -109,15 +105,7 @@ abstract class TerminalAuthControllerBase {
     @Headers('user-agent') userAgent?: string,
     @Ip() ipAddress?: string
   ): Promise<AuthResponseViewModel> {
-    return this.selectAccountUseCase.execute(
-      dto,
-      {
-        requestId: source.requestId,
-        traceId: source.traceId
-      },
-      { userAgent, ipAddress },
-      this.terminal
-    )
+    return this.selectAccountUseCase.execute(dto, source, { userAgent, ipAddress }, this.terminal)
   }
 
   @Post('mfa/complete')
@@ -129,10 +117,7 @@ abstract class TerminalAuthControllerBase {
     @Body() dto: CompleteMfaDto,
     @DownstreamSource() source: DownstreamRequestSource
   ): Promise<AuthResponseViewModel> {
-    return this.completeMfaUseCase.execute(dto, {
-      requestId: source.requestId,
-      traceId: source.traceId
-    })
+    return this.completeMfaUseCase.execute(dto, source)
   }
 
   @Post('mfa/challenges')
@@ -144,10 +129,7 @@ abstract class TerminalAuthControllerBase {
     @Body() dto: RequestMfaFactorChallengeDto,
     @DownstreamSource() source: DownstreamRequestSource
   ): Promise<OtpChallengeViewModel> {
-    return this.requestMfaFactorChallengeUseCase.execute(dto, {
-      requestId: source.requestId,
-      traceId: source.traceId
-    })
+    return this.requestMfaFactorChallengeUseCase.execute(dto, source)
   }
 
   @Post('session/refresh')
@@ -159,10 +141,7 @@ abstract class TerminalAuthControllerBase {
     @Body() dto: RefreshSessionDto,
     @DownstreamSource() source: DownstreamRequestSource
   ): Promise<RefreshSessionViewModel> {
-    return this.refreshSessionUseCase.execute(dto, {
-      requestId: source.requestId,
-      traceId: source.traceId
-    })
+    return this.refreshSessionUseCase.execute(dto, source)
   }
 
   @Post('logout')
@@ -256,7 +235,9 @@ export class PdaAuthController extends TerminalAuthControllerBase {
 
   @Post('account-selection')
   @Public()
-  @ApiOperation({ summary: 'PDA account selection is unavailable because PDA tenant is device-bound' })
+  @ApiOperation({
+    summary: 'PDA account selection is unavailable because PDA tenant is device-bound'
+  })
   async selectAccount(
     @Body() _dto: SelectAccountDto,
     @DownstreamSource() _source: DownstreamRequestSource,

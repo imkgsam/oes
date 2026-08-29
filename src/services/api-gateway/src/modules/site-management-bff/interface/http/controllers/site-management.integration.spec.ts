@@ -14,6 +14,7 @@ import { NestFactory } from '@nestjs/core'
 import request from 'supertest'
 import {
   AuthorizationModule,
+  GATEWAY_PERMISSION_TRUSTED_METADATA_PROVIDER,
   GatewayPermissionGuard,
   GRPC_METADATA_PROPAGATION_FACTORY
 } from '@oes/common/authorization'
@@ -277,6 +278,10 @@ function createTestGatewayAppModule(authPort: number, permissionPort: number) {
       { provide: SITE_MANAGEMENT_DOWNSTREAM, useValue: downstream },
       GatewayExceptionFilter,
       GatewayPermissionGuard,
+      {
+        provide: GATEWAY_PERMISSION_TRUSTED_METADATA_PROVIDER,
+        useValue: { create: async () => new Metadata() }
+      },
       { provide: APP_GUARD, useClass: GatewaySessionAuthGuard },
       { provide: APP_GUARD, useClass: TenantTargetBindingGuard },
       { provide: APP_GUARD, useExisting: GatewayPermissionGuard }

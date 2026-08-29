@@ -1,5 +1,5 @@
 import { ClientGrpc, ClientProxyFactory, Transport } from '@nestjs/microservices'
-import { resolveCommonProtoPath } from '@oes/common/contracts'
+import { resolveCommonContractPath, resolveCommonProtoPath } from '@oes/common/contracts'
 import { createGrpcClientCredentials } from '@oes/common/transport'
 
 export const PERMISSION_TARGET_AUDIENCE = 'urn:oes:service:permission-service'
@@ -24,6 +24,7 @@ export class TrustedPermissionGrpcClient {
           resolveCommonProtoPath('permission_service/policy_instance_management.proto'),
           resolveCommonProtoPath('permission_service/policy_instance_preview.proto')
         ],
+        loader: { includeDirs: [resolveCommonContractPath()] },
         url: resolveUrl(),
         credentials: createGrpcClientCredentials()
       }

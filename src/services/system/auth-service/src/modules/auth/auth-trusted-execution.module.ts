@@ -13,7 +13,8 @@ import {
   getGrpcMetadataValue,
   getAuthenticatedGrpcRequestContext,
   inboundExecutionTokenCredentialScope,
-  TrustedExecutionGuard
+  TrustedExecutionGuard,
+  TrustedInternalExecutionGuard
 } from '@oes/common/authorization'
 import { GrpcWorkloadIdentityProvider } from '@oes/common/transport'
 import {
@@ -79,14 +80,25 @@ export class AuthTrustedExecutionGuard extends TrustedExecutionGuard implements 
       context.switchToRpc().getData()
     )?.verifiedExecutionToken
     const workload = readWorkloadName(verified?.clientId ?? '')
-    if (verified?.principalType !== 'HUMAN' || verified.sessionTerminal !== 'WEB') {
-      throw new ForbiddenException('Auth protected execution requires HUMAN WEB context')
-    }
+    if (verified?.principalType !== 'HUMAN')
+      throw new ForbiddenException('Auth protected execution requires a HUMAN principal')
     const allowed = verified.actor
       ? ['hr-service', 'tenant-org-service'].includes(workload)
       : workload === 'api-gateway'
     if (!allowed) throw new ForbiddenException('Auth protected caller workload is not permitted')
     return true
+  }
+}
+
+/** Binds generic Auth INTERNAL methods to the Auth audience without constructor string injection. */
+@Injectable()
+export class AuthAudienceTrustedInternalExecutionGuard extends TrustedInternalExecutionGuard {
+  constructor(
+    reflector: Reflector,
+    verifier: ExecutionTokenVerifier,
+    identity: GrpcWorkloadIdentityProvider
+  ) {
+    super(reflector, verifier, identity, AUTH_AUDIENCE)
   }
 }
 
@@ -107,10 +119,20 @@ export class AuthTrustedExecutionGuard extends TrustedExecutionGuard implements 
         identity: GrpcWorkloadIdentityProvider
       ) => new AuthTrustedExecutionGuard(reflector, verifier, identity),
       inject: [Reflector, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider]
+    },
+    {
+      provide: AuthAudienceTrustedInternalExecutionGuard,
+      useFactory: (
+        reflector: Reflector,
+        verifier: ExecutionTokenVerifier,
+        identity: GrpcWorkloadIdentityProvider
+      ) => new AuthAudienceTrustedInternalExecutionGuard(reflector, verifier, identity),
+      inject: [Reflector, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider]
     }
   ],
   exports: [
     AuthTrustedExecutionGuard,
+    AuthAudienceTrustedInternalExecutionGuard,
     AuthIdentityTrustedGrpcClient,
     AuthPermissionTrustedGrpcClient,
     AuthHrTrustedGrpcClient,

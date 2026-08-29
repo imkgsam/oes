@@ -24,4 +24,7 @@ async function bootstrap() {
   await app.listen()
 }
 
-bootstrap()
+void bootstrap().catch((error: unknown) => {
+  console.error('COLLABORATION_BOOTSTRAP_FAILED', error)
+  process.exitCode = 1
+})

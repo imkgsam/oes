@@ -1,5 +1,5 @@
 import { ClientGrpc, ClientProxyFactory, Transport } from '@nestjs/microservices'
-import { resolveCommonProtoPath } from '@oes/common/contracts'
+import { resolveCommonContractPath, resolveCommonProtoPath } from '@oes/common/contracts'
 import { createGrpcClientCredentials } from '@oes/common/transport'
 
 export const HR_TARGET_AUDIENCE = 'urn:oes:service:hr-service'
@@ -15,6 +15,7 @@ export class TrustedHrGrpcClient {
       options: {
         package: 'hr_service',
         protoPath: resolveCommonProtoPath('hr_service/hr.proto'),
+        loader: { includeDirs: [resolveCommonContractPath()] },
         url: resolveUrl(),
         credentials: createGrpcClientCredentials()
       }

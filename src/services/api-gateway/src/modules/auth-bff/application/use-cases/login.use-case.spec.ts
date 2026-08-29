@@ -271,7 +271,8 @@ describe('LoginUseCase', () => {
         },
         { requestId: 'req-1' },
         { userAgent: ' OES-PDA/1.0 ', ipAddress: ' 10.0.0.7 ' },
-        'PDA'
+        'PDA',
+        ' opaque-device-credential '
       )
     ).resolves.toEqual({
       allowed: true,
@@ -288,6 +289,9 @@ describe('LoginUseCase', () => {
         loginFlow: 'EMPLOYEE_CODE_PIN'
       },
       expect.objectContaining({ requestId: 'req-1' })
+    )
+    expect(terminalDeviceAdapter.resolveLoginDeviceContext).toHaveBeenCalledWith(
+      expect.objectContaining({ deviceCredential: ' opaque-device-credential ' })
     )
   })
 
@@ -315,13 +319,38 @@ describe('LoginUseCase', () => {
         },
         { requestId: 'req-1' },
         {},
-        'PDA'
+        'PDA',
+        'wrong-device-credential'
       )
     ).resolves.toEqual({
       allowed: false,
       reasonCode: 'TERMINAL_ACCESS_DENIED',
       message: 'DEVICE_LOST'
     })
+    expect(terminalDeviceAdapter.resolveLoginDeviceContext).toHaveBeenCalledWith(
+      expect.objectContaining({ deviceCredential: 'wrong-device-credential' })
+    )
+    expect(authAdapter.preflightEmployeeCodePin).not.toHaveBeenCalled()
+  })
+
+  it('denies a missing PDA employee-code credential before terminal-device and auth-service', async () => {
+    const authAdapter = { preflightEmployeeCodePin: jest.fn() }
+    const terminalDeviceAdapter = { resolveLoginDeviceContext: jest.fn() }
+    const useCase = new LoginUseCase(authAdapter as any, undefined, terminalDeviceAdapter as any)
+
+    await expect(
+      useCase.preflightEmployeeCodePin(
+        { employeeCode: 'EMP-0AF-0001', device: { deviceId: 'terminal-device-1' } },
+        { requestId: 'req-1' },
+        {},
+        'PDA'
+      )
+    ).resolves.toEqual({
+      allowed: false,
+      reasonCode: 'TERMINAL_ACCESS_DENIED',
+      message: 'DEVICE_CREDENTIAL_REQUIRED'
+    })
+    expect(terminalDeviceAdapter.resolveLoginDeviceContext).not.toHaveBeenCalled()
     expect(authAdapter.preflightEmployeeCodePin).not.toHaveBeenCalled()
   })
 
@@ -384,6 +413,7 @@ describe('LoginUseCase', () => {
     expect(terminalDeviceAdapter.resolveLoginDeviceContext).toHaveBeenCalledWith({
       terminalDeviceId: 'terminal-device-1',
       deviceCredential: 'credential-1',
+      source: { requestId: 'req-1', traceId: 'trace-1' },
       deviceMetadata: expect.objectContaining({
         deviceName: 'Warehouse PDA',
         manufacturerSerial: 'SEUIC-SN-123456',
@@ -490,7 +520,7 @@ describe('LoginUseCase', () => {
         identifier: 'alice@example.com',
         credential: 'secret'
       },
-      { requestId: 'req-1', traceId: 'trace-1' },
+      { requestId: 'req-1', traceId: 'trace-1', user: { sub: 'user-1' } },
       {}
     )
 

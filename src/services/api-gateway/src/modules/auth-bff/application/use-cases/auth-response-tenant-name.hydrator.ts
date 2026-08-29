@@ -9,7 +9,9 @@ export async function hydrateAuthResponseTenantNames(
   tenantOrgAdapter?: TenantOrgQueryGrpcAdapter
 ): Promise<LoginResponse> {
   const accounts = result.accounts ?? []
-  if (accounts.length === 0 || !tenantOrgAdapter) {
+  // Login and account selection precede Gateway session verification. Tenant names are optional
+  // presentation data and must not trigger a BUSINESS downstream call from an unverified source.
+  if (accounts.length === 0 || !tenantOrgAdapter || !source.user) {
     return result
   }
 

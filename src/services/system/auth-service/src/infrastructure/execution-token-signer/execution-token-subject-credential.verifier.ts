@@ -20,7 +20,8 @@ export class ExecutionTokenSubjectCredentialVerifier {
   async verify(
     token: string,
     workload: VerifiedExecutionWorkload,
-    targetAudience: string
+    targetAudience: string,
+    correlation?: { requestId?: string; traceparent?: string; tracestate?: string }
   ): Promise<TrustedExecutionContext> {
     const [headerPart, claimsPart, signaturePart, extra] = token.split('.')
     if (!headerPart || !claimsPart || !signaturePart || extra) throw invalid()
@@ -89,7 +90,10 @@ export class ExecutionTokenSubjectCredentialVerifier {
       machinePrincipalId: selector.actorMachinePrincipalId,
       bindingId: selector.actorBindingId,
       bindingVersion: BigInt(selector.actorBindingVersion),
-      workloadSpiffeId: workload.spiffeId
+      workloadSpiffeId: workload.spiffeId,
+      requestId: correlation?.requestId,
+      traceparent: correlation?.traceparent,
+      tracestate: correlation?.tracestate
     })
     if (
       !decision.allowed ||

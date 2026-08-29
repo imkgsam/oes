@@ -177,7 +177,11 @@ export class ExecutionTokenExchangeService {
     } else if (input.execution.sourceExpiresAt !== undefined) {
       throw new Error('execution token HUMAN OBO context is invalid')
     }
-    this.registry.assertIssuanceAllowed(input.workloadIdentity.spiffeId, input.targetAudience)
+    if (input.authorizationDecision.kind === 'SELF_SERVICE' && permissionCodes.length === 0) {
+      this.registry.assertSelfIssuanceAllowed(input.workloadIdentity.spiffeId, input.targetAudience)
+    } else {
+      this.registry.assertIssuanceAllowed(input.workloadIdentity.spiffeId, input.targetAudience)
+    }
   }
 }
 

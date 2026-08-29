@@ -194,6 +194,11 @@ class AuthFoundationMachineSourceCredentialClient {
   private client?: ClientGrpc
   private service?: MachineWorkloadSourceCredentialServiceClient
   async issue(): Promise<string> {
+    const correlation = inboundExecutionTokenCredentialScope.requireCorrelation()
+    const metadata = new Metadata()
+    metadata.set('x-request-id', correlation.requestId)
+    metadata.set('traceparent', correlation.traceparent)
+    if (correlation.tracestate) metadata.set('tracestate', correlation.tracestate)
     const response = await safeGrpcCall(
       this.machine().issueMachineWorkloadSourceCredential(
         {
@@ -203,7 +208,7 @@ class AuthFoundationMachineSourceCredentialClient {
             'AUTH_FOUNDATION_MACHINE_WORKLOAD_BINDING_VERSION'
           )
         },
-        new Metadata()
+        metadata
       ),
       { caller: 'auth-service', method: 'IssueMachineWorkloadSourceCredential' }
     )

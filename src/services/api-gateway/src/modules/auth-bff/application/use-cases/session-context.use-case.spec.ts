@@ -371,6 +371,8 @@ describe('SessionContextUseCase', () => {
         sub: 'user-pda',
         aid: 'account-pda',
         tid: 'tenant-1',
+        displayName: 'PDA User',
+        scopeLevel: 'TENANT',
         terminal: 'PDA',
         allowedTerminals: ['PDA']
       }
@@ -380,6 +382,8 @@ describe('SessionContextUseCase', () => {
       expect.any(Object),
       'PDA'
     )
+    expect(identityAdapter.getAccountById).not.toHaveBeenCalled()
+    expect(tenantOrgAdapter.getTenantById).not.toHaveBeenCalled()
     expect(result.terminal).toBe('PDA')
     expect(result.allowedTerminals).toEqual(['PDA'])
     expect(result.navigation.defaultEntry).toBe('pda.home')
@@ -550,11 +554,7 @@ describe('SessionContextUseCase', () => {
       }),
       resolveNavigation: jest.fn().mockResolvedValue({
         defaultEntry: 'platform.home',
-        visibleEntries: [
-          'platform.home',
-          'admin.permission-management',
-          'admin.role-management'
-        ]
+        visibleEntries: ['platform.home', 'admin.permission-management', 'admin.role-management']
       })
     }
 

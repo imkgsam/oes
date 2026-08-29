@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'
+import { ItemMasterTrustedExecutionModule } from '../item-master-trusted-execution.module'
 import { TOKENS } from '../../common/constants/tokens'
 import { ItemMasterManagementV2Service } from '../../application/item-master-v2.service'
 import { ItemMasterAuditService } from '../../application/services/item-master-audit.service'
@@ -10,7 +11,7 @@ import { ItemMasterVerifiedTenantContextGuard } from '../../interfaces/grpc/item
 
 /** ItemMasterManagementModule wires Contract V2 command RPCs to the V2 application command service. */
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, ItemMasterTrustedExecutionModule],
   providers: [
     {
       provide: TOKENS.ITEM_MASTER_AUDIT_WRITER,

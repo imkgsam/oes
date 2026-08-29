@@ -32,6 +32,15 @@ else
   echo "consumer created: $consumer_name"
 fi
 
+site_consumer=site-service__asset-site-media__v1
+if nats_cmd consumer info OES_BUSINESS_EVENTS "$site_consumer" >/dev/null 2>&1; then
+  echo "consumer already exists: $site_consumer"
+else
+  nats_cmd consumer add OES_BUSINESS_EVENTS --config \
+    /etc/nats/topology/site-service__asset-site-media__v1.json --defaults
+  echo "consumer created: $site_consumer"
+fi
+
 dlq_inspection_consumer=notification-service__dlq-inspection__v1
 if nats_cmd consumer info OES_EVENT_DLQ "$dlq_inspection_consumer" >/dev/null 2>&1; then
   echo "consumer already exists: $dlq_inspection_consumer"

@@ -1,7 +1,8 @@
 import { Controller, Inject, UseFilters, UseGuards } from '@nestjs/common'
 import { RpcException } from '@nestjs/microservices'
 import { Metadata } from '@grpc/grpc-js'
-import { AuthorizeBusinessRpc, getAuthenticatedGrpcRequestContext, SITE_MANAGEMENT_PERMISSION_CODES, TrustedExecutionGuard } from '@oes/common/authorization'
+import { AuthorizeBusinessRpc, getAuthenticatedGrpcRequestContext, SITE_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
+import { SiteTrustedExecutionGuard } from './site-trusted-execution.guards'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import { UNAUTHENTICATED } from '@oes/common/exceptions'
 import {
@@ -174,7 +175,7 @@ export const SITE_ADMIN_APPLICATION = Symbol('SITE_ADMIN_APPLICATION')
 
 /** SiteAdminGrpcController exposes the internal Admin management gRPC contract as a thin protocol adapter. */
 @UseFilters(GrpcExceptionFilter)
-@UseGuards(TrustedExecutionGuard)
+@UseGuards(SiteTrustedExecutionGuard)
 @Controller()
 @SiteAdminManagementServiceControllerMethods()
 export class SiteAdminGrpcController implements SiteAdminManagementServiceController {

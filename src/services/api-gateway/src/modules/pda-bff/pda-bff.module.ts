@@ -1,6 +1,4 @@
 import { Module } from '@nestjs/common'
-import { SERVICE_NAMES } from '@oes/common/constants'
-import { GrpcTransportModule } from '@oes/common/transport'
 import { AuthBffModule } from '../auth-bff/auth-bff.module'
 import { PdaDeviceEnrollmentUseCase } from './application/use-cases/pda-device-enrollment.use-case'
 import { PdaDeviceHeartbeatUseCase } from './application/use-cases/pda-device-heartbeat.use-case'
@@ -12,7 +10,7 @@ import { PdaSessionController } from './interfaces/http/controllers/pda-session.
 import { PdaDiagnosticsModule } from './pda-diagnostics.module'
 
 @Module({
-  imports: [AuthBffModule, PdaDiagnosticsModule, GrpcTransportModule.forFeature([SERVICE_NAMES.TERMINAL_DEVICE])],
+  imports: [AuthBffModule, PdaDiagnosticsModule],
   controllers: [PdaSessionController, PdaDeviceController],
   providers: [
     PdaTerminalDeviceAdapter,

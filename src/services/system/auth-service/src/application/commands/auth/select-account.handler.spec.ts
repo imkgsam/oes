@@ -13,7 +13,10 @@ const createTerminalAwareLoginMfaService = (input: {
     resolve: jest.fn().mockResolvedValue({
       terminal: input.terminal ?? 'WEB',
       tenantId: 'tenant-2',
-      source: input.terminal === 'PDA' && !input.loginMfaRequired ? 'PLATFORM_DEFAULT' : 'TENANT_OVERRIDE',
+      source:
+        input.terminal === 'PDA' && !input.loginMfaRequired
+          ? 'PLATFORM_DEFAULT'
+          : 'TENANT_OVERRIDE',
       loginMfaRequired: input.loginMfaRequired,
       newDeviceMfaRequired: input.newDeviceMfaRequired ?? false,
       allowedFactors: [MfaType.EMAIL_OTP],
@@ -80,7 +83,7 @@ describe('SelectAccountHandler', () => {
 
   it('rejects tenant-scope account selection when tenant-org reports the tenant is not active', async () => {
     const identityService = {
-      getAccountById: jest.fn().mockResolvedValue({
+      resolveAuthLoginAccount: jest.fn().mockResolvedValue({
         accountId: 'account-suspended',
         userId: 'user-1',
         tenantId: 'tenant-suspended',
@@ -123,7 +126,7 @@ describe('SelectAccountHandler', () => {
 
   it('does not check tenant lifecycle for SYSTEM account selection', async () => {
     const identityService = {
-      getAccountById: jest.fn().mockResolvedValue({
+      resolveAuthLoginAccount: jest.fn().mockResolvedValue({
         accountId: 'system-account',
         userId: 'user-1',
         tenantId: null,
@@ -171,7 +174,7 @@ describe('SelectAccountHandler', () => {
 
   it('replaces the previous context-switch session and preserves the original login method', async () => {
     const identityService = {
-      getAccountById: jest.fn().mockResolvedValue({
+      resolveAuthLoginAccount: jest.fn().mockResolvedValue({
         accountId: 'account-2',
         userId: 'user-1',
         tenantId: 'tenant-2',
@@ -207,16 +210,11 @@ describe('SelectAccountHandler', () => {
     )
 
     const result = await handler.execute(
-      new SelectAccountCommand(
-        'user-1',
-        'account-2',
-        LoginMethodEnum.ContextSwitch,
-        {
-          currentSessionId: 'session-current',
-          userAgent: 'Mozilla/5.0 Chrome/123.0',
-          ipAddress: '10.0.0.2'
-        }
-      )
+      new SelectAccountCommand('user-1', 'account-2', LoginMethodEnum.ContextSwitch, {
+        currentSessionId: 'session-current',
+        userAgent: 'Mozilla/5.0 Chrome/123.0',
+        ipAddress: '10.0.0.2'
+      })
     )
 
     expect(result).toEqual(
@@ -243,7 +241,7 @@ describe('SelectAccountHandler', () => {
       ]
     })
     const identityService = {
-      getAccountById: jest.fn().mockResolvedValue({
+      resolveAuthLoginAccount: jest.fn().mockResolvedValue({
         accountId: 'account-2',
         userId: 'user-1',
         tenantId: 'tenant-2',
@@ -317,7 +315,7 @@ describe('SelectAccountHandler', () => {
       terminal: 'WEB'
     })
     const identityService = {
-      getAccountById: jest.fn().mockResolvedValue({
+      resolveAuthLoginAccount: jest.fn().mockResolvedValue({
         accountId: 'account-2',
         userId: 'user-1',
         tenantId: 'tenant-2',
@@ -381,7 +379,7 @@ describe('SelectAccountHandler', () => {
       passwordSetupRequired: false
     })
     const identityService = {
-      getAccountById: jest.fn().mockResolvedValue({
+      resolveAuthLoginAccount: jest.fn().mockResolvedValue({
         accountId: 'account-2',
         userId: 'user-1',
         tenantId: 'tenant-2',
@@ -432,7 +430,7 @@ describe('SelectAccountHandler', () => {
       terminal: 'PDA'
     })
     const identityService = {
-      getAccountById: jest.fn().mockResolvedValue({
+      resolveAuthLoginAccount: jest.fn().mockResolvedValue({
         accountId: 'account-2',
         userId: 'user-1',
         tenantId: 'tenant-2',
@@ -478,7 +476,7 @@ describe('SelectAccountHandler', () => {
 
   it('denies terminal access after tenant lifecycle and before MFA or session creation', async () => {
     const identityService = {
-      getAccountById: jest.fn().mockResolvedValue({
+      resolveAuthLoginAccount: jest.fn().mockResolvedValue({
         accountId: 'account-2',
         userId: 'user-1',
         tenantId: 'tenant-2',

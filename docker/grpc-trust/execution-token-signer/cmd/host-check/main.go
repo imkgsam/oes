@@ -35,7 +35,9 @@ func main() {
 	case "derive-kid":
 		fatal(runDeriveKid(os.Args[2:]))
 	case "write-manifest":
-		fatal(runWriteManifest(os.Args[2:]))
+		fatal(runWriteManifest(os.Args[2:], false))
+	case "write-persistent-local-manifest":
+		fatal(runWriteManifest(os.Args[2:], true))
 	case "verify-uds":
 		fatal(runVerifyUDS(os.Args[2:]))
 	case "assert-outage":
@@ -145,7 +147,7 @@ func runDeriveKid(arguments []string) error {
 }
 
 // runWriteManifest writes a deterministic active-plus-overlap timeline that is valid at command execution time.
-func runWriteManifest(arguments []string) error {
+func runWriteManifest(arguments []string, persistentLocal bool) error {
 	flags := flag.NewFlagSet("write-manifest", flag.ContinueOnError)
 	flags.SetOutput(ioDiscard{})
 	output := flags.String("output", "", "")
@@ -157,9 +159,15 @@ func runWriteManifest(arguments []string) error {
 		return errors.New("write-manifest requires output and active/overlap URI/kid pairs")
 	}
 	now := time.Now().UTC()
+	activeSigningAfter, activeRetireAfter := now.Add(5*time.Minute), now.Add(11*time.Minute)
+	overlapRetireAfter := now.Add(time.Minute)
+	if persistentLocal {
+		activeSigningAfter, activeRetireAfter = now.Add(24*time.Hour), now.Add(48*time.Hour)
+		overlapRetireAfter = now.Add(24 * time.Hour)
+	}
 	document := manifest.Document{Keys: []manifest.Entry{
-		entry(*activeURI, *activeKID, now.Add(-10*time.Minute), now.Add(-5*time.Minute), now.Add(5*time.Minute), now.Add(11*time.Minute)),
-		entry(*overlapURI, *overlapKID, now.Add(-20*time.Minute), now.Add(-15*time.Minute), now.Add(-5*time.Minute), now.Add(time.Minute)),
+		entry(*activeURI, *activeKID, now.Add(-10*time.Minute), now.Add(-5*time.Minute), activeSigningAfter, activeRetireAfter),
+		entry(*overlapURI, *overlapKID, now.Add(-20*time.Minute), now.Add(-15*time.Minute), now.Add(-5*time.Minute), overlapRetireAfter),
 	}}
 	if err := document.Validate(); err != nil {
 		return err

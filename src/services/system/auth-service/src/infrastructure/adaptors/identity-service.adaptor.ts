@@ -1,10 +1,11 @@
 import { Inject, Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common'
+import { Metadata } from '@grpc/grpc-js'
 import { ExceptionFactory, InfrastructureException } from '@oes/common/exceptions'
 import {
   GetAccountByIdRequest,
   GetAccountByIdResponse,
-  GetAccountsByUserIdRequest,
-  GetAccountsByUserIdResponse,
+  ListAuthLoginAccountCandidatesRequest,
+  ListAuthLoginAccountCandidatesResponse,
   GetUserByIdRequest,
   GetUserByIdResponse,
   GetUserByEmailRequest,
@@ -12,8 +13,10 @@ import {
   GetUserByPhoneRequest,
   GetUserByPhoneResponse,
   IdentityQueryServiceClient,
-  ResolveEmployeeLoginAccountRequest,
-  ResolveEmployeeLoginAccountResponse,
+  ResolveAuthEmployeeLoginAccountRequest,
+  ResolveAuthEmployeeLoginAccountResponse,
+  ResolveAuthLoginAccountRequest,
+  ResolveAuthLoginAccountResponse,
   ResolveMachinePrincipalForAuthResponse
 } from '@oes/common/generated/identity_service'
 import { safeGrpcCall } from '@oes/common/transport'
@@ -29,11 +32,12 @@ import {
   AuthFoundationTrustedGrpcExecutionProducer,
   AuthIdentityTrustedGrpcClient
 } from './foundation-trusted-grpc.clients'
+import { inboundExecutionTokenCredentialScope } from '@oes/common/authorization'
 
 const IDENTITY_QUERY_SERVICE_NAME = 'IdentityQueryService'
 const AUTH_SERVICE_AUDIENCE = 'urn:oes:service:identity-service'
 const AUTH_INTERNAL_PERMISSION = 'identity.internal.integration_machine.resolve'
-const MACHINE_PRINCIPAL_RESOLVE_PERMISSION = 'identity.internal.machine_principal.resolve'
+const AUTH_LOGIN_ACCOUNT_RESOLVE_PERMISSION = 'identity.internal.auth_login_account.resolve'
 
 @Injectable()
 export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleInit {
@@ -121,16 +125,19 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
 
   async getAvailableAccountsByUserId(userId: string): Promise<AccountCandidateSummary[]> {
     try {
-      const response = await safeGrpcCall<GetAccountsByUserIdResponse>(
-        this.identityQueryService.getAccountsByUserId(
+      const response = await safeGrpcCall<ListAuthLoginAccountCandidatesResponse>(
+        this.identityQueryService.listAuthLoginAccountCandidates(
           {
             userId
-          } as GetAccountsByUserIdRequest,
-          await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])
+          } as ListAuthLoginAccountCandidatesRequest,
+          await this.trusted.forInternalCall(
+            'identity-service',
+            AUTH_LOGIN_ACCOUNT_RESOLVE_PERMISSION
+          )
         ),
         {
           caller: 'auth-service',
-          method: 'IdentityQueryService.getAccountsByUserId'
+          method: 'IdentityQueryService.listAuthLoginAccountCandidates'
         }
       )
 
@@ -180,22 +187,56 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
     }
   }
 
+  async resolveAuthLoginAccount(
+    userId: string,
+    accountId: string
+  ): Promise<IdentityAccountSummary | null> {
+    try {
+      const response = await safeGrpcCall<ResolveAuthLoginAccountResponse>(
+        this.identityQueryService.resolveAuthLoginAccount(
+          { userId, accountId } as ResolveAuthLoginAccountRequest,
+          await this.trusted.forInternalCall(
+            'identity-service',
+            AUTH_LOGIN_ACCOUNT_RESOLVE_PERMISSION
+          )
+        ),
+        { caller: 'auth-service', method: 'IdentityQueryService.resolveAuthLoginAccount' }
+      )
+      const account = response.account
+      if (!account?.accountId || account.userId !== userId) return null
+      return {
+        accountId: account.accountId,
+        userId: account.userId,
+        tenantId: this.normalizeTenantId(account.tenantId),
+        scopeLevel: this.normalizeScopeLevel(account.scopeLevel),
+        displayName: account.displayName ?? '',
+        isEnabled: account.accountEnabled ?? false
+      }
+    } catch (error) {
+      this.rethrowIfInfrastructureError(error, 'resolveAuthLoginAccount', { userId, accountId })
+      throw error
+    }
+  }
+
   async resolveEmployeeLoginAccount(input: {
     tenantId: string
     employeeId: string
   }): Promise<EmployeeLoginAccountSummary | null> {
     try {
-      const response = await safeGrpcCall<ResolveEmployeeLoginAccountResponse>(
-        this.identityQueryService.resolveEmployeeLoginAccount(
+      const response = await safeGrpcCall<ResolveAuthEmployeeLoginAccountResponse>(
+        this.identityQueryService.resolveAuthEmployeeLoginAccount(
           {
             tenantId: input.tenantId,
             employeeId: input.employeeId
-          } as ResolveEmployeeLoginAccountRequest,
-          await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])
+          } as ResolveAuthEmployeeLoginAccountRequest,
+          await this.trusted.forInternalCall(
+            'identity-service',
+            AUTH_LOGIN_ACCOUNT_RESOLVE_PERMISSION
+          )
         ),
         {
           caller: 'auth-service',
-          method: 'IdentityQueryService.resolveEmployeeLoginAccount'
+          method: 'IdentityQueryService.resolveAuthEmployeeLoginAccount'
         }
       )
 
@@ -243,6 +284,9 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
     bindingId: string
     bindingVersion: bigint
     workloadSpiffeId: string
+    requestId?: string
+    traceparent?: string
+    tracestate?: string
   }): Promise<{
     allowed: boolean
     reasonCode?: string
@@ -260,10 +304,18 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
     tenantId?: string
     orgId?: string
   }> {
-    const metadata = await this.trusted.forInternalCall(
-      'identity-service',
-      MACHINE_PRINCIPAL_RESOLVE_PERMISSION
-    )
+    const correlation =
+      input.requestId && input.traceparent
+        ? {
+            requestId: input.requestId,
+            traceparent: input.traceparent,
+            ...(input.tracestate ? { tracestate: input.tracestate } : {})
+          }
+        : inboundExecutionTokenCredentialScope.requireCorrelation()
+    const metadata = new Metadata()
+    metadata.set('x-request-id', correlation.requestId)
+    metadata.set('traceparent', correlation.traceparent)
+    if (correlation.tracestate) metadata.set('tracestate', correlation.tracestate)
     const response = await safeGrpcCall<ResolveMachinePrincipalForAuthResponse>(
       this.identityQueryService.resolveMachinePrincipalForAuth(
         {

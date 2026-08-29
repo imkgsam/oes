@@ -42,11 +42,12 @@ import { PrismaUserRepository } from '../../infrastructure/repositories/prisma/p
 import { PrismaIdentityAuditRepository } from '../../infrastructure/repositories/prisma/prisma.identity-audit.repository'
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
 import { IdentityQueryGrpcController } from '../../interfaces/grpc/identity-query.grpc.controller'
+import { IdentityTrustedExecutionModule } from '../identity-trusted-execution.module'
 
 const IDENTITY_SERVICE_AUDIENCE = 'urn:oes:service:identity-service'
 
 @Module({
-  imports: [CqrsModule, PrismaModule],
+  imports: [CqrsModule, PrismaModule, IdentityTrustedExecutionModule],
   providers: [
     {
       provide: SYMBOLS.REPO.USER,

@@ -3,16 +3,20 @@ import { APP_GUARD } from '@nestjs/core'
 import { ConfigModule } from '@nestjs/config'
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
 import { CommonJwtModule } from '@oes/common/auth'
-import { GatewayPermissionGuard } from '@oes/common/authorization'
+import {
+  GATEWAY_PERMISSION_TRUSTED_METADATA_PROVIDER,
+  GatewayPermissionGuard
+} from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { resolveCommonContractPath, resolveCommonProtoPath } from '@oes/common/contracts'
 import { LoggingModule } from '@oes/common/logging'
 import { RegistryModule } from '@oes/common/registry'
-import { GrpcTransportModule } from '@oes/common/transport'
+import { getGrpcClientToken, GrpcTransportModule } from '@oes/common/transport'
 import { gatewayConfig } from './config/gateway.config'
 import { HealthModule } from './health/health.module'
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware'
 import { createGatewayGuardProviders, createGatewaySourceCredentialProviders } from './security'
+import { GatewayPermissionTrustedMetadata } from './common/grpc/gateway-permission-trusted-metadata.provider'
 import { AuthBffModule } from './modules/auth-bff/auth-bff.module'
 import { BrowserActivityBffModule } from './modules/browser-activity-bff/browser-activity-bff.module'
 import { PdaBffModule } from './modules/pda-bff/pda-bff.module'
@@ -38,6 +42,7 @@ import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
 import { ExternalApiModule } from './common/external-api/external-api.module'
 import { GatewayTrustedGrpcExecutionModule } from './common/grpc/gateway-trusted-grpc-execution.module'
 import { GatewayFoundationTrustedGrpcModule } from './infrastructure/grpc/trusted-auth.grpc.client'
+import { TrustedPermissionGrpcClient } from './infrastructure/grpc/trusted-permission.grpc.client'
 
 /** resolveTenantOrgGrpcUrl avoids localhost IPv6 ambiguity for the local tenant-org fallback endpoint. */
 export function resolveTenantOrgGrpcUrl() {
@@ -166,6 +171,18 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
           loader: siteGrpcLoaderOptions,
           url: resolveSiteGrpcUrl()
         },
+        [SERVICE_NAMES.PERMISSION]: {
+          serviceName: SERVICE_NAMES.PERMISSION,
+          protoPath: permissionGrpcProtoPaths,
+          packageName: 'permission_service',
+          loader: {
+            includeDirs: [resolveCommonContractPath(), resolveCommonContractPath('permission_service')]
+          },
+          url:
+            process.env.PERMISSION_SERVICE_HOST && process.env.PERMISSION_SERVICE_PORT
+              ? `${process.env.PERMISSION_SERVICE_HOST}:${process.env.PERMISSION_SERVICE_PORT}`
+              : 'permission-service:50051'
+        },
         [SERVICE_NAMES.TERMINAL_DEVICE]: {
           serviceName: SERVICE_NAMES.TERMINAL_DEVICE,
           protoPath: resolveCommonProtoPath('terminal_device_service/terminal_device.proto'),
@@ -175,6 +192,7 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
       },
       defaultPoolConfig: { minSize: 3, maxSize: 3 }
     }),
+
 
     ThrottlerModule.forRoot({
       throttlers: [
@@ -212,6 +230,16 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
   ],
   providers: [
     ...createGatewaySourceCredentialProviders(),
+    GatewayPermissionTrustedMetadata,
+    {
+      provide: GATEWAY_PERMISSION_TRUSTED_METADATA_PROVIDER,
+      useExisting: GatewayPermissionTrustedMetadata
+    },
+    {
+      provide: getGrpcClientToken(SERVICE_NAMES.PERMISSION),
+      useFactory: (client: TrustedPermissionGrpcClient) => client.getClient(),
+      inject: [TrustedPermissionGrpcClient]
+    },
     GatewayPermissionGuard,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     ...createGatewayGuardProviders(),

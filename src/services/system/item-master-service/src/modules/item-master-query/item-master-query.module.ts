@@ -4,10 +4,11 @@ import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
 import { ItemMasterQueryGrpcController } from '../../interfaces/grpc/item-master-query.grpc.controller'
 import { ItemMasterInternalQueryGrpcController } from '../../interfaces/grpc/item-master-internal-query.grpc.controller'
 import { ItemMasterVerifiedTenantContextGuard } from '../../interfaces/grpc/item-master-rpc-context.guard'
+import { ItemMasterTrustedExecutionModule } from '../item-master-trusted-execution.module'
 
 /** ItemMasterQueryModule wires Contract V2 query RPCs to the V2 application read service. */
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, ItemMasterTrustedExecutionModule],
   providers: [ItemMasterQueryV2Service, ItemMasterVerifiedTenantContextGuard],
   controllers: [ItemMasterQueryGrpcController, ItemMasterInternalQueryGrpcController]
 })

@@ -2,9 +2,9 @@ import { Controller, Inject, UseFilters, UseGuards } from '@nestjs/common'
 import {
   AuthorizeBusinessRpc,
   AuthorizeSelfServiceRpc,
-  getAuthenticatedGrpcRequestContext,
-  TrustedExecutionGuard
+  getAuthenticatedGrpcRequestContext
 } from '@oes/common/authorization'
+import { BrowserActivityTrustedExecutionGuard } from './browser-activity-trusted-execution.guard'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   AppendVisitSessionsRequest,
@@ -104,7 +104,7 @@ export const BROWSER_ACTIVITY_APPLICATION = Symbol('BROWSER_ACTIVITY_APPLICATION
 
 @Controller()
 @UseFilters(GrpcExceptionFilter)
-@UseGuards(TrustedExecutionGuard)
+@UseGuards(BrowserActivityTrustedExecutionGuard)
 @BrowserActivityServiceControllerMethods()
 // BrowserActivityGrpcController exposes browser-activity-service use cases over the shared gRPC contract.
 export class BrowserActivityGrpcController implements BrowserActivityServiceController {

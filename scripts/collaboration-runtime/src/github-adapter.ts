@@ -134,16 +134,17 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
         fail('MERGE_GROUP_NOT_SYNTHESIZED', truth.mergeQueueEntry.headSha)
       this.verifyRemoteAncestor(binding, binding.integrationBase, truth.mergeQueueEntry.baseSha)
     }
-    if (binding.action === 'publish-pr' && truth.pullRequest && truth.pullRequest.state !== 'OPEN')
-      fail('PULL_REQUEST_REF_REUSED', String(truth.pullRequest.number))
-    if (truth.branchHead && truth.branchHead !== binding.candidateSha)
-      fail('REMOTE_OWNER_BRANCH_DIVERGED', truth.branchHead)
     if (
       binding.pullRequest.number !== null &&
       truth.pullRequest?.number !== binding.pullRequest.number
     )
       fail('PULL_REQUEST_NUMBER_MISMATCH', String(truth.pullRequest?.number))
-    if (truth.pullRequest) this.requireExactPull(binding, truth.pullRequest)
+    if (binding.action === 'publish-pr') this.requirePublishSource(binding, truth)
+    else {
+      if (truth.branchHead && truth.branchHead !== binding.candidateSha)
+        fail('REMOTE_OWNER_BRANCH_DIVERGED', truth.branchHead)
+      if (truth.pullRequest) this.requireExactPull(binding, truth.pullRequest)
+    }
   }
 
   /** Reads exact branch, pull, queue, check, review and main state without remote mutation. */
@@ -210,8 +211,15 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
           ['push', 'origin', `${binding.candidateSha}:refs/heads/${binding.headRef}`],
           cwd
         )
-      else if (truth.branchHead !== binding.candidateSha)
-        fail('REMOTE_OWNER_BRANCH_DIVERGED', truth.branchHead)
+      else if (truth.branchHead !== binding.candidateSha) {
+        this.requirePublishSource(binding, truth)
+        checked(
+          this.runner,
+          this.git,
+          ['push', 'origin', `${binding.candidateSha}:refs/heads/${binding.headRef}`],
+          cwd
+        )
+      }
       const currentPull = this.readPull(binding)
       if (!currentPull)
         checked(
@@ -235,6 +243,28 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
           ],
           cwd
         )
+      else {
+        this.requireMutableDraftPull(binding, currentPull)
+        if (
+          currentPull.title !== binding.pullRequest.title ||
+          currentPull.body !== binding.pullRequest.body
+        )
+          checked(
+            this.runner,
+            this.gh,
+            [
+              'api',
+              '--method',
+              'PATCH',
+              `repos/${binding.repositorySlug}/pulls/${currentPull.number}`,
+              '-f',
+              `title=${binding.pullRequest.title}`,
+              '-f',
+              `body=${binding.pullRequest.body}`
+            ],
+            cwd
+          )
+      }
     } else if (binding.action === 'merge-pr') {
       this.requireMergeGate(binding, truth)
       if (binding.admission?.mode === 'merge-queue')
@@ -314,8 +344,11 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
         truth.branchHead === binding.candidateSha &&
         truth.pullRequest?.state === 'OPEN' &&
         truth.pullRequest.draft &&
+        (binding.pullRequest.number === null ||
+          truth.pullRequest.number === binding.pullRequest.number) &&
         truth.pullRequest.headSha === binding.candidateSha &&
         truth.pullRequest.baseRef === 'main' &&
+        truth.pullRequest.headRef === binding.headRef &&
         truth.pullRequest.title === binding.pullRequest.title &&
         truth.pullRequest.body === binding.pullRequest.body
       return {
@@ -428,6 +461,52 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
       pull.body !== binding.pullRequest.body
     )
       fail('PULL_REQUEST_BINDING_MISMATCH', String(pull.number))
+  }
+
+  /** Admits only an exact Draft PR whose current head is the candidate or its strict local ancestor. */
+  private requirePublishSource(binding: RemoteDriverBinding, truth: RemoteTruth): void {
+    const pull = truth.pullRequest
+    if (!pull) {
+      if (truth.branchHead !== null && truth.branchHead !== binding.candidateSha)
+        fail('REMOTE_OWNER_BRANCH_DIVERGED', truth.branchHead)
+      return
+    }
+    if (pull.state !== 'OPEN') fail('PULL_REQUEST_REF_REUSED', String(pull.number))
+    if (
+      pull.draft !== true ||
+      pull.baseRef !== 'main' ||
+      pull.headRef !== binding.headRef ||
+      pull.headSha !== truth.branchHead ||
+      pull.title !== binding.pullRequest.title
+    )
+      fail('PULL_REQUEST_BINDING_MISMATCH', String(pull.number))
+    if (truth.branchHead === null) fail('PULL_REQUEST_BINDING_MISMATCH', String(pull.number))
+    if (truth.branchHead !== binding.candidateSha)
+      this.requireLocalFastForward(binding, truth.branchHead)
+  }
+
+  /** Requires the post-push Draft PR identity before changing only its bound presentation. */
+  private requireMutableDraftPull(binding: RemoteDriverBinding, pull: PullRequestTruth): void {
+    if (
+      (binding.pullRequest.number !== null && pull.number !== binding.pullRequest.number) ||
+      pull.state !== 'OPEN' ||
+      pull.draft !== true ||
+      pull.baseRef !== 'main' ||
+      pull.headRef !== binding.headRef ||
+      pull.headSha !== binding.candidateSha
+    )
+      fail('PULL_REQUEST_BINDING_MISMATCH', String(pull.number))
+  }
+
+  /** Proves the remote owner head is a strict locally known ancestor of the new candidate. */
+  private requireLocalFastForward(binding: RemoteDriverBinding, remoteHead: string): void {
+    if (remoteHead === binding.candidateSha) return
+    const result = this.runner.run(
+      this.git,
+      ['merge-base', '--is-ancestor', remoteHead, binding.candidateSha],
+      binding.repositoryRoot
+    )
+    if (result.exitCode !== 0) fail('REMOTE_OWNER_BRANCH_DIVERGED', remoteHead)
   }
 
   /** Requires all non-Human merge gates visible before admission. */

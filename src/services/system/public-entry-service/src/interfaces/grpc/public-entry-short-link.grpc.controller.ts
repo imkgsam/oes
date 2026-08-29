@@ -30,9 +30,9 @@ import {
 import { Controller, UseGuards } from '@nestjs/common'
 import {
   AuthorizeBusinessRpc,
-  getAuthenticatedGrpcRequestContext,
-  TrustedExecutionGuard
+  getAuthenticatedGrpcRequestContext
 } from '@oes/common/authorization'
+import { PublicEntryTrustedExecutionGuard } from './public-entry-trusted-execution.guard'
 import { ShortLinkApplicationService } from '../../application/services/short-link-application.service'
 import { PublicRedirectService } from '../../application/services/public-redirect.service'
 import {
@@ -44,7 +44,7 @@ import {
 
 // PublicEntryShortLinkGrpcController maps public-entry gRPC contract calls to ShortLink application services.
 @Controller()
-@UseGuards(TrustedExecutionGuard)
+@UseGuards(PublicEntryTrustedExecutionGuard)
 @PublicEntryShortLinkServiceControllerMethods()
 export class PublicEntryShortLinkGrpcController implements PublicEntryShortLinkServiceController {
   constructor(

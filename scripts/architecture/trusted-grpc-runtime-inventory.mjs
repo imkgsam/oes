@@ -128,6 +128,24 @@ function objectProperty(object, name) {
   })
 }
 
+/** Accepts only a direct call to the shared fail-closed client credential factory. */
+export function isSharedGrpcClientCredentialsCall(initializer) {
+  return (
+    ts.isCallExpression(initializer) &&
+    ts.isIdentifier(initializer.expression) &&
+    initializer.expression.text === 'createGrpcClientCredentials'
+  )
+}
+
+/** Resolves the two exact Compose inheritance paths that retain trusted service defaults. */
+export function inheritsTrustedServiceDefaults(serviceBlock, eventDefaults) {
+  if (serviceBlock.includes('<<: *service-defaults')) return true
+  return (
+    serviceBlock.includes('<<: *event-service-defaults') &&
+    eventDefaults.includes('<<: *service-defaults')
+  )
+}
+
 /** Finds each production gRPC client registration that omits the shared fail-closed mTLS factory. */
 async function readPlaintextClientSources() {
   const files = (await listFiles(servicesRoot)).filter(
@@ -157,10 +175,7 @@ async function readPlaintextClientSources() {
             options && ts.isObjectLiteralExpression(options.initializer)
               ? objectProperty(options.initializer, 'credentials')
               : undefined
-          if (
-            !credentials ||
-            !/^createGrpcClientCredentials\(\)$/u.test(credentials.initializer.getText(sourceFile))
-          ) {
+          if (!credentials || !isSharedGrpcClientCredentialsCall(credentials.initializer)) {
             const line = sourceFile.getLineAndCharacterOfPosition(transport.getStart()).line + 1
             findings.push(`${relative(repositoryRoot, path)}:${line}`)
           }
@@ -215,6 +230,7 @@ function composeBlock(source, header, nextIndent = 0) {
 async function readComposeMismatches(listeners) {
   const source = await readFile(composePath, 'utf8')
   const defaults = composeBlock(source, 'x-service-defaults') ?? ''
+  const eventDefaults = composeBlock(source, 'x-event-service-defaults') ?? ''
   const environment = composeBlock(source, 'x-service-environment') ?? ''
   const services = composeBlock(source, 'services') ?? ''
   const trustRoot = '/var/run/oes-grpc-trust'
@@ -242,8 +258,10 @@ async function readComposeMismatches(listeners) {
       composeTrustMismatches.push(`${name}:missing-service`)
       continue
     }
+    if (!inheritsTrustedServiceDefaults(block, eventDefaults)) {
+      composeTrustMismatches.push(`${name}:trusted-service-defaults`)
+    }
     const workloadRequirements = [
-      '<<: *service-defaults',
       '<<: *service-environment',
       `MODULE_NAME: ${name}`,
       `OES_GRPC_TLS_CERT_PATH: ${trustRoot}/${name}/current/cert.pem`,
@@ -261,7 +279,10 @@ async function readComposeMismatches(listeners) {
     ) {
       composePortMismatches.push(`${name}:${listener.port}`)
     }
-    const targetVariable = `${name.replace(/-service$/u, '').replaceAll('-', '_').toUpperCase()}_SERVICE_PORT`
+    const targetVariable = `${name
+      .replace(/-service$/u, '')
+      .replaceAll('-', '_')
+      .toUpperCase()}_SERVICE_PORT`
     const targetMatch = gateway.match(new RegExp(`^      ${targetVariable}: (\\d{5})$`, 'mu'))
     if (targetMatch && targetMatch[1] !== listener.port) {
       composeGatewayTargetMismatches.push(`${name}:${targetMatch[1]}!=${listener.port}`)
@@ -378,4 +399,4 @@ async function main() {
   if (failures.length > 0) throw new Error(failures.join('\n'))
 }
 
-await main()
+if (resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main()

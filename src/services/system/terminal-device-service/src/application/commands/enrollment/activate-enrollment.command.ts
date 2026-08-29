@@ -89,7 +89,7 @@ export class ActivateEnrollmentHandler implements ICommandHandler<ActivateEnroll
     private readonly terminalDeviceRepository: TerminalDeviceRepository,
     @Inject(SYMBOLS.REPO.ACTIVATION)
     private readonly activationRepository: TerminalDeviceActivationRepository,
-    private readonly credentialVerifier = new TerminalDeviceCredentialVerifierService()
+    private readonly credentialVerifier: TerminalDeviceCredentialVerifierService
   ) {}
 
   // Executes activation, rejecting invalid lifecycle states without recovering existing devices.

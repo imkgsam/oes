@@ -70,10 +70,17 @@ describe('ExecutionTokenModule authority wiring', () => {
     })
     const verifier = new AuthSessionSourceCredentialVerifier({ execute } as any)
 
-    const result = await verifier.verify('verified.session.access-token', {
-      spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
-      certificateThumbprint: 'A'.repeat(43)
-    })
+    const result = await verifier.verify(
+      'verified.session.access-token',
+      {
+        spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
+        certificateThumbprint: 'A'.repeat(43)
+      },
+      {
+        requestId: 'request-session-source',
+        traceparent: '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01'
+      }
+    )
 
     expect(execute.mock.calls[0][0]).toEqual(
       expect.objectContaining({ accessToken: 'verified.session.access-token' })
@@ -102,10 +109,17 @@ describe('ExecutionTokenModule authority wiring', () => {
       } as any)
 
       await expect(
-        verifier.verify('verified.session.access-token', {
-          spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
-          certificateThumbprint: 'A'.repeat(43)
-        })
+        verifier.verify(
+          'verified.session.access-token',
+          {
+            spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
+            certificateThumbprint: 'A'.repeat(43)
+          },
+          {
+            requestId: 'request-session-source',
+            traceparent: '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01'
+          }
+        )
       ).rejects.toThrow('session terminal')
     }
   )
@@ -134,7 +148,8 @@ describe('ExecutionTokenModule authority wiring', () => {
         spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/auth-service',
         certificateThumbprint: 'B'.repeat(43)
       },
-      'policy-v1'
+      'policy-v1',
+      {} as any
     )
 
     const result = await resolver.resolve({
@@ -167,6 +182,9 @@ describe('ExecutionTokenModule authority wiring', () => {
   })
 
   it('uses the protected principal decision output after an independently granted bootstrap Token', async () => {
+    process.env.AUTH_FOUNDATION_MACHINE_PRINCIPAL_ID = 'auth-machine-1'
+    process.env.AUTH_FOUNDATION_MACHINE_WORKLOAD_BINDING_ID = 'auth-binding-1'
+    process.env.AUTH_FOUNDATION_MACHINE_WORKLOAD_BINDING_VERSION = '2'
     const resolveWorkloadIssuance = jest.fn().mockReturnValue(
       of({
         allowed: true,
@@ -174,10 +192,9 @@ describe('ExecutionTokenModule authority wiring', () => {
         deniedPermissionCodes: [],
         originalWorkloadSpiffeId: 'spiffe://local.oes.internal/ns/oes/sa/auth-service',
         targetAudience: 'urn:oes:service:permission-service',
-        scopeLevel: AuthorizationScopeLevelProto.AUTHORIZATION_SCOPE_LEVEL_PROTO_TENANT,
-        tenantId: 'tenant-1',
-        principalType: AuthorizationPrincipalTypeProto.AUTHORIZATION_PRINCIPAL_TYPE_PROTO_HUMAN,
-        principalId: 'account-1',
+        scopeLevel: AuthorizationScopeLevelProto.AUTHORIZATION_SCOPE_LEVEL_PROTO_SYSTEM,
+        principalType: AuthorizationPrincipalTypeProto.AUTHORIZATION_PRINCIPAL_TYPE_PROTO_MACHINE,
+        principalId: 'auth-machine-1',
         requestedPermissionCodes: ['permission.internal.principal_authorization.resolve'],
         decisionReference: 'bootstrap-decision-1',
         authzVersion: 'bootstrap-authz-1'
@@ -208,7 +225,20 @@ describe('ExecutionTokenModule authority wiring', () => {
         spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/auth-service',
         certificateThumbprint: 'B'.repeat(43)
       },
-      'policy-v1'
+      'policy-v1',
+      {
+        resolveMachinePrincipalForAuth: jest.fn().mockResolvedValue({
+          allowed: true,
+          principalId: 'auth-machine-1',
+          principalType: 'MACHINE',
+          principalLifecycleStatus: 'ACTIVE',
+          bindingId: 'auth-binding-1',
+          bindingVersion: 2n,
+          bindingStatus: 'ACTIVE',
+          workloadSpiffeId: 'spiffe://local.oes.internal/ns/oes/sa/auth-service',
+          scopeLevel: 'SYSTEM'
+        })
+      } as any
     )
 
     const result = await resolver.resolve({

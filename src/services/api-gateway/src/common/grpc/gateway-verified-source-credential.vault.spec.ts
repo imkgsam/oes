@@ -40,6 +40,19 @@ describe('GatewayVerifiedSourceCredentialVault', () => {
     ).toBe(true)
   })
 
+  it('borrows an admitted credential without consuming the later handler scope', () => {
+    const vault = new GatewayVerifiedSourceCredentialVault()
+    const accessor = new AsyncLocalTransportPrivateSourceCredentialAccessor()
+    const request = {}
+    vault.admitHumanSession(
+      request,
+      new TransportPrivateSourceCredentialIssuer().issueVerifiedSessionAccessCredential('opaque')
+    )
+
+    expect(vault.run(request, accessor, () => accessor.useCurrent(() => 'scoped'))).toBe('scoped')
+    expect(vault.consume(request)).toBeDefined()
+  })
+
   it('cleans later-guard rejections and terminal response events idempotently', () => {
     const vault = new GatewayVerifiedSourceCredentialVault()
     const request = {}

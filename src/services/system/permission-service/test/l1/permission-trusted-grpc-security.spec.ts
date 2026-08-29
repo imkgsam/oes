@@ -1,15 +1,19 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { Metadata } from '@grpc/grpc-js'
 import { EventEmitterModule } from '@nestjs/event-emitter'
 import { Test, TestingModule } from '@nestjs/testing'
 import {
   AuthorizationModule as CommonAuthorizationModule,
-  ExecutionTokenVerifier
+  ExecutionTokenVerifier,
+  getRpcAuthorizationModeDeclaration
 } from '@oes/common/authorization'
 import { LoggingModule } from '@oes/common/logging'
 import { createGrpcServerCredentials, GrpcWorkloadIdentityProvider } from '@oes/common/transport'
 import { PrismaService } from '../../src/infrastructure/prisma/prisma.service'
 import { AuthorizationModule } from '../../src/modules/authorization/authorization.module'
+import { PermissionAccessSummaryGrpcController } from '../../src/interfaces/grpc/permission-access-summary.grpc.controller'
+import { PermissionManagementGrpcController } from '../../src/interfaces/grpc/permission-management.grpc.controller'
 import {
   PERMISSION_AUDIENCE,
   PermissionFoundationTrustedExecutionGuard
@@ -34,6 +38,46 @@ describe('permission-service trusted gRPC security', () => {
     const source = readFileSync(join(__dirname, '../../src/main.ts'), 'utf8')
     expect(source).toMatch(/credentials:\s*createGrpcServerCredentials\(\)/)
     expect(source).not.toMatch(/OES_GRPC_TLS_ENABLED/)
+  })
+
+  it.each([
+    ['getAccountAccessSummary', 'permission.internal.account_access_summary.resolve'],
+    ['resolveAccountNavigation', 'permission.internal.account_navigation.resolve']
+  ] as const)('admits PDA only to foundation INTERNAL method %s', async (method, permission) => {
+    const pda = evaluatePermissionTerminal(
+      PermissionAccessSummaryGrpcController.prototype,
+      method,
+      'PDA'
+    )
+    expect(pda.declaration).toEqual({ mode: 'INTERNAL', permissions: { all: [permission] } })
+    await expect(pda.decision).resolves.toBe(true)
+    await expect(
+      evaluatePermissionTerminal(PermissionAccessSummaryGrpcController.prototype, method, 'WEB')
+        .decision
+    ).resolves.toBe(true)
+    await expect(
+      evaluatePermissionTerminal(PermissionAccessSummaryGrpcController.prototype, method, 'KIOSK')
+        .decision
+    ).rejects.toThrow('Permission HUMAN execution terminal is not permitted')
+  })
+
+  it.each([
+    ['listPermissionsPaged', 'permission management'],
+    ['listRoleInstances', 'role management'],
+    ['listNavigationEntries', 'navigation management'],
+    ['getRoleTerminalAccess', 'terminal-policy management']
+  ] as const)('keeps %s (%s) BUSINESS admission WEB-only', async (method) => {
+    const web = evaluatePermissionTerminal(
+      PermissionManagementGrpcController.prototype,
+      method,
+      'WEB'
+    )
+    expect(web.declaration.mode).toBe('BUSINESS')
+    await expect(web.decision).resolves.toBe(true)
+    await expect(
+      evaluatePermissionTerminal(PermissionManagementGrpcController.prototype, method, 'PDA')
+        .decision
+    ).rejects.toThrow('Permission HUMAN execution terminal is not permitted')
   })
 
   it.each([
@@ -68,6 +112,57 @@ describe('permission-service trusted gRPC security', () => {
     }
   )
 })
+
+/** Evaluates one real Permission declaration with an exact Gateway HUMAN token terminal. */
+function evaluatePermissionTerminal(target: object, method: string, terminal: string) {
+  const declaration = getRpcAuthorizationModeDeclaration(target, method)
+  if (!declaration) throw new Error(`Missing Permission RPC declaration for ${method}`)
+  const metadata = new Metadata()
+  metadata.set('authorization', 'Bearer e30.e30.e30')
+  metadata.set('x-request-id', 'request-1')
+  metadata.set('traceparent', '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01')
+  const data = {}
+  const reflector = { getAllAndOverride: jest.fn(() => declaration) }
+  const verifier = {
+    verify: jest.fn(async () => ({
+      issuer: 'https://auth.local.oes.example',
+      audience: PERMISSION_AUDIENCE,
+      subject: 'account-1',
+      clientId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
+      tokenId: 'token-1',
+      issuedAt: 1,
+      notBefore: 1,
+      expiresAt: 2,
+      certificateThumbprint: 'A'.repeat(43),
+      principalType: 'HUMAN',
+      permissionCodes:
+        'all' in declaration.permissions
+          ? [...declaration.permissions.all]
+          : [...declaration.permissions.any],
+      sessionTerminal: terminal
+    }))
+  }
+  const identity = {
+    getVerifiedWorkloadIdentity: jest.fn(async () => ({
+      spiffeId: 'spiffe://local.oes.internal/ns/oes/sa/api-gateway',
+      certificateThumbprint: 'A'.repeat(43)
+    }))
+  }
+  const handler = jest.fn()
+  const context = {
+    getHandler: jest.fn(() => handler),
+    getClass: jest.fn(),
+    getArgByIndex: jest.fn(() => ({ getAuthContext: jest.fn() })),
+    switchToRpc: jest.fn(() => ({ getContext: () => metadata, getData: () => data }))
+  }
+  const guard = new PermissionFoundationTrustedExecutionGuard(
+    reflector as never,
+    verifier as never,
+    identity as never
+  )
+
+  return { declaration, decision: guard.canActivate(context as never) }
+}
 
 /** Compiles one real controller-owner module so Nest must construct every controller guard. */
 function compileControllerOwner(ownerModule: typeof AuthorizationModule): Promise<TestingModule> {

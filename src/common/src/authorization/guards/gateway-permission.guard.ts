@@ -14,14 +14,20 @@ import { AppLogger } from '../../logging/app-logger.service'
 import { PermissionCheckServiceClient } from '../../generated/permission_service/permission_check'
 import { InjectGrpcClient } from '../../transport/grpc/grpc-client.decorator'
 import { safeGrpcCall } from '../../transport/grpc/safe-grpc-call'
-import { GRPC_METADATA_PROPAGATION_FACTORY, REQUIRE_PERMISSIONS_METADATA_KEY } from '../constants'
-import { RequirePermissionsMetadata } from '../decorators'
+import {
+  GATEWAY_ROUTE_SESSION_TERMINALS_METADATA_KEY,
+  GATEWAY_PERMISSION_TRUSTED_METADATA_PROVIDER,
+  REQUIRE_PERMISSIONS_METADATA_KEY
+} from '../constants'
+import type {
+  GatewayRouteSessionTerminalsMetadata,
+  RequirePermissionsMetadata
+} from '../decorators'
 import { getPermissionCodeDefinition } from '../permission-codes'
 import type { PermissionDefinition, PermissionScopeLevel } from '../permission-codes'
-import { GrpcMetadataPropagationFactory } from '../types'
+import { TRUSTED_SESSION_TERMINALS } from '../trusted-execution/trusted-execution-context'
 
 const PERMISSION_CHECK_TIMEOUT_MS = 3000
-const GATEWAY_SERVICE_NAME = 'api-gateway'
 const TENANT_TARGET_ROUTE_PATTERN = /(?:^|\/):tenantId(?=\/|$)/
 
 type GatewaySubjectScope = Extract<PermissionScopeLevel, 'SYSTEM' | 'TENANT'>
@@ -32,6 +38,8 @@ type ResolvedRoutePermission = {
 }
 
 type GatewayPermissionRequest = {
+  headers?: Record<string, unknown>
+  requestId?: string
   route?: { path?: unknown }
   user?: {
     holderId?: string
@@ -40,8 +48,13 @@ type GatewayPermissionRequest = {
     sub?: string
     scopeLevel?: unknown
     tenantId?: unknown
+    terminal?: unknown
     tid?: unknown
   }
+}
+
+export interface GatewayPermissionTrustedMetadataProvider {
+  create(request: GatewayPermissionRequest): Promise<import('@grpc/grpc-js').Metadata>
 }
 
 /** Enforces Gateway route grants and canonical Permission Code scope eligibility. */
@@ -54,8 +67,8 @@ export class GatewayPermissionGuard implements CanActivate, OnModuleInit {
     private readonly permissionClient: ClientGrpc,
     private readonly reflector: Reflector,
     private readonly logger: AppLogger,
-    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
-    private readonly metadataFactory: GrpcMetadataPropagationFactory
+    @Inject(GATEWAY_PERMISSION_TRUSTED_METADATA_PROVIDER)
+    private readonly trustedMetadata: GatewayPermissionTrustedMetadataProvider
   ) {}
 
   /** Resolves the generated Permission client from the deployment-owned gRPC channel. */
@@ -77,6 +90,16 @@ export class GatewayPermissionGuard implements CanActivate, OnModuleInit {
       return Boolean(isPublic) || !this.isTenantTargetRoute(request)
     }
 
+    const routeTerminals = this.reflector.getAllAndOverride<unknown>(
+      GATEWAY_ROUTE_SESSION_TERMINALS_METADATA_KEY,
+      reflectionTargets
+    )
+    if (
+      routeTerminals !== undefined &&
+      !this.isRouteTerminalAdmitted(routeTerminals, request.user?.terminal)
+    )
+      return false
+
     const requirement = this.resolveRequirement(metadata)
     if (!requirement) return false
     const routePermissions = this.resolveRoutePermissions(requirement.permissions)
@@ -87,7 +110,7 @@ export class GatewayPermissionGuard implements CanActivate, OnModuleInit {
 
     const results = await Promise.all(
       routePermissions.map((permission) =>
-        this.checkSingle(accountId, permission, subject.scopeLevel, subject.tenantId)
+        this.checkSingle(request, accountId, permission, subject.scopeLevel, subject.tenantId)
       )
     )
 
@@ -136,6 +159,7 @@ export class GatewayPermissionGuard implements CanActivate, OnModuleInit {
 
   /** Calls Permission for one declared Code and combines its grant with local scope eligibility. */
   private async checkSingle(
+    request: GatewayPermissionRequest,
     accountId: string,
     permission: ResolvedRoutePermission,
     scopeLevel: GatewaySubjectScope,
@@ -146,7 +170,7 @@ export class GatewayPermissionGuard implements CanActivate, OnModuleInit {
       response = await safeGrpcCall(
         this.permissionSvc.checkPermission(
           { accountId, permissionCode: permission.code, ...(tenantId ? { tenantId } : {}) },
-          this.buildInternalMetadata()
+          await this.trustedMetadata.create(request)
         ),
         {
           timeoutMs: PERMISSION_CHECK_TIMEOUT_MS,
@@ -180,6 +204,26 @@ export class GatewayPermissionGuard implements CanActivate, OnModuleInit {
     }
 
     return value
+  }
+
+  /** Applies only an exact route terminal declaration and otherwise leaves admission to Permission. */
+  private isRouteTerminalAdmitted(value: unknown, terminal: unknown): boolean {
+    if (
+      !Array.isArray(value) ||
+      value.length === 0 ||
+      value.some(
+        (candidate) =>
+          !TRUSTED_SESSION_TERMINALS.includes(
+            candidate as (typeof TRUSTED_SESSION_TERMINALS)[number]
+          )
+      ) ||
+      new Set(value).size !== value.length ||
+      typeof terminal !== 'string'
+    )
+      return false
+    return (value as GatewayRouteSessionTerminalsMetadata).includes(
+      terminal as (typeof TRUSTED_SESSION_TERMINALS)[number]
+    )
   }
 
   /** Requires Permission's unchanged response to carry an explicit boolean decision. */
@@ -228,13 +272,6 @@ export class GatewayPermissionGuard implements CanActivate, OnModuleInit {
       code: 'PERMISSION_DECISION_UNAVAILABLE',
       message: 'Permission decision unavailable',
       details: { reason }
-    })
-  }
-
-  /** Builds internal service metadata for the existing Permission check RPC. */
-  private buildInternalMetadata() {
-    return this.metadataFactory.createInternalCallMetadata({
-      callerServiceName: GATEWAY_SERVICE_NAME
     })
   }
 

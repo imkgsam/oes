@@ -1,0 +1,65 @@
+[
+  {
+    "originalWorkloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/api-gateway",
+    "targetAudience": "urn:oes:service:permission-service",
+    "permissionCodes": [
+      "permission.internal.account_access_summary.resolve",
+      "permission.internal.account_navigation.resolve",
+      "permission.internal.permission.check",
+      "permission.internal.principal_authorization.resolve"
+    ],
+    "scopeLevel": "SYSTEM",
+    "policyVersion": "auth-login-owner-facts-v1"
+  },
+  {
+    "originalWorkloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/api-gateway",
+    "targetAudience": "urn:oes:service:terminal-device-service",
+    "permissionCodes": [
+      "terminal-device.internal.gateway.access.resolve",
+      "terminal-device.internal.gateway.diagnostic_log.record",
+      "terminal-device.internal.gateway.enrollment.activate",
+      "terminal-device.internal.gateway.heartbeat.record"
+    ],
+    "scopeLevel": "SYSTEM",
+    "policyVersion": "auth-login-owner-facts-v1"
+  },
+  {
+    "originalWorkloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/auth-service",
+    "targetAudience": "urn:oes:service:hr-service",
+    "permissionCodes": ["hr.internal.auth_login_employee.resolve"],
+    "scopeLevel": "SYSTEM",
+    "policyVersion": "auth-login-owner-facts-v1"
+  },
+  {
+    "originalWorkloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/auth-service",
+    "targetAudience": "urn:oes:service:identity-service",
+    "permissionCodes": ["identity.internal.auth_login_account.resolve"],
+    "scopeLevel": "SYSTEM",
+    "policyVersion": "auth-login-owner-facts-v1"
+  },
+  {
+    "originalWorkloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/auth-service",
+    "targetAudience": "urn:oes:service:permission-service",
+    "permissionCodes": [
+      "permission.internal.account_access_summary.resolve",
+      "permission.internal.account_terminal_access.resolve",
+      "permission.internal.principal_authorization.resolve"
+    ],
+    "scopeLevel": "SYSTEM",
+    "policyVersion": "auth-login-owner-facts-v1"
+  },
+  {
+    "originalWorkloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/auth-service",
+    "targetAudience": "urn:oes:service:tenant-org-service",
+    "permissionCodes": ["tenant_org.internal.auth_session_tenant_lifecycle.resolve"],
+    "scopeLevel": "SYSTEM",
+    "policyVersion": "auth-login-owner-facts-v1"
+  },
+  {
+    "originalWorkloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/collaboration-service",
+    "targetAudience": "urn:oes:service:permission-service",
+    "permissionCodes": ["permission.internal.account_access_summary.resolve"],
+    "scopeLevel": "SYSTEM",
+    "policyVersion": "auth-login-owner-facts-v1"
+  }
+]

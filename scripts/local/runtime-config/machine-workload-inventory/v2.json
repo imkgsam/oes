@@ -1,0 +1,68 @@
+{
+  "version": "2",
+  "entries": [
+    {
+      "inventoryEntryKey": "auth-service",
+      "displayName": "Auth Service",
+      "machineType": "INTERNAL_SERVICE",
+      "scopeLevel": "SYSTEM",
+      "workloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/auth-service"
+    },
+    {
+      "inventoryEntryKey": "api-gateway",
+      "displayName": "Api Gateway",
+      "machineType": "INTERNAL_SERVICE",
+      "scopeLevel": "SYSTEM",
+      "workloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/api-gateway"
+    },
+    {
+      "inventoryEntryKey": "crm-service",
+      "displayName": "Crm Service",
+      "machineType": "INTERNAL_SERVICE",
+      "scopeLevel": "SYSTEM",
+      "workloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/crm-service"
+    },
+    {
+      "inventoryEntryKey": "srm-service",
+      "displayName": "Srm Service",
+      "machineType": "INTERNAL_SERVICE",
+      "scopeLevel": "SYSTEM",
+      "workloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/srm-service"
+    },
+    {
+      "inventoryEntryKey": "hr-service",
+      "displayName": "Hr Service",
+      "machineType": "INTERNAL_SERVICE",
+      "scopeLevel": "SYSTEM",
+      "workloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/hr-service"
+    },
+    {
+      "inventoryEntryKey": "identity-service",
+      "displayName": "Identity Service",
+      "machineType": "INTERNAL_SERVICE",
+      "scopeLevel": "SYSTEM",
+      "workloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/identity-service"
+    },
+    {
+      "inventoryEntryKey": "tenant-org-service",
+      "displayName": "Tenant Org Service",
+      "machineType": "INTERNAL_SERVICE",
+      "scopeLevel": "SYSTEM",
+      "workloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/tenant-org-service"
+    },
+    {
+      "inventoryEntryKey": "public-entry-service",
+      "displayName": "Public Entry Service",
+      "machineType": "INTERNAL_SERVICE",
+      "scopeLevel": "SYSTEM",
+      "workloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/public-entry-service"
+    },
+    {
+      "inventoryEntryKey": "collaboration-service",
+      "displayName": "Collaboration Service",
+      "machineType": "INTERNAL_SERVICE",
+      "scopeLevel": "SYSTEM",
+      "workloadSpiffeId": "spiffe://local.oes.internal/ns/oes/sa/collaboration-service"
+    }
+  ]
+}

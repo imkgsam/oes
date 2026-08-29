@@ -1,5 +1,5 @@
 import { IQuery } from '@nestjs/cqrs'
-import { IsNotEmpty, IsString, IsUUID } from 'class-validator'
+import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator'
 
 export class CheckPermissionQuery implements IQuery {
   @IsUUID()
@@ -10,6 +10,8 @@ export class CheckPermissionQuery implements IQuery {
   @IsNotEmpty()
   readonly permissionCode: string
 
+  @IsOptional()
+  @IsUUID()
   readonly tenantId?: string
 
   constructor(accountId: string, permissionCode: string, tenantId?: string) {

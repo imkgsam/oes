@@ -94,7 +94,24 @@ describe('AuthGrpcController', () => {
       getRpcAuthorizationModeDeclaration(AuthGrpcController.prototype, 'bootstrapUserLoginMethods')
     ).toEqual({
       mode: 'BUSINESS',
-      permissions: { all: [AUTH_MANAGEMENT_PERMISSION_CODES.BOOTSTRAP_ACCOUNT_CREDENTIALS] }
+      permissions: { all: [AUTH_MANAGEMENT_PERMISSION_CODES.BOOTSTRAP_ACCOUNT_CREDENTIALS] },
+      principalType: 'HUMAN',
+      sessionTerminals: ['WEB']
+    })
+  })
+
+  it('admits logout from the current WEB or PDA session without widening other session controls', () => {
+    expect(getRpcAuthorizationModeDeclaration(AuthGrpcController.prototype, 'logout')).toEqual({
+      mode: 'SELF_SERVICE',
+      allowDelegated: false,
+      sessionTerminals: ['WEB', 'PDA']
+    })
+    expect(
+      getRpcAuthorizationModeDeclaration(AuthGrpcController.prototype, 'logoutSession')
+    ).toEqual({
+      mode: 'SELF_SERVICE',
+      allowDelegated: false,
+      sessionTerminals: ['WEB']
     })
   })
 

@@ -1,5 +1,9 @@
 import { Controller, UseFilters, UseGuards } from '@nestjs/common'
-import { AuthorizeBusinessRpc, getAuthenticatedGrpcRequestContext } from '@oes/common/authorization'
+import {
+  AuthorizeBusinessRpc,
+  AuthorizeInternalCall,
+  getAuthenticatedGrpcRequestContext
+} from '@oes/common/authorization'
 import { HrFoundationTrustedExecutionGuard } from '../../modules/hr-trusted-execution.module'
 import { GrpcMethod } from '@nestjs/microservices'
 import { GrpcExceptionFilter } from '@oes/common/filters'
@@ -20,7 +24,9 @@ import {
   ListEmployeesRequest,
   ListEmployeesResponse,
   ListEmploymentsRequest,
-  ListEmploymentsResponse
+  ListEmploymentsResponse,
+  ResolveAuthLoginEmployeeRequest,
+  ResolveAuthLoginEmployeeResponse
 } from '@oes/common/generated/hr_service'
 import { HrQueryService } from '../../application/services'
 import { EmployeeLifecycleStatus, EmploymentStatus } from '../../domain/value-objects'
@@ -43,6 +49,26 @@ interface ResolveActiveEmployeeByCodeResponse {
 @HrQueryServiceControllerMethods()
 export class HrQueryGrpcController implements HrQueryServiceController {
   constructor(private readonly hrQueryService: HrQueryService) {}
+
+  @AuthorizeInternalCall({ all: ['hr.internal.auth_login_employee.resolve'] })
+  async resolveAuthLoginEmployee(
+    request: ResolveAuthLoginEmployeeRequest
+  ): Promise<ResolveAuthLoginEmployeeResponse> {
+    const result = await this.hrQueryService.resolveActiveEmployeeByCode({
+      tenantId: request.tenantId ?? '',
+      employeeCode: request.employeeCode ?? ''
+    })
+    if (
+      result.employee.tenantId !== request.tenantId ||
+      result.employee.lifecycleStatus !== EmployeeLifecycleStatus.ACTIVE ||
+      result.activeEmployment.status !== EmploymentStatus.ACTIVE
+    )
+      return {}
+    return {
+      employeeId: result.employee.id,
+      activeEmploymentId: result.activeEmployment.id
+    }
+  }
 
   async getEmployeeById(request: GetEmployeeByIdRequest): Promise<GetEmployeeByIdResponse> {
     const employee = await this.hrQueryService.getEmployeeById(request.employeeId ?? '')

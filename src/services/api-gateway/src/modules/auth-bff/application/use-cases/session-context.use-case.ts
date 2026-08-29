@@ -4,7 +4,10 @@ import { AssetGrpcAdapter } from '../../infrastructure/downstream/asset-service/
 import { IdentityQueryGrpcAdapter } from '../../infrastructure/downstream/identity-service/identity-query-grpc.adapter'
 import { TenantOrgQueryGrpcAdapter } from '../../infrastructure/downstream/tenant-org-service/tenant-org-query-grpc.adapter'
 import { SessionContextViewModel } from '../../interfaces/http/view-models/session-context.view-model'
-import { SessionAccessSummaryUseCase, SessionNavigationSummary } from './session-access-summary.use-case'
+import {
+  SessionAccessSummaryUseCase,
+  SessionNavigationSummary
+} from './session-access-summary.use-case'
 import { getAuthenticatedSelfContext } from './self-security-context'
 
 const DEFAULT_HOME_PATH = '/workbench/home'
@@ -23,14 +26,23 @@ export class SessionContextUseCase {
 
   async execute(source: DownstreamRequestSource): Promise<SessionContextViewModel> {
     const self = getAuthenticatedSelfContext(source)
+    const terminal = normalize(source.user?.terminal) ?? 'WEB'
 
     if (!self.accountId) {
       throw new UnauthorizedException('authenticated session context is missing account id')
     }
 
-    const accountResult = await this.identityAdapter.getAccountById(self.accountId, source)
-    const accountScope = normalizeScopeLevel(accountResult.account?.scopeLevel ?? self.scopeLevel)
-    const tenantId = normalize(accountResult.account?.tenantId) ?? self.tenantId
+    // PDA shell context uses the Auth-validated active-session snapshot so it does not broaden Identity's WEB-only business surface.
+    const useSignedPdaSession = terminal === 'PDA'
+    const accountResult = useSignedPdaSession
+      ? null
+      : await this.identityAdapter.getAccountById(self.accountId, source)
+    const accountScope = useSignedPdaSession
+      ? self.scopeLevel
+      : normalizeScopeLevel(accountResult?.account?.scopeLevel ?? self.scopeLevel)
+    const tenantId = useSignedPdaSession
+      ? self.tenantId
+      : (normalize(accountResult?.account?.tenantId) ?? self.tenantId)
 
     if (accountScope === 'TENANT' && !tenantId) {
       throw new UnauthorizedException('tenant account context is missing tenant id')
@@ -41,18 +53,21 @@ export class SessionContextUseCase {
     }
 
     const tenantResult =
-      accountScope === 'TENANT' && tenantId
+      !useSignedPdaSession && accountScope === 'TENANT' && tenantId
         ? await this.requireTenantOrgAdapter().getTenantById(tenantId, source)
         : null
 
-    const accountName = normalize(accountResult.account?.displayName)
+    const accountName = useSignedPdaSession
+      ? normalize(source.user?.displayName)
+      : normalize(accountResult?.account?.displayName)
     const tenantName = normalize(tenantResult?.tenant?.name)
-    const accountAvatar = await this.resolveAccountAvatar(
-      accountResult.account?.avatarAssetId,
-      accountResult.account?.avatarUrl,
-      source
-    )
-    const terminal = normalize(source.user?.terminal) ?? 'WEB'
+    const accountAvatar = useSignedPdaSession
+      ? undefined
+      : await this.resolveAccountAvatar(
+          accountResult?.account?.avatarAssetId,
+          accountResult?.account?.avatarUrl,
+          source
+        )
     const navigation = await resolveManagedNavigation(
       this.sessionAccessSummaryUseCase,
       source,
@@ -91,9 +106,7 @@ export class SessionContextUseCase {
       scopeLevel: accountScope,
       terminal,
       allowedTerminals: normalizeStringArray(source.user?.allowedTerminals),
-      ...(source.user?.passwordSetupRequired === true
-        ? { passwordSetupRequired: true }
-        : {})
+      ...(source.user?.passwordSetupRequired === true ? { passwordSetupRequired: true } : {})
     }
   }
 
@@ -160,7 +173,9 @@ async function resolveManagedNavigation(
   }
 
   if (!useManagedNavigation(navigation)) {
-    throw new InternalServerErrorException('managed navigation resolver returned incomplete navigation')
+    throw new InternalServerErrorException(
+      'managed navigation resolver returned incomplete navigation'
+    )
   }
 
   return navigation
@@ -189,7 +204,7 @@ function useManagedNavigation(
 ): navigation is SessionNavigationSummary {
   return Boolean(
     navigation?.defaultEntry &&
-      navigation.visibleEntries.length > 0 &&
-      navigation.visibleEntries.includes(navigation.defaultEntry)
+    navigation.visibleEntries.length > 0 &&
+    navigation.visibleEntries.includes(navigation.defaultEntry)
   )
 }

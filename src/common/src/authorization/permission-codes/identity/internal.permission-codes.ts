@@ -2,7 +2,8 @@ import type { PermissionDefinitionGroup } from '../types'
 
 export const IDENTITY_INTERNAL_PERMISSION_CODES = {
   INTEGRATION_MACHINE_RESOLVE: 'identity.internal.integration_machine.resolve',
-  MACHINE_PRINCIPAL_RESOLVE: 'identity.internal.machine_principal.resolve'
+  MACHINE_PRINCIPAL_RESOLVE: 'identity.internal.machine_principal.resolve',
+  AUTH_LOGIN_ACCOUNT_RESOLVE: 'identity.internal.auth_login_account.resolve'
 } as const
 
 export const IDENTITY_INTERNAL_PERMISSION_DEFINITIONS = {
@@ -17,6 +18,13 @@ export const IDENTITY_INTERNAL_PERMISSION_DEFINITIONS = {
     },
     [IDENTITY_INTERNAL_PERMISSION_CODES.MACHINE_PRINCIPAL_RESOLVE]: {
       description: '解析 Auth 发证所需的第一方机器主体绑定事实',
+      kind: 'INTERNAL',
+      assignableTo: ['WORKLOAD_POLICY'],
+      allowedScopeLevels: ['SYSTEM'],
+      externalApiEligible: false
+    },
+    [IDENTITY_INTERNAL_PERMISSION_CODES.AUTH_LOGIN_ACCOUNT_RESOLVE]: {
+      description: '解析 Auth 登录与会话复核所需的账户归属事实',
       kind: 'INTERNAL',
       assignableTo: ['WORKLOAD_POLICY'],
       allowedScopeLevels: ['SYSTEM'],

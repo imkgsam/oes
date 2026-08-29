@@ -16,7 +16,7 @@ describe('SubmitMfaChallengeHandler', () => {
       })
     }
     const identityService = {
-      getAccountById: jest.fn().mockResolvedValue({
+      resolveAuthLoginAccount: jest.fn().mockResolvedValue({
         accountId: 'account-1',
         userId: 'user-1',
         tenantId: 'tenant-1',
@@ -74,7 +74,7 @@ describe('SubmitMfaChallengeHandler', () => {
       })
     }
     const identityService = {
-      getAccountById: jest.fn().mockResolvedValue({
+      resolveAuthLoginAccount: jest.fn().mockResolvedValue({
         accountId: 'account-1',
         userId: 'user-1',
         tenantId: 'tenant-1',
@@ -165,7 +165,7 @@ describe('SubmitMfaChallengeHandler', () => {
       })
     }
     const identityService = {
-      getAccountById: jest.fn().mockResolvedValue({
+      resolveAuthLoginAccount: jest.fn().mockResolvedValue({
         accountId: 'account-1',
         userId: 'user-1',
         tenantId: 'tenant-1',

@@ -34,9 +34,9 @@ describe('AssetSiteMediaAvailabilityWorker', () => {
     const worker = new AssetSiteMediaAvailabilityWorker(runner as never, consumer as never, inbox as never)
     const event = createOesCloudEvent({ contract, eventId: 'event-conflict', occurredAt: '2026-08-09T00:00:00.000Z', tenantId: 'tenant-1', aggregateType: 'SITE_MEDIA_ASSET', aggregateId: 'asset-1', traceId: 'trace-1', data: { assetId: 'asset-1', availabilityVersion: 2, lifecycleStatus: 'ACTIVE', deliveryStatus: 'REMOTE_ACTIVE' } })
     const encoded = encodeCloudEvent(event)
-    worker.onModuleInit(); const delivery = { subject: 'oes.events.asset.site-media.availability.changed', headers: encoded.headers, body: encoded.body, deliveryAttempt: 8, ack: jest.fn(), nak: jest.fn(), term: jest.fn() }
+    worker.onModuleInit(); const delivery = { subject: 'oes.events.asset.site-media.availability.changed', headers: encoded.headers, body: encoded.body, deliveryAttempt: 5, ack: jest.fn(), nak: jest.fn(), term: jest.fn() }
     await options?.handle(delivery)
-    expect(inbox.recordTerminalFailure).toHaveBeenCalledWith(expect.objectContaining({ eventId: 'event-conflict', retryCount: 8, safeError: 'EVENT_ID_CONFLICT' }))
+    expect(inbox.recordTerminalFailure).toHaveBeenCalledWith(expect.objectContaining({ eventId: 'event-conflict', retryCount: 5, safeError: 'EVENT_ID_CONFLICT' }))
     expect(delivery.ack).toHaveBeenCalled(); expect(delivery.nak).not.toHaveBeenCalled()
   })
 })

@@ -1,5 +1,5 @@
 import { ClientGrpc, ClientProxyFactory, Transport } from '@nestjs/microservices'
-import { resolveCommonProtoPath } from '@oes/common/contracts'
+import { resolveCommonContractPath, resolveCommonProtoPath } from '@oes/common/contracts'
 import { createGrpcClientCredentials } from '@oes/common/transport'
 
 export const TENANTORG_TARGET_AUDIENCE = 'urn:oes:service:tenant-org-service'
@@ -15,6 +15,7 @@ export class TrustedTenantOrgGrpcClient {
       options: {
         package: 'tenant_org_service',
         protoPath: resolveCommonProtoPath('tenant_org_service/tenant_org.proto'),
+        loader: { includeDirs: [resolveCommonContractPath()] },
         url: resolveUrl(),
         credentials: createGrpcClientCredentials()
       }

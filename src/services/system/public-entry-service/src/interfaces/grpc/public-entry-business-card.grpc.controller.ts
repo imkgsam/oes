@@ -2,9 +2,9 @@ import { Controller, UseGuards } from '@nestjs/common'
 import {
   AuthorizeBusinessRpc,
   AuthorizeSelfServiceRpc,
-  getAuthenticatedGrpcRequestContext,
-  TrustedExecutionGuard
+  getAuthenticatedGrpcRequestContext
 } from '@oes/common/authorization'
+import { PublicEntryTrustedExecutionGuard } from './public-entry-trusted-execution.guard'
 import {
   BusinessCardPublicEntryRefRecord,
   BusinessCardRecord as GrpcBusinessCardRecord,
@@ -50,7 +50,7 @@ import {
 
 // PublicEntryBusinessCardGrpcController maps BusinessCard gRPC calls onto application services.
 @Controller()
-@UseGuards(TrustedExecutionGuard)
+@UseGuards(PublicEntryTrustedExecutionGuard)
 @PublicEntryBusinessCardServiceControllerMethods()
 export class PublicEntryBusinessCardGrpcController implements PublicEntryBusinessCardServiceController {
   constructor(private readonly service: BusinessCardApplicationService) {}

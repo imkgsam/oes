@@ -1,9 +1,12 @@
 import { Metadata } from '@grpc/grpc-js'
 import { isSpanContextValid, trace } from '@opentelemetry/api'
 import {
+  AsyncLocalTransportPrivateSourceCredentialAccessor,
   AsyncLocalTrustedExecutionContextAccessor,
   createTrustedExecutionContext,
+  getGrpcAuthorizationBearer,
   requireTrustedSessionTerminal,
+  TransportPrivateSourceCredentialIssuer,
   TrustedExecutionContext,
   TrustedGrpcMetadataProvider
 } from '@oes/common/authorization'
@@ -44,7 +47,9 @@ export class GatewayTrustedGrpcExecutionProducer {
   constructor(
     private readonly contextAccessor: AsyncLocalTrustedExecutionContextAccessor,
     private readonly metadataProvider: TrustedGrpcMetadataProvider,
-    private readonly traceContextProvider: GatewayTrustedTraceContextProvider = new ActiveOtelGatewayTraceContextProvider()
+    private readonly traceContextProvider: GatewayTrustedTraceContextProvider = new ActiveOtelGatewayTraceContextProvider(),
+    private readonly sourceCredentialAccessor?: AsyncLocalTransportPrivateSourceCredentialAccessor,
+    private readonly sourceCredentialIssuer = new TransportPrivateSourceCredentialIssuer()
   ) {}
 
   /** Produces one BUSINESS call metadata set from session truth and method-owned target authority. */
@@ -76,6 +81,34 @@ export class GatewayTrustedGrpcExecutionProducer {
   ): Promise<Metadata> {
     return this.contextAccessor.run(this.createSessionContext(source), () =>
       this.metadataProvider.forInternalCall(targetAudience, requiredInternalPermissionCodes)
+    )
+  }
+
+  /** Exchanges the active session for a self-audience subject ET before one exact HUMAN_OBO INTERNAL hop. */
+  async forHumanOboInternalCall(
+    source: DownstreamRequestSource,
+    selfAudience: string,
+    targetAudience: string,
+    requiredInternalPermissionCodes: readonly string[]
+  ): Promise<Metadata> {
+    if (!this.sourceCredentialAccessor) {
+      throw new Error('Gateway HUMAN_OBO source credential scope is unavailable')
+    }
+    const context = this.createSessionContext(source)
+    const selfMetadata = await this.contextAccessor.run(context, () =>
+      this.metadataProvider.forSelfServiceCall(selfAudience)
+    )
+    const subjectToken = getGrpcAuthorizationBearer(selfMetadata)
+    if (!subjectToken) {
+      throw new Error('Gateway HUMAN_OBO self-audience subject token is unavailable')
+    }
+    const subjectCredential =
+      this.sourceCredentialIssuer.issueVerifiedExecutionTokenSubjectCredential(subjectToken)
+
+    return this.sourceCredentialAccessor.run(subjectCredential, () =>
+      this.contextAccessor.run(context, () =>
+        this.metadataProvider.forInternalCall(targetAudience, requiredInternalPermissionCodes)
+      )
     )
   }
 

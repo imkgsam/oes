@@ -45,6 +45,10 @@ services:
       NATS_COLLABORATION_PASSWORD: ${NATS_COLLABORATION_PASSWORD:?generated local NATS input is required}
       NATS_NOTIFICATION_USER: ${NATS_NOTIFICATION_USER:?generated local NATS input is required}
       NATS_NOTIFICATION_PASSWORD: ${NATS_NOTIFICATION_PASSWORD:?generated local NATS input is required}
+      NATS_ASSET_USER: ${NATS_ASSET_USER:?generated local NATS input is required}
+      NATS_ASSET_PASSWORD: ${NATS_ASSET_PASSWORD:?generated local NATS input is required}
+      NATS_SITE_USER: ${NATS_SITE_USER:?generated local NATS input is required}
+      NATS_SITE_PASSWORD: ${NATS_SITE_PASSWORD:?generated local NATS input is required}
       NATS_NOTIFICATION_REPLAY_USER: ${NATS_NOTIFICATION_REPLAY_USER:?generated local NATS input is required}
       NATS_NOTIFICATION_REPLAY_PASSWORD: ${NATS_NOTIFICATION_REPLAY_PASSWORD:?generated local NATS input is required}
       NATS_NOTIFICATION_RECOVERY_USER: ${NATS_NOTIFICATION_RECOVERY_USER:?generated local NATS input is required}
@@ -235,6 +239,9 @@ services:
       NACOS_AUTH_TOKEN: ${NACOS_AUTH_TOKEN:?generated local Nacos input is required}
       NACOS_AUTH_IDENTITY_KEY: ${NACOS_AUTH_IDENTITY_KEY:-serverIdentity}
       NACOS_AUTH_IDENTITY_VALUE: ${NACOS_AUTH_IDENTITY_VALUE:?generated local Nacos input is required}
+      JVM_XMS: 256m
+      JVM_XMX: 256m
+      JVM_XMN: 128m
     ports: ['127.0.0.1::8848', '127.0.0.1::9848', '127.0.0.1::9849']
     volumes: [nacos_logs:/home/nacos/logs]
     depends_on:
@@ -242,6 +249,28 @@ services:
         condition: service_healthy
     networks: [oes_network]
     restart: unless-stopped
+
+  nacos-auth-bootstrap:
+    image: mysql:8.0@sha256:a3dff78d876222746a0bacc36dd7e4bf9e673c85fb7ee0d12ed25bd32c43c19b
+    labels: *owner-labels
+    depends_on:
+      mysql: { condition: service_healthy }
+    environment:
+      MYSQL_PWD: ${NACOS_MYSQL_PASSWORD:?generated local MySQL input is required}
+      NACOS_USERNAME: ${NACOS_USERNAME:?generated local Nacos user is required}
+      NACOS_PASSWORD_BCRYPT: ${NACOS_PASSWORD_BCRYPT:?generated local Nacos hash is required}
+    command:
+      - sh
+      - -ec
+      - |
+        mysql -h mysql -u nacos nacos <<SQL
+        INSERT INTO users(username,password,enabled) VALUES ('$${NACOS_USERNAME}','$${NACOS_PASSWORD_BCRYPT}',TRUE)
+          ON DUPLICATE KEY UPDATE password=VALUES(password),enabled=TRUE;
+        INSERT INTO roles(username,role) VALUES ('$${NACOS_USERNAME}','ROLE_ADMIN')
+          ON DUPLICATE KEY UPDATE role=VALUES(role);
+        SQL
+        test "$$(mysql -N -s -h mysql -u nacos nacos -e "SELECT COUNT(*) FROM users u JOIN roles r USING(username) WHERE u.username='$${NACOS_USERNAME}' AND u.enabled=TRUE AND r.role='ROLE_ADMIN'")" = 1
+    networks: [oes_network]
 
 volumes:
   postgres_data: { labels: *owner-labels }

@@ -668,11 +668,6 @@ const TENANT_ADMIN_PERMISSION_CODES = [
   'crm.account.read',
   'crm.account.create',
   'crm.account.convert',
-  'crm.duplicate.viewRestricted',
-  'crm.contact.manage',
-  'crm.source.manage',
-  'crm.activity.create',
-  'crm.opportunity.manage',
   'collaboration.annotation.create',
   'collaboration.annotation.manage',
 ];
@@ -728,16 +723,11 @@ const ITEM_MASTER_PRODUCT_DATA_MANAGER_PERMISSION_CODES = [
   'item_master.bom.create',
   'item_master.bom.manage',
   'item_master.item.set_capabilities',
-  'item_master.item.set_composition',
   'item_master.supplier_item_mapping.list_by_item',
   'item_master.supplier_item_mapping.upsert',
 ];
 
-const EXTENSION_DESIGNER_PERMISSION_CODES = [
-  'extension.designer.project.create',
-  'extension.designer.product.collect',
-  'extension.designer.submit_to_oes',
-];
+const EXTENSION_DESIGNER_PERMISSION_CODES = [];
 
 const CRM_SALES_PERMISSION_CODES = [
   'crm.account.read',
@@ -745,18 +735,10 @@ const CRM_SALES_PERMISSION_CODES = [
   'crm.account.update',
   'crm.account.claim',
   'crm.account.release',
-  'crm.contact.manage',
-  'crm.activity.create',
 ];
 
 const ACCOUNT_BASIC_PERMISSION_CODES = [
   'identity.account.self.read',
-  'identity.account.self.update_profile',
-  'auth.login_method.self.list',
-  'auth.login_method.self.manage',
-  'auth.session.self.list',
-  'auth.session.self.revoke',
-  'permission.account.self.get_roles',
   'tenant_org.org_unit.list_tree',
   'tenant_org.org_unit.get_by_id',
 ];

@@ -19,12 +19,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     try {
       await this.$connect()
       this.logger.log('PrismaService connected to the database successfully.')
-    } catch (_error) {
+    } catch (error) {
       const exception = ExceptionFactory.infrastructure(
         GLOBAL_SYSTEM_ERRORS.DATABASE_CONNECTION_FAILED
       )
       this.logger.error('[COLLABORATION_SERVICE] PrismaService connection failed', exception)
-      process.exit(1)
+      throw error
     }
   }
 

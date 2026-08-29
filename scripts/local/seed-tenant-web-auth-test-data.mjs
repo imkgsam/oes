@@ -61,7 +61,7 @@ const {
 } = require(path.join(ROOT, 'src/services/system/auth-service/prisma/generated/prisma'));
 const {
   PrismaClient: PermissionPrismaClient,
-  AccountType,
+  PrincipalType,
   RoleKind,
   ScopeLevel,
 } = require(path.join(
@@ -493,10 +493,23 @@ async function seedPermission(permission) {
     ).map((role) => role.id);
 
     await tx.onboardingGrantRequest.deleteMany({});
-    await tx.accountRole.deleteMany({
+    const managedHumanPrincipalIds = [
+      ...new Set([
+        ...SEEDED_ACCOUNT_ROLE_BINDINGS.map((binding) => binding.accountId),
+        ...TENANT_SYSTEM_ADMIN_ACCOUNT_ROLE_BINDINGS.map((binding) => binding.accountId),
+        ...SYSTEM_ADMIN_ACCOUNT_IDS,
+      ]),
+    ];
+
+    await tx.principalRoleBinding.deleteMany({
       where: {
         OR: [
-          { scopeLevel: ScopeLevel.TENANT },
+          managedHumanPrincipalIds.length > 0
+            ? {
+                principalType: PrincipalType.HUMAN,
+                principalId: { in: managedHumanPrincipalIds },
+              }
+            : undefined,
           existingTenantRoleIds.length > 0 ? { roleId: { in: existingTenantRoleIds } } : undefined,
         ].filter(Boolean),
       },
@@ -571,10 +584,10 @@ async function seedPermission(permission) {
     }
 
     if (SEEDED_ACCOUNT_ROLE_BINDINGS.length > 0) {
-      await tx.accountRole.createMany({
+      await tx.principalRoleBinding.createMany({
         data: SEEDED_ACCOUNT_ROLE_BINDINGS.map((binding) => ({
-          accountId: binding.accountId,
-          accountType: AccountType[binding.accountType],
+          principalId: binding.accountId,
+          principalType: PrincipalType.HUMAN,
           effectiveAt: binding.effectiveAt,
           expiresAt: binding.expiresAt,
           roleId: binding.roleId,
@@ -585,18 +598,19 @@ async function seedPermission(permission) {
     }
 
     if (TENANT_SYSTEM_ADMIN_ACCOUNT_ROLE_BINDINGS.length > 0) {
-      await tx.accountRole.deleteMany({
+      await tx.principalRoleBinding.deleteMany({
         where: {
-          accountId: {
+          principalId: {
             in: TENANT_SYSTEM_ADMIN_ACCOUNT_ROLE_BINDINGS.map((binding) => binding.accountId),
           },
+          principalType: PrincipalType.HUMAN,
           roleId: systemAdminRole.id,
         },
       });
-      await tx.accountRole.createMany({
+      await tx.principalRoleBinding.createMany({
         data: TENANT_SYSTEM_ADMIN_ACCOUNT_ROLE_BINDINGS.map((binding) => ({
-          accountId: binding.accountId,
-          accountType: AccountType.USER,
+          principalId: binding.accountId,
+          principalType: PrincipalType.HUMAN,
           effectiveAt: null,
           expiresAt: null,
           roleId: systemAdminRole.id,
@@ -607,17 +621,16 @@ async function seedPermission(permission) {
     }
 
     if (SYSTEM_ADMIN_ACCOUNT_IDS.length > 0) {
-      await tx.accountRole.createMany({
+      await tx.principalRoleBinding.createMany({
         data: SYSTEM_ADMIN_ACCOUNT_IDS.map((accountId) => ({
-          accountId,
-          accountType: AccountType.USER,
+          principalId: accountId,
+          principalType: PrincipalType.HUMAN,
           effectiveAt: null,
           expiresAt: null,
           roleId: systemAdminRole.id,
           scopeLevel: ScopeLevel.SYSTEM,
           tenantId: null,
         })),
-        skipDuplicates: true,
       });
     }
   });
