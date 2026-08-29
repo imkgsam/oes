@@ -328,7 +328,7 @@ Fresh evidence:
 
 The Feature RI accepted R6 candidate `8ebaf63fa04ef65a4a2c00bc1e3755f2047feb91`
 remains immutable. The final candidate integrates exact canonical main
-`fc78c58a043145b2f85301d62c583fdde418b17c` append-only and repairs three bounded composition
+`fc78c58a043145b2f85301d62c583fdde418b17c` append-only and repairs four bounded composition
 defects exposed only by a fresh isolated runtime:
 
 - Identity maps the two persisted PostgreSQL-truncated workload-provisioning receipt identifiers,
@@ -339,11 +339,15 @@ defects exposed only by a fresh isolated runtime:
 - The tenant-web seed writes canonical HUMAN `PrincipalRoleBinding` facts for only exact managed
   principals and removes inactive permission codes from local fixture roles. A second full seed run
   proves idempotency without deleting MACHINE or unrelated principal facts.
+- Auth serializes source-credential supersession and issuance with a binding-scoped PostgreSQL
+  advisory transaction lock. The existing partial unique index remains the final invariant, while
+  concurrent execution-token exchanges no longer race between active-row lookup and insertion.
 
 Fresh final-acceptance evidence in the final candidate artifact lane proves:
 
 - trusted runtime semantic invariants 24/24; Common, Gateway, Auth and Permission security-focused
-  suites pass; Proto lint/breaking/generation remains clean;
+  suites pass; the complete Auth suite passes 130 suites / 431 tests; Proto
+  lint/breaking/generation remains clean;
 - exact `pnpm test:risk`, root build and isolated 18-package L2 matrix pass; the L2 lifecycle leaves
   zero owner resources;
 - all 21 host-native service listeners plus Gateway, APISIX and issuer are ready with Docker used
