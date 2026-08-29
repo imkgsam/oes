@@ -188,7 +188,9 @@ export function cleanupAuthorization(): StageCleanupAuthorization {
         featurePacket: 'docs/plans/features/alpha.md',
         resources: [
           { kind: 'remote-branch', path: 'codex/feature/alpha', expectedSha: '1'.repeat(40) },
-          { kind: 'worktree', path: '/private/tmp/oes-fl-alpha', expectedSha: '1'.repeat(40) }
+          { kind: 'worktree', path: '/private/tmp/oes-fl-alpha', expectedSha: '1'.repeat(40) },
+          { kind: 'local-branch', path: 'codex/feature/alpha', expectedSha: '1'.repeat(40) },
+          { kind: 'task-temp', path: '/private/tmp/oes-fl-alpha-artifacts', expectedSha: null }
         ]
       },
       {
@@ -198,7 +200,10 @@ export function cleanupAuthorization(): StageCleanupAuthorization {
         mergeSha: '4'.repeat(40),
         featurePacket: 'docs/plans/features/beta.md',
         resources: [
-          { kind: 'remote-branch', path: 'codex/feature/beta', expectedSha: '3'.repeat(40) }
+          { kind: 'remote-branch', path: 'codex/feature/beta', expectedSha: '3'.repeat(40) },
+          { kind: 'worktree', path: '/private/tmp/oes-fl-beta', expectedSha: '3'.repeat(40) },
+          { kind: 'local-branch', path: 'codex/feature/beta', expectedSha: '3'.repeat(40) },
+          { kind: 'task-temp', path: '/private/tmp/oes-fl-beta-artifacts', expectedSha: null }
         ]
       }
     ]

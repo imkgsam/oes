@@ -2,17 +2,17 @@
 
 ```text
 status: FROZEN
-implementationStatus: IMPLEMENTED_VERIFIED
+implementationStatus: DESIGN_FROZEN_PENDING_IMPLEMENTATION
 decisionAdr: docs/adr/0015-workload-identity-and-execution-token.md
 architectureTruthSource: docs/architecture/services/identity-service.md
 consumer: auth-service
 ```
 
-> 本文冻结 Identity 为第一方 MACHINE root execution 提供的黑盒 principal/binding resolution。Identity 的长期 owner 语义以 [identity-service.md](../../architecture/services/identity-service.md) 为准；Auth source credential 以 [machine-workload-source-credential.md](../auth-service/machine-workload-source-credential.md) 为准。
+> 本文冻结 Identity 为第一方 MACHINE root execution 提供的黑盒 principal/binding resolution 与固定 SYSTEM inventory provisioning。Identity 的长期 owner 语义以 [identity-service.md](../../architecture/services/identity-service.md) 为准；Auth direct exchange 以 [execution-token.md](../auth-service/execution-token.md) 为准。
 
 ## 1. Surface And Purpose
 
-Identity 在既有 `IdentityQueryService` gRPC surface 提供 Auth-only `ResolveMachinePrincipalForAuth`。该 resolver 只回答：Auth 已验证 credential 所引用的 Machine Principal 与 `MachineWorkloadBinding` 当前是否有效且一致，以及哪些 owner facts 可用于建立 `principal_type=MACHINE` 的执行身份。
+Identity 在既有 `IdentityQueryService` gRPC surface 提供 Auth-only `ResolveMachinePrincipalForAuth`。该 resolver 只回答：Auth 提交的 exact selector 与 transport-derived workload SPIFFE 是否对应当前唯一 active Machine Principal / `MachineWorkloadBinding`，以及哪些 owner facts 可用于建立 `principal_type=MACHINE` 的执行身份。
 
 它不修改或泛化既有 `ResolveIntegrationMachineForAuth`。后者继续只服务 external API-key exchange；两个 resolver 不互为 fallback。
 
@@ -77,7 +77,7 @@ Identity owns：
 
 `MachineWorkloadBinding` 不保存 mTLS leaf certificate、certificate thumbprint、Auth credential、Permission Code、role/grant 或 ExecutionToken。
 
-一个 SPIFFE workload 可以承载多个受控 machine binding；resolver 的唯一性来自 Auth 已验证 credential 提供的 principal reference + binding reference。该 binding 必须唯一指向该 principal，且其 SPIFFE ID/version 必须精确匹配；ambiguous result 永远不是 allowed result。
+一个 SPIFFE workload 可以承载多个受控 machine binding；resolver 的唯一性来自 typed selector 的 principal reference + binding reference + exact version。该 binding 必须唯一指向该 principal，且其 SPIFFE ID/version 必须精确匹配；selector 只选择候选记录，ambiguous result 永远不是 allowed result。
 
 第一阶段 internal resolver 只允许 `INTERNAL_SERVICE` 与 `AUTOMATION_BOT` Machine Principal。`EXTERNAL_INTEGRATION` 继续只走 external API-key resolver；`AI_AGENT` runtime 继续 deferred，不因本 contract 开放。
 
@@ -92,24 +92,30 @@ Identity Prisma 模型 `MachineWorkloadBinding` 固定保存 UUID `id`、Auth-in
 - binding row 不存 leaf certificate、thumbprint、Auth credential、Permission Code、role/grant 或 ExecutionToken。
 - enroll/disable state 和 local `AuditEvent` 在同一 Identity database transaction 中提交；resolver allowed/denied decision 在响应前记录同一 local audit sink。
 
+### 2.2 Fixed SYSTEM inventory provisioner
+
+Identity 拥有一个 deployment-invoked、idempotent、audited provisioner，用于在相关 workload readiness 前建立固定 SYSTEM / `INTERNAL_SERVICE` principal 与 binding。它不是 public/gRPC business API，不接收 runtime workload 请求，也不处理 TENANT / `AUTOMATION_BOT`。
+
+版本化 inventory 的每个 entry 只包含 `inventory_entry_key`、`display_name`、固定 `machine_type=INTERNAL_SERVICE`、固定 `scope_level=SYSTEM` 与 exact `workload_spiffe_id`。Identity 以 immutable `inventory_entry_key` 作为幂等 owner key：首次运行在一个 local transaction 中创建 principal、创建 active binding、写 provisioning receipt 与 audit；同版本同内容重跑返回相同 selector 且不产生重复资产。已有 receipt/live owner facts 与 manifest 的 type/scope/SPIFFE 不一致、一个 key 对应多个记录、固定 entry 缺失或 audit 提交失败时，provisioner 拒绝并阻止相关 workload readiness，不静默修改 owner truth。
+
+Identity-local `MachineWorkloadProvisioningReceipt` 固定保存 unique `inventoryEntryKey`、canonical manifest digest/version、`serviceAccountId`、`machineWorkloadBindingId`、首次 provision time、deployment revision 与 audit reference；两个 local FK 均使用 `ON DELETE RESTRICT`。receipt 不保存 selector secret（selector 本身非秘密）、certificate、tenant/org、Permission grant 或 Auth state。manifest 内容变化使用新 inventory version 并要求显式 migration；旧 key 不能悄然重指向另一 principal/binding。
+
+成功输出每个 entry 的 `machine_principal_id`、`machine_workload_binding_id` 与 canonical positive `machine_workload_binding_version`，作为非秘密 workload selector 配置。输出不含 tenant/org、credential、certificate、Permission Code 或 grant。Deployment/SRE 只批准固定 inventory entry 与 workload SPIFFE 绑定意图；tenant bot/job owner 只批准已验证 job→binding 选择；Identity 批准 principal/binding identity 与 lifecycle；Permission 批准 workload/principal 的 Code 上限；Auth 只组合 owner decisions 并签发 Token。
+
+tenant `AUTOMATION_BOT` 继续通过正常 management RPC 创建 principal/binding 并把 selector 存入其 owner-controlled job/runtime asset。一个 shared runner SPIFFE 可以拥有多个不同 tenant bot binding；每次 exchange 必须由 bot/job owner adapter 在验证 tenant/job→binding 后注入该 job 的 exact selector，external/body/prompt input 不得直接选择。停用一个 principal/binding 只使该 selector 失效。共享 runner compromise 的边界是同一 SPIFFE 的 declared binding set；高风险隔离使用独立 workload SPIFFE。
+
 ## 3. Trust And Logical Input
 
-调用必须同时具备：
+该 exact method 只接受 transport 验证的准确 `auth-service` mTLS/SPIFFE workload，并显式拒绝任何 `authorization` metadata。它不要求 Identity-audience ExecutionToken 或 `identity.internal.machine_principal.resolve` Code；method policy 不得复用到其他 Identity RPC、其他 caller、service-name header、network placement 或 wildcard。该 resolver 是 Identity owner control-plane 的唯一 pre-context identity primitive，不授予 target audience 或 Permission Code。
 
-- transport 验证的准确 `auth-service` mTLS/SPIFFE workload；
-- `aud=identity-service` 且绑定当前 Auth leaf certificate 的 ExecutionToken；
-- exact INTERNAL Code `identity.internal.machine_principal.resolve`。
-
-该 Code 只允许准确 Auth workload 通过 Permission `ResolveWorkloadIssuance` 申请，不进入 HUMAN/MACHINE role、external JWT、API-key flow 或 wildcard issuance policy。本 RPC 不是 mTLS-only bootstrap primitive。
-
-逻辑输入只包含 Auth 从已验证 source credential 得到的：
+逻辑输入只包含 Auth 从 typed MACHINE selector 与当前 exchange transport 得到的：
 
 - Machine Principal reference；
 - `MachineWorkloadBinding` reference/version；
 - 当前 transport-verified workload SPIFFE ID；
 - trace/audit correlation。
 
-不得输入 raw source credential、leaf certificate/thumbprint、API Key、Permission Code/grant、caller-computed tenant/org 或 body identity 作为 owner fact。
+不得输入 raw source credential、Authorization bearer、leaf certificate/thumbprint、API Key、Permission Code/grant、caller-computed tenant/org 或 body identity 作为 owner fact。`workload_spiffe_id` 必须由 Auth 从原始 exchange 的 `VerifiedWorkloadIdentity` 注入；selector 不得包含或覆盖该字段。
 
 ## 4. Decision Semantics
 
@@ -119,7 +125,7 @@ Identity Prisma 模型 `MachineWorkloadBinding` 固定保存 UUID `id`、Auth-in
 2. scope 合法；`SYSTEM` tenant 为空，`TENANT` 具有有效且一致的 tenant reference；
 3. binding 存在、active、唯一指向该 principal；
 4. binding 的 SPIFFE ID 等于 Auth 提交的 transport-verified SPIFFE ID；
-5. binding version 等于 credential 引用的当前 version；
+5. binding version 等于 typed selector 引用的 exact current version；
 6. 适用 tenant/org reference 没有 owner-boundary mismatch。
 
 稳定输出只包含：
@@ -128,7 +134,7 @@ Identity Prisma 模型 `MachineWorkloadBinding` 固定保存 UUID `id`、Auth-in
 - principal stable id（Auth 用作 ExecutionToken `sub`）、`principal_type=MACHINE`、machine type、scope、tenant 与适用 org reference；
 - principal lifecycle version、binding reference/version、SPIFFE ID echo 与 safe decision reference。
 
-Identity 不返回 source credential、leaf thumbprint、Permission grant、role graph、target audience authorization 或业务资源事实。Auth 仍独立验证 leaf certificate binding，Permission 仍独立判定 BUSINESS/INTERNAL authorization。
+Identity 不返回 source credential、leaf thumbprint、Permission grant、role graph、target audience authorization 或业务资源事实。Auth 独立使用当前 leaf 建立 Token certificate binding，Permission 独立判定 BUSINESS/INTERNAL authorization。
 
 ## 5. Failure And Availability
 
@@ -148,13 +154,16 @@ stable reason category 只允许：
 - `MACHINE_WORKLOAD_SPIFFE_MISMATCH`
 - `MACHINE_RESOLUTION_DEPENDENCY_UNAVAILABLE`
 
-transport mTLS / ExecutionToken / INTERNAL Code failure 使用 gRPC `UNAUTHENTICATED` 或 `PERMISSION_DENIED`，malformed field 使用 `INVALID_ARGUMENT`，owner dependency/audit unavailable 使用 `UNAVAILABLE`。这些 transport error 不伪装为 `allowed=false` owner decision。
+transport mTLS failure 或出现 Authorization metadata 使用 gRPC `UNAUTHENTICATED` 或 `PERMISSION_DENIED`，malformed field 使用 `INVALID_ARGUMENT`，owner dependency/audit unavailable 使用 `UNAVAILABLE`。这些 transport error 不伪装为 `allowed=false` owner decision。
 
 ## 6. Acceptance
 
-1. 只有准确 Auth mTLS workload + identity-service audience Token + exact INTERNAL Code 可以调用。
-2. active principal 与 active binding 的 principal/SPIFFE/version 全部一致时返回唯一 allowed decision。
+1. 只有准确 Auth mTLS workload 可以调用 exact resolver；携带 Authorization、另一 workload、header identity、wildcard 或复用该 policy 到另一 RPC 均拒绝。
+2. active principal 与 active binding 的 principal/SPIFFE/version 全部一致时返回唯一 allowed decision；selector 本身不建立 subject、tenant 或 grant。
 3. principal disabled、binding disabled/stale、wrong principal、wrong SPIFFE、wrong scope/tenant 或 ambiguous mapping 返回 denied；Auth 不进入 Permission lookup/signing。
-4. 同一 SPIFFE 下存在多个合法 binding 时，exact credential binding reference 仍只解析一个 principal；缺失或歧义 reference 拒绝。
+4. 同一 SPIFFE 下存在多个合法 binding 时，exact typed selector 仍只解析一个 principal；缺失或歧义 reference 拒绝。
 5. external Integration resolver 与 API-key legacy surface 不参与内部 MACHINE resolution。
 6. contract/runtime 不接收或返回 raw credential、leaf material、Permission facts 或 caller-computed authority。
+7. empty inventory 首次运行创建固定 SYSTEM assets；同版本同内容重跑是 no-op 并输出相同 selector；manifest/database mismatch、duplicate 或 missing entry 阻止 readiness。
+8. provisioner 输出不含 secret，且拒绝 TENANT / `AUTOMATION_BOT` inventory；tenant bot 只能走正常 management flow。
+9. 同一 runner SPIFFE 的两个 tenant bot selector 分别解析到各自 tenant principal；停用一个 binding 后仅该 selector denied，另一个保持 allowed。

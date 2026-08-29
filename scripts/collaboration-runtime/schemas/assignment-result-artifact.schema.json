@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/assignment-result-artifact.schema.json",
+  "title": "OES authenticated assignment result artifact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "artifactFingerprint",
+    "assignmentId",
+    "directExecutionParentTaskId",
+    "childTaskId",
+    "transitionId",
+    "dispatchStateVersion",
+    "typedResult",
+    "scopeFingerprint"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "OES_ASSIGNMENT_RESULT_ARTIFACT" },
+    "artifactFingerprint": { "$ref": "#/$defs/fingerprint" },
+    "assignmentId": { "$ref": "#/$defs/fingerprint" },
+    "directExecutionParentTaskId": { "$ref": "#/$defs/token" },
+    "childTaskId": { "$ref": "#/$defs/token" },
+    "transitionId": { "$ref": "#/$defs/token" },
+    "dispatchStateVersion": { "type": "integer", "minimum": 1 },
+    "typedResult": { "$ref": "#/$defs/token" },
+    "scopeFingerprint": { "$ref": "#/$defs/fingerprint" }
+  },
+  "$defs": {
+    "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "token": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" }
+  }
+}

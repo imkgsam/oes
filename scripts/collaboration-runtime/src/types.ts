@@ -286,13 +286,27 @@ export interface EffectiveProfileReport {
 
 export interface EvidenceKeyInput {
   candidateSha: string
+  candidateTreeSha: string
+  dependencyCandidates: DependencyCandidate[]
   dependencyFingerprint: string
+  lockfileFingerprint: string
+  toolchainFingerprint: string
+  testConfigFingerprint: string
+  environmentFingerprint: string
   literalInputsFingerprint: string
   executionProfileFingerprint: string
   commandFingerprint: string
+  commandVersion: string
   literalResultFingerprint: string
   exitCode: number
   coverageIds: string[]
+}
+
+/** Identifies one exact dependency candidate included in an evidence execution. */
+export interface DependencyCandidate {
+  featureKey: string
+  candidateSha: string
+  candidateTreeSha: string
 }
 
 export interface EvidenceKey extends EvidenceKeyInput {

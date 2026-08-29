@@ -18,6 +18,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { assertPathWithin, canonicalJson, sha256, writeJsonAtomic } from './canonical.ts'
 import { validateProfileReportEnvelope } from './binding.ts'
 import { fail } from './errors.ts'
+import { readInstalledProfileResourceTopology } from './resource-topology.ts'
 import {
   CAPABILITY_NAMES,
   type ApprovalTelemetry,
@@ -203,6 +204,12 @@ export function verifyEffectiveProfileReport(
   const report = validateProfileReportEnvelope(input)
   if (sha256(readFileSync(report.profile.path)) !== report.profile.sha256)
     fail('PROFILE_BYTES_SHA_MISMATCH', report.profile.path)
+  const installedTopology = readInstalledProfileResourceTopology(report.profile.path)
+  if (report.resourceTopology === undefined) {
+    if (installedTopology.resourceTopologyVersion !== 'pre-cutover-v1')
+      fail('STABLE_PROFILE_REPORT_TOPOLOGY_MISSING', report.ownerTaskId)
+  } else if (canonicalJson(report.resourceTopology) !== canonicalJson(installedTopology))
+    fail('PROFILE_RESOURCE_TOPOLOGY_READBACK_MISMATCH', report.ownerTaskId)
   const declared = new Set(report.declaredCapabilities)
   const observed = new Map<CapabilityName, CapabilityObservation>()
   for (const observation of report.observations) {
@@ -317,6 +324,7 @@ export function loadRemoteTrustRootsFromProfileReport(
   input: EffectiveProfileReport
 ): RemoteTrustRoots {
   const report = verifyEffectiveProfileReport(input)
+  const installedTopology = readInstalledProfileResourceTopology(report.profile.path)
   if (
     report.expectedState !== 'DELIVERY_ACTIVE' ||
     canonicalJson([...report.declaredCapabilities].sort()) !==
@@ -365,7 +373,9 @@ export function loadRemoteTrustRootsFromProfileReport(
     profilePath: report.profile.path,
     profileSha256: report.profile.sha256,
     ownerTaskId: report.ownerTaskId,
-    profileExpectedState: report.expectedState
+    profileExpectedState: report.expectedState,
+    resourceTopologyVersion: installedTopology.resourceTopologyVersion,
+    ownerResourceBinding: installedTopology.ownerResourceBinding
   }
 }
 
@@ -387,7 +397,8 @@ export async function runEffectiveProfilePreflight(
     profile: request.profile,
     observations,
     credentialReference: await adapter.credentialReference(),
-    telemetry: await adapter.approvalTelemetry()
+    telemetry: await adapter.approvalTelemetry(),
+    resourceTopology: readInstalledProfileResourceTopology(request.profile.path)
   }
   verifyEffectiveProfileReport(report)
   writeJsonAtomic(request.resultPath, report)
