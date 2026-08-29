@@ -174,3 +174,33 @@ test('csp dedicated system account is seeded into identity accounts', () => {
 test('csp tenant demo account does not receive system admin in the selected tenant context', () => {
   assert.deepEqual(TENANT_SYSTEM_ADMIN_ACCOUNT_ROLE_BINDINGS, [])
 })
+
+test('tenant role fixtures never grant inactive permission catalog entries', () => {
+  const inactiveCodes = new Set([
+    'auth.login_method.self.list',
+    'auth.login_method.self.manage',
+    'auth.session.self.list',
+    'auth.session.self.revoke',
+    'crm.activity.create',
+    'crm.contact.manage',
+    'crm.duplicate.viewRestricted',
+    'crm.opportunity.manage',
+    'crm.source.manage',
+    'extension.designer.product.collect',
+    'extension.designer.project.create',
+    'extension.designer.submit_to_oes',
+    'identity.account.self.update_profile',
+    'item_master.item.set_composition',
+    'permission.account.self.get_roles'
+  ])
+
+  for (const [roleCode, permissionCodes] of SEEDED_TENANT_ROLE_PERMISSION_CODES) {
+    for (const permissionCode of permissionCodes) {
+      assert.equal(
+        inactiveCodes.has(permissionCode),
+        false,
+        `${roleCode} includes inactive permission ${permissionCode}`
+      )
+    }
+  }
+})
