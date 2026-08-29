@@ -163,12 +163,53 @@
           "const": 0
         }
       }
+    },
+    "resourceTopology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resourceTopologyVersion", "ownerResourceBinding"],
+      "properties": {
+        "resourceTopologyVersion": {
+          "enum": ["pre-cutover-v1", "stable-owner-exclusive-v1"]
+        },
+        "ownerResourceBinding": {
+          "type": ["object", "null"],
+          "allOf": [
+            {
+              "if": { "type": "object" },
+              "then": { "$ref": "#/$defs/reference" }
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "resourceTopologyVersion": { "const": "stable-owner-exclusive-v1" } }
+          },
+          "then": { "properties": { "ownerResourceBinding": { "$ref": "#/$defs/reference" } } }
+        },
+        {
+          "if": { "properties": { "resourceTopologyVersion": { "const": "pre-cutover-v1" } } },
+          "then": { "properties": { "ownerResourceBinding": { "const": null } } }
+        }
+      ]
     }
   },
   "$defs": {
     "sha256": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "fingerprint"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^/" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "fingerprint": { "$ref": "#/$defs/sha256" }
+      }
     },
     "capability": {
       "enum": [

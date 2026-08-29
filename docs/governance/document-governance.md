@@ -77,133 +77,95 @@ ADR 解释“为什么选择当前高影响方案”，而 architecture 解释�
 
 ### 3.4 Governance 与 Runbook
 
-- Governance 只定义当前协作、执行和文档纪律。
-- `AGENTS.md`、`docs/governance/**` 及其他规范真相只由 UD 写入。UD 只有两个 Human-confirmed 入口：Design Owner 提交且携带exact Preview/root-confirmation/scope/transition binding的语义 Proposal，以及精确分类为语义影响 `NONE` 的 `CANONICAL_EDITORIAL_PATCH`；UD 不自行发起 canonical 改写。Design Owner 与 source Direct owner 都不直接成为 canonical writer。
-- Runbook 只保存当前可执行的运维、故障处理与恢复步骤。
-- 已完成治理项目、优化收尾、线程经验和一次性复盘不作为长期治理文件。
+- Governance只定义当前协作、执行和文档纪律。
+- `AGENTS.md`、`docs/governance/**`及其他规范真相只由exact global UD写入。
+- UD只有两个Human-confirmed入口：Design Owner提交的semantic Proposal，以及语义影响精确为`NONE`的`CANONICAL_EDITORIAL_PATCH`。
+- Design Owner、source Direct、SL、FL、RI、请求来源、父task和host helper都不成为canonical writer。
+- Runbook只保存当前可执行的运维、故障处理与恢复步骤。
+- 已完成治理项目、一次性复盘、task状态和技术binding不进入长期治理文档。
 
-Task标题属于运行时Human识别元数据，不是architecture、ADR、contract、Workspace、Stage Packet或Feature Packet中的设计真相。新role task必须使用执行模型2.9的唯一role/title契约并在创建前绑定、创建后复读；role资格、routing、owner与authorization仍由exact task id和binding决定，标题不得成为搜索或恢复键。普通讨论、status与项目评估不冒用role前缀，RI必须有exact candidate和direct execution parent。
+role task的标题、身份、Human可见性与parent binding遵循执行模型。Planner、Design、Direct、SL、FL、Feature RI和Stage RI必须在正常Codex项目任务列表中可发现、可打开、可继续；文档不得建立task registry、title migration ledger、隐藏owner清单或按标题推断owner的流程。
 
-该契约只约束canonical cutover后新建或首次激活的role task。cutover前已有task、locator和exact expected-title creation binding不改名、不重新分类、不迁移；既有task后续创建没有旧binding的新task时使用新契约。治理文档不得建立task registry、title migration ledger、批量改名清单或按标题推断owner的流程。
+Planner的月、周、日项目组合建议是带生成时间和有效期的noncanonical task消息，不写入`docs/plans/`，不形成roadmap镜像、日报/周报/月报、task registry或第二状态源。需要冻结的稳定设计进入Design Owner → exact UD；Human选中的实现方向继续使用Direct、FL或SL的Packet和既有确认边界。
 
-### 3.5 Direct 文档维护
+### 3.5 Direct文档维护
 
-非规范语义的单一文档 Change Set 默认使用 Direct，不创建 Design Owner、SL、FL、IT、RI、Workspace 或 FP。Direct owner 只在精确允许路径内修改，使用短期 owner branch、focused verification、PR、required CI、Human merge gate 和合并后精确清理。
+非规范语义的单一文档Change Set默认使用Direct，不创建Design、SL、FL、IT或RI。适用范围包括拼写、标点、排版、明确断链、导航和不改变行为/约束等级的说明修正。
 
-适用范围：
+Architecture、ADR、Contract、`AGENTS.md`或Governance的语义变化始终进入Design Owner → exact UD。上述文件的纯编辑修正可以使用`CANONICAL_EDITORIAL_PATCH`，但任何`must/should/may`、owner、scope、权限、租户、事件、API、生命周期、默认值或行为含义变化都会使editorial分类失效。
 
-- 拼写、标点、排版和明确断链；
-- README、index 或导航的非语义修正；
-- 不改变运行行为、操作结果、owner、scope、contract 或约束等级的说明修正。
-
-Architecture、ADR、Contract、`AGENTS.md` 或 Governance 的语义变化始终进入 Design Owner → UD。上述规范文件的纯编辑修正可使用 `CANONICAL_EDITORIAL_PATCH`：不创建 Design Owner/Workspace/FP；source Direct owner 只拥有 classification、精确 scope/protected scope、evidence 和 source notice target，UD 独占短期 design branch/worktree、修改、验证、design PR、merge、main validation 与自己的 Git cleanup。任何 `must/should/may`、owner、scope、权限、租户、事件、API、生命周期、默认值或行为含义变化都使 editorial classification 失效，UD以`EDITORIAL_CLASSIFICATION_INVALID`返回exact source Direct owner，由其重新展示 Collaborative 或继续讨论选项；该入口不隐式转换为Proposal。Editorial main CI通过后，UD只发送`CANONICAL_EDITORIAL_MERGED`给exact source用于coverage和无Git Change Set closure，并单独进入自己的cleanup gate；不存在Design Owner或delivery activation。
-
-v6 truth merge前已经确认或已经创建exact owner/task/Git resource的v5 Direct、UD、IDT/CDT、SL、FL、IT、RI、Proposal、editorial、activation、merge和cleanup继续按frozen v5 binding完成到各自terminal/cleanup边界；设计merge不得重新解释或使active card、owner、parent/callback和资源失效。边界完成后的新意图才进入v6，异常接管遵循执行模型的Human-confirmed Recovery。
-
-运行可靠性revision cutover前已确认或已创建exact v6 owner/resource/binding的work item继续按其原文档与cleanup规则到terminal；new Stage batch cleanup只用于new gate或Human明确确认的刷新卡。相同scope内补齐effective execution profile属于environment repair，不改变Feature/Stage Packet ownership或文档写者。
-
-Direct 文档验证至少包括 changed-path allowlist、`git diff --check`、相关 Markdown link/UTF-8/绝对路径检查和语义影响声明。发现分类不成立时停止写入，并根据 status 展示 Collaborative 或继续讨论选项。
+Direct文档验证只运行changed-path allowlist、`git diff --check`、相关Markdown link/UTF-8/绝对路径检查和语义影响声明。
 
 ## 4. Design Workspace
 
-Design Workspace 用于Human确认Proposal Preview后仍需跨多轮维护的当前工作记忆，不是聊天记录、决策历史或第二真相源。Proposal Preview先在会话中只读展示，不因生成Preview而创建或写入Workspace。
+Design Workspace只用于Human确认Proposal Preview后仍需跨多轮维护的当前设计工作面，不是聊天记录、决策历史、task ledger或第二真相源。一次成型的设计可以不创建Workspace。
 
-一个设计主题最多一个 active Workspace：
+一个主题最多一个active Workspace：
 
 ```text
 docs/plans/designs/<design-key>.md
 ```
 
-最小内容：
+只保存：objective、scope/protected scope、truth references、current proposed design、open questions、intended canonical changes和next discussion point。每轮原位更新，不追加时间线或消息。
 
-1. objective；
-2. scope；
-3. current truth baseline references；
-4. current proposed design；
-5. Human-confirmed items pending UD review；
-6. open questions；
-7. known conflicts；
-8. intended truth-source changes；
-9. next discussion point。
+需要跨task恢复时可保存一个最小active locator，只含repository、design key、exact owner、Workspace和state。locator不轮询、不保留历史，cleanup时compare-and-delete。
 
-每轮直接更新当前内容，不追加轮次、时间线或 task 消息。
-
-需要跨task精确恢复时，可在Git common directory的`codex-runtime/design-targets/<design-key>.json`保存一个active locator，只含repository root、design key、exact owner task、Workspace、branch/worktree和state version。locator不跟踪、不保留历史、不轮询；atomic写入，使用前精确验证，cleanup时compare-and-delete。
-
-生命周期：
-
-- 简单且一次成型的设计直接形成 Proposal/FP，可以省略 Workspace。
-- 部分冻结时，UD 将冻结部分写入 canonical truth；Workspace 删除对应正文，只保留真相引用并继续开放部分。
-- 全部冻结且已回写后，Workspace 进入 `READY_FOR_CLEANUP`；Human 确认后删除。
-
-`SUPERSEDED_BY_TRUTH_SOURCE` 标签只表示作者声明，不构成单独删除证据。删除前必须重新完成语义覆盖检查：
-
-1. 列出 Workspace 中仍有效的设计结论、开放问题、实施 gate 和回写目标；
-2. 对每项找到当前 canonical truth、active FP 或 backlog 的精确承接位置；
-3. 检查承接内容没有被后续设计反向修改；
-4. 未找到承接位置的内容先迁移到正确文件；
-5. 检查引用后再删除 Workspace。
-
-因此，文件名、日期或 superseded 状态本身都不足以触发批量删除。
+结论冻结后回写canonical truth并从Workspace移除；全部冻结后进入cleanup。删除前逐项证明仍有效内容已经进入canonical truth、active Packet或backlog。
 
 ## 5. Proposal Patch
 
-Proposal Preview是Design Owner基于当前真相在会话中给Human审阅的完整只读方案，不是repository artifact。它至少展示问题、规范结论、状态/typed routes、逐文件变化、保护范围、验证、停止点和preview fingerprint；生成Preview不创建task、branch/worktree、Workspace或commit。
+Proposal Preview是Design Owner基于latest truth向Human展示的完整只读方案，不是repository artifact。至少包含：
 
-Human确认exact Preview后，Design Owner才基于Preview与当前真相形成真实Git diff/commit形式的Proposal Patch；它不是另一份长期proposal文档。Preview确认同时授权形成Proposal commit、提交UD并由UD推进到`DESIGN_PR_READY`，实际diff或binding偏离Preview时授权失效，不在commit完成后重复请求Proposal提交确认。Revision使用new card、new transition和append-only commit，不amend已审核Proposal。
+1. 问题与目标；
+2. 规范结论和主要流程；
+3. intended canonical files；
+4. protected scope；
+5. in-flight兼容与post-merge route；
+6. 验证；
+7. stop point。
 
-它至少能确定：
+Human确认exact Preview后，Design Owner才形成真实Git diff/commit形式的Proposal Patch并提交exact UD。一次确认授权Design Owner形成/验证/提交Proposal，也授权UD在接受时推进到`DESIGN_PR_READY`。Design PR merge、`NEW_DESIGN` delivery activation和cleanup分别确认；existing-delivery design gap合并后自动恢复原owner。
 
-- source Design Owner；
-- base commit；
-- proposal commit；
-- exact `previewFingerprint`；
-- exact `rootConfirmationFingerprint`；
-- exact `scopeFingerprint`；
-- `transitionId`、`expectedState`与`stateVersion`；
-- intended canonical files；
-- canonical truth domain（architecture、ADR、contract 或 governance）；
-- `deliveryHint = UNKNOWN | LIKELY_NONE | LIKELY_DIRECT | LIKELY_FEATURE | LIKELY_STAGE`；
-- 可选的 exact decision owner，只用于阻塞性非设计决定。
+机器必须在task-local evidence中绑定source Design Owner、canonical base、proposal commit、intended files、scope/protected scope、confirmation、entry type、existing-delivery return target和stop point。Human不需要查看或复述SHA、fingerprint、nonce、epoch、CAS或transition。语义、文件范围、protected scope、owner或stop point变化时重新展示完整Preview；纯技术binding重算不单独形成Human gate。
 
-UD 对Human-confirmed Preview形成的语义Proposal执行设计审核；Proposal及Design Owner→UD envelope必须携带相同的Preview/root-confirmation/scope/transition binding，UD在创建integration资源前验证commit parent/base、diff scope、owner与全部fingerprint。任一缺失或不一致即返回`REVISION_REQUIRED`；相同transition与相同binding只复用原结果，同id不同binding拒绝replay。
+Proposal及UD envelope只保留能独立证明以下事实的一份当前记录：
 
-一次Preview确认授权Design Owner形成并提交exact Proposal，也授权UD在接受时按intended canonical files集成、验证、push和创建设计PR，停止于`DESIGN_PR_READY`。`deliveryHint`只供参考，不预授权或禁止实现。design PR经Human确认merge且exact main CI通过后，UD必须进入`ACTIVATION_DECISION_READY`并显示恰好一个建议：有实现工作时建议`Direct | SINGLE_FEATURE | DELIVERY_STAGE`，当前无实现工作时建议`NO_EXECUTION`对应的暂不执行；Human选择暂不执行后进入`EXECUTION_DEFERRED`，后续实现意图由UD基于exact truth和new stateVersion重新发卡。Human确认启动后才创建delivery owner并完成两阶段handoff。
+- Human确认的是当前Preview；
+- Proposal parent/base与latest truth一致或明确使用approved moving-main规则；
+- cumulative diff只修改intended files；
+- source owner与exact UD正确；
+- entry-specific return target明确；
+- rollback和验证可复现。
 
-语义影响为`NONE`的Human-confirmed`CANONICAL_EDITORIAL_PATCH`是另一条非Proposal入口，只授权UD在exact files/hunks内编辑并走相同design PR、merge和main validation。它在main CI后发送`CANONICAL_EDITORIAL_MERGED`给exact source Direct owner并进入UD cleanup gate，不进入Proposal activation。两类入口的merge与cleanup均分别确认；Proposal的长期历史由Git提供。
+同一事实不得同时以多份长期manifest、receipt和binding文件重复表达。Git、task history或最终verification可重建的中间结果不另建过程账本。Revision使用append-only commit，不amend已审核Proposal。
+
+语义影响为`NONE`的`CANONICAL_EDITORIAL_PATCH`不是Proposal。它由source Direct确认exact files/hunks和source notice target后交UD；classification失效时返回source重新选择Design或继续讨论。
 
 ## 6. Stage Packet
 
-一个 SL 对应一个 compact active Stage Packet，逻辑路径为：
+一个SL对应一个compact active Stage Packet：
 
 ```text
 docs/plans/stages/<stage-key>.md
 ```
 
-Stage Packet 只存在于 SL 的本地 stage coordination branch/worktree，不 push、不创建 PR、不合入 `main`。它只记录当前 objective、scope/protected scope、exact decision owner、FL 引用与依赖、exit criteria、blocker 和 current state；状态原位覆盖，不保存聊天、时间线、task/thread registry、watcher 信息或 IT candidate 细节，也不复制 FP 内容。
+Stage Packet只存在于SL本地coordination branch/worktree，不push、不创建产品PR、不合入main。只保存当前objective、scope/protected scope、integration base、FL引用与依赖、WIP、exit criteria、blocker和Human可见状态；状态原位覆盖，不保存聊天、时间线、task registry、watcher、technical receipt或IT candidate细节。
 
-Stage Packet 是 active work，不是稳定真相或第二状态表。阶段在最新 `main` 完成验收后，SL展示一张绑定全部terminal FL、Feature Packets、exact资源和保留项的Stage Cleanup卡；Human确认一次即形成root cleanup authorization。SL把收窄的`CLEANUP_AUTHORIZED`发送给各exact FL，各FL只清理自己的branch/worktree/temp/remote资源并返回typed result，不再分别请求Human。SL验证全部child结果后，在一个cleanup-only PR中只删除本Stage已terminal的Feature Packets，再清理Stage Packet和精确local coordination/verification/cleanup资源并archive。Git不保留可达的stage coordination历史。
-
-Stage cleanup不建立长期cleanup owner或过程账本。cleanup-only PR只允许删除卡内逐项列明且coverage已验证的terminal Feature Packets，不得修改产品代码、稳定truth、其他Stage/Feature文档或其他owner资源；它是SL产品remote local-only规则的唯一机械例外。partial failure只保留失败资源并在同一root binding下恢复，已完成child不重复执行。standalone FL仍使用自己的独立cleanup卡和cleanup PR。
+Human正常进度以可见SL task为入口，Stage Packet提供可恢复的当前协调状态。全部FL完成和Stage exit通过后，SL展示一张批量cleanup卡；每个FL清理自己的资源，SL只汇总结果并通过一个cleanup-only PR删除卡内terminal Feature Packets，最后清理Stage Packet和自身资源。
 
 ## 7. Feature Packet
 
-一个 FL 对应一个 compact active FP：
+一个FL对应一个compact active Feature Packet：
 
 ```text
 docs/plans/features/<feature-key>.md
 ```
 
-一个 FP 包含 1..N 个相关 slices，仅记录当前范围、依赖、验收、review 方式、candidate 和状态。只有 FL 写 FP；状态原位覆盖，不写执行流水。
+FP只保存当前scope/protected scope、slices、依赖、acceptance、candidate、Feature RI和Human可见状态。只有FL写FP；状态原位覆盖，不写执行流水、重复测试输出或内部task消息。
 
-FP 完成并满足以下条件后进入 `COMPLETE_AWAITING_CLEANUP`：
+一个FL同时最多一个Feature RI。IT的进度默认由FL和FP汇总；独立可恢复IT另建可见task。candidate验证只维护一份当前记录，输入未变的focused/affected evidence直接复用。
 
-- 所有 required slices accepted；
-- 集成和 main 验证通过；
-- 必要的 architecture/contract/ADR/runbook 已回写；
-- 未完成内容进入 backlog 或新 feature。
-
-standalone FL由Human在exact FL task确认cleanup后删除FP。有parent SL时，FP进入`COMPLETE_AWAITING_CLEANUP`后由Stage Cleanup卡统一授权：FL自清理自己的exact执行资源，SL只在全部terminal coverage与child cleanup结果验证后，通过一个cleanup-only PR批量删除同Stage的FP。未terminal、coverage不完整、owner不明、dirty或SHA不匹配的FP和资源保持原状。
+feature merge和main验证通过后进入cleanup。standalone FL使用自己的cleanup卡；有parent SL时由一张Stage Cleanup卡统一授权，各FL仍只清理自己的exact资源。未terminal、coverage不完整、owner不明、dirty或SHA不匹配的FP和资源保持原状。
 
 ## 8. Intake 与 Backlog
 

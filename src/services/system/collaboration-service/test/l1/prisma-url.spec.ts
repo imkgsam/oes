@@ -31,14 +31,16 @@ describe('collaboration-service prisma URL resolution', () => {
     )
   })
 
-  it('keeps L2 integration tests aligned with the local runtime fallback URL', () => {
+  it('keeps L2 integration tests aligned with the task-owned service database URL', () => {
     delete process.env.COLLABORATION_DATABASE_URL
     delete process.env.DATABASE_URL
     process.env.NODE_ENV = 'development'
 
     const url = ensureIntegrationDatabaseUrl()
 
-    expect(url).toContain('postgres://imkgsam:imkgsam@localhost:5432/collaborationdb')
-    expect(url).toContain('schema=collaboration_service')
+    const parsed = new URL(url)
+    expect(parsed.hostname).toBe('127.0.0.1')
+    expect(parsed.pathname).toMatch(/^\/oes_[a-z0-9_]+_collaboration$/)
+    expect(parsed.searchParams.get('schema')).toBe('public')
   })
 })

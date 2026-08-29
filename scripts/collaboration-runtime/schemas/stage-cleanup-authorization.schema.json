@@ -46,7 +46,7 @@
     "stageOwnerTaskId": {
       "type": "string",
       "minLength": 1,
-      "pattern": "^/[A-Za-z0-9][A-Za-z0-9_-]*(?:/[A-Za-z0-9][A-Za-z0-9_-]*)+$"
+      "pattern": "^(?:/[A-Za-z0-9][A-Za-z0-9_-]*(?:/[A-Za-z0-9][A-Za-z0-9_-]*)+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$"
     },
     "transitionId": {
       "type": "string",
@@ -100,16 +100,28 @@
         "expectedSha": {
           "type": ["string", "null"],
           "pattern": "^[0-9a-f]{40}$"
+        },
+        "resourceTopologyVersion": {
+          "const": "stable-owner-exclusive-v1"
         }
       },
       "allOf": [
         {
           "if": {
-            "properties": {
-              "kind": {
-                "enum": ["remote-branch", "local-branch"]
+            "allOf": [
+              {
+                "properties": {
+                  "kind": {
+                    "enum": ["remote-branch", "local-branch"]
+                  }
+                }
+              },
+              {
+                "not": {
+                  "required": ["resourceTopologyVersion"]
+                }
               }
-            }
+            ]
           },
           "then": {
             "properties": {
@@ -125,11 +137,20 @@
         },
         {
           "if": {
-            "properties": {
-              "kind": {
-                "const": "worktree"
+            "allOf": [
+              {
+                "properties": {
+                  "kind": {
+                    "const": "worktree"
+                  }
+                }
+              },
+              {
+                "not": {
+                  "required": ["resourceTopologyVersion"]
+                }
               }
-            }
+            ]
           },
           "then": {
             "properties": {
@@ -145,16 +166,51 @@
         },
         {
           "if": {
-            "properties": {
-              "kind": {
-                "const": "task-temp"
+            "allOf": [
+              {
+                "properties": {
+                  "kind": {
+                    "const": "task-temp"
+                  }
+                }
+              },
+              {
+                "not": {
+                  "required": ["resourceTopologyVersion"]
+                }
               }
-            }
+            ]
           },
           "then": {
             "properties": {
               "path": {
                 "pattern": "^/private/tmp/oes-fl-[a-z0-9]+(?:-[a-z0-9]+)*-artifacts$"
+              },
+              "expectedSha": {
+                "const": null
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "allOf": [
+              {
+                "properties": {
+                  "kind": {
+                    "const": "task-temp"
+                  }
+                }
+              },
+              {
+                "required": ["resourceTopologyVersion"]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "path": {
+                "$ref": "#/$defs/stableTaskTempRoot"
               },
               "expectedSha": {
                 "const": null
@@ -184,7 +240,7 @@
         "ownerTaskId": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^/[A-Za-z0-9][A-Za-z0-9_-]*(?:/[A-Za-z0-9][A-Za-z0-9_-]*)+$"
+          "pattern": "^(?:/[A-Za-z0-9][A-Za-z0-9_-]*(?:/[A-Za-z0-9][A-Za-z0-9_-]*)+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$"
         },
         "candidateSha": {
           "$ref": "#/$defs/gitSha"
@@ -198,12 +254,184 @@
         },
         "resources": {
           "type": "array",
-          "minItems": 1,
+          "minItems": 4,
+          "maxItems": 4,
           "items": {
             "$ref": "#/$defs/resource"
+          },
+          "allOf": [
+            { "contains": { "properties": { "kind": { "const": "remote-branch" } } } },
+            { "contains": { "properties": { "kind": { "const": "local-branch" } } } },
+            { "contains": { "properties": { "kind": { "const": "worktree" } } } },
+            { "contains": { "properties": { "kind": { "const": "task-temp" } } } }
+          ]
+        },
+        "resourceTopologyVersion": {
+          "const": "stable-owner-exclusive-v1"
+        },
+        "ownerResourceBinding": {
+          "$ref": "#/$defs/ownerResourceBinding"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["resourceTopologyVersion"]
+          },
+          "then": {
+            "required": ["ownerResourceBinding"],
+            "properties": {
+              "resources": {
+                "items": {
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/resource"
+                    },
+                    {
+                      "required": ["resourceTopologyVersion"]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["ownerResourceBinding"]
+          },
+          "then": {
+            "required": ["resourceTopologyVersion"]
+          }
+        },
+        {
+          "if": {
+            "not": {
+              "required": ["resourceTopologyVersion"]
+            }
+          },
+          "then": {
+            "properties": {
+              "resources": {
+                "items": {
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/resource"
+                    },
+                    {
+                      "not": {
+                        "required": ["resourceTopologyVersion"]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
           }
         }
+      ]
+    },
+    "ownerResourceBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "kind",
+        "bindingFingerprint",
+        "resourceTopologyVersion",
+        "ownerTaskId",
+        "directParentTaskId",
+        "transitionId",
+        "repositoryRoot",
+        "repositoryRemoteUrl",
+        "ownerClone",
+        "ownerGitDirectory",
+        "ownerRef",
+        "artifactRoot",
+        "taskTempRoot",
+        "featurePacket",
+        "featurePacketCheckpointPath",
+        "currentEvidenceManifestPath",
+        "checkpointBundlePath",
+        "gitBundlePath"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "kind": {
+          "const": "OES_OWNER_RESOURCE_BINDING"
+        },
+        "bindingFingerprint": {
+          "$ref": "#/$defs/sha256"
+        },
+        "resourceTopologyVersion": {
+          "const": "stable-owner-exclusive-v1"
+        },
+        "ownerTaskId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "directParentTaskId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "transitionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repositoryRoot": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "repositoryRemoteUrl": {
+          "type": "string",
+          "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\\.git$"
+        },
+        "ownerClone": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "ownerGitDirectory": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "ownerRef": {
+          "type": "string",
+          "pattern": "^refs/heads/"
+        },
+        "artifactRoot": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "taskTempRoot": {
+          "$ref": "#/$defs/stableTaskTempRoot"
+        },
+        "featurePacket": {
+          "type": "string",
+          "pattern": "^docs/plans/features/[a-z0-9]+(?:-[a-z0-9]+)*\\.md$"
+        },
+        "currentEvidenceManifestPath": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "checkpointBundlePath": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "gitBundlePath": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "featurePacketCheckpointPath": {
+          "type": "string",
+          "pattern": "^/"
+        }
       }
+    },
+    "stableTaskTempRoot": {
+      "type": "string",
+      "pattern": "^/(?:tmp|private/tmp|private/var/folders/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/T)/oes-owner-[0-9a-f]{64}$"
     }
   }
 }

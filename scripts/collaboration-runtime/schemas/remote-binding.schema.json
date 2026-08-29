@@ -194,6 +194,12 @@
     },
     "expectedMergeSha": {
       "$ref": "#/$defs/gitSha"
+    },
+    "resourceTopologyVersion": {
+      "const": "stable-owner-exclusive-v1"
+    },
+    "ownerResourceBinding": {
+      "$ref": "#/$defs/reference"
     }
   },
   "allOf": [
@@ -231,6 +237,22 @@
       },
       "then": {
         "required": ["expectedMergeSha"]
+      }
+    },
+    {
+      "if": {
+        "required": ["resourceTopologyVersion"]
+      },
+      "then": {
+        "required": ["ownerResourceBinding"]
+      }
+    },
+    {
+      "if": {
+        "required": ["ownerResourceBinding"]
+      },
+      "then": {
+        "required": ["resourceTopologyVersion"]
       }
     }
   ],

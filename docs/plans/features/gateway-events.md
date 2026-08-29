@@ -3,7 +3,7 @@
 ```text
 featureKey: gateway-events
 truthCommit: 8638401207d3d94fd3695e8d5e25deaf3e2a760a
-integrationBase: 73208754c0b8323ae06dc5b901fca8f936e57c2d
+integrationBase: 85d784f0805c4bcccbf8cb7543fd9f8c8c7b16b3
 baseSha: 6a62c15b85f252ad3cd7ea19b67886148eb12ef0
 dependencyCandidates:
   reproducible-build: 7a5df0a61315667e8966b4161f08b8fa71c7bd0c
@@ -14,10 +14,10 @@ dependencyCompositionParents:
   - ee959bce07d7430291b676df587ca774039f6f0b
 integrationBranch: codex/feature/gateway-events
 worktreeKey: gateway-events
-pullRequest: pending
+pullRequest: 30
 mergeSha: pending
 cleanup: HOLD
-state: CANDIDATE_READY
+state: FEATURE_REVIEW
 ```
 
 ## Objective
@@ -103,8 +103,8 @@ review: self ACCEPT
 
 ```text
 state: CANDIDATE_READY
-candidate: 8e33c4e829ab4fa1152bc96fb9ac4a47aeff6dc3
-review: global-ri remediation review pending on exact packet-freeze HEAD
+candidate: 4c2fa5e37307e7774cdf0aa79ddeb08b96c17d01
+review: same global-ri moving-main review in progress on exact packet-freeze HEAD
 ```
 
 - Scope: map every acceptance criterion to static, focused unit, component, contract/integration, and failure/recovery evidence; freeze one complete candidate and immutable review bundle.
@@ -175,3 +175,12 @@ review: global-ri remediation review pending on exact packet-freeze HEAD
 - Evidence reuse: FL-1/2/3 ancestry and unaffected evidence remain valid. Shared Common changes triggered all-backend build; Compose changes triggered config/trust/APISIX checks; event runtime changes triggered the final full live matrix and teardown. Moving main advanced from the truth baseline to `73208754c0b8323ae06dc5b901fca8f936e57c2d` through three governance-document-only paths; it was append-merged without conflict and does not invalidate product/runtime evidence.
 - Residual disposition: structurally malformed/no-id DLQ fabrication and Asset -> Site are explicit bounded design/stage residuals and are excluded from completion claims. Missing-id currently remains NAK/no-TERM as frozen fail-closed disposition. Global RI must independently confirm this disposition on the exact packet-freeze HEAD.
 - Remote: no push or PR mutation has occurred. Independent Global RI acceptance is required before the parent may issue one exact single-use remote profile/authorization.
+
+## Moving-main refresh (2026-08-29)
+
+- Integration base advanced append-only to `85d784f0805c4bcccbf8cb7543fd9f8c8c7b16b3`, which contains the main-verified FL-1/FL-2/FL-3 lineage. Merge `215aac066d511ca1f079dd4eb7b566f822835d23` has exact parents `31e07cd7f56d55e4c421fcfea791991bb13eb80c` and `85d784f0805c4bcccbf8cb7543fd9f8c8c7b16b3`; neither history was rewritten.
+- Affected-input review was limited to FL-2 Compose/database/NATS changes and FL-3 shared trust root, exact workload certificates, ports, SPIFFE, and ExecutionToken inputs. Accepted evidence for unchanged event semantics, readiness logic, Collaboration DI, retry classification, and replay rules remains fingerprint-valid.
+- Clean worktree recovery found that the accepted APISIX fixtures existed only as ignored owner-local files because `/docker/*` excluded them. The formal repair versions the standalone APISIX configuration/routes and updates the Compose checker to the main-verified read-only `/var/run/oes-grpc-trust` layout; no stable service or event meaning changed. Implementation commit: `4c2fa5e37307e7774cdf0aa79ddeb08b96c17d01`.
+- Refreshed literal evidence root: `refresh/logs/`. `gateway:events:config` reports 21 backend services, 22 workload bindings, 20 readiness targets, two APISIX routes, and exit 0. Real APISIX/Gateway mTLS reports correct workload `200`, wrong workload `503`, plaintext `503`, upstream removal `503`, and both recoveries `200`. `build:backend` generates 21 Prisma clients and exits 0.
+- The unified task-owned run migrates all 21 databases and proves exact-body/context outbox-to-inbox delivery, broker and Inbox deduplication, transient publish recovery, valid fifth-delivery `NOTIFICATION_RETRY_EXHAUSTED` DLQ/TERM and exactly-once controlled replay, separate `EVENT_OWNER_MISMATCH` DLQ/TERM without replay, three replay durables deleted, and `DATABASE_ROLLBACK=PASS`; containers, volumes, and networks with owner label `tmp_184eadc1` are absent after teardown.
+- Residuals remain unchanged: malformed/no-id input stays fail-closed and observable without fabricated DLQ identity, and Asset -> Site remains outside this representative route. The same independent Global RI must review the packet-freeze candidate before Draft PR #30 is amended.

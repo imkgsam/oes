@@ -35,6 +35,15 @@ test('Gateway plus 21 service workloads have complete unique mTLS listener and c
   assert.deepEqual(result.gatewayTargetMismatches, [])
 })
 
+test('Compose realizes fail-closed trust for Gateway plus 21 runtime workloads', async () => {
+  const result = await inventory()
+  assert.equal(result.composeRuntimeCount, 22)
+  assert.deepEqual(result.defaultTrustMismatches, [])
+  assert.deepEqual(result.composeTrustMismatches, [])
+  assert.deepEqual(result.composePortMismatches, [])
+  assert.deepEqual(result.composeGatewayTargetMismatches, [])
+})
+
 test('CRM and SRM retain their exact distinct listener and Gateway target ports', async () => {
   const result = await inventory()
   const ports = Object.fromEntries(

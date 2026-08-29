@@ -1,0 +1,346 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/assignment-feature-replan.schema.json",
+  "title": "OES bounded Feature topology decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "enum": ["OES_FEATURE_REPLAN_REQUEST", "OES_FEATURE_REPLAN_DECISION"] },
+    "requestFingerprint": { "$ref": "#/$defs/fingerprint" },
+    "stageLeadTaskId": { "$ref": "#/$defs/token" },
+    "featureLeadTaskId": { "$ref": "#/$defs/token" },
+    "stageKey": { "$ref": "#/$defs/featureKey" },
+    "featureKey": { "$ref": "#/$defs/featureKey" },
+    "transitionId": { "$ref": "#/$defs/token" },
+    "stateVersion": { "type": "integer", "minimum": 1 },
+    "scopeFingerprint": { "$ref": "#/$defs/fingerprint" },
+    "rootAuthorizationFingerprint": { "$ref": "#/$defs/fingerprint" },
+    "stageWipAuthority": { "$ref": "#/$defs/stageWipAuthority" },
+    "oldTopology": { "$ref": "#/$defs/wip" },
+    "delegationCeiling": { "$ref": "#/$defs/ceiling" },
+    "retainedWriteSet": { "$ref": "#/$defs/writeSet" },
+    "currentResources": { "$ref": "#/$defs/resources" },
+    "completedSlices": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/completedSlice" },
+      "uniqueItems": true
+    },
+    "proposedSiblings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/sibling" },
+      "uniqueItems": true
+    },
+    "invalidationConditions": { "$ref": "#/$defs/invalidationConditions" },
+    "decisionFingerprint": { "$ref": "#/$defs/fingerprint" },
+    "decision": { "enum": ["FEATURE_REPLAN_REQUIRED", "ATOMIC_CONTINUATION"] },
+    "request": { "$ref": "#/$defs/request" },
+    "newTopology": { "$ref": "#/$defs/wip" },
+    "nextLegalAction": {
+      "enum": [
+        "RETURN_FEATURE_REPLAN_REQUIRED_TO_DIRECT_PARENT",
+        "CONTINUE_ORIGINAL_FEATURE_WITH_BOUNDED_ITS"
+      ]
+    },
+    "reason": { "type": "string", "minLength": 1 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "OES_FEATURE_REPLAN_REQUEST" } } },
+      "then": { "$ref": "#/$defs/request" }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "OES_FEATURE_REPLAN_DECISION" } } },
+      "then": { "$ref": "#/$defs/decisionRecord" }
+    }
+  ],
+  "$defs": {
+    "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "gitSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "featureKey": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "token": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" },
+    "stringList": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "writeRange": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._@-]+(?:/[A-Za-z0-9._@-]+)*(?:/\\*\\*)?$",
+      "not": { "pattern": "(?:^|/)\\.\\.?(?:/|$)" }
+    },
+    "writeSet": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/writeRange" }
+    },
+    "nonEmptyWriteSet": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/writeRange" }
+    },
+    "ceiling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxActiveFeatureLeads",
+        "maxActiveImplementationTasksPerFeature",
+        "maxActiveFeatureReviewsPerFeature"
+      ],
+      "properties": {
+        "maxActiveFeatureLeads": { "enum": [1, 2, 3] },
+        "maxActiveImplementationTasksPerFeature": { "enum": [1, 2, 3] },
+        "maxActiveFeatureReviewsPerFeature": { "const": 1 }
+      }
+    },
+    "featureWip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["featureKey", "activeImplementationTasks", "activeFeatureReviews"],
+      "properties": {
+        "featureKey": { "$ref": "#/$defs/featureKey" },
+        "activeImplementationTasks": { "type": "integer", "minimum": 0 },
+        "activeFeatureReviews": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "wip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["activeFeatureLeads", "features"],
+      "properties": {
+        "activeFeatureLeads": { "type": "integer", "minimum": 0 },
+        "features": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/featureWip" }
+        }
+      }
+    },
+    "stageWipAuthority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "kind",
+        "authorityFingerprint",
+        "stageLeadTaskId",
+        "stageKey",
+        "transitionId",
+        "stageStateVersion",
+        "stageStateFingerprint",
+        "activeFeatureLeads",
+        "activeFeatureKeys",
+        "ceiling"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "kind": { "const": "OES_STAGE_WIP_AUTHORITY_BINDING" },
+        "authorityFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "stageLeadTaskId": { "$ref": "#/$defs/token" },
+        "stageKey": { "$ref": "#/$defs/featureKey" },
+        "transitionId": { "$ref": "#/$defs/token" },
+        "stageStateVersion": { "type": "integer", "minimum": 1 },
+        "stageStateFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "activeFeatureLeads": { "enum": [1, 2, 3] },
+        "activeFeatureKeys": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/featureKey" }
+        },
+        "ceiling": { "$ref": "#/$defs/ceiling" }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ownerRef", "ownerClone", "taskTemp", "featurePacket"],
+      "properties": {
+        "ownerRef": { "type": "string", "minLength": 1 },
+        "ownerClone": { "type": "string", "minLength": 1 },
+        "taskTemp": { "type": "string", "minLength": 1 },
+        "featurePacket": { "type": "string", "minLength": 1 }
+      }
+    },
+    "completedSlice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sliceId", "commitSha", "candidateSha", "evidenceFingerprints"],
+      "properties": {
+        "sliceId": { "$ref": "#/$defs/token" },
+        "commitSha": { "$ref": "#/$defs/gitSha" },
+        "candidateSha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" },
+        "evidenceFingerprints": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/fingerprint" }
+        }
+      }
+    },
+    "proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "independentCandidate",
+        "independentFeatureReview",
+        "independentPullRequest",
+        "safeIndependentMainMerge"
+      ],
+      "properties": {
+        "independentCandidate": { "type": "boolean" },
+        "independentFeatureReview": { "type": "boolean" },
+        "independentPullRequest": { "type": "boolean" },
+        "safeIndependentMainMerge": { "type": "boolean" }
+      }
+    },
+    "sibling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "featureKey",
+        "objective",
+        "scope",
+        "protectedScope",
+        "writeSet",
+        "dependencies",
+        "acceptance",
+        "requiredCapabilityFingerprint",
+        "independenceProof",
+        "scopeFingerprint"
+      ],
+      "properties": {
+        "featureKey": { "$ref": "#/$defs/featureKey" },
+        "objective": { "type": "string", "minLength": 1 },
+        "scope": { "$ref": "#/$defs/stringList" },
+        "protectedScope": { "$ref": "#/$defs/stringList" },
+        "writeSet": { "$ref": "#/$defs/nonEmptyWriteSet" },
+        "dependencies": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "acceptance": { "$ref": "#/$defs/stringList" },
+        "requiredCapabilityFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "independenceProof": { "$ref": "#/$defs/proof" },
+        "scopeFingerprint": { "$ref": "#/$defs/fingerprint" }
+      }
+    },
+    "invalidationConditions": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "OWNER_OR_PARENT_CHANGED",
+          "STAGE_OR_FEATURE_KEY_CHANGED",
+          "TRANSITION_OR_STATE_VERSION_CHANGED",
+          "SCOPE_OR_PROTECTED_SCOPE_CHANGED",
+          "ROOT_AUTHORIZATION_CHANGED",
+          "TOPOLOGY_OR_CEILING_CHANGED",
+          "SIBLING_BINDING_CHANGED",
+          "COMPLETED_WORK_OR_EVIDENCE_CHANGED",
+          "RESOURCE_BINDING_CHANGED"
+        ]
+      },
+      "allOf": [
+        { "contains": { "const": "OWNER_OR_PARENT_CHANGED" } },
+        { "contains": { "const": "STAGE_OR_FEATURE_KEY_CHANGED" } },
+        { "contains": { "const": "TRANSITION_OR_STATE_VERSION_CHANGED" } },
+        { "contains": { "const": "SCOPE_OR_PROTECTED_SCOPE_CHANGED" } },
+        { "contains": { "const": "ROOT_AUTHORIZATION_CHANGED" } },
+        { "contains": { "const": "TOPOLOGY_OR_CEILING_CHANGED" } },
+        { "contains": { "const": "SIBLING_BINDING_CHANGED" } },
+        { "contains": { "const": "COMPLETED_WORK_OR_EVIDENCE_CHANGED" } },
+        { "contains": { "const": "RESOURCE_BINDING_CHANGED" } }
+      ]
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "kind",
+        "requestFingerprint",
+        "stageLeadTaskId",
+        "featureLeadTaskId",
+        "stageKey",
+        "featureKey",
+        "transitionId",
+        "stateVersion",
+        "scopeFingerprint",
+        "rootAuthorizationFingerprint",
+        "stageWipAuthority",
+        "oldTopology",
+        "delegationCeiling",
+        "retainedWriteSet",
+        "currentResources",
+        "completedSlices",
+        "proposedSiblings",
+        "invalidationConditions"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "kind": { "const": "OES_FEATURE_REPLAN_REQUEST" },
+        "requestFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "stageLeadTaskId": { "$ref": "#/$defs/token" },
+        "featureLeadTaskId": { "$ref": "#/$defs/token" },
+        "stageKey": { "$ref": "#/$defs/featureKey" },
+        "featureKey": { "$ref": "#/$defs/featureKey" },
+        "transitionId": { "$ref": "#/$defs/token" },
+        "stateVersion": { "type": "integer", "minimum": 1 },
+        "scopeFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "rootAuthorizationFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "stageWipAuthority": { "$ref": "#/$defs/stageWipAuthority" },
+        "oldTopology": { "$ref": "#/$defs/wip" },
+        "delegationCeiling": { "$ref": "#/$defs/ceiling" },
+        "retainedWriteSet": { "$ref": "#/$defs/writeSet" },
+        "currentResources": { "$ref": "#/$defs/resources" },
+        "completedSlices": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/completedSlice" }
+        },
+        "proposedSiblings": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/sibling" }
+        },
+        "invalidationConditions": { "$ref": "#/$defs/invalidationConditions" }
+      }
+    },
+    "decisionRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "kind",
+        "decisionFingerprint",
+        "decision",
+        "request",
+        "newTopology",
+        "nextLegalAction",
+        "reason"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "kind": { "const": "OES_FEATURE_REPLAN_DECISION" },
+        "decisionFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "decision": { "enum": ["FEATURE_REPLAN_REQUIRED", "ATOMIC_CONTINUATION"] },
+        "request": { "$ref": "#/$defs/request" },
+        "newTopology": { "$ref": "#/$defs/wip" },
+        "nextLegalAction": {
+          "enum": [
+            "RETURN_FEATURE_REPLAN_REQUIRED_TO_DIRECT_PARENT",
+            "CONTINUE_ORIGINAL_FEATURE_WITH_BOUNDED_ITS"
+          ]
+        },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

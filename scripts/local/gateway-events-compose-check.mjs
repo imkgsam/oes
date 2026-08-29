@@ -101,22 +101,29 @@ function main() {
   )
 }
 
-/** Requires one workload to see only its own certificate volume subpath and the exact local SPIFFE binding. */
+/** Requires one workload to resolve its exact leaf inside the main-verified read-only trust root. */
 function assertWorkload(service, workload) {
   assert.ok(service, `COMPOSE_WORKLOAD_MISSING:${workload}`)
   assert.equal(service.environment.OES_GRPC_TLS_ENABLED, 'true')
   assert.equal(service.environment.OES_GRPC_TLS_MIN_VERSION, 'TLSv1.2')
-  assert.equal(service.environment.OES_GRPC_TLS_CA_PATH, '/trust/current/ca.pem')
-  assert.equal(service.environment.OES_GRPC_TLS_CERT_PATH, '/trust/current/cert.pem')
-  assert.equal(service.environment.OES_GRPC_TLS_KEY_PATH, '/trust/current/key.pem')
+  const trustRoot = '/var/run/oes-grpc-trust'
+  assert.equal(service.environment.OES_GRPC_TLS_CA_PATH, `${trustRoot}/ca.pem`)
+  assert.equal(
+    service.environment.OES_GRPC_TLS_CERT_PATH,
+    `${trustRoot}/${workload}/current/cert.pem`
+  )
+  assert.equal(
+    service.environment.OES_GRPC_TLS_KEY_PATH,
+    `${trustRoot}/${workload}/current/key.pem`
+  )
   assert.equal(
     service.environment.OES_WORKLOAD_SPIFFE_ID,
     `spiffe://local.oes.internal/ns/oes/sa/${workload}`
   )
-  const trustVolume = service.volumes.find((volume) => volume.target === '/trust')
+  const trustVolume = service.volumes.find((volume) => volume.target === trustRoot)
   assert.equal(trustVolume.type, 'volume')
   assert.equal(trustVolume.read_only, true)
-  assert.equal(trustVolume.volume.subpath, workload)
+  assert.equal(trustVolume.source, 'grpc_trust_runtime')
   assert.equal(
     service.depends_on['grpc-trust-bootstrap'].condition,
     'service_completed_successfully'

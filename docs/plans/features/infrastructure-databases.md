@@ -2,11 +2,12 @@
 
 featureKey: infrastructure-databases
 truthCommit: 8638401207d3d94fd3695e8d5e25deaf3e2a760a
-baseSha: 7a5df0a61315667e8966b4161f08b8fa71c7bd0c
-dependencyCandidate: reproducible-build@7a5df0a61315667e8966b4161f08b8fa71c7bd0c
+baseSha: aef8e7ff3a30a801ab4df27fd2dafe42793215cf
+integrationBase: aef8e7ff3a30a801ab4df27fd2dafe42793215cf
+dependencyCandidate: reproducible-build@dca7b173d155a33e9c78b2213ad6c22943b4314a
 integrationBranch: codex/feature/infrastructure-databases
 worktreeKey: infrastructure-databases
-pullRequest: pending
+pullRequest: 28
 mergeSha: pending
 cleanup: HOLD
 state: CANDIDATE_READY
@@ -28,16 +29,16 @@ Make the repository-declared local infrastructure and the 21 service-owned Postg
 
 ### INFRA-DB-1 — Inventory and failure reproduction
 state: CANDIDATE_READY
-candidate: 9aa921398e960787351d4ef07be2371fa33b2ff7
+candidate: 35b7db53f087182fb1fd3ec203b2b21de5968eb1
 review: self ACCEPT
 
 - Scope: Inventory main/infra Compose, Dockerfiles, 21 schemas, migration histories, package scripts, and environment mapping; reproduce stale services, missing images, shared resources, credential/readiness mismatch, and migration gaps.
-- Dependencies: reproducible-build@7a5df0a61315667e8966b4161f08b8fa71c7bd0c.
+- Dependencies: reproducible-build@dca7b173d155a33e9c78b2213ad6c22943b4314a, merged to main as aef8e7ff3a30a801ab4df27fd2dafe42793215cf.
 - Acceptance: Deterministic audit identifies each root cause and maps it to a bounded repair and evidence command.
 
 ### INFRA-DB-2 — Task-owned infrastructure Compose
 state: CANDIDATE_READY
-candidate: 9aa921398e960787351d4ef07be2371fa33b2ff7
+candidate: 35b7db53f087182fb1fd3ec203b2b21de5968eb1
 review: self ACCEPT
 
 - Scope: Converge main and infra Compose on task-keyed project/resources, consistent local credentials, digest-pinned images, and real HTTP readiness for Tempo, Loki, OTEL Collector, Grafana, and Nacos.
@@ -46,7 +47,7 @@ review: self ACCEPT
 
 ### INFRA-DB-3 — Complete service image topology
 state: CANDIDATE_READY
-candidate: 9aa921398e960787351d4ef07be2371fa33b2ff7
+candidate: 35b7db53f087182fb1fd3ec203b2b21de5968eb1
 review: self ACCEPT
 
 - Scope: Remove stale Entity/Resource entries, use the reusable digest-pinned service image strategy, and include Gateway plus all 21 services.
@@ -55,7 +56,7 @@ review: self ACCEPT
 
 ### INFRA-DB-4 — Database migration lifecycle
 state: CANDIDATE_READY
-candidate: 9aa921398e960787351d4ef07be2371fa33b2ff7
+candidate: 35b7db53f087182fb1fd3ec203b2b21de5968eb1
 review: self ACCEPT
 
 - Scope: Create 21 service databases/URLs, deploy all schemas, add baselines for the eight zero-migration schemas, and retain original active identifiers/bytes for nine incomplete-from-empty histories through versioned baseline/resolve manifests.
@@ -64,7 +65,7 @@ review: self ACCEPT
 
 ### INFRA-DB-5 — Deterministic seed, invariants, and rollback
 state: CANDIDATE_READY
-candidate: 9aa921398e960787351d4ef07be2371fa33b2ff7
+candidate: 35b7db53f087182fb1fd3ec203b2b21de5968eb1
 review: self ACCEPT
 
 - Scope: Make Collaboration fixtures time-stable and create-only, make Permission fixture IDs deterministic, hash ordered fixture content, verify custom pg_catalog objects, and enforce resource-owner rollback guards.
@@ -73,8 +74,8 @@ review: self ACCEPT
 
 ### INFRA-DB-6 — Clean-worktree lifecycle verification
 state: CANDIDATE_READY
-candidate: 9aa921398e960787351d4ef07be2371fa33b2ff7
-review: global-ri pending on exact packet-freeze HEAD
+candidate: 35b7db53f087182fb1fd3ec203b2b21de5968eb1
+review: prior exact Global RI ACCEPT; moving-main affected validation ACCEPT
 
 - Scope: Run static/unit, failure/recovery, upgrade, seed, custom-invariant, image-build, and clean-worktree lifecycle routes.
 - Dependencies: INFRA-DB-2, INFRA-DB-3, INFRA-DB-4, INFRA-DB-5.
@@ -106,6 +107,14 @@ All slices protect production/shared data, secrets, host/system privilege, remot
 - Service runtime trust/port corrections remain owned by trust-foundation; this feature preserves service boundaries and supplies only task-owned infrastructure/container wiring.
 - Digest pins are platform-resolved artifacts verified on the current execution profile; multi-architecture publication remains a later packaging concern.
 
+## Moving-main refresh — Stage stateVersion 88
+
+- Upstream reproducible-build candidate dca7b173d155a33e9c78b2213ad6c22943b4314a is MAIN_VERIFIED through Merge Commit aef8e7ff3a30a801ab4df27fd2dafe42793215cf and main Baseline Checks 99023904021 success.
+- The accepted FL2 dependency 7a5df0a61315667e8966b4161f08b8fa71c7bd0c is an ancestor of dca7b173d155a33e9c78b2213ad6c22943b4314a. Its final delta changes no build/env/package or FL2-owned product path, and the latest-main merge has no conflict or frozen semantic conflict.
+- The 88-path feature patch before and after integration is byte-identical with SHA-256 2433e457e87d70b34157b506ad342acbaffffbe50185114292fcb3173d049f5e. Migration history, seed/failure recovery, Docker inputs, Compose, schema, and rollback evidence therefore remain reusable.
+- The owner worktree and task-local environment were reconstructed, so build/env policy and the complete task-owned infra/21-database lifecycle were rerun. Both affected routes pass and exact rollback removes every task-owned resource.
+- Integration commit 35b7db53f087182fb1fd3ec203b2b21de5968eb1 has parents 1b90f66ee3e007f2104cc795418ff50bea29895b and aef8e7ff3a30a801ab4df27fd2dafe42793215cf. The subsequent Packet-only freeze commit is the refreshed candidate for Draft PR #28.
+
 ## Evidence keys
 
 - handoff: handoff-smoke.log, handoff-smoke-final.txt
@@ -120,6 +129,10 @@ All slices protect production/shared data, secrets, host/system privilege, remot
 - tracked-only prepare/config: remediation-round3/tracked-only-prepare.log
 - tracked-only final images: remediation-round3/tracked-only-docker-build-exact-9aa.log
 - tracked-only full lifecycle: remediation-round3/tracked-only-full-lifecycle-final.log
+- moving-main affected matrix: affected-matrix-state88.json (SHA-256 103dda64714ee52a1058d15116e66a6cb96a24b0359b987596a3c8e5fc58733d)
+- moving-main focused route: affected-focused-after-main.log
+- moving-main full lifecycle: affected-full-cycle-after-main.log
+- resumed execution profile: resume-profile-smoke.log
 - evidence root is owner-local and contains no tracked credential value.
 
 ## Literal result summary
@@ -133,6 +146,8 @@ All slices protect production/shared data, secrets, host/system privilege, remot
 - Resolve interruption route -> checkpoint recorded before baseline, injected failure after first CRM resolve exits 1, removing the checkpoint makes the same partial history exit 1, restoring the exact checkpoint resumes and completes 21 services.
 - Trust-volume route -> a foreign exact-name grpc_trust_runtime makes rollback exit 1 and remains present; after bounded fixture teardown, rollback exits 0.
 - Tracked-only route at 9aa921398e960787351d4ef07be2371fa33b2ff7 -> install/bootstrap/env-check/config and final Permission/Gateway image builds exit 0. The full up/health/migrate/seed/verify/rollback cycle at its runtime-equivalent ancestor b3357fa8318bc2d0e4c8c9a5becf9cb33f56a323 exits 0; the only subsequent runtime input change is `.dockerignore`, which excludes `docs`, and its policy assertion passes in the exact-candidate focused route.
+- Moving-main focused route -> frozen install, idempotent bootstrap, env check, reproducible-build 16/16, lifecycle policy 13/13, and both Compose renders exit 0.
+- Moving-main full cycle -> five real readiness endpoints, 21/21 migrate/seed/verify, deterministic fixture digests, custom invariants, ownership guards, and exact rollback; `AFFECTED_FULL_CYCLE_EXIT=0`.
 
 ## Validation route
 
@@ -145,10 +160,10 @@ All slices protect production/shared data, secrets, host/system privilege, remot
 
 ## Feature Review
 
-- Result: ACCEPT for implementation ancestor 9aa921398e960787351d4ef07be2371fa33b2ff7; exact integration HEAD is the subsequent packet-freeze commit assigned to Global RI.
-- Scope: all 88 paths from dependency candidate are within Compose/Docker, database lifecycle, migrations/seeds/package entry, or this Feature Packet ownership. Trust manifest, Common gRPC transport/context, proto, stable service models, and cross-owner paths are unchanged.
+- Result: ACCEPT for moving-main integration ancestor 35b7db53f087182fb1fd3ec203b2b21de5968eb1; exact refreshed candidate is the subsequent Packet-only freeze commit.
+- Scope: all 88 paths relative to integrationBase aef8e7ff3a30a801ab4df27fd2dafe42793215cf are within Compose/Docker, database lifecycle, migrations/seeds/package entry, or this Feature Packet ownership. Trust manifest, Common gRPC transport/context, proto, stable service models, and cross-owner paths are unchanged.
 - Behavior: actual task-owned cycle proves 21 isolated databases, five real HTTP readiness endpoints, deterministic seed content, schema/custom-object equality, and exact rollback.
 - Negative paths: injected orchestration failure, partial/legacy history checks, missing custom index, and foreign resource labels fail closed; recovery/repeat paths return 0.
-- Evidence reuse: dependency build evidence remains valid for untouched packages. The complete tracked-only lifecycle remains valid because the subsequent `.dockerignore` change does not alter Compose, database lifecycle, schema, seed, or image runtime inputs. Focused policy tests and both final Docker contexts were rerun at 9aa921398e960787351d4ef07be2371fa33b2ff7.
+- Evidence reuse: prior exact Global RI acceptance and negative/recovery/image evidence remain valid because the refreshed 88-path feature patch is byte-identical. Reconstructed owner environment invalidated runtime identity, so focused build/env and full infra/database lifecycle evidence were replaced by stateVersion 88 runs.
 - Review history: d9f9abda and a8138f53 are immutable rejected candidates and are excluded from publication. Round3 must review the subsequent exact packet-freeze HEAD.
-- Remote: no push or PR mutation has occurred; a new exact Global RI acceptance is required before requesting parent-issued one-time remote authority.
+- Remote: Draft PR #28 remains open at previous head 1b90f66ee3e007f2104cc795418ff50bea29895b. Only the repository-owned amendment driver may fast-forward it to the refreshed Packet-freeze candidate; main merge and cleanup remain excluded.

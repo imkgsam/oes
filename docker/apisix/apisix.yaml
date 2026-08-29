@@ -1,0 +1,40 @@
+# Routes external API and readiness traffic only through the real API Gateway health boundary.
+routes:
+  - id: oes-gateway-api
+    uri: /api/*
+    upstream_id: oes-api-gateway
+    plugins:
+      request-id:
+        header_name: x-request-id
+        include_in_response: true
+        algorithm: uuid
+  - id: oes-gateway-health
+    uris: [/health, /health/ready]
+    upstream_id: oes-api-gateway
+    plugins:
+      request-id:
+        header_name: x-request-id
+        include_in_response: true
+        algorithm: uuid
+
+upstreams:
+  - id: oes-api-gateway
+    type: roundrobin
+    nodes:
+      api-gateway:9101: 1
+    checks:
+      active:
+        type: http
+        http_path: /health/ready
+        timeout: 1
+        concurrency: 1
+        healthy:
+          interval: 1
+          successes: 1
+        unhealthy:
+          interval: 1
+          http_failures: 1
+          tcp_failures: 1
+          timeouts: 1
+
+#END

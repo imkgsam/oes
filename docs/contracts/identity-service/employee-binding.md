@@ -47,9 +47,10 @@
 
 ### `ResolveEmployeeLoginAccount`
 
-- 作用：按 `tenant_id + employee_id` 解析员工现场终端登录绑定账号及其启用状态
-- 使用场景：
-  - `auth-service` 在 `EMPLOYEE_CODE_PIN` 登录中，先从 `hr-service` 获得 active employee，再通过本文能力解析目标 `UserAccount`
+- 作用：保留按 `tenant_id + employee_id` 查询员工绑定账号及其启用状态的既有 BUSINESS compatibility contract
+- 使用边界：
+  - 供现有声明的 BUSINESS 调用方继续使用
+  - `auth-service` 的 pre-HUMAN `EMPLOYEE_CODE_PIN` 登录不得调用本方法，只使用下述 INTERNAL `ResolveAuthEmployeeLoginAccount`
 - 请求关键字段：
   - `tenant_id`
   - `employee_id`
@@ -65,8 +66,30 @@
   - `employee_id` 必须存在唯一绑定
   - 绑定的 `tenant_id` 必须与请求 `tenant_id` 一致
   - 绑定的 `UserAccount` 必须存在、属于同一 tenant
-  - 若账号 disabled，仍返回 `account_enabled = false`，由 `auth-service` 记录准确审计原因并拒绝登录
+  - 若账号 disabled，仍可返回 `account_enabled = false`，但调用方不得把该结果解释为登录或授权成功
   - 若无绑定、tenant mismatch 或账号不存在，返回空响应
+  - 本能力不判断 employee lifecycle、active employment、PIN、MFA、Terminal Access Policy 或设备状态
+
+### `ResolveAuthEmployeeLoginAccount`
+
+- 作用：为 `auth-service` 的 pre-HUMAN `EMPLOYEE_CODE_PIN` 登录解析唯一绑定账号及其最小启用事实
+- admission：仅接受 exact registered `auth-service` workload、`aud=urn:oes:service:identity-service`、SYSTEM MACHINE principal、current certificate `cnf` 与 INTERNAL Code `identity.internal.auth_login_account.resolve`
+- 请求关键字段：
+  - `tenant_id`，来自已验证 terminal/device boundary，仅作为 owner lookup selector
+  - `employee_id`，来自 HR `ResolveAuthLoginEmployee` owner fact
+- 成功响应关键字段：
+  - `user_id`
+  - `account_id`
+  - `employee_id`
+  - `tenant_id`
+  - `scope_level`
+  - `display_name`
+  - `account_enabled`
+- 稳定规则：
+  - 复用同一 `UserAccountEmployeeBinding` owner truth，不新增登录专用绑定模型
+  - Identity 必须验证 active binding、唯一 account、`scope_level = TENANT` 与 request/account tenant 一致
+  - disabled account 可返回 `account_enabled = false` 供 Auth 记录准确审计，但不得建立 session
+  - 无绑定、owner mismatch、tenant mismatch、账号不存在或结构异常返回 safe empty/denied，并由 Auth 保持统一登录失败语义
   - 本能力不判断 employee lifecycle、active employment、PIN、MFA、Terminal Access Policy 或设备状态
 
 ## 4. 明确禁止
@@ -74,3 +97,4 @@
 - 不允许 `identity-service` 根据 account-org membership 反推正式 employee/org 真相
 - 不允许 `hr-service` 自己持久化账号绑定表
 - 不允许把 `ResolveEmployeeLoginAccount` 扩展为认证凭据校验、PIN 管理或 terminal access 判定入口
+- 不允许把 `ResolveAuthEmployeeLoginAccount` 扩展为通用账号目录、认证凭据校验、PIN 管理、employee lifecycle 或 terminal access 判定入口
