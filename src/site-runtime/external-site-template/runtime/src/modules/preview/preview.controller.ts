@@ -1,4 +1,4 @@
-import { Controller, Get, Headers, Param, Query, Res } from '@nestjs/common'
+import { Controller, Get, Param, Query, Res } from '@nestjs/common'
 import { OesSiteRuntimeService } from '@oes/site-runtime-kit'
 import type { Response } from 'express'
 
@@ -16,7 +16,6 @@ export class PreviewController {
     @Param('resourceId') resourceId: string,
     @Query('locale') locale: string,
     @Query('token') previewToken: string,
-    @Headers('x-preview-request-id') previewRequestId: string | undefined,
     @Res({ passthrough: true }) response: Response
   ): Promise<Record<string, unknown>> {
     response.setHeader('Cache-Control', 'no-store')
@@ -25,8 +24,7 @@ export class PreviewController {
       preview_token: previewToken,
       resource_type: resourceType,
       resource_id: resourceId,
-      locale,
-      request_id: previewRequestId
+      locale
     })
   }
 }
