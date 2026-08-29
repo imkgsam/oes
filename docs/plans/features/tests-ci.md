@@ -3,19 +3,19 @@
 ```text
 featureKey: tests-ci
 truthCommit: 8638401207d3d94fd3695e8d5e25deaf3e2a760a
-integrationBase: 73208754c0b8323ae06dc5b901fca8f936e57c2d
+integrationBase: 3fef3227bfb11c976e3bf4ad863e998b9e082701
 baseSha: 31e07cd7f56d55e4c421fcfea791991bb13eb80c
 dependencyCandidates:
   gateway-events: 31e07cd7f56d55e4c421fcfea791991bb13eb80c
 integrationBranch: codex/feature/tests-ci
 worktreeKey: tests-ci
-pullRequest: pending
+pullRequest: 31
 mergeSha: pending
 cleanup: HOLD
 reviewedCodeCandidate: e2d9f8acb9012f539b2919d23e17ca41ded48f3d
 globalRiCandidate: 285bfb0a81fba5c1984815afdda7c654f58b1451
 globalRiResult: GLOBAL_RI_ACCEPT findings none
-state: CANDIDATE_READY
+state: FEATURE_REVIEW
 ```
 
 ## Objective
@@ -202,4 +202,21 @@ The CRM Collaboration delegated-write route remains a stable-semantic conflict r
 
 ## Remote state
 
-No remote mutation has occurred. Feature Review and independent Global RI have accepted the exact reviewed candidate; after the packet-only affected readback, the FL may issue one immutable publication request to the parent for a single-use remote profile/authorization.
+Draft PR `#31` remains open for `codex/feature/tests-ci`. Its previously accepted head was `10213ad967ab5563c67e66e23709c3f5ac00dd25`; main merge and cleanup remain unauthorized.
+
+## Moving-main refresh after FL-4 merge
+
+Latest canonical main `3fef3227bfb11c976e3bf4ad863e998b9e082701` was integrated append-only with the prior accepted candidate as first parent. The affected-test matrix distinguishes the newer FL-4 Compose/APISIX inputs, the overlapping root command surface, current Collaboration Runtime, and repository-wide CI inputs from unchanged FL-4 Gateway/event implementation blobs whose accepted live evidence remains reusable.
+
+Refreshed owner results:
+
+- `pnpm gateway:events:config`: `COMPOSE_CONFIG=PASS backendServices=21 totalServices=38`, workload trust bindings `22`, readiness targets `20`, APISIX routes `2`; exit `0`.
+- `pnpm collaboration-runtime:check`: `134/134` tests and static checks pass; exit `0`.
+- Proto lint/gen/breaking against exact `3fef3227bfb11c976e3bf4ad863e998b9e082701`: pass; exit `0`.
+- FL-4-dependent focused suites: Common event/NATS `35/35`, Gateway readiness `5/5`, Collaboration outbox/runtime `6/6`, Notification retry/DLQ/replay `8/8`; exit `0`.
+- Full `pnpm test:ci`: environment reuses the exact task binding, all `21` Prisma clients generate, complete build inventory `22/21/23/5` passes, unit matrix `8` packages / `435` suites / `1,952` tests passes, Collaboration Runtime `134/134`, foundation atomic group `5/5`, L2 `18` packages / `59` suites / `185` tests, and `DATABASE_ROLLBACK=PASS`; exit `0`.
+- `pnpm test:matrix:check`: unit packages `8`, L2 packages `18` / suites `59`; exit `0`.
+- `pnpm test:design-gap`: `29/29`, including the named fail-closed CRM lane; exit `0`.
+- Final readback: exact latest-main and prior-candidate ancestry pass; `git diff --check` passes; root `.srl`, changed generated/cache artifacts, owner processes, and task containers/volumes/networks are all `0`; owner tree is clean before this Packet-only freeze.
+
+The CRM Collaboration OBO route remains the existing Stage `DESIGN_GAP`; no permission, token, service-boundary, data-ownership, gRPC/event, tenant/org/operator/trace, or audit semantic changed. The refreshed candidate now requires the same independent Global RI affected acceptance before Draft PR `#31` may be updated without force.

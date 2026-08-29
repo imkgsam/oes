@@ -27,8 +27,7 @@ otel/
 !/docker/nats/
 !/docker/nats/**
 !/docker/apisix/
-!/docker/apisix/config.yaml
-!/docker/apisix/apisix.yaml
+!/docker/apisix/**
 !/docker/Dockerfile.service
 !/docker/nacos/
 !/docker/nacos/mysql-schema.sql

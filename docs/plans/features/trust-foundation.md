@@ -2,14 +2,15 @@
 
 ```text
 featureKey: trust-foundation
-truthCommit: 8638401207d3d94fd3695e8d5e25deaf3e2a760a
-baseSha: 7a5df0a61315667e8966b4161f08b8fa71c7bd0c
+truthCommit: 40c11d19b4fe8e33a1e7bae9ab855280ab3088b2
+baseSha: 40c11d19b4fe8e33a1e7bae9ab855280ab3088b2
+dependencySha: 7a5df0a61315667e8966b4161f08b8fa71c7bd0c
 integrationBranch: codex/feature/trust-foundation
 worktreeKey: trust-foundation
-pullRequest: pending
+pullRequest: 27
 mergeSha: pending
 cleanup: HOLD
-state: CANDIDATE_READY
+state: CANDIDATE_REFRESHED
 ```
 
 ## Objective
@@ -42,7 +43,7 @@ review: self
 ```
 
 - Scope: complete local trust workload registry and deterministic certificate/bootstrap assets; align service listener ports and Gateway targets, including `crm-service=50060` and `srm-service=50061`.
-- Protected scope: no Compose, Dockerfile, package/workspace, environment-file, database, migration, seed, or rollback edits.
+- Protected scope: Compose changes are limited to exact trust realization and SRM port alignment; no Dockerfile, package/workspace, environment-file, database, migration, seed, healthcheck, service-inventory, lifecycle, or rollback edits.
 - Dependencies: TF-1.
 - Acceptance: Gateway plus all 21 services have unique registered workload identities, ports match code and Gateway targets, bootstrap is idempotent, and task-owned material remains local/ignored.
 
@@ -109,13 +110,28 @@ review: global-ri
 ## Candidate review evidence
 
 ```text
-implementationCandidate: 605d0ca1165461207ea9a7f4cd7e73582e664479
+implementationCandidate: f017f8efb5d55bc69d6b8b2fd7ef8b6c6749893d
+previousAcceptedCandidate: ee959bce07d7430291b676df587ca774039f6f0b
 invalidatedCandidate: cbef33939d7205dbc43d077a65eb24b8d18cb0eb
 resolvedFinding: RI-TF-001
 collaborationL1: 10 suites / 35 tests / exit 0
 foundationAtomic: FOUNDATION_TRUSTED_RUNTIME_ACCEPTED / exit 0
 featureReview: PASS
-globalReview: pending exact canonical RI
+globalReview: pending refreshed exact canonical RI
 ```
 
 RI-TF-001 exposed a hermetic Collaboration module test that instantiated the new fail-closed client credential factories without a task-owned trust fixture. The focused test now substitutes only the credential boundary and the unrelated request guard, exercises both production async client-provider factories, and asserts two mandatory credential constructions. Production credential creation remains unchanged and fail-closed.
+
+## Moving-main affected matrix
+
+The feature was append-only merged with `40c11d19b4fe8e33a1e7bae9ab855280ab3088b2`. FL-1 build/environment inputs and FL-2 Compose/database inputs changed; previously accepted trust implementation evidence remains reusable where source fingerprints did not change.
+
+| Changed input | Trust intersection | Evidence |
+| --- | --- | --- |
+| FL-1 workspace/build bootstrap | all generated clients and 21 listener builds | workspace check PASS; backend build PASS |
+| FL-2 Gateway plus 21 runtime Compose services | certificate paths, SPIFFE identity, read-only trust volume | fail-closed baseline reproduced 22 missing trust realizations; remediated inventory 3/3 PASS; resolved Compose 22/22 PASS |
+| FL-2 service-owned database URLs | Collaboration hermetic L1 environment | database lifecycle 13/13 PASS; Collaboration L1 35/35 PASS |
+| FL-2 SRM Compose listener | source registry and Gateway target | CRM 50060 / SRM 50061 exact; source, Compose, expose, and Gateway target aligned |
+| unchanged trusted runtime implementation | ExecutionToken, tenant/org/operator/trace/audit, certificate rotation/failure | foundation atomic 153 focused Common tests plus live valid/wrong/missing/expired/rotation matrix PASS |
+
+The Compose realization uses the existing task-owned `grpc_trust_runtime` volume and bootstrap workload. It adds no secret, database, healthcheck, service inventory, image, or lifecycle semantics.

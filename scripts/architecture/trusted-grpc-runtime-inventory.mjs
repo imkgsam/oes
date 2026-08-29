@@ -6,6 +6,7 @@ import ts from 'typescript'
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const servicesRoot = join(repositoryRoot, 'src/services')
 const workloadPath = join(repositoryRoot, 'docker/grpc-trust/workloads.txt')
+const composePath = join(repositoryRoot, 'docker-compose.yml')
 const auxiliaryWorkloads = new Set([
   'grpc-transport-smoke-client',
   'grpc-transport-smoke-server',
@@ -127,6 +128,24 @@ function objectProperty(object, name) {
   })
 }
 
+/** Accepts only a direct call to the shared fail-closed client credential factory. */
+export function isSharedGrpcClientCredentialsCall(initializer) {
+  return (
+    ts.isCallExpression(initializer) &&
+    ts.isIdentifier(initializer.expression) &&
+    initializer.expression.text === 'createGrpcClientCredentials'
+  )
+}
+
+/** Resolves the two exact Compose inheritance paths that retain trusted service defaults. */
+export function inheritsTrustedServiceDefaults(serviceBlock, eventDefaults) {
+  if (serviceBlock.includes('<<: *service-defaults')) return true
+  return (
+    serviceBlock.includes('<<: *event-service-defaults') &&
+    eventDefaults.includes('<<: *service-defaults')
+  )
+}
+
 /** Finds each production gRPC client registration that omits the shared fail-closed mTLS factory. */
 async function readPlaintextClientSources() {
   const files = (await listFiles(servicesRoot)).filter(
@@ -156,10 +175,7 @@ async function readPlaintextClientSources() {
             options && ts.isObjectLiteralExpression(options.initializer)
               ? objectProperty(options.initializer, 'credentials')
               : undefined
-          if (
-            !credentials ||
-            !/^createGrpcClientCredentials\(\)$/u.test(credentials.initializer.getText(sourceFile))
-          ) {
+          if (!credentials || !isSharedGrpcClientCredentialsCall(credentials.initializer)) {
             const line = sourceFile.getLineAndCharacterOfPosition(transport.getStart()).line + 1
             findings.push(`${relative(repositoryRoot, path)}:${line}`)
           }
@@ -196,6 +212,89 @@ async function readGatewayTargetMismatches(portByService) {
     }
   }
   return mismatches
+}
+
+/** Extracts one top-level or service-level Compose block without interpreting unrelated YAML. */
+function composeBlock(source, header, nextIndent = 0) {
+  const indentation = ' '.repeat(nextIndent)
+  const escaped = header.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')
+  return source.match(
+    new RegExp(
+      `^${indentation}${escaped}:[^\\n]*\\n([\\s\\S]*?)(?=^${indentation}[^ \\n][^\\n]*:|(?![\\s\\S]))`,
+      'mu'
+    )
+  )?.[1]
+}
+
+/** Verifies that Compose realizes every registered runtime workload with exact trust and port bindings. */
+async function readComposeMismatches(listeners) {
+  const source = await readFile(composePath, 'utf8')
+  const defaults = composeBlock(source, 'x-service-defaults') ?? ''
+  const eventDefaults = composeBlock(source, 'x-event-service-defaults') ?? ''
+  const environment = composeBlock(source, 'x-service-environment') ?? ''
+  const services = composeBlock(source, 'services') ?? ''
+  const trustRoot = '/var/run/oes-grpc-trust'
+  const defaultRequirements = [
+    'grpc-trust-bootstrap: { condition: service_completed_successfully }',
+    `grpc_trust_runtime:${trustRoot}:ro`
+  ]
+  const environmentRequirements = [
+    "OES_GRPC_TLS_ENABLED: 'true'",
+    'OES_GRPC_TLS_MIN_VERSION: TLSv1.2',
+    `OES_GRPC_TLS_CA_PATH: ${trustRoot}/ca.pem`
+  ]
+  const defaultTrustMismatches = [
+    ...defaultRequirements.filter((expected) => !defaults.includes(expected)),
+    ...environmentRequirements.filter((expected) => !environment.includes(expected))
+  ]
+  const runtimeNames = ['api-gateway', ...listeners.map(({ serviceName }) => serviceName)]
+  const composeTrustMismatches = []
+  const composePortMismatches = []
+  const composeGatewayTargetMismatches = []
+  const gateway = composeBlock(services, 'api-gateway', 2) ?? ''
+  for (const name of runtimeNames) {
+    const block = composeBlock(services, name, 2)
+    if (!block) {
+      composeTrustMismatches.push(`${name}:missing-service`)
+      continue
+    }
+    if (!inheritsTrustedServiceDefaults(block, eventDefaults)) {
+      composeTrustMismatches.push(`${name}:trusted-service-defaults`)
+    }
+    const workloadRequirements = [
+      '<<: *service-environment',
+      `MODULE_NAME: ${name}`,
+      `OES_GRPC_TLS_CERT_PATH: ${trustRoot}/${name}/current/cert.pem`,
+      `OES_GRPC_TLS_KEY_PATH: ${trustRoot}/${name}/current/key.pem`,
+      `OES_WORKLOAD_SPIFFE_ID: spiffe://local.oes.internal/ns/oes/sa/${name}`
+    ]
+    for (const expected of workloadRequirements) {
+      if (!block.includes(expected)) composeTrustMismatches.push(`${name}:${expected}`)
+    }
+    const listener = listeners.find(({ serviceName }) => serviceName === name)
+    if (!listener) continue
+    if (
+      !block.includes(`GRPC_LISTEN_PORT: ${listener.port}`) ||
+      !block.includes(`expose: ['${listener.port}']`)
+    ) {
+      composePortMismatches.push(`${name}:${listener.port}`)
+    }
+    const targetVariable = `${name
+      .replace(/-service$/u, '')
+      .replaceAll('-', '_')
+      .toUpperCase()}_SERVICE_PORT`
+    const targetMatch = gateway.match(new RegExp(`^      ${targetVariable}: (\\d{5})$`, 'mu'))
+    if (targetMatch && targetMatch[1] !== listener.port) {
+      composeGatewayTargetMismatches.push(`${name}:${targetMatch[1]}!=${listener.port}`)
+    }
+  }
+  return {
+    composeRuntimeCount: runtimeNames.filter((name) => composeBlock(services, name, 2)).length,
+    defaultTrustMismatches,
+    composeTrustMismatches,
+    composePortMismatches,
+    composeGatewayTargetMismatches
+  }
 }
 
 /** Produces the executable state truth table and fails closed on drift. */
@@ -239,6 +338,7 @@ async function main() {
   const gatewayTargetMismatches = await readGatewayTargetMismatches(
     new Map(listeners.map((listener) => [listener.serviceName, listener.port]))
   )
+  const compose = await readComposeMismatches(listeners)
   const report = {
     gatewayCount: workloadSet.has('api-gateway') ? 1 : 0,
     serviceCount: listeners.length,
@@ -254,7 +354,8 @@ async function main() {
     registryMismatches,
     plaintextListeners,
     plaintextClientSources,
-    gatewayTargetMismatches
+    gatewayTargetMismatches,
+    ...compose
   }
 
   console.log(JSON.stringify(report, null, 2))
@@ -278,9 +379,24 @@ async function main() {
       : undefined,
     gatewayTargetMismatches.length
       ? 'Gateway target defaults do not match listener ports'
+      : undefined,
+    compose.composeRuntimeCount === 22
+      ? undefined
+      : `expected 22 Compose runtimes, found ${compose.composeRuntimeCount}`,
+    compose.defaultTrustMismatches.length
+      ? `Compose trust defaults missing: ${compose.defaultTrustMismatches.join(', ')}`
+      : undefined,
+    compose.composeTrustMismatches.length
+      ? `Compose workload trust bindings missing: ${compose.composeTrustMismatches.join(', ')}`
+      : undefined,
+    compose.composePortMismatches.length
+      ? `Compose listener ports mismatch: ${compose.composePortMismatches.join(', ')}`
+      : undefined,
+    compose.composeGatewayTargetMismatches.length
+      ? `Compose Gateway target ports mismatch: ${compose.composeGatewayTargetMismatches.join(', ')}`
       : undefined
   ].filter(Boolean)
   if (failures.length > 0) throw new Error(failures.join('\n'))
 }
 
-await main()
+if (resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main()
