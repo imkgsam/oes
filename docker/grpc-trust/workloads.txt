@@ -1,10 +1,27 @@
-# Each entry receives a distinct X.509-SVID-style leaf certificate in local Compose.
-api-gateway
-auth-service
-identity-service
-permission-service
-entity-service
-resource-service
-grpc-transport-smoke-client
-grpc-transport-smoke-server
-grpc-transport-smoke-rogue
+# workload | default gRPC port | listener source
+# Each entry receives a distinct local X.509-SVID-style leaf. A dash marks a client-only workload.
+api-gateway|-|src/services/api-gateway/src/main.ts
+auth-service|50050|src/services/system/auth-service/src/infrastructure/execution-token-signer/auth-grpc-bootstrap.ts
+permission-service|50051|src/services/system/permission-service/src/main.ts
+identity-service|50052|src/services/system/identity-service/src/main.ts
+party-service|50053|src/services/system/party-service/src/main.ts
+tenant-org-service|50054|src/services/system/tenant-org-service/src/main.ts
+hr-service|50055|src/services/system/hr-service/src/main.ts
+asset-service|50056|src/services/system/asset-service/src/main.ts
+terminal-device-service|50057|src/services/system/terminal-device-service/src/main.ts
+item-master-service|50058|src/services/system/item-master-service/src/main.ts
+sales-service|50059|src/services/business/sales-service/src/main.ts
+crm-service|50060|src/services/business/crm-service/src/main.ts
+srm-service|50061|src/services/business/srm-service/src/main.ts
+procurement-service|50062|src/services/business/procurement-service/src/main.ts
+finance-service|50063|src/services/business/finance-service/src/main.ts
+wms-service|50064|src/services/business/wms-service/src/main.ts
+mes-service|50065|src/services/business/mes-service/src/main.ts
+notification-service|50066|src/services/system/notification-service/src/main.ts
+public-entry-service|50067|src/services/system/public-entry-service/src/main.ts
+collaboration-service|50068|src/services/system/collaboration-service/src/main.ts
+site-service|50069|src/services/system/site-service/src/main.ts
+browser-activity-service|50070|src/services/system/browser-activity-service/src/main.ts
+grpc-transport-smoke-client|-|scripts/local/trusted-grpc-transport-smoke.mjs
+grpc-transport-smoke-server|-|scripts/local/trusted-grpc-transport-smoke.mjs
+grpc-transport-smoke-rogue|-|scripts/local/trusted-grpc-transport-smoke.mjs
