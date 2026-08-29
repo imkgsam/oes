@@ -28,11 +28,11 @@
 - 所有六个 RPC 都使用 Party audience 的 SYSTEM MACHINE certificate-bound ET；tenant scope 从 ET 派生，不再信任 request body 的 `tenant_id`。
 - Gateway 先完成 HUMAN HTTP 授权，再以自己的 SYSTEM MACHINE ET 调用 Party；Party 不混合 HUMAN 与 MACHINE 两套 RPC 模式。
 
-非 Gateway 调用方也必须使用各自的 SYSTEM MACHINE 身份。入站 HUMAN ET（如果存在）只提供上游 subject、tenant/org 与 trace/audit 归因，不能直接作为 Party authority；调用方必须在 request-local scope 中建立自己的 `TrustedExecutionContext`（`principalType=MACHINE`、自身 subject、可信 request id 与 W3C `traceparent`），再由 Common `TrustedGrpcMetadataProvider` 通过自身 source credential 换取 Party audience ET。缺少可信 context、有效 source credential、当前 workload/binding selector 或 Party ET 时直接 fail closed；不回退到普通 metadata、body identity 或 Gateway 身份。
+非 Gateway 调用方也必须使用各自的 SYSTEM MACHINE 身份。入站 HUMAN ET（如果存在）只提供上游 subject、tenant/org 与 trace/audit 归因，不能直接作为 Party authority；调用方使用 Identity-provisioned exact selector 与 current mTLS 向 Auth 换取 Party audience ET，再由 Common `TrustedGrpcMetadataProvider` 发送 certificate-bound ET。缺少 selector、current workload identity、Identity/Permission decision 或 Party ET 时直接 fail closed；不回退到普通 metadata、body identity 或 Gateway 身份。
 
-Phase 1 的 provider preparation 与 Phase 2 的真实 MACHINE 联调共用同一 contract：selector 只来自部署配置（自身 Machine Principal、`MachineWorkloadBinding` reference/version 与 workload SPIFFE），Auth/Identity/Permission 负责最终复核，调用方不能自行声明 tenant、scope、grant 或 certificate facts。稳定错误分类为 `PARTY_CALLER_EXECUTION_CONTEXT_REQUIRED`、`PARTY_CALLER_FOUNDATION_UNAVAILABLE` 与 `PARTY_CALLER_SOURCE_CREDENTIAL_INVALID`；三者都终止调用，不产生业务副作用。每个服务保留自己的 adapter/provider 文件，禁止跨 package 相对导入或复用 Gateway MACHINE producer。
+Phase 1 的 provider preparation 与 Phase 2 的真实 MACHINE 联调共用同一 contract：selector 只来自 Identity provisioner 输出的部署配置（自身 Machine Principal、`MachineWorkloadBinding` reference/version），SPIFFE 与 leaf 只来自 transport；Auth/Identity/Permission 负责最终复核，调用方不能自行声明 tenant、scope、grant 或 certificate facts。稳定错误分类为 `PARTY_CALLER_EXECUTION_CONTEXT_REQUIRED`、`PARTY_CALLER_FOUNDATION_UNAVAILABLE` 与 `PARTY_CALLER_MACHINE_SELECTOR_INVALID`；三者都终止调用，不产生业务副作用。每个服务保留自己的 adapter/provider 文件，禁止跨 package 相对导入或复用 Gateway MACHINE producer。
 
-具体实现归属沿用已验收的 Notification Auth MACHINE 与 Site→Asset 多跳样板：CRM、SRM、HR、Identity、TenantOrg 各自拥有自己的 Party STS client、source-credential provider 与 Party producer；Common 只复用已有 `TrustedGrpcMetadataProvider`、certificate-bound ET cache、mTLS workload identity 与 private source-credential carrier。Auth STS contract、Party proto/RPC、Permission Codes 与 Party 业务能力均保持不变。没有真实 credential 或 ET 时直接 fail closed；不得复用 Gateway 或 Notification 的 workload identity。
+具体实现归属为：CRM、SRM、HR、Identity、TenantOrg 各自拥有自己的 Party STS client、selector provider 与 Party producer；Common 只复用 `TrustedGrpcMetadataProvider`、certificate-bound ET cache 与 mTLS workload identity。Party proto/RPC、Permission Codes 与业务能力保持不变。没有有效 selector 或 ET 时直接 fail closed；不得复用 Gateway 或 Notification 的 workload identity。
 
 ## 4. 当前最小 Contract Surface
 

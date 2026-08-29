@@ -1,0 +1,267 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/validation-plan-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "result",
+    "tier",
+    "gateContext",
+    "candidateSha",
+    "candidateTreeSha",
+    "changedPaths",
+    "runActions",
+    "reuseActions",
+    "invalidatedEvidenceFingerprints",
+    "reusableEvidenceFingerprints",
+    "designGap",
+    "planFingerprint"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "OES_VALIDATION_PLAN" },
+    "result": { "enum": ["PLAN_READY", "DESIGN_GAP"] },
+    "tier": {
+      "enum": ["FOCUSED_DEVELOPMENT", "CANDIDATE_AFFECTED", "FULL_GATE"]
+    },
+    "gateContext": { "enum": ["NONE", "FEATURE", "STAGE"] },
+    "candidateSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "candidateTreeSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "changedPaths": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)(?!.*\\/$).+$"
+      }
+    },
+    "runActions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/runAction" }
+    },
+    "reuseActions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/reuseAction" }
+    },
+    "invalidatedEvidenceFingerprints": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+    },
+    "reusableEvidenceFingerprints": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+    },
+    "designGap": { "type": ["object", "null"] },
+    "planFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  },
+  "$defs": {
+    "coverageIds": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "fingerprintOrNull": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "runAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commandId",
+        "command",
+        "tier",
+        "driftDecision",
+        "coverageIds",
+        "affectedCoverageIds",
+        "priorEvidenceFingerprint",
+        "reason"
+      ],
+      "properties": {
+        "commandId": { "type": "string", "minLength": 1 },
+        "command": { "type": "string", "minLength": 1 },
+        "tier": {
+          "enum": ["FOCUSED_DEVELOPMENT", "CANDIDATE_AFFECTED", "FULL_GATE"]
+        },
+        "driftDecision": { "enum": ["FOCUSED", "FULL"] },
+        "coverageIds": { "$ref": "#/$defs/coverageIds" },
+        "affectedCoverageIds": { "$ref": "#/$defs/coverageIds" },
+        "priorEvidenceFingerprint": { "$ref": "#/$defs/fingerprintOrNull" },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "reuseAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commandId",
+        "command",
+        "tier",
+        "driftDecision",
+        "coverageIds",
+        "priorEvidenceFingerprint",
+        "evidence",
+        "reason"
+      ],
+      "properties": {
+        "commandId": { "type": "string", "minLength": 1 },
+        "command": { "type": "string", "minLength": 1 },
+        "tier": {
+          "enum": ["FOCUSED_DEVELOPMENT", "CANDIDATE_AFFECTED", "FULL_GATE"]
+        },
+        "driftDecision": { "enum": ["REUSE_EXACT", "REFRESH_BASELINE"] },
+        "coverageIds": { "$ref": "#/$defs/coverageIds" },
+        "priorEvidenceFingerprint": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "evidence": { "$ref": "#/$defs/evidenceKey" },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "dependencyCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["featureKey", "candidateSha", "candidateTreeSha"],
+      "properties": {
+        "featureKey": {
+          "type": "string",
+          "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+        },
+        "candidateSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "candidateTreeSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+      }
+    },
+    "evidenceKey": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "kind",
+        "candidateSha",
+        "candidateTreeSha",
+        "dependencyCandidates",
+        "dependencyFingerprint",
+        "lockfileFingerprint",
+        "toolchainFingerprint",
+        "testConfigFingerprint",
+        "environmentFingerprint",
+        "literalInputsFingerprint",
+        "executionProfileFingerprint",
+        "commandFingerprint",
+        "commandVersion",
+        "literalResultFingerprint",
+        "exitCode",
+        "coverageIds",
+        "evidenceFingerprint"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "kind": { "const": "OES_TEST_EVIDENCE_KEY" },
+        "candidateSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "candidateTreeSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "dependencyCandidates": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/dependencyCandidate" }
+        },
+        "dependencyFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "lockfileFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "toolchainFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "testConfigFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "environmentFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "literalInputsFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "executionProfileFingerprint": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "commandFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "commandVersion": { "type": "string", "minLength": 1 },
+        "literalResultFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "exitCode": { "type": "integer" },
+        "coverageIds": { "$ref": "#/$defs/coverageIds" },
+        "evidenceFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "tier": { "const": "FULL_GATE" } } },
+      "then": {
+        "properties": {
+          "gateContext": { "enum": ["FEATURE", "STAGE"] },
+          "runActions": {
+            "items": { "properties": { "tier": { "const": "FULL_GATE" } } }
+          },
+          "reuseActions": {
+            "items": { "properties": { "tier": { "const": "FULL_GATE" } } }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "tier": { "const": "FOCUSED_DEVELOPMENT" } } },
+      "then": {
+        "properties": {
+          "gateContext": { "const": "NONE" },
+          "runActions": {
+            "items": { "properties": { "tier": { "const": "FOCUSED_DEVELOPMENT" } } }
+          },
+          "reuseActions": {
+            "items": { "properties": { "tier": { "const": "FOCUSED_DEVELOPMENT" } } }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "tier": { "const": "CANDIDATE_AFFECTED" } } },
+      "then": {
+        "properties": {
+          "gateContext": { "const": "NONE" },
+          "runActions": {
+            "items": { "properties": { "tier": { "const": "CANDIDATE_AFFECTED" } } }
+          },
+          "reuseActions": {
+            "items": { "properties": { "tier": { "const": "CANDIDATE_AFFECTED" } } }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "result": { "const": "DESIGN_GAP" } } },
+      "then": {
+        "properties": {
+          "runActions": { "maxItems": 0 },
+          "reuseActions": { "maxItems": 0 },
+          "designGap": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["reason", "commandIds", "affectedCoverageIds"],
+            "properties": {
+              "reason": { "const": "frozen semantic conflict" },
+              "commandIds": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "type": "string", "minLength": 1 }
+              },
+              "affectedCoverageIds": { "$ref": "#/$defs/coverageIds" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "result": { "const": "PLAN_READY" } } },
+      "then": { "properties": { "designGap": { "const": null } } }
+    }
+  ]
+}

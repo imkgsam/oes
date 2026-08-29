@@ -206,12 +206,13 @@ HR minimum 第一阶段允许在员工 onboarding 中可选触发账号接入与
 - 不在 minimum 第一阶段支持多条当前 active employment、兼任组织、借调、future-dated 自动生效、复杂任职区间治理
 - 在当前阶段不默认承接完整 payroll、attendance、performance、recruiting、position management 或 reporting line governance
 
-## 11. Trusted gRPC 15-RPC contract（FROZEN）
+## 11. Trusted gRPC 16-RPC contract（FROZEN）
 
-All 15 HR RPCs are `BUSINESS`; audience is `urn:oes:service:hr-service`. Direct Gateway calls use `HUMAN / WEB`. Identity/TenantOrg collaboration calls use the verified subject as `HUMAN_OBO`. The exact pre-auth `Auth.ResolveActiveEmployeeByCode` path and anonymous Public Entry employee-card reads use only their allowlisted `SYSTEM MACHINE` actor and the same method Code; no Cron/worker wildcard is admitted.
+The baseline 15 HR RPCs remain `BUSINESS`, and additive `ResolveAuthLoginEmployee` is the sixteenth `INTERNAL` RPC; audience is `urn:oes:service:hr-service`. Direct Gateway calls use `HUMAN / WEB`. Identity/TenantOrg collaboration calls use the verified subject as `HUMAN_OBO`. Anonymous Public Entry employee-card reads retain their named SYSTEM MACHINE contract. Auth pre-HUMAN employee lookup uses only `ResolveAuthLoginEmployee` with the exact Auth workload and `hr.internal.auth_login_employee.resolve`; no Cron/worker wildcard is admitted.
 
 | Code | RPCs |
 | --- | --- |
+| `hr.internal.auth_login_employee.resolve` | `ResolveAuthLoginEmployee` |
 | `hr.employee.list` | `ListEmployees` |
 | `hr.employee.get_by_id` | `GetEmployeeById`, `GetEmployeeByTenantPartyId`, `ResolveActiveEmployeeByCode`, `GetActiveEmployment`, `ListEmployments`, `GetLatestOnboardingAccess` |
 | `hr.employee.create` | `CreateEmployee`, `CreateEmployeeOnboarding`, `UpdateEmployeeOfficialPhoto`, `RemoveEmployeeOfficialPhoto` |
@@ -219,4 +220,6 @@ All 15 HR RPCs are `BUSINESS`; audience is `urn:oes:service:hr-service`. Direct 
 | `hr.employment.end` | `EndEmployment` |
 | `hr.employment.change_primary` | `ChangePrimaryEmployment` |
 
-Ten legacy request `tenant_id=1` fields are removed/reserved: `ChangePrimaryEmployment`, `CompleteEmployeeAccess`, `CreateEmployeeOnboarding`, `CreateEmployee`, `CreateEmployment`, `GetEmployeeByTenantPartyId`, `GetLatestOnboardingAccess`, `ListEmployees`, `RemoveEmployeeOfficialPhoto`, `UpdateEmployeeOfficialPhoto`. `ResolveActiveEmployeeByCode.tenant_id=1` remains only as the target tenant selector derived by Auth from the verified terminal/login boundary; it is never admission authority. All response projections and HR business identifiers remain unchanged.
+Ten legacy request `tenant_id=1` fields are removed/reserved: `ChangePrimaryEmployment`, `CompleteEmployeeAccess`, `CreateEmployeeOnboarding`, `CreateEmployee`, `CreateEmployment`, `GetEmployeeByTenantPartyId`, `GetLatestOnboardingAccess`, `ListEmployees`, `RemoveEmployeeOfficialPhoto`, `UpdateEmployeeOfficialPhoto`. `ResolveActiveEmployeeByCode.tenant_id=1` remains a resource selector for its compatible BUSINESS contract. Auth login instead supplies the verified terminal/device tenant to `ResolveAuthLoginEmployee.tenant_id`; both fields are lookup selectors and never admission authority. All existing response projections and HR business identifiers remain unchanged.
+
+`ResolveAuthLoginEmployee(tenant_id, employee_code)` is Auth-only and returns only `employee_id` plus `active_employment_id` when the employee and current employment are active in the selected tenant. The request tenant and employee code are lookup selectors, never execution authority. Missing, inactive, tenant-mismatched or ambiguous facts return the stable unavailable/empty result consumed by Auth; the generic `ResolveActiveEmployeeByCode` BUSINESS method remains compatible for existing non-login consumers.

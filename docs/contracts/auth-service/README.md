@@ -48,9 +48,7 @@ Proto 契约来源仍然是：
 - [trusted-login-device.md](./trusted-login-device.md)
   - Web trusted browser 与 future Mobile remembered device 语义
 - [execution-token.md](./execution-token.md)
-  - Workload / API Key 认证、STS exchange、单 audience ExecutionToken、JWKS、cache 与紧急撤销语义；external callers receive only the separate Gateway-only access token
-- [machine-workload-source-credential.md](./machine-workload-source-credential.md)
-  - `IMPLEMENTED_VERIFIED`：第一方内部 Cron / Robot / worker 的短期 MACHINE root source credential、workload/certificate binding、Identity resolution 与 fail-closed 语义
+  - Workload / API Key 认证、STS exchange、current mTLS + typed selector direct MACHINE root、单 audience ExecutionToken、JWKS、cache 与紧急撤销语义；external callers receive only the separate Gateway-only access token
 - [external-api-key-security.md](./external-api-key-security.md)
   - tenant Integration Machine 的 API Key 创建、轮换、撤销、审计、泄漏处置与 `external_api_key.proto` Gateway/Auth gRPC 语义
 - [delegated-execution-and-action-grant.md](./delegated-execution-and-action-grant.md)
@@ -69,4 +67,4 @@ Proto 契约来源仍然是：
 - request body 中重复的 tenant、operator、scope 或 service name 不能建立身份或授权
 ## Trusted gRPC foundation-group admission
 
-The exact 70-RPC public/self/business classification, the preserved five foundation RPCs, audience, callers and 15 request tombstones are owned by [auth-service.md](../../architecture/services/auth-service.md#19-trusted-grpc-foundation-group-admissionfrozen). Anonymous credential, recovery, MFA continuation, refresh and account-selection calls use their existing Auth-owned credential/challenge proofs over exact Gateway mTLS admission; they do not fabricate an ExecutionToken. Runtime cutover is atomic with Identity, Permission, HR and TenantOrg as frozen in the trusted-gRPC feature packet.
+The exact 70-RPC public/self/business classification, foundation RPC target state, audience, callers and 15 request tombstones are owned by [auth-service.md](../../architecture/services/auth-service.md#19-trusted-grpc-foundation-group-admissionfrozen). Anonymous credential, recovery, MFA continuation, refresh and account-selection calls use their existing Auth-owned credential/challenge proofs over exact Gateway mTLS admission; they do not fabricate an ExecutionToken. Runtime cutover is atomic with Identity, Permission, HR and TenantOrg as frozen in the trusted-gRPC feature packet.

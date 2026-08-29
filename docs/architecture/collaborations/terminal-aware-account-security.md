@@ -142,8 +142,8 @@ PDA App
 -> /pda/auth/login, method=EMPLOYEE_CODE_PIN
 -> BFF / terminal-device-service confirms terminalDeviceId and deviceBoundTenantId
 -> auth-service checks EMPLOYEE_CODE_PIN is enabled for PDA
--> auth-service calls hr-service ResolveActiveEmployeeByCode(deviceBoundTenantId, employeeCode)
--> auth-service calls identity-service ResolveEmployeeLoginAccount(tenantId, employeeId)
+-> auth-service calls hr-service ResolveAuthLoginEmployee(deviceBoundTenantId, employeeCode)
+-> auth-service calls identity-service ResolveAuthEmployeeLoginAccount(tenantId, employeeId)
 -> auth-service verifies user-scoped TERMINAL_PIN
 -> permission-service resolves Terminal Access Policy for resolved account
 -> auth-service resolves terminal MFA policy; PDA default is false

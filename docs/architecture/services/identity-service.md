@@ -36,12 +36,13 @@
   - `ServiceAccount`
   - machine principal scope / type / lifecycle
   - `MachineWorkloadBinding`：Machine Principal 与受控 workload SPIFFE ID 的稳定绑定及其 lifecycle/version
+  - `MachineWorkloadProvisioningReceipt`：固定 SYSTEM inventory entry 到 principal/binding 的幂等 provisioning 事实
 - 面向认证、授权、BFF 与业务服务的受控身份查询结果。
 
 ## 3. Does Not Own
 
 - 密码、OTP、MFA、login method、session、token、refresh token、认证 challenge 或认证审计真相；这些归属 `auth-service`。
-- API Key secret / hash、内部 `MachineWorkloadSourceCredential`、credential 认证/签发/轮换/撤销、STS 与 ExecutionToken 签发；这些归属 `auth-service`。
+- API Key secret / hash、credential 认证/签发/轮换/撤销、STS 与 ExecutionToken 签发；这些归属 `auth-service`。MACHINE selector 是 Identity owner reference，不是 credential。
 - 权限码、角色、scope、policy、terminal access policy、授权判定、权限摘要或导航授权真相；这些以 [permission-service.md](./permission-service.md) 为准。
 - `Tenant`、tenant lifecycle、`OrgUnit`、org tree、org hierarchy、org reference validation 或 `organizationTenantPartyId` 真相；这些以 [tenant-org-service.md](./tenant-org-service.md) 为准。
 - `Employee`、`Employment`、正式 `人 -> org` 任职关系或 onboarding 业务结果；这些归属 `hr-service`。
@@ -62,7 +63,7 @@
 - 为 `api-gateway` / BFF 提供 account context、账号目录、身份展示摘要与必要的用户发现能力。
 - 维护 `UserAccount <-> Employee` 绑定结果，并在绑定时校验同 tenant 与同自然人主体约束。
 - 维护工作邮箱、工作手机号、公司受控社交账号、员工个人社交联系方式展示引用与外部通信账号展示摘要这类账号联系资产的分配、回收、启停、交接和主联系方式语义。
-- 维护机器主体基础身份及其 `MachineWorkloadBinding`，并向 Auth / Permission 提供稳定 principal id、type、scope、tenant/org reference、lifecycle 与 workload-binding decision；不保存认证 secret、叶证书或签发 token。
+- 维护机器主体基础身份、`MachineWorkloadBinding` 与固定 SYSTEM inventory provisioning receipt，并向 Auth / Permission 提供稳定 principal id、type、scope、tenant/org reference、lifecycle 与 workload-binding decision；不保存认证 secret、叶证书或签发 token。
 - 区分登录标识、联系资产、真实姓名与展示名，不把一个字段扩张成多种真相。
 - 对当前账号自助资料修改与管理员资料管理使用显式分离的接口边界，不允许长期复用同一个 management 写接口承载 self-service 语义。
 
@@ -107,7 +108,7 @@
 - `OrgUnit`、org tree、org hierarchy 与 org reference validation 以 [tenant-org-service.md](./tenant-org-service.md) 为准。
 - `Employment -> OrgUnit` 是正式 `人 -> org` 任职真相，归 `hr-service`。
 - `UserAccount <-> Employee` binding 必须校验同 tenant，且 `UserAccount.tenantPartyId == Employee.tenantPartyId`。
-- `ResolveEmployeeLoginAccount` 可基于既有 `UserAccount <-> Employee` binding 返回某 active employee 对应的唯一 account 及其 enabled state，用于认证编排与准确审计；该能力不得把 identity-service 扩展为 HR lifecycle、terminal access 或 PIN owner。
+- `ResolveEmployeeLoginAccount` 保留为既有 BUSINESS compatibility query，不作为 Auth pre-HUMAN 登录入口；员工码现场登录只使用 Auth-only INTERNAL `ResolveAuthEmployeeLoginAccount`，由 Identity 基于既有 `UserAccount <-> Employee` binding 校验唯一 account、tenant owner 关系及 enabled state。两者都不得把 identity-service 扩展为 HR lifecycle、terminal access 或 PIN owner。
 - legacy account-org membership 或 account 视角 org 数据只能作为 compatibility / projection 口径存在，不得成为 onboarding、HR、授权或组织治理主链 owner。
 - `identity-service` 可在账号、联系资产、机器主体、审计记录中保留 `tenantId / orgId` 引用字段，但不得通过本地模型或共享数据库读取 tenant / org 真相。
 
@@ -171,15 +172,15 @@
 
 内部 Cron、Robot 与 worker 使用另一条 generic Machine Principal resolution，不复用 external Integration resolver：
 
-实现状态：`IMPLEMENTED_VERIFIED`。下述 `MachineWorkloadBinding` persistence、resolver proto/runtime 与 INTERNAL Code registration 已由 `024579598c1293807d3f1cd5e7003aefd8e8fa0a` 验收并集成到 current main。
+实现状态：`DESIGN_FROZEN_PENDING_IMPLEMENTATION`。既有 binding persistence/resolver runtime 保留为实现基础；resolver admission 与固定 SYSTEM provisioning 按本节变更，以移除不可部署的递归首凭据路径。
 
-- `MachineWorkloadBinding` 是 Identity-owned identity fact。一个 binding 以稳定 opaque reference 关联一个 Machine Principal、一个精确 workload SPIFFE ID、active/disabled lifecycle 与单调 binding version；它不保存 leaf certificate、Auth credential、Permission Code 或 grant。一个 SPIFFE workload 可以承载多个受控 machine binding，但一次 Auth source credential 必须引用唯一一个 binding，且该 binding 只能解析到唯一一个 principal；任何歧义均拒绝。
+- `MachineWorkloadBinding` 是 Identity-owned identity fact。一个 binding 以稳定 opaque reference 关联一个 Machine Principal、一个精确 workload SPIFFE ID、active/disabled lifecycle 与单调 binding version；它不保存 leaf certificate、Auth credential、Permission Code 或 grant。一个 SPIFFE workload 可以承载多个受控 machine binding，但一次 Auth exchange 的 typed selector 必须引用唯一一个 binding，且该 binding 只能解析到唯一一个 principal；任何歧义均拒绝。
 - Identity 在既有 `IdentityQueryService` surface 提供 Auth-only `ResolveMachinePrincipalForAuth`。它与 `ResolveIntegrationMachineForAuth` 是两个目的明确的 resolver：前者只服务第一方 MACHINE root execution，后者继续只服务 external API-key exchange，不修改、不泛化，也不作为 fallback。
-- Auth 只提交其已验证的 Machine Principal reference、binding reference、credential binding version 与当前 `VerifiedWorkloadIdentity.spiffeId`；不提交 raw source credential、leaf certificate、Permission grant 或 caller-computed tenant。Identity 要求 principal 与 binding 均 active、binding 唯一指向该 principal、SPIFFE ID 与 version 精确匹配，并返回 principal id（供 Auth 作为 `sub`）、`principal_type=MACHINE`、type、scope、tenant、适用 org reference、principal lifecycle version、binding reference/version 与 safe decision reference。
+- Auth 只提交 typed selector 的 Machine Principal reference、binding reference/exact version 与原始 exchange 当前 `VerifiedWorkloadIdentity.spiffeId`；不提交 raw source credential、leaf certificate、Permission grant 或 caller-computed tenant。Identity 要求 principal 与 binding 均 active、binding 唯一指向该 principal、SPIFFE ID 与 version 精确匹配，并返回 principal id（供 Auth 作为 `sub`）、`principal_type=MACHINE`、type、scope、tenant、适用 org reference、principal lifecycle version、binding reference/version 与 safe decision reference。
 - `TENANT` principal 必须返回同一 tenant 的有效引用；`SYSTEM` principal 的 tenant 必须为空。org 只作为适用时的受控引用返回，Identity 不取得 tenant/org tree 或 lifecycle 真相所有权。缺失、inactive、wrong type/scope、tenant/org mismatch、binding mismatch/stale 或 dependency unavailable 均 fail closed。
 - HUMAN OBO 不修改本 owner fact：MES、WMS、Procurement 与 SRM 的 `SYSTEM` Machine Principal 仍 tenantless，Identity 不把 HUMAN subject 的 tenant 写入 Machine Principal、`MachineWorkloadBinding` 或 resolver response。同步 OBO 的 actor 由 Auth 通过 deployment-owned immutable SPIFFE/self-audience policy 取得 exact principal id、binding stable ref 与 binding version，再用本 resolver 校验 active owner facts；allowed response 必须回显相同 principal/binding/version/SPIFFE、`scope=SYSTEM` 且 tenant 为空。Identity 不接收 subject bearer、target audience、caller actor input，不签发 Token，也不拥有 Auth registry 或 Permission decision。
-- 该 resolver 是 normal protected INTERNAL RPC：只接受准确 `auth-service` workload、`aud=identity-service` 且绑定当前 Auth 叶证书的 ExecutionToken，以及 exact Code `identity.internal.machine_principal.resolve`。该 Code 只能由 Permission `ResolveWorkloadIssuance` 的准确 Auth workload -> Identity audience policy 批准；它不进入 HUMAN/MACHINE role、external JWT 或 wildcard policy，也不增加第二个 mTLS-only bootstrap method。
-- Identity 不校验 Auth source-credential JWS 或 leaf thumbprint。Auth 先完成 credential profile/signature/lifetime/revocation 与当前 leaf thumbprint binding，再消费本 resolver 的 stable principal/SPIFFE/binding owner decision；两者任何 mismatch 都不得进入 Permission lookup 或 signing。
+- 该 resolver 是 Identity 唯一 exact pre-context identity method：只接受准确 `auth-service` workload 的 verified mTLS identity 并拒绝任何 Authorization metadata；不要求 Identity-audience ExecutionToken 或 Permission Code。该 method policy 不得扩散到其他 Identity RPC、caller、service-name header、network placement 或 wildcard。
+- Identity 不校验 leaf thumbprint；Auth 先从原始 exchange transport 取得 current SPIFFE/leaf facts，再消费本 resolver 的 stable principal/SPIFFE/binding owner decision 并最终绑定 leaf。任一 mismatch 都不得进入 Permission lookup 或 signing。
 
 精确管理、wire 与 persistence 冻结为：
 
@@ -190,6 +191,8 @@
 - 同一 `(Machine Principal, SPIFFE ID)` 同时最多一个 active binding；同一 SPIFFE ID 可承载多个经管理者显式登记的不同 principal binding。Disable 是终态；恢复时创建新 binding，不复活历史。
 - enroll/disable state 与 Identity-local `AuditEvent` 在同一 database transaction 中持久化；resolver allowed/denied decision 在响应前记录 safe principal/binding/version/SPIFFE correlation，不记录 source bearer 或 leaf material。
 
+固定 SYSTEM / `INTERNAL_SERVICE` 的初始 principal/binding 由 Identity-owned deployment provisioner 在相关 workload readiness 前按版本化 inventory 幂等建立和核对。inventory 只声明 immutable entry key、display name、固定 type/scope 与 exact SPIFFE；Identity-local provisioning receipt 以 unique entry key/digest 绑定 principal、binding、deployment revision 与 audit reference。成功输出非秘密 principal/binding/version selector。相同 manifest 重跑是 no-op；owner truth mismatch、duplicate/missing entry 或 audit failure 阻止 readiness。provisioner 不创建 TENANT / `AUTOMATION_BOT`，后者继续使用正常 management flow。
+
 `ResolveMachinePrincipalForAuth` 的精确 request/response field number、management message、safe reason 与 database constraint 以 [machine-principal-resolution.md](../../contracts/identity-service/machine-principal-resolution.md) 为准。
 
 黑盒语义以 [machine-principal-resolution.md](../../contracts/identity-service/machine-principal-resolution.md) 为准。
@@ -199,7 +202,7 @@
 - 现有 machine auth contract 中由 Identity 执行 `AuthenticateApiKey` 的部分是 legacy 兼容形态，目标状态由 [ADR 0015](../../adr/0015-workload-identity-and-execution-token.md) 与 Auth [execution-token.md](../../contracts/auth-service/execution-token.md) 取代。
 - `APIKey` 是 credential，不是主体。
 - API Key credential、认证、轮换与撤销归 `auth-service`；Identity 只保存 Auth credential 所引用的 machine principal identity，不保存 secret 或 hash。
-- 内部 `MachineWorkloadSourceCredential` 同样归 `auth-service`；Identity 只保存 credential 所引用的 Machine Principal 与 `MachineWorkloadBinding`，不保存 JWS、verifier 或证书 thumbprint。
+- 内部 MACHINE root 不再有独立 Auth source credential；Identity 保存 selector 所引用的 Machine Principal 与 `MachineWorkloadBinding`，不保存 bearer、verifier 或证书 thumbprint。
 - `permission-service` 通过通用 `PrincipalRoleBinding` 与 policy 管理机器授权；机器不伪装为 `UserAccount`。
 - 平台 Robot template 不是 machine principal；租户启用 template 时创建独立 TENANT principal。外部 Integration 同样固定为 tenant-owned principal；Marketplace、共享第三方 App principal 与跨 tenant installation model 已取消，不在 Identity 预留对应对象。
 
@@ -292,21 +295,23 @@ Contract 文档只描述黑盒调用语义、字段、错误与当前接口形�
 - 服务内旧 docs 在提炼完成后应删除；服务根目录可保留一个极短 README 指向本文与 contract 入口。
 - self-service / admin-management 拆分由 [self-service-admin-boundary-migration.md](../../plans/features/self-service-admin-boundary-migration.md) 持续推进。
 
-## 16. Trusted gRPC 41-RPC contract（FROZEN）
+## 16. Trusted gRPC 44-RPC contract（FROZEN）
 
-Identity audience 固定为 `urn:oes:service:identity-service`。本组只覆盖 2026-07-27 baseline 的 41 RPC；已集成的 `ResolveIntegrationMachineForAuth`, `ResolveMachinePrincipalForAuth`, `EnrollMachineWorkloadBinding`, `DisableMachineWorkloadBinding` 保持各自现有 contract，不计入 41，也不被本轮重写。
+Identity audience 固定为 `urn:oes:service:identity-service`。本组由 2026-07-27 baseline 的 41 RPC 加三个 Auth-only 登录 INTERNAL resolver 构成 44 RPC；`ResolveIntegrationMachineForAuth`, `EnrollMachineWorkloadBinding`, `DisableMachineWorkloadBinding` 保持各自现有 contract 且不计入 44。`ResolveMachinePrincipalForAuth` 仍不计入 44，其 admission 按 direct MACHINE root contract 为 exact Auth mTLS/no-Authorization pre-context policy。
 
 | 类别 | RPC（数量） | execution / terminal | Code 与 caller rule |
 | --- | --- | --- | --- |
 | `SELF_SERVICE` | `UpdateOwnAccountProfile`, `UpdateOwnUserBasicInfo`（2） | `HUMAN`, `WEB`, exact `sub/account_id` self binding | `identity.account.self.update_profile`; Gateway only |
 | `FOUNDATION_EXTERNAL_CREDENTIAL` | `AuthenticateApiKey`（1） | existing exact Auth/Gateway external-credential admission; no HUMAN/MACHINE ET fabrication | preserve integrated contract; external API-key expansion remains deferred |
-| `BUSINESS` | `GetAccountById`, `GetEmployeeBindingByAccountId`, `ResolveEmployeeLoginAccount`, `ListAuditEvents`, `GetApiKeyById`, `GetServiceAccountById`, `ListApiKeysByServiceAccountId`, `ListServiceAccounts`, `ResolveContactActionTargets`, `ListAccountContactAssets`, `ListAccountWorkEmailAssets`, `ListAccountWorkPhoneAssets`, `ListAccounts`, `GetUserById`, `GetUserByEmail`, `GetUserByPhone`, `GetAccountsByUserId`, `CountTenantAccounts`（18） | direct `HUMAN`, `HUMAN_OBO`, or only the statically named pre-auth/public `SYSTEM MACHINE`; `WEB` for HUMAN | existing exact read/list/self Codes; direct Gateway plus Auth, Permission, HR, Public Entry, Collaboration allowlists from the frozen manifest; no wildcard workload |
+| `INTERNAL` | `ListAuthLoginAccountCandidates`, `ResolveAuthLoginAccount`, `ResolveAuthEmployeeLoginAccount`（3） | exact Auth `SYSTEM MACHINE`; target audience and current leaf `cnf`; no HUMAN role inheritance | `identity.internal.auth_login_account.resolve`; exact registered Auth workload only |
+| `BUSINESS` | `GetAccountById`, `GetEmployeeBindingByAccountId`, `ResolveEmployeeLoginAccount`, `ListAuditEvents`, `GetApiKeyById`, `GetServiceAccountById`, `ListApiKeysByServiceAccountId`, `ListServiceAccounts`, `ResolveContactActionTargets`, `ListAccountContactAssets`, `ListAccountWorkEmailAssets`, `ListAccountWorkPhoneAssets`, `ListAccounts`, `GetUserById`, `GetUserByEmail`, `GetUserByPhone`, `GetAccountsByUserId`, `CountTenantAccounts`（18） | direct `HUMAN`, `HUMAN_OBO`, or only a statically named public/reference `SYSTEM MACHINE`; `WEB` for HUMAN | existing exact read/list/self Codes; direct Gateway plus Permission, HR, Public Entry, Collaboration allowlists from the frozen manifest; no wildcard workload and no pre-HUMAN Auth login use |
 | `BUSINESS` | `RotateApiKey`, `CreateApiKey`, `CreateServiceAccount`, `CreateUserAccount`, `GetAccountDeletionImpact`, `DeleteAccount`, `RevokeApiKey`, `SetServiceAccountEnabled`, `UpdateAccountProfile`, `UpdateUserBasicInfo`, `AssignAccountWorkEmailAsset`, `AssignAccountWorkPhoneAsset`, `RevokeAccountWorkEmailAsset`, `RevokeAccountWorkPhoneAsset`, `SetAccountWorkEmailAssetStatus`, `SetAccountWorkPhoneAssetStatus`, `SetAccountPrimaryWorkEmailAsset`, `SetAccountPrimaryWorkPhoneAsset`, `BindAccountToEmployee`, `UnbindAccountFromEmployee`（20） | direct `HUMAN` or exact HR/TenantOrg `HUMAN_OBO`, `WEB` | exact existing `identity.account.*`, `identity.contact.*`, `identity.machine.*` Code selected per method; no Code inference from request |
 
-Exact Code mapping for the 41 methods is:
+Exact Code mapping for the 44 methods is:
 
 | Code | RPCs |
 | --- | --- |
+| `identity.internal.auth_login_account.resolve` | `ListAuthLoginAccountCandidates`, `ResolveAuthLoginAccount`, `ResolveAuthEmployeeLoginAccount` |
 | `identity.account.self.update_profile` | `UpdateOwnAccountProfile`, `UpdateOwnUserBasicInfo` |
 | `identity.account.list` | `GetAccountById`, `GetEmployeeBindingByAccountId`, `ResolveEmployeeLoginAccount`, `ListAuditEvents`, `ListAccounts`, `GetUserById`, `GetUserByEmail`, `GetUserByPhone`, `GetAccountsByUserId`, `CountTenantAccounts` |
 | `identity.account.self.read` | `ListAccountContactAssets`, `ListAccountWorkEmailAssets`, `ListAccountWorkPhoneAssets`, `ResolveContactActionTargets` |
@@ -324,6 +329,8 @@ Exact Code mapping for the 41 methods is:
 | `identity.contact.asset.set_primary` | `SetAccountPrimaryWorkEmailAsset`, `SetAccountPrimaryWorkPhoneAsset` |
 | preserved external credential admission | `AuthenticateApiKey` |
 
-The more specific generated work-email/work-phone Codes remain catalog aliases for future route-level grants; this migration neither deletes them nor invents another business permission. Architecture tests require 41/41 literal coverage and reject any request-selected Code.
+The more specific generated work-email/work-phone Codes remain catalog aliases for future route-level grants; this migration neither deletes them nor invents another business permission. Architecture tests require 44/44 literal coverage and reject any request-selected Code.
 
-Four request authority tombstones are frozen: `ListAuditEvents.operator_id=5/tenant_id=6/org_id=7` and `BindAccountToEmployee.tenant_id=1`. The remaining seven request `tenant_id` fields are owner resource selectors for account/service-account/contact/login lookup; they cannot establish execution tenant. A TENANT HUMAN/HUMAN_OBO selector must equal signed tenant; an exact allowlisted SYSTEM pre-auth/public call is evaluated as a target lookup under the method Code and cannot obtain cross-tenant authority from the body. Response tenant/org projections remain owner data.
+The three Auth-only resolvers return only login/session-safety projections. `ListAuthLoginAccountCandidates` accepts an Auth-verified `user_id` and returns structurally valid available account candidates. `ResolveAuthLoginAccount` accepts `user_id + account_id`, requires Identity to verify the owner pair, and returns the minimal account identity, scope, tenant, display name and enabled state. `ResolveAuthEmployeeLoginAccount` accepts `tenant_id + employee_id`, verifies the active binding/account tenant relationship and returns the same minimal account projection. Empty, mismatched, disabled or malformed owner facts never become authority; Auth applies its existing stable login error and anti-enumeration semantics.
+
+Four request authority tombstones are frozen: `ListAuditEvents.operator_id=5/tenant_id=6/org_id=7` and `BindAccountToEmployee.tenant_id=1`. The baseline request `tenant_id` fields and new Auth login resolver selectors are owner resource selectors for account/service-account/contact/login lookup; they cannot establish execution tenant. A TENANT HUMAN/HUMAN_OBO selector must equal signed tenant; an exact allowlisted SYSTEM public/reference call or Auth-only INTERNAL login call is evaluated as a target lookup under its literal method Code and cannot obtain cross-tenant authority from the body. Response tenant/org projections remain owner data.

@@ -128,14 +128,14 @@ The complete Runtime ingress proof is intentionally two-layered:
 ```text
 Site Runtime SignedSiteContext
   -> Gateway verifies the external request admission
-  -> Gateway uses its existing MACHINE/workload source credential
+  -> Gateway uses current mTLS + its Identity-provisioned exact SYSTEM selector
   -> Auth / STS issues aud=site-service INTERNAL ExecutionToken
   -> Site verifies mTLS + ExecutionToken
   -> Site independently verifies SignedSiteContext HMAC, nonce, time, method, path and body hash
 ```
 
-- The Gateway credential is the existing Auth-owned, current-certificate-bound `MachineWorkloadSourceCredential`: at most 15 minutes, no refresh, and held only through the Common opaque transport-private handle. This Site slice does not add another credential profile or bearer propagation seam.
-- The credential may be reused within its validity, while every external request still receives an isolated AsyncLocal source-credential scope. A cache hit remains admissible only while the current source credential is present and valid.
+- The Gateway MACHINE root input is current transport-verified mTLS plus the non-secret exact selector emitted by Identity provisioning. The selector is stable configuration, not a bearer, tenant fact, certificate fact or grant. This Site slice adds no credential profile or bearer propagation seam.
+- The certificate-bound target ET may be reused within its validity. A cache hit remains admissible only while selector, resolved principal/binding version, Permission/security version and current leaf binding remain identical.
 - `SignedSiteContext` proves which external Site Runtime request was admitted. It remains request data for independent HMAC verification and never becomes tenant, principal, workload or Permission authority.
 - The MACHINE ExecutionToken proves the internal Gateway workload and exact Runtime RPC authorization. It does not replace the HMAC proof, and the HMAC proof does not authorize the internal gRPC call.
 

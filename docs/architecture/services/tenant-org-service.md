@@ -149,12 +149,13 @@ Management 能力：
 - 不在本服务内直接实现业务域自己的订单、客户、供应商或审批规则
 - 不把“哪些场景必须关联 organizationTenantPartyId”上升为通用 org tree 规则；如 future 场景需要必填，应由对应协同 contract 单独冻结
 
-## 13. Trusted gRPC 20-RPC contract（FROZEN）
+## 13. Trusted gRPC 21-RPC contract（FROZEN）
 
-All 20 RPCs remain `BUSINESS`; audience is `urn:oes:service:tenant-org-service`. Gateway uses direct `HUMAN / WEB`; Auth/Identity/HR use `HUMAN_OBO` when a verified user chain exists. Exact Auth pre-session lifecycle reads and Public Entry public rendering reads may use only the named `SYSTEM MACHINE` workloads. No Cron/worker or generic service-name caller is admitted.
+The baseline 20 RPCs remain `BUSINESS`, and additive `ResolveAuthSessionTenantLifecycle` is the twenty-first `INTERNAL` RPC; audience is `urn:oes:service:tenant-org-service`. Gateway uses direct `HUMAN / WEB`; ordinary Auth/Identity/HR business collaboration uses `HUMAN_OBO` when a verified user chain exists. Auth login establishment, MFA recheck and session continuation lifecycle reads use only the exact Auth SYSTEM MACHINE workload, `tenant_org.internal.auth_session_tenant_lifecycle.resolve`, target audience and current certificate binding. Public Entry keeps its separately named public-render contract. No Cron/worker or generic service-name caller is admitted.
 
 | Code | RPCs |
 | --- | --- |
+| `tenant_org.internal.auth_session_tenant_lifecycle.resolve` | `ResolveAuthSessionTenantLifecycle` |
 | `tenant_org.tenant.list` | `ListTenants` |
 | `tenant_org.tenant.get_by_id` | `GetTenantById`, `GetTenantOnboarding` |
 | `tenant_org.tenant.create` | `CreateTenant`, `StartTenantOnboarding`, `RetryTenantOnboarding` |
@@ -166,4 +167,6 @@ All 20 RPCs remain `BUSINESS`; audience is `urn:oes:service:tenant-org-service`.
 | `tenant_org.org_unit.update` | `UpdateOrgUnit`, `MoveOrgUnit` |
 | `tenant_org.org_unit.archive` | `ArchiveOrgUnit` |
 
-The 15 request `tenant_id=1` fields are retained as owner resource identifiers because SYSTEM-scope administration and exact pre-session/public reference checks require an explicit target. They never establish execution tenant: TENANT HUMAN/HUMAN_OBO must match the signed tenant; SYSTEM-scope HUMAN requires the exact Code/scope; allowlisted SYSTEM MACHINE is restricted to the named read/collaboration method. Operator, trace and audit always come from the verified context. Response tenant/org facts and every business field number remain unchanged.
+The baseline 15 request `tenant_id=1` fields remain owner resource identifiers for administration and declared public/reference checks; new `ResolveAuthSessionTenantLifecycle.tenant_id=1` is the dedicated Auth login/session lookup selector. None establishes execution tenant: TENANT HUMAN/HUMAN_OBO must match the signed tenant; SYSTEM-scope HUMAN requires the exact BUSINESS Code/scope; allowlisted SYSTEM MACHINE is restricted to the named INTERNAL/public method and exact Code. Operator, trace and audit always come from the verified context. Existing response tenant/org facts and business field numbers remain unchanged.
+
+`ResolveAuthSessionTenantLifecycle(tenant_id)` returns only the owner tenant id and lifecycle status required by Auth. TenantOrg resolves the selector from its own store; not found, inactive, malformed, dependency or trust failure is denied/empty and causes Auth to withhold session establishment or continuation. The generic `GetTenantById` BUSINESS projection stays unchanged for existing HUMAN/HUMAN_OBO and other declared consumers.

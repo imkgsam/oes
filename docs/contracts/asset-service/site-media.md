@@ -213,7 +213,7 @@ Asset Service 对已知 consumer 发布可消费的生命周期事实，包括�
 
 #### Repository Implementation Prerequisite
 
-shared proto explicit-metadata generation、Gateway verified source-credential lifecycle、MACHINE/workload verifier、trusted carrier，以及 Asset/Site trusted-gRPC cutover 已集成。`SiteMediaAssetService`、Permission registration、multi-hop caller、outbox/inbox 与 precise purge 的业务语义仍以本 contract 和 [site-asset-media collaboration](../../architecture/collaborations/site-asset-media.md) 为准；Asset / Site 不保留 body identity、legacy signed-operator 或 ordinary metadata fallback。
+shared proto explicit-metadata generation、MACHINE/workload verifier、trusted carrier，以及 Asset/Site trusted-gRPC cutover 已集成。Gateway MACHINE root 改用 current mTLS + Identity-provisioned exact selector；`SiteMediaAssetService`、Permission registration、multi-hop caller、outbox/inbox 与 precise purge 的业务语义仍以本 contract 和 [site-asset-media collaboration](../../architecture/collaborations/site-asset-media.md) 为准；Asset / Site 不保留 body identity、legacy signed-operator 或 ordinary metadata fallback。
 
 ### 8.2 `SiteMediaAssetService` Operations
 
