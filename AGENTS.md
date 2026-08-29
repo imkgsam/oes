@@ -47,8 +47,8 @@
 - 单服务职责、核心对象、拥有与不拥有的真相，只写入对应 `services/<service-name>.md`。
 - `docs/contracts/` 定义规范性的黑盒业务语义；Proto、OpenAPI 与 schema 是可执行表达。两者不一致即为缺陷。
 - Design Workspace 只保存当前未冻结设计和开放问题；结论冻结后回写规范真相并从 Workspace 移除。
-- Stage Packet 只存在于 SL 的本地协调分支和 worktree，保存一个有界阶段的当前协调状态；阶段清理后删除，禁止 push 或合入 `main`。
-- Feature Packet 只保存当前 feature 的 slices、验收条件与候选状态；完成并经 Human 确认清理后删除。
+- `REPOSITORY_DELIVERY` 的 Stage Packet 只存在于 SL 的本地协调分支和 worktree，保存一个有界阶段的当前协调状态；阶段清理后删除，禁止 push 或合入 `main`。纯 `HOST_LOCAL_OPERATION` Stage 只在 task-local current evidence 中维护同等精简状态，不创建 repository Packet。
+- `REPOSITORY_DELIVERY` 的 Feature Packet 只保存当前 feature 的 slices、验收条件与候选状态；完成并经 Human 确认清理后删除。`HOST_LOCAL_OPERATION` FL 不为状态记录创建 repository Packet。
 - ADR 只解释仍有价值的高影响决策、取舍与后果；完全被取代且已无当前解释价值的 ADR 删除，历史由 Git 保留。
 - 文档链接使用仓库相对路径，禁止写入本机绝对路径。
 
@@ -57,15 +57,17 @@
 OES 默认从普通讨论开始；只读讨论不创建角色或资源。有状态修改按真实范围自动建议：
 
 - Portfolio Planner（Planner）：长期可见的只读项目组合规划顾问，默认使用 Plan mode，按月、周、日提供跨方向候选、里程碑、冲突与验收建议；不成为owner、canonical writer或执行总控；
-- Direct：一个 owner 闭合一个无稳定设计变化的小型 Change Set；
+- Direct：一个 owner 闭合一个无稳定设计变化的小型 Change Set；根据实际写入对象选择 repository delivery 或 host-local operation；
 - Design Owner：研究稳定设计，先展示完整只读 Proposal Preview，Human确认后形成local-only Proposal并提交exact global UD；
 - Global Unified Design（UD）：全局唯一canonical writer、串行设计审核者和Design remote owner；
-- Stage Lead（SL）：协调多个独立FL、依赖、WIP、moving-main和Stage Review，不写feature产品代码、不建立总产品PR；
-- Feature Lead（FL）：独立拥有一个feature的Packet、branch/worktree、candidate、Feature RI和Draft PR；
+- Stage Lead（SL）：协调多个独立FL、依赖、WIP、moving-main和Stage Review，不写feature产品代码、不建立总产品PR；纯本地运维Stage不为协调本身创建Git资源；
+- Feature Lead（FL）：独立拥有一个feature结果；repository delivery拥有Packet、branch/worktree、candidate、Feature RI和Draft PR，host-local operation拥有精确本地资源范围、当前操作证据和验收结果但默认没有Git交付资源；
 - Implementation Task（IT）：实现一个slice，通常是FL的bounded subagent；
 - Review & Integration（RI）：执行Feature或Stage的独立风险审核，默认只读exact candidate。
 
 新服务、跨服务契约/事件、权限、租户、共享抽象、AI工具协议或canonical gap先进入Design Owner → exact UD。一个独立交付物使用FL；两个及以上独立交付物使用SL拆分sibling FL；必须共同原子验收的slices保持一个FL并由IT并行实现。
+
+角色职责、Human可见性和执行载体是三个独立判断。修改repository并形成candidate/PR时使用`REPOSITORY_DELIVERY`；Docker、数据库、模拟器、本地服务等不修改repository的维护使用`HOST_LOCAL_OPERATION`。后者仍创建Human-visible、project-associated的local task，但不创建worktree、不传Git starting state、不因task provisioning隐式fetch/pull。可见project task不等于worktree task。
 
 Planner、Design、Direct、SL、FL、Feature RI和Stage RI必须是Human在正常Codex项目任务列表中可发现、可打开、可继续的project-associated task。`source=exec`等隐藏transport只允许bounded IT、helper和短期只读分析，不得创建owner或独立reviewer。role task在title、parent、project、正常列表可见性和双向消息均read-after-create通过前不得写role-owned资源；失败时修复same task，不创建重复owner。
 
@@ -86,6 +88,7 @@ Planner只重读现有canonical truth、可见task与GitHub状态生成非canoni
 - 用户表达“还在讨论”“先聊想法”或同等语义时，只分析和比较，不修改项目文件。
 - 普通讨论不创建role、branch、Workspace或Packet；小而明确且无稳定语义变化的修改建议Direct。
 - 用户要求形成设计时，Design Owner先基于latest truth展示完整只读Proposal Preview，包含问题、结论、流程、文件范围、protected scope、迁移、验证和停止点。
+- 创建有状态task前先独立判断是否写repository、是否需要candidate/PR、是否操作host-local资源以及是否需跨turn可见owner；只有repository写入才允许worktree provisioning。纯host-local任务默认先只读盘点，任何破坏性host操作必须通过绑定精确资源和保护清单的Human确认。
 - Human确认exact Preview后才形成Proposal并提交exact global UD；该确认授权UD推进到`DESIGN_PR_READY`，Design PR merge、NEW_DESIGN delivery activation和cleanup分别确认。
 - delivery中发现design gap时只暂停affected lane并保留原SL/FL资源；truth merge后UD自动返回exact original owner，原owner更新latest `origin/main`、只重验受影响范围并继续，不创建replacement或把实现路由到祖先task。
 - Planner的月、周、日规划默认只保存在Planner task消息中；日计划必须关联周目标、周目标必须关联月度里程碑，未满足依赖或无法在时间盒内验收的事项不进入推荐组合。
