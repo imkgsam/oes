@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const dependencyCandidate = '7a5df0a61315667e8966b4161f08b8fa71c7bd0c'
+const integrationBase = '40c11d19b4fe8e33a1e7bae9ab855280ab3088b2'
 
 const commands = [
   ['pnpm', ['proto:gen']],
@@ -85,6 +86,7 @@ async function main() {
   console.log(
     JSON.stringify({
       dependencyCandidate,
+      integrationBase,
       inventory: 'GATEWAY_1_SERVICES_21_MTLS_21_PORTS_UNIQUE',
       executionToken: 'VALID_ACCEPTED_INVALID_EXPIRED_WRONG_BINDINGS_REJECTED',
       trustedContext: 'TENANT_ORG_OPERATOR_TRACE_AUDIT_PRIVATE_PROPAGATION_VERIFIED',
