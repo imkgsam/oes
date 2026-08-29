@@ -3,7 +3,7 @@
 ```text
 featureKey: gateway-events
 truthCommit: 8638401207d3d94fd3695e8d5e25deaf3e2a760a
-integrationBase: 73208754c0b8323ae06dc5b901fca8f936e57c2d
+integrationBase: 85d784f0805c4bcccbf8cb7543fd9f8c8c7b16b3
 baseSha: 6a62c15b85f252ad3cd7ea19b67886148eb12ef0
 dependencyCandidates:
   reproducible-build: 7a5df0a61315667e8966b4161f08b8fa71c7bd0c
@@ -14,10 +14,10 @@ dependencyCompositionParents:
   - ee959bce07d7430291b676df587ca774039f6f0b
 integrationBranch: codex/feature/gateway-events
 worktreeKey: gateway-events
-pullRequest: pending
+pullRequest: 30
 mergeSha: pending
 cleanup: HOLD
-state: CANDIDATE_READY
+state: FEATURE_REVIEW
 ```
 
 ## Objective
@@ -103,8 +103,8 @@ review: self ACCEPT
 
 ```text
 state: CANDIDATE_READY
-candidate: 8e33c4e829ab4fa1152bc96fb9ac4a47aeff6dc3
-review: global-ri remediation review pending on exact packet-freeze HEAD
+candidate: 4c2fa5e37307e7774cdf0aa79ddeb08b96c17d01
+review: same global-ri moving-main review in progress on exact packet-freeze HEAD
 ```
 
 - Scope: map every acceptance criterion to static, focused unit, component, contract/integration, and failure/recovery evidence; freeze one complete candidate and immutable review bundle.
