@@ -3,7 +3,7 @@
 ## Binding
 
 - Stage / feature: `global-runnability / business-journey`
-- State: `STAGE_RI_EVIDENCE_REMEDIATION_CANDIDATE_READY_FOR_FEATURE_RI`
+- State: `FL6_FINAL_ACCEPTANCE_CANDIDATE_READY_FOR_FEATURE_RI`
 - Human-visible Feature Lead: task `01a047c6-18ff-71e0-b2cc-b1bad08fd0e8`
 - Parent and sole return target: Stage Lead task `01a036e1-7ca5-76c2-8183-64edd7e1d086`
 - Feature branch: `codex/feature/business-journey-visible-recovery`
@@ -20,11 +20,14 @@
   `9efa1da3cf65b36f3bfb153999c0aaa50bdcb9eb`
 - Immutable accepted and published R5 candidate / evidence-remediation parent:
   `ed07933f189ac05b6563bced82a26d4b8d833549`
-- Canonical `origin/main` observed at continuation: `51f78cc05db67d35f0129e678ad27a1034e22ad0`
+- Immutable Feature RI accepted R6 candidate / moving-main parent:
+  `8ebaf63fa04ef65a4a2c00bc1e3755f2047feb91`
+- Canonical `origin/main` integrated for final acceptance:
+  `fc78c58a043145b2f85301d62c583fdde418b17c`
 - R5 candidate identity: the append-only commit containing this Packet; the exact SHA is emitted in
   the `R5_CANDIDATE_READY_FOR_FEATURE_RI` handoff.
-- Evidence-remediation candidate identity: the append-only commit containing this Packet; the exact
-  SHA is emitted in the `EVIDENCE_REMEDIATION_READY_WITH_REPLACEMENT_CANDIDATE` handoff.
+- Final moving-main candidate identity: the append-only commit containing this Packet; the exact SHA
+  is emitted in the `FL6_FINAL_ACCEPTANCE_CANDIDATE_READY_FOR_FEATURE_RI` handoff.
 - The superseded hidden owner is frozen read-only and owns no runtime or candidate state.
 
 ## Scope and protected boundary
@@ -321,6 +324,38 @@ Fresh evidence:
 - The replacement evidence manifest, SHA index, patch, verification record and executable rollback
   are reopened and hash-verified before handoff; the invalid handoff-smoke index is not reused.
 
+### FL-12 — moving-main refresh and final acceptance
+
+The Feature RI accepted R6 candidate `8ebaf63fa04ef65a4a2c00bc1e3755f2047feb91`
+remains immutable. The final candidate integrates exact canonical main
+`fc78c58a043145b2f85301d62c583fdde418b17c` append-only and repairs three bounded composition
+defects exposed only by a fresh isolated runtime:
+
+- Identity maps the two persisted PostgreSQL-truncated workload-provisioning receipt identifiers,
+  with a schema regression that derives the exact 63-byte database names.
+- Database lifecycle starts and owns the versioned `nacos-auth-bootstrap` init service, so all 21
+  host-native applications can authenticate to Nacos without expanding Docker beyond
+  infrastructure.
+- The tenant-web seed writes canonical HUMAN `PrincipalRoleBinding` facts for only exact managed
+  principals and removes inactive permission codes from local fixture roles. A second full seed run
+  proves idempotency without deleting MACHINE or unrelated principal facts.
+
+Fresh final-acceptance evidence in the final candidate artifact lane proves:
+
+- trusted runtime semantic invariants 24/24; Common, Gateway, Auth and Permission security-focused
+  suites pass; Proto lint/breaking/generation remains clean;
+- exact `pnpm test:risk`, root build and isolated 18-package L2 matrix pass; the L2 lifecycle leaves
+  zero owner resources;
+- all 21 host-native service listeners plus Gateway, APISIX and issuer are ready with Docker used
+  only for infrastructure;
+- the live signer probe completes 128/128 verified concurrent signatures;
+- the candidate-bound Web matrix passes login, tenant/org and Permission context, Task
+  write/read/list, audit/trace, outbox/NATS/Notification, denial zero-write, duplicate idempotency,
+  Permission outage fail-closed, exact-service recovery, logout and zero fixture residue;
+- the PDA foundation matrix passes managed-device enrollment/ACTIVE decision, signed session,
+  access summary/bootstrap, missing/wrong credential, tenant mismatch, inactive device, outage and
+  recovery, stale session, expected Item `403`, logout and six-table zero residue.
+
 ## Review state and findings
 
 - Feature Lead self-review, protected-scope check, diff check and secret scan: passed for the
@@ -328,8 +363,9 @@ Fresh evidence:
 - Independent Feature RI: all five findings against immutable candidate `1b4abcad` are closed on
   immutable first replacement `6904b45e`; its bounded route-scope regression is closed and R2
   candidate `7b289c99` is accepted with no open P0/P1/P2 findings. R3 `af5ec4b7` closes the composed
-  CI drift, and R4 `9efa1da3` closes the repository-driver amendment. Only the changed lifecycle and
-  Packet scope in R5 returns to the same visible RI task.
+  CI drift, R4 `9efa1da3` closes the repository-driver amendment, R5 `ed07933f` closes lifecycle
+  rollback ownership and R6 `8ebaf63f` is accepted with no open P0-P3. Only the final moving-main
+  integration and its bounded composition repairs return to the same visible RI task.
 - Candidate finding: repository ESLint configuration enables both `project` and `projectService`,
   so candidate-only lint stops before rule execution on all 39 changed TypeScript files. The
   config, package manifest and lockfile are byte-identical to the candidate base; evidence is in
@@ -337,13 +373,12 @@ Fresh evidence:
 
 ## Rollback and stop point
 
-- Runtime rollback: `OES_TASK_KEY=tmp_31d7ce4d pnpm local:trusted-runtime:down`.
+- Runtime rollback: `OES_TASK_KEY=tmp_31d7ce4d_final107 pnpm local:trusted-runtime:down`.
 - The PDA fixture rollback leaves zero rows; owner process verification leaves zero live
   task-owned application processes.
-- Git rollback of only the R5 lifecycle repair: `git revert <r5-candidate-sha>`; this restores
-  immutable accepted R4 candidate `9efa1da3cf65b36f3bfb153999c0aaa50bdcb9eb`.
-- Evidence-remediation rollback uses the artifact-contained guarded revert script to return to
-  immutable accepted R5 candidate `ed07933f189ac05b6563bced82a26d4b8d833549`.
-- Stop at the exact append-only evidence-remediation candidate for the same visible Feature RI.
+- Final rollback uses the artifact-contained guarded script to preserve the final candidate and
+  materialize the immutable R6 parent `8ebaf63fa04ef65a4a2c00bc1e3755f2047feb91` on an isolated
+  rollback branch without rewriting accepted history.
+- Stop at the exact append-only final moving-main candidate for the same visible Feature RI.
   Draft PR `#42` remains at `ed07933f`; no remote mutation, `main` merge or Stage cleanup is part of
   this owner action.
