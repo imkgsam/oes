@@ -1,7 +1,11 @@
 import { ChannelCredentials, ServerCredentials } from '@grpc/grpc-js'
 import { createHash, X509Certificate } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import type { GrpcVerifiedPeerAdapter, TransportVerifiedGrpcPeer } from './grpc-workload-identity.provider'
+import type { PeerCertificate } from 'node:tls'
+import type {
+  GrpcVerifiedPeerAdapter,
+  TransportVerifiedGrpcPeer
+} from './grpc-workload-identity.provider'
 import type { VerifiedWorkloadIdentity } from '../../authorization/trusted-execution'
 
 export type GrpcTlsConfig = Readonly<{
@@ -76,7 +80,8 @@ export function createGrpcServerCredentials(
 
 /** Builds grpc-js client credentials for the current workload's exact certificate binding. */
 export function createGrpcClientCredentials(
-  environment: NodeJS.ProcessEnv = process.env
+  environment: NodeJS.ProcessEnv = process.env,
+  expectedPeerSpiffeId?: string
 ): ChannelCredentials {
   const config = readGrpcTlsConfig(environment)
   const rootCerts = readFileSync(config.caPath)
@@ -84,7 +89,17 @@ export function createGrpcClientCredentials(
   const privateKey = readFileSync(config.keyPath)
   const certificate = new X509Certificate(certChain)
   assertGrpcCertificateWorkloadIdentity(certificate.subjectAltName, config.workloadSpiffeId)
-  return ChannelCredentials.createSsl(rootCerts, privateKey, certChain)
+  return ChannelCredentials.createSsl(
+    rootCerts,
+    privateKey,
+    certChain,
+    expectedPeerSpiffeId
+      ? {
+          checkServerIdentity: (_hostname: string, peer: PeerCertificate) =>
+            serverIdentityError(peer.subjectaltname, expectedPeerSpiffeId)
+        }
+      : undefined
+  )
 }
 
 /** Derives the current workload identity and leaf thumbprint from the deployment certificate files. */
@@ -113,6 +128,19 @@ export function assertGrpcCertificateWorkloadIdentity(
 /** Extracts the first URI SAN SPIFFE identity from certificate data released by grpc-js after TLS validation. */
 export function readSpiffeId(subjectAltName: string | undefined): string | undefined {
   return subjectAltName?.match(/(?:^|,\s*)URI:(spiffe:\/\/[^,\s]+)/)?.[1]
+}
+
+/** Rejects a TLS-authenticated server whose SPIFFE URI is not the exact configured workload target. */
+function serverIdentityError(
+  subjectAltName: string | undefined,
+  expectedPeerSpiffeId: string
+): Error | undefined {
+  if (!expectedPeerSpiffeId.startsWith('spiffe://')) {
+    return new Error('gRPC target workload SPIFFE identity is invalid')
+  }
+  return readSpiffeId(subjectAltName) === expectedPeerSpiffeId
+    ? undefined
+    : new Error('gRPC TLS server SPIFFE identity does not match the expected workload')
 }
 
 function requireValue(environment: NodeJS.ProcessEnv, name: string): string {

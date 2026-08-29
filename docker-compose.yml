@@ -15,12 +15,18 @@ x-service-defaults: &service-defaults
     - grpc_trust_runtime:/var/run/oes-grpc-trust:ro
   restart: unless-stopped
 
+x-event-service-defaults: &event-service-defaults
+  <<: *service-defaults
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+    otel-collector: { condition: service_started }
+    nats-bootstrap: { condition: service_completed_successfully }
+    grpc-trust-bootstrap: { condition: service_completed_successfully }
+
 x-service-environment: &service-environment
   NODE_ENV: development
   GRPC_LISTEN_HOST: 0.0.0.0
-  OES_GRPC_TLS_ENABLED: 'true'
-  OES_GRPC_TLS_MIN_VERSION: TLSv1.2
-  OES_GRPC_TLS_CA_PATH: /var/run/oes-grpc-trust/ca.pem
   REDIS_HOST: redis
   REDIS_PORT: 6379
   NACOS_SERVER: nacos:8848
@@ -28,6 +34,9 @@ x-service-environment: &service-environment
   AUTH_SERVICE_HOST: auth-service
   AUTH_SERVICE_PORT: 50050
   AUTH_EXECUTION_ISSUER: https://issuer.local.oes.internal
+  OES_GRPC_TLS_ENABLED: 'true'
+  OES_GRPC_TLS_MIN_VERSION: TLSv1.2
+  OES_GRPC_TLS_CA_PATH: /var/run/oes-grpc-trust/ca.pem
 
 services:
   grpc-trust-bootstrap:
@@ -35,7 +44,12 @@ services:
     labels:
       oes.local.owner: ${OES_TASK_KEY:?run pnpm env:bootstrap}
       oes.local.scope: infrastructure-databases
-    command: ['/bin/sh', '-ec', 'apk add --no-cache bash openssl && exec /scripts/bootstrap-local-trust.sh --output /trust']
+    command:
+      [
+        '/bin/sh',
+        '-ec',
+        'apk add --no-cache bash openssl && exec /scripts/bootstrap-local-trust.sh --output /trust'
+      ]
     environment:
       OES_TRUST_ENV: local
       OES_TRUST_OUTPUT_DIRECTORY: /trust
@@ -50,7 +64,8 @@ services:
     labels:
       oes.local.owner: ${OES_TASK_KEY:?run pnpm env:bootstrap}
       oes.local.scope: infrastructure-databases
-    command: ['/bin/sh', '-ec', 'apk add --no-cache bash openssl && exec /scripts/rotate-local-trust.sh']
+    command:
+      ['/bin/sh', '-ec', 'apk add --no-cache bash openssl && exec /scripts/rotate-local-trust.sh']
     depends_on:
       grpc-trust-bootstrap: { condition: service_completed_successfully }
     environment:
@@ -115,7 +130,60 @@ services:
       SITE_SERVICE_PORT: 50069
       BROWSER_ACTIVITY_SERVICE_HOST: browser-activity-service
       BROWSER_ACTIVITY_SERVICE_PORT: 50070
+      GATEWAY_READINESS_TIMEOUT_MS: 1000
+      GATEWAY_READINESS_TARGETS: >-
+        auth-service=grpcs://auth-service:50050,
+        permission-service=grpcs://permission-service:50051,
+        identity-service=grpcs://identity-service:50052,
+        party-service=grpcs://party-service:50053,
+        tenant-org-service=grpcs://tenant-org-service:50054,
+        hr-service=grpcs://hr-service:50055,
+        asset-service=grpcs://asset-service:50056,
+        terminal-device-service=grpcs://terminal-device-service:50057,
+        item-master-service=grpcs://item-master-service:50058,
+        sales-service=grpcs://sales-service:50059,
+        crm-service=grpcs://crm-service:50060,
+        srm-service=grpcs://srm-service:50061,
+        procurement-service=grpcs://procurement-service:50062,
+        finance-service=grpcs://finance-service:50063,
+        wms-service=grpcs://wms-service:50064,
+        mes-service=grpcs://mes-service:50065,
+        public-entry-service=grpcs://public-entry-service:50067,
+        collaboration-service=grpcs://collaboration-service:50068,
+        site-service=grpcs://site-service:50069,
+        browser-activity-service=grpcs://browser-activity-service:50070
     ports: ['127.0.0.1::9101']
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:9101/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 45
+      start_period: 5s
+
+  apisix:
+    image: apache/apisix:3.13.0-debian@sha256:c5c7a55ebb5c07abc210dbb963a37f41030e12c91d23bacedbaa168fec633bd7
+    labels:
+      oes.local.owner: ${OES_TASK_KEY:?run pnpm env:bootstrap}
+      oes.local.scope: gateway-events
+    volumes:
+      - ./docker/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - ./docker/apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
+    ports: ['127.0.0.1::9080']
+    networks: [oes_network]
+    depends_on:
+      api-gateway: { condition: service_healthy }
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fsS http://127.0.0.1:9080/health/ready >/dev/null']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
 
   asset-service:
     <<: *service-defaults
@@ -177,7 +245,7 @@ services:
     expose: ['50070']
 
   collaboration-service:
-    <<: *service-defaults
+    <<: *event-service-defaults
     build:
       context: .
       dockerfile: docker/Dockerfile.service
@@ -194,6 +262,8 @@ services:
       GRPC_LISTEN_PORT: 50068
       NATS_COLLABORATION_USER: ${NATS_COLLABORATION_USER:?run pnpm db:config}
       NATS_COLLABORATION_PASSWORD: ${NATS_COLLABORATION_PASSWORD:?run pnpm db:config}
+      NATS_URL: nats://nats:4222
+      COLLABORATION_OUTBOX_INTERVAL_MS: 1000
       COLLABORATION_DATABASE_URL: ${OES_DB_COLLABORATION_SERVICE_URL:?run pnpm db:config}
     expose: ['50068']
 
@@ -252,7 +322,7 @@ services:
     expose: ['50058']
 
   notification-service:
-    <<: *service-defaults
+    <<: *event-service-defaults
     build:
       context: .
       dockerfile: docker/Dockerfile.service
@@ -269,6 +339,7 @@ services:
       GRPC_LISTEN_PORT: 50066
       NATS_NOTIFICATION_USER: ${NATS_NOTIFICATION_USER:?run pnpm db:config}
       NATS_NOTIFICATION_PASSWORD: ${NATS_NOTIFICATION_PASSWORD:?run pnpm db:config}
+      NATS_URL: nats://nats:4222
     expose: ['50066']
 
   party-service:

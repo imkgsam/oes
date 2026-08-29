@@ -66,7 +66,18 @@ interface ProviderConnection {
       info(
         stream: string,
         consumer: string
-      ): Promise<{ readonly config: { readonly filter_subject?: string; readonly filter_subjects?: readonly string[] } }>
+      ): Promise<{
+        readonly config: {
+          readonly durable_name?: string
+          readonly ack_policy?: string
+          readonly deliver_policy?: string
+          readonly opt_start_seq?: number
+          readonly opt_start_time?: string
+          readonly replay_policy?: string
+          readonly filter_subject?: string
+          readonly filter_subjects?: readonly string[]
+        }
+      }>
       add(
         stream: string,
         config: {
@@ -79,6 +90,7 @@ interface ProviderConnection {
           readonly filter_subject: string
         }
       ): Promise<unknown>
+      delete(stream: string, consumer: string): Promise<boolean>
     }
   }>
   drain(): Promise<void>
@@ -161,6 +173,7 @@ export interface NatsJetStreamConnection {
     readonly expiresMs: number
   }): Promise<NatsPullDelivery | null>
   createOrResumeConsumer?(input: NatsRunScopedConsumerSpec): Promise<void>
+  deleteConsumer?(stream: string, consumer: string): Promise<boolean>
   drain(): Promise<void>
 }
 
@@ -208,7 +221,7 @@ class DefaultNatsJetStreamConnector implements NatsJetStreamConnector {
         const manager = await connection.jetstreamManager()
         try {
           const existing = await manager.consumers.info(input.stream, input.durableName)
-          assertExactReplayFilterSubjects(existing.config, input.filterSubjects)
+          assertExactReplayConsumerConfig(existing.config, input)
           return
         } catch (error) {
           if (!isConsumerMissing(error)) throw error
@@ -224,6 +237,10 @@ class DefaultNatsJetStreamConnector implements NatsJetStreamConnector {
           replay_policy: 'instant',
           filter_subject: input.filterSubjects[0]
         })
+      },
+      deleteConsumer: async (stream, consumer) => {
+        const manager = await connection.jetstreamManager()
+        return manager.consumers.delete(stream, consumer)
       },
       drain: () => connection.drain()
     }
@@ -273,6 +290,16 @@ export class NatsJetStreamClient implements OnModuleInit, OnModuleDestroy {
     const createOrResume = this.requireConnection().createOrResumeConsumer
     if (!createOrResume) throw new Error('NATS_REPLAY_CONSUMER_UNSUPPORTED')
     await createOrResume(input)
+  }
+
+  /** Deletes one exact run-scoped consumer when a completed replay releases its broker progress. */
+  async deleteConsumer(stream: string, consumer: string): Promise<void> {
+    if (!stream?.trim() || !consumer?.trim())
+      throw new Error('NATS_REPLAY_CONSUMER_IDENTITY_REQUIRED')
+    const deleteConsumer = this.requireConnection().deleteConsumer
+    if (!deleteConsumer) throw new Error('NATS_REPLAY_CONSUMER_DELETE_UNSUPPORTED')
+    // The NATS manager reports missing consumers as `false`; absence is the cleanup postcondition.
+    await deleteConsumer(stream, consumer)
   }
 
   /** Drains in-flight broker work and prevents later accidental use after Nest shutdown. */
@@ -370,6 +397,15 @@ export class NatsJetStreamPublisher {
   ): Promise<EventPublishOutcome> {
     return this.adapter.publish(event, contract, traceHeaders)
   }
+
+  /** Publishes an already encoded service-owned outbox body without changing its bytes. */
+  publishStored<TData>(
+    body: Uint8Array,
+    contract: OesEventContract<TData>,
+    traceHeaders?: W3cTraceHeaders
+  ): Promise<EventPublishOutcome> {
+    return this.adapter.publishStored(body, contract, traceHeaders)
+  }
 }
 
 /** Enforces consumer-specific DLQ persistence before the original durable delivery may terminate. */
@@ -460,7 +496,7 @@ export interface NatsSafeRedeliveryRunOptions {
   readonly request: SafeRedeliveryRequest
   readonly approvedSubjects: readonly string[]
   readonly contracts: readonly OesEventContract[]
-  readonly handle: (event: OesCloudEvent) => Promise<EventConsumeOutcome>
+  readonly handle: (event: OesCloudEvent, body: Uint8Array) => Promise<EventConsumeOutcome>
 }
 
 /** Executes one run-scoped SAFE_REDELIVERY pull without publishing a new business event. */
@@ -498,9 +534,26 @@ export class NatsSafeRedeliveryRunner {
     }
     const settlement = await this.adapter.settleDelivery(
       delivery,
-      await input.handle(decoded.event)
+      await input.handle(decoded.event, delivery.body)
     )
     return { kind: settlement }
+  }
+
+  /** Deletes exactly the three completed run durables and no shared consumer or stream. */
+  async deleteConsumers(input: {
+    readonly stream: string
+    readonly request: SafeRedeliveryRequest
+  }): Promise<readonly string[]> {
+    const consumers = createSafeRedeliveryConsumerSpecs(input.request).map((spec) => ({
+      stream: input.stream,
+      durableName: spec.durableName
+    }))
+    const deleted: string[] = []
+    for (const consumer of consumers) {
+      await this.client.deleteConsumer(consumer.stream, consumer.durableName)
+      deleted.push(consumer.durableName)
+    }
+    return Object.freeze(deleted)
   }
 }
 
@@ -608,7 +661,12 @@ function assertPullOptions(options: DurablePullRunnerOptions): void {
 
 /** Validates the exact persisted replay consumer shape before common calls the broker management plane. */
 function assertRunScopedConsumerSpec(input: NatsRunScopedConsumerSpec): void {
-  if (!input.stream?.trim() || !/^notification-service__replay__[A-Za-z0-9_-]+__(assigned|completed|cancelled)$/.test(input.durableName))
+  if (
+    !input.stream?.trim() ||
+    !/^notification-service__replay__[A-Za-z0-9_-]+__(assigned|completed|cancelled)$/.test(
+      input.durableName
+    )
+  )
     throw new Error('NATS_REPLAY_CONSUMER_IDENTITY_INVALID')
   if (
     input.filterSubjects.length !== 1 ||
@@ -626,16 +684,33 @@ function assertRunScopedConsumerSpec(input: NatsRunScopedConsumerSpec): void {
     throw new Error('NATS_REPLAY_START_TIME_INVALID')
 }
 
-/** Rejects consumer reconfiguration so an existing replay run can only resume its own durable progress. */
-function assertExactReplayFilterSubjects(
-  actual: { readonly filter_subject?: string; readonly filter_subjects?: readonly string[] },
-  expected: readonly string[]
+/** Rejects consumer reconfiguration so an existing replay run can only resume its exact immutable durable definition. */
+function assertExactReplayConsumerConfig(
+  actual: {
+    readonly durable_name?: string
+    readonly ack_policy?: string
+    readonly deliver_policy?: string
+    readonly opt_start_seq?: number
+    readonly opt_start_time?: string
+    readonly replay_policy?: string
+    readonly filter_subject?: string
+    readonly filter_subjects?: readonly string[]
+  },
+  expected: NatsRunScopedConsumerSpec
 ): void {
   const filters = actual.filter_subject ? [actual.filter_subject] : actual.filter_subjects
+  const expectedDeliverPolicy =
+    expected.start.sequence === undefined ? 'by_start_time' : 'by_start_sequence'
   if (
+    actual.durable_name !== expected.durableName ||
+    actual.ack_policy !== 'explicit' ||
+    actual.deliver_policy !== expectedDeliverPolicy ||
+    actual.replay_policy !== 'instant' ||
+    (expected.start.sequence !== undefined && actual.opt_start_seq !== expected.start.sequence) ||
+    (expected.start.time !== undefined && actual.opt_start_time !== expected.start.time) ||
     !filters ||
-    filters.length !== expected.length ||
-    filters.some((subject, index) => subject !== expected[index])
+    filters.length !== expected.filterSubjects.length ||
+    filters.some((subject, index) => subject !== expected.filterSubjects[index])
   ) {
     throw new Error('NATS_REPLAY_CONSUMER_CONFIG_MISMATCH')
   }
@@ -675,18 +750,20 @@ function safeRedeliveryConsumerSpecs(
   }
   if (
     specs.length !== 3 ||
-    specs.some((spec) =>
-      spec.filterSubjects.length !== 1 ||
-      !input.approvedSubjects.includes(spec.filterSubjects[0])
+    specs.some(
+      (spec) =>
+        spec.filterSubjects.length !== 1 || !input.approvedSubjects.includes(spec.filterSubjects[0])
     )
   )
     throw new Error('NATS_REPLAY_SUBJECT_NOT_APPROVED')
   if (
     !input.contracts.length ||
-    specs.some((spec) => spec.filterSubjects.some(
-      (subject) =>
-        !input.contracts.some((contract) => subjectForEventType(contract.eventType) === subject)
-    ))
+    specs.some((spec) =>
+      spec.filterSubjects.some(
+        (subject) =>
+          !input.contracts.some((contract) => subjectForEventType(contract.eventType) === subject)
+      )
+    )
   ) {
     throw new Error('NATS_REPLAY_CONTRACT_NOT_APPROVED')
   }
@@ -720,7 +797,8 @@ function selectReplayContract(
 function matchesSafeRedelivery(event: OesCloudEvent, request: SafeRedeliveryRequest): boolean {
   const filter = request.eventFilter
   return (
-    event.oestenantid !== undefined && request.tenantScope.includes(event.oestenantid) &&
+    event.oestenantid !== undefined &&
+    request.tenantScope.includes(event.oestenantid) &&
     (!filter.eventTypes?.length || filter.eventTypes.includes(event.type)) &&
     (!filter.eventIds?.length || filter.eventIds.includes(event.id))
   )

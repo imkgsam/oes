@@ -8,6 +8,8 @@ import {
   createTestPrefix
 } from '../helpers/integration-db'
 import { PrismaService } from '../../src/infrastructure/prisma/prisma.service'
+import { decodeCloudEvent } from '@oes/common'
+import { COLLABORATION_TASK_ASSIGNED_EVENT_CONTRACT } from '@oes/common/contracts'
 
 describe('TaskCommandService side effects L2', () => {
   let prisma: PrismaService
@@ -84,7 +86,12 @@ describe('TaskCommandService side effects L2', () => {
       attemptCount: 0,
       publishedAt: null
     })
-    expect(outbox[0].cloudEventBody).toMatchObject({
+    expect(
+      decodeCloudEvent(
+        new Uint8Array(outbox[0].cloudEventBody),
+        COLLABORATION_TASK_ASSIGNED_EVENT_CONTRACT
+      )
+    ).toMatchObject({
       id: outbox[0].eventId,
       type: 'collaboration.task.assigned',
       subject: task.id,
@@ -94,5 +101,8 @@ describe('TaskCommandService side effects L2', () => {
         dueAt: '2026-06-15T10:00:00.000Z'
       }
     })
+    expect(Buffer.from(outbox[0].cloudEventBody).toString('utf8')).toContain(
+      `"oesauditref":"${prefix}_audit"`
+    )
   })
 })

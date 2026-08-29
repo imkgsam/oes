@@ -4,7 +4,6 @@ import {
   COLLABORATION_TASK_COMPLETED_EVENT_CONTRACT,
   NatsSafeRedeliveryRunner,
   createInboxIdentity,
-  encodeCloudEvent,
   type CollaborationTaskAssignedEventData,
   type CollaborationTaskCancelledEventData,
   type CollaborationTaskCompletedEventData,
@@ -59,21 +58,19 @@ export class NotificationSafeRedeliveryJob {
           COLLABORATION_TASK_COMPLETED_EVENT_CONTRACT,
           COLLABORATION_TASK_CANCELLED_EVENT_CONTRACT
         ],
-        handle: (event) => this.handleReplayEvent(event)
+        handle: (event, body) => this.handleReplayEvent(event, body)
       }
     })
   }
 
   /** Reuses the normal typed handler and Inbox identity semantics without introducing an event republish path. */
-  private async handleReplayEvent(event: OesCloudEvent): Promise<EventConsumeOutcome> {
-    const encoded = encodeCloudEvent(event)
+  private async handleReplayEvent(
+    event: OesCloudEvent,
+    body: Uint8Array
+  ): Promise<EventConsumeOutcome> {
     return this.handler.handle(
       event as CollaborationTaskEvent,
-      createInboxIdentity(
-        'notification-service__collaboration-task__v1',
-        event,
-        encoded.body
-      )
+      createInboxIdentity('notification-service__collaboration-task__v1', event, body)
     )
   }
 }

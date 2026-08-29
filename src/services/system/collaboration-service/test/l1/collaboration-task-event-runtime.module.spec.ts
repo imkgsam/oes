@@ -7,6 +7,7 @@ import {
   COLLABORATION_PUBLIC_EVENT_PUBLISHER,
   CollaborationTaskOutboxRelay
 } from '../../src/infrastructure/events/collaboration-task-outbox.relay'
+import { CollaborationTaskOutboxWorker } from '../../src/infrastructure/events/collaboration-task-outbox.worker'
 
 jest.mock('@oes/common/transport', () => {
   const actual = jest.requireActual<typeof import('@oes/common/transport')>('@oes/common/transport')
@@ -23,8 +24,10 @@ describe('CollaborationTaskModule event runtime', () => {
 
   beforeEach(() => {
     process.env.NATS_URL = 'nats://127.0.0.1:4222'
-    process.env.NATS_USER = 'collaboration-publisher'
-    process.env.NATS_PASSWORD = 'local-validation-only'
+    delete process.env.NATS_USER
+    delete process.env.NATS_PASSWORD
+    process.env.NATS_COLLABORATION_USER = 'collaboration-publisher'
+    process.env.NATS_COLLABORATION_PASSWORD = 'local-validation-only'
     jest.clearAllMocks()
   })
 
@@ -34,9 +37,13 @@ describe('CollaborationTaskModule event runtime', () => {
   })
 
   it('binds the relay publisher port to the common NatsJetStreamPublisher', async () => {
-    const { CollaborationTaskModule } = require('../../src/modules/collaboration-task.module') as typeof import('../../src/modules/collaboration-task.module')
+    const { CollaborationTaskModule } =
+      require('../../src/modules/collaboration-task.module') as typeof import('../../src/modules/collaboration-task.module')
     const builder = Test.createTestingModule({
-      imports: [LoggingModule.forRoot({ serviceName: 'collaboration-service-test' }), CollaborationTaskModule]
+      imports: [
+        LoggingModule.forRoot({ serviceName: 'collaboration-service-test' }),
+        CollaborationTaskModule
+      ]
     })
     const module = await builder
       .overrideGuard(TrustedExecutionGuard)
@@ -45,6 +52,7 @@ describe('CollaborationTaskModule event runtime', () => {
 
     expect(module.get(COLLABORATION_PUBLIC_EVENT_PUBLISHER)).toBeInstanceOf(NatsJetStreamPublisher)
     expect(module.get(CollaborationTaskOutboxRelay)).toBeInstanceOf(CollaborationTaskOutboxRelay)
+    expect(module.get(CollaborationTaskOutboxWorker)).toBeInstanceOf(CollaborationTaskOutboxWorker)
     expect(CommonTransport.createGrpcClientCredentials).toHaveBeenCalledTimes(2)
 
     await module.close()

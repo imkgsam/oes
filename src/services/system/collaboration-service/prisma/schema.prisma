@@ -87,22 +87,22 @@ model CollaborationTaskAuditEnvelope {
 }
 
 model CollaborationTaskEventEnvelope {
-  id                 String   @id @default(uuid()) @db.Uuid
-  eventType          String   @db.VarChar(80)
+  id                 String    @id @default(uuid()) @db.Uuid
+  eventType          String    @db.VarChar(80)
   occurredAt         DateTime
-  tenantId           String   @db.VarChar(100)
-  taskId             String   @db.Uuid
-  actorAccountId     String   @db.VarChar(100)
-  createdByAccountId String   @db.VarChar(100)
-  assigneeAccountId  String   @db.VarChar(100)
-  status             String   @db.VarChar(40)
-  previousStatus     String?  @db.VarChar(40)
-  priority           String   @db.VarChar(40)
+  tenantId           String    @db.VarChar(100)
+  taskId             String    @db.Uuid
+  actorAccountId     String    @db.VarChar(100)
+  createdByAccountId String    @db.VarChar(100)
+  assigneeAccountId  String    @db.VarChar(100)
+  status             String    @db.VarChar(40)
+  previousStatus     String?   @db.VarChar(40)
+  priority           String    @db.VarChar(40)
   dueAt              DateTime?
-  titleSnapshot      String   @db.VarChar(255)
-  traceId            String?  @db.VarChar(100)
+  titleSnapshot      String    @db.VarChar(255)
+  traceId            String?   @db.VarChar(100)
   payload            Json
-  publishedAt        DateTime @default(now())
+  publishedAt        DateTime  @default(now())
 
   @@index([tenantId, taskId])
   @@index([tenantId, eventType, occurredAt])
@@ -110,26 +110,26 @@ model CollaborationTaskEventEnvelope {
 }
 
 model CollaborationTaskOutbox {
-  eventId          String                       @id @db.Uuid
-  eventType        String                       @db.VarChar(120)
+  eventId          String                        @id @db.Uuid
+  eventType        String                        @db.VarChar(120)
   eventVersion     Int
-  ownerService     String                       @db.VarChar(80)
-  tenantId         String                       @db.VarChar(100)
-  aggregateType    String                       @db.VarChar(80)
-  aggregateId      String                       @db.Uuid
+  ownerService     String                        @db.VarChar(80)
+  tenantId         String                        @db.VarChar(100)
+  aggregateType    String                        @db.VarChar(80)
+  aggregateId      String                        @db.Uuid
   occurredAt       DateTime
-  cloudEventBody   Json
+  cloudEventBody   Bytes                         @db.ByteA
   status           CollaborationTaskOutboxStatus @default(PENDING)
-  attemptCount     Int                          @default(0)
-  nextAttemptAt    DateTime                     @default(now())
-  leaseToken       String?                      @db.Uuid
+  attemptCount     Int                           @default(0)
+  nextAttemptAt    DateTime                      @default(now())
+  leaseToken       String?                       @db.Uuid
   leaseExpiresAt   DateTime?
-  lastErrorCode    String?                      @db.VarChar(120)
-  lastErrorMessage String?                      @db.VarChar(1000)
+  lastErrorCode    String?                       @db.VarChar(120)
+  lastErrorMessage String?                       @db.VarChar(1000)
   publishedAt      DateTime?
   quarantinedAt    DateTime?
-  createdAt        DateTime                     @default(now())
-  updatedAt        DateTime                     @updatedAt
+  createdAt        DateTime                      @default(now())
+  updatedAt        DateTime                      @updatedAt
 
   @@index([status, nextAttemptAt])
   @@index([tenantId, aggregateType, aggregateId])
