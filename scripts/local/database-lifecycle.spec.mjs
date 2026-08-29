@@ -14,6 +14,7 @@ import {
   assertRollbackBinding,
   baselinePlanFingerprint,
   composeEnvironment,
+  DATABASE_LIFECYCLE_INIT_SERVICES,
   databaseLifecycleComposeArgs,
   databaseRollbackComposeArgs,
   loadBaselineResolvePlan,
@@ -132,6 +133,19 @@ test('infra Compose remains renderable when application runtime selectors are mi
     { cwd: repositoryRoot, env: environment, encoding: 'utf8' }
   )
   assert.equal(result.status, 0, result.stderr)
+})
+
+test('database lifecycle provisions every exact one-shot infrastructure dependency', () => {
+  assert.deepEqual(DATABASE_LIFECYCLE_INIT_SERVICES, [
+    'nats-bootstrap',
+    'minio-init',
+    'nacos-auth-bootstrap'
+  ])
+  const infra = fs.readFileSync(path.join(repositoryRoot, 'docker-compose.infra.yml'), 'utf8')
+  for (const service of DATABASE_LIFECYCLE_INIT_SERVICES) {
+    assert.match(infra, new RegExp(`^  ${service}:`, 'm'))
+  }
+  assert.match(infra, /nacos-auth-bootstrap:[\s\S]*INSERT INTO users[\s\S]*INSERT INTO roles/)
 })
 
 test('named Docker resource ownership rejects foreign task and project labels', () => {
