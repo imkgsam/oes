@@ -3,7 +3,11 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { checkEnvironment, normalizeTaskKey, parseEnvironmentFile } from './worktree-env.mjs'
+import {
+  checkEnvironment,
+  normalizeTaskKey,
+  parseEnvironmentFile
+} from './worktree-env.mjs'
 import {
   EXPECTED_PRISMA_SERVICE_COUNT,
   defaultRepositoryRoot,
@@ -19,7 +23,10 @@ export const DATABASE_LIFECYCLE_INIT_SERVICES = Object.freeze([
   'minio-init',
   'nacos-auth-bootstrap'
 ])
-const COMPLETED_SERVICES = new Set([...DATABASE_LIFECYCLE_INIT_SERVICES, 'grpc-trust-bootstrap'])
+const COMPLETED_SERVICES = new Set([
+  ...DATABASE_LIFECYCLE_INIT_SERVICES,
+  'grpc-trust-bootstrap'
+])
 const HEALTHY_SERVICES = new Set(['postgres', 'redis', 'nats', 'minio', 'mysql'])
 const HTTP_READINESS = Object.freeze({
   tempo: { path: '/ready', port: 3200 },
@@ -72,8 +79,7 @@ function run(command, args, options = {}) {
   if (result.stderr) process.stderr.write(result.stderr)
   process.stdout.write(`EXIT status=${result.status ?? 'spawn-error'}\n`)
   if (result.error) throw result.error
-  if (result.status !== 0)
-    throw new Error(`COMMAND_FAILED command=${command} exit=${result.status}`)
+  if (result.status !== 0) throw new Error(`COMMAND_FAILED command=${command} exit=${result.status}`)
   return result.stdout.trim()
 }
 
@@ -127,11 +133,7 @@ function assertSchemaMatches(context, service, databaseUrl) {
 
 /** Creates a deterministic local-only fixture value without writing it to Git. */
 function fixture(taskKey, purpose, length = 32) {
-  return crypto
-    .createHash('sha256')
-    .update(`oes-local:${taskKey}:${purpose}`)
-    .digest('hex')
-    .slice(0, length)
+  return crypto.createHash('sha256').update(`oes-local:${taskKey}:${purpose}`).digest('hex').slice(0, length)
 }
 
 /** Creates a deterministic NATS password that is also a valid bare config string scalar. */
@@ -151,9 +153,7 @@ function quoteEnvironment(value) {
 /** Loads the exact task-owned database inventory produced by env:bootstrap. */
 export function loadDatabaseContext(repositoryRoot = defaultRepositoryRoot()) {
   checkEnvironment({ repositoryRoot, output: { write() {} } })
-  const rootValues = parseEnvironmentFile(
-    fs.readFileSync(path.join(repositoryRoot, '.env'), 'utf8')
-  )
+  const rootValues = parseEnvironmentFile(fs.readFileSync(path.join(repositoryRoot, '.env'), 'utf8'))
   const taskKey = normalizeTaskKey(rootValues.get('OES_TASK_KEY'))
   const services = discoverBackendPackages(repositoryRoot)
     .filter((entry) => entry.prismaSchema)
@@ -211,15 +211,11 @@ export function loadBaselineResolvePlan(service) {
     }
     const migrationPath = path.join(migrationsDirectory, entry.name, 'migration.sql')
     if (!fs.existsSync(migrationPath)) {
-      throw new Error(
-        `BASELINE_RESOLVE_MIGRATION_MISSING service=${service.name} migration=${entry.name}`
-      )
+      throw new Error(`BASELINE_RESOLVE_MIGRATION_MISSING service=${service.name} migration=${entry.name}`)
     }
     const actual = crypto.createHash('sha256').update(fs.readFileSync(migrationPath)).digest('hex')
     if (actual !== entry.sha256) {
-      throw new Error(
-        `BASELINE_RESOLVE_DIGEST_MISMATCH service=${service.name} migration=${entry.name}`
-      )
+      throw new Error(`BASELINE_RESOLVE_DIGEST_MISMATCH service=${service.name} migration=${entry.name}`)
     }
   }
   return plan
@@ -251,10 +247,7 @@ export function composeEnvironment(context) {
   const authWorkloadPolicies = JSON.stringify(
     JSON.parse(
       fs.readFileSync(
-        path.join(
-          context.repositoryRoot,
-          'scripts/local/runtime-config/auth-execution-workload-policies.json'
-        ),
+        path.join(context.repositoryRoot, 'scripts/local/runtime-config/auth-execution-workload-policies.json'),
         'utf8'
       )
     )
@@ -262,10 +255,7 @@ export function composeEnvironment(context) {
   const permissionWorkloadPolicies = JSON.stringify(
     JSON.parse(
       fs.readFileSync(
-        path.join(
-          context.repositoryRoot,
-          'scripts/local/runtime-config/permission-workload-issuance-policies.json'
-        ),
+        path.join(context.repositoryRoot, 'scripts/local/runtime-config/permission-workload-issuance-policies.json'),
         'utf8'
       )
     )
@@ -311,17 +301,12 @@ export function composeEnvironment(context) {
     ['NACOS_MYSQL_PASSWORD', fixture(taskKey, 'nacos-mysql', 40)],
     ['NACOS_AUTH_TOKEN', Buffer.from(fixture(taskKey, 'nacos-token', 48)).toString('base64')],
     ['NACOS_AUTH_IDENTITY_KEY', 'serverIdentity'],
-    ['NACOS_AUTH_IDENTITY_VALUE', fixture(taskKey, 'nacos-identity', 32)],
-    ['NACOS_USERNAME', nacosUsername],
-    ['NACOS_PASSWORD', nacosPassword],
-    [
+    ['NACOS_AUTH_IDENTITY_VALUE', fixture(taskKey, 'nacos-identity', 32)]
+    ,['NACOS_USERNAME', nacosUsername]
+    ,['NACOS_PASSWORD', nacosPassword]
+    ,[
       'NACOS_PASSWORD_BCRYPT',
-      nacosPasswordHash.stdout
-        .trim()
-        .split(':')
-        .slice(1)
-        .join(':')
-        .replace(/^\$2y\$/, '$2a$')
+      nacosPasswordHash.stdout.trim().split(':').slice(1).join(':').replace(/^\$2y\$/, '$2a$')
     ]
   ])
   const replayConsumer = (state) => `notification-service__replay__${taskKey}__${state}`
@@ -614,9 +599,7 @@ function assertNamedResourceOwnership(context, environmentPath, { requireExistin
       if (result.error) throw result.error
       if (result.status !== 0) {
         if (!requireExisting && /not found|No such/i.test(result.stderr ?? '')) continue
-        throw new Error(
-          `RESOURCE_INSPECT_FAILED kind=${kind} resource=${name} exit=${result.status}`
-        )
+        throw new Error(`RESOURCE_INSPECT_FAILED kind=${kind} resource=${name} exit=${result.status}`)
       }
       const [record] = JSON.parse(result.stdout)
       assertResourceOwnershipRecord(context, kind, name, record)
@@ -631,11 +614,7 @@ function postgresPort(context, environmentPath) {
 }
 
 function servicePort(context, environmentPath, service, targetPort) {
-  const output = compose(context, environmentPath, INFRA_COMPOSE, [
-    'port',
-    service,
-    String(targetPort)
-  ])
+  const output = compose(context, environmentPath, INFRA_COMPOSE, ['port', service, String(targetPort)])
   const match = /:(\d+)$/.exec(output.split(/\r?\n/).at(-1))
   if (!match) throw new Error(`SERVICE_PORT_UNRESOLVED service=${service} output=${output}`)
   return Number(match[1])
@@ -648,9 +627,11 @@ export function probeHttpReadiness(url, options = {}) {
   const runner = options.runner ?? spawnSync
   let lastError = ''
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    const result = runner('curl', ['--fail', '--silent', '--show-error', '--max-time', '3', url], {
-      encoding: 'utf8'
-    })
+    const result = runner(
+      'curl',
+      ['--fail', '--silent', '--show-error', '--max-time', '3', url],
+      { encoding: 'utf8' }
+    )
     if (!result.error && result.status === 0) return { attempt, body: result.stdout?.trim() ?? '' }
     lastError = result.error?.message ?? result.stderr?.trim() ?? `exit=${result.status}`
     if (attempt < attempts && delayMs > 0) {
@@ -751,13 +732,9 @@ function createDatabases(context, environmentPath) {
         context.rootValues.get('OES_POSTGRES_USER'),
         service.database
       ])
-      process.stdout.write(
-        `DATABASE_CREATED service=${service.name} database=${service.database}\n`
-      )
+      process.stdout.write(`DATABASE_CREATED service=${service.name} database=${service.database}\n`)
     } else {
-      process.stdout.write(
-        `DATABASE_PRESENT service=${service.name} database=${service.database}\n`
-      )
+      process.stdout.write(`DATABASE_PRESENT service=${service.name} database=${service.database}\n`)
     }
   }
 }
@@ -767,11 +744,8 @@ function migrationCount(service) {
   if (!fs.existsSync(migrationsDirectory)) return 0
   return fs
     .readdirSync(migrationsDirectory, { withFileTypes: true })
-    .filter(
-      (entry) =>
-        entry.isDirectory() &&
-        fs.existsSync(path.join(migrationsDirectory, entry.name, 'migration.sql'))
-    ).length
+    .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(migrationsDirectory, entry.name, 'migration.sql')))
+    .length
 }
 
 function appliedMigrations(context, environmentPath, service) {
@@ -888,11 +862,7 @@ function writeBaselineResolutionCheckpoint(context, service, expected, mode) {
     }
   })
   process.stdout.write(
-    'BASELINE_RESOLUTION_CHECKPOINT service=' +
-      service.name +
-      ' mode=' +
-      mode +
-      ' status=RECORDED\n'
+    'BASELINE_RESOLUTION_CHECKPOINT service=' + service.name + ' mode=' + mode + ' status=RECORDED\n'
   )
   return checkpoint
 }
@@ -902,9 +872,7 @@ function clearBaselineResolutionCheckpoint(context, service) {
   if (!(service.name in current)) return
   delete current[service.name]
   writeState(context, { baselineResolutions: current })
-  process.stdout.write(
-    'BASELINE_RESOLUTION_CHECKPOINT service=' + service.name + ' status=CLEARED\n'
-  )
+  process.stdout.write('BASELINE_RESOLUTION_CHECKPOINT service=' + service.name + ' status=CLEARED\n')
 }
 
 function resolveFailureAfter() {
@@ -926,9 +894,7 @@ function prepareBaseline(context, environmentPath, service, databaseUrl) {
   const missing = superseded.filter((name) => !applied.includes(name))
   if (applied.includes(plan.baselineMigration)) {
     if (missing.length > 0) {
-      throw new Error(
-        'BASELINE_HISTORY_INCOMPLETE service=' + service.name + ' missing=' + missing.join(',')
-      )
+      throw new Error('BASELINE_HISTORY_INCOMPLETE service=' + service.name + ' missing=' + missing.join(','))
     }
     clearBaselineResolutionCheckpoint(context, service)
     process.stdout.write('BASELINE_PRESENT service=' + service.name + '\n')
@@ -944,9 +910,7 @@ function prepareBaseline(context, environmentPath, service, databaseUrl) {
   }
 
   if (applied.length > 0 && missing.length > 0 && !checkpoint) {
-    throw new Error(
-      'LEGACY_HISTORY_PARTIAL service=' + service.name + ' missing=' + missing.join(',')
-    )
+    throw new Error('LEGACY_HISTORY_PARTIAL service=' + service.name + ' missing=' + missing.join(','))
   }
 
   const tables = userTableCount(context, environmentPath, service)
@@ -954,13 +918,8 @@ function prepareBaseline(context, environmentPath, service, databaseUrl) {
     assertSchemaMatches(context, service, databaseUrl)
     verifyDatabaseInvariants(context, environmentPath, service)
     process.stdout.write(
-      'BASELINE_RESOLUTION_RESUMED service=' +
-        service.name +
-        ' applied=' +
-        applied.length +
-        ' remaining=' +
-        (missing.length + 1) +
-        '\n'
+      'BASELINE_RESOLUTION_RESUMED service=' + service.name + ' applied=' + applied.length +
+        ' remaining=' + (missing.length + 1) + '\n'
     )
   } else if (tables === 0) {
     checkpoint = writeBaselineResolutionCheckpoint(context, service, expected, 'EMPTY_BASELINE')
@@ -991,13 +950,8 @@ function prepareBaseline(context, environmentPath, service, databaseUrl) {
     verifyDatabaseInvariants(context, environmentPath, service)
     checkpoint = writeBaselineResolutionCheckpoint(context, service, expected, 'LEGACY_ADOPTION')
     process.stdout.write(
-      'BASELINE_ADOPTED_LEGACY service=' +
-        service.name +
-        ' recordedMigrations=' +
-        applied.length +
-        ' tables=' +
-        tables +
-        '\n'
+      'BASELINE_ADOPTED_LEGACY service=' + service.name + ' recordedMigrations=' + applied.length +
+        ' tables=' + tables + '\n'
     )
   }
 
@@ -1054,21 +1008,15 @@ function health(context, environmentPath) {
     const status = payload.State.Status
     if (COMPLETED_SERVICES.has(service)) {
       if (status !== 'exited' || payload.State.ExitCode !== 0) {
-        throw new Error(
-          `HEALTH_COMPLETION_FAILED service=${service} status=${status} exit=${payload.State.ExitCode}`
-        )
+        throw new Error(`HEALTH_COMPLETION_FAILED service=${service} status=${status} exit=${payload.State.ExitCode}`)
       }
     } else if (status !== 'running') {
       throw new Error(`HEALTH_NOT_RUNNING service=${service} status=${status}`)
     }
     if (HEALTHY_SERVICES.has(service) && payload.State.Health?.Status !== 'healthy') {
-      throw new Error(
-        `HEALTH_NOT_HEALTHY service=${service} status=${payload.State.Health?.Status}`
-      )
+      throw new Error(`HEALTH_NOT_HEALTHY service=${service} status=${payload.State.Health?.Status}`)
     }
-    process.stdout.write(
-      `HEALTH service=${service} status=${status} health=${payload.State.Health?.Status ?? 'n/a'}\n`
-    )
+    process.stdout.write(`HEALTH service=${service} status=${status} health=${payload.State.Health?.Status ?? 'n/a'}\n`)
   }
   for (const [service, endpoint] of Object.entries(HTTP_READINESS)) {
     const port = servicePort(context, environmentPath, service, endpoint.port)
@@ -1099,14 +1047,7 @@ function migrate(context, environmentPath) {
     prepareBaseline(context, environmentPath, service, databaseUrl)
     run(
       'pnpm',
-      [
-        'exec',
-        'prisma',
-        'migrate',
-        'deploy',
-        '--schema',
-        repositoryRelative(context.repositoryRoot, service.schema)
-      ],
+      ['exec', 'prisma', 'migrate', 'deploy', '--schema', repositoryRelative(context.repositoryRoot, service.schema)],
       {
         cwd: context.repositoryRoot,
         env: { ...process.env, DATABASE_URL: databaseUrl }
@@ -1125,38 +1066,23 @@ function seedSnapshot(context, environmentPath) {
   const permission = context.services.find((service) => service.name === 'permission-service')
   const collaboration = context.services.find((service) => service.name === 'collaboration-service')
   const digest = (database, sql) =>
-    crypto
-      .createHash('sha256')
-      .update(postgresExec(context, environmentPath, database, sql))
-      .digest('hex')
+    crypto.createHash('sha256').update(postgresExec(context, environmentPath, database, sql)).digest('hex')
   return {
     collaborationTaskCount: Number(
-      postgresExec(
-        context,
-        environmentPath,
-        collaboration.database,
-        'SELECT count(*) FROM "CollaborationTask"'
-      )
+      postgresExec(context, environmentPath, collaboration.database, 'SELECT count(*) FROM "CollaborationTask"')
     ),
     collaborationTaskDigest: digest(
       collaboration.database,
       `SELECT COALESCE(jsonb_agg(to_jsonb(t) ORDER BY t."id")::text, '[]') FROM "CollaborationTask" t WHERE t."id"::text LIKE '10000000-0000-4000-8000-%'`
     ),
     permissionCount: Number(
-      postgresExec(
-        context,
-        environmentPath,
-        permission.database,
-        'SELECT count(*) FROM "Permission"'
-      )
+      postgresExec(context, environmentPath, permission.database, 'SELECT count(*) FROM "Permission"')
     ),
     permissionDigest: digest(
       permission.database,
       `SELECT COALESCE(jsonb_agg(to_jsonb(t) - 'createdAt' - 'updatedAt' ORDER BY t."id")::text, '[]') FROM "Permission" t`
     ),
-    roleCount: Number(
-      postgresExec(context, environmentPath, permission.database, 'SELECT count(*) FROM "Role"')
-    ),
+    roleCount: Number(postgresExec(context, environmentPath, permission.database, 'SELECT count(*) FROM "Role"')),
     roleDigest: digest(
       permission.database,
       `SELECT COALESCE(jsonb_agg(to_jsonb(t) - 'createdAt' - 'updatedAt' ORDER BY t."id")::text, '[]') FROM "Role" t`
@@ -1205,8 +1131,7 @@ function verify(context, environmentPath) {
   assertRollbackBinding(context, state)
   const seen = new Set()
   for (const service of context.services) {
-    if (seen.has(service.database))
-      throw new Error(`VERIFY_SHARED_DATABASE database=${service.database}`)
+    if (seen.has(service.database)) throw new Error(`VERIFY_SHARED_DATABASE database=${service.database}`)
     seen.add(service.database)
     const expected = migrationCount(service)
     const applied = Number(
@@ -1218,9 +1143,7 @@ function verify(context, environmentPath) {
       )
     )
     if (applied !== expected) {
-      throw new Error(
-        `VERIFY_MIGRATION_COUNT service=${service.name} expected=${expected} actual=${applied}`
-      )
+      throw new Error(`VERIFY_MIGRATION_COUNT service=${service.name} expected=${expected} actual=${applied}`)
     }
     assertSchemaMatches(context, service, postgresUrl(context, service, state.postgresPort))
     verifyDatabaseInvariants(context, environmentPath, service)
@@ -1247,8 +1170,7 @@ function rollback(context, environmentPath) {
     cwd: context.repositoryRoot
   })
   const remaining = projectContainerIds(context)
-  if (remaining.length !== 0)
-    throw new Error(`ROLLBACK_CONTAINERS_REMAIN count=${remaining.length}`)
+  if (remaining.length !== 0) throw new Error(`ROLLBACK_CONTAINERS_REMAIN count=${remaining.length}`)
   const remainingOwnerContainers = ownerContainerIds(context)
   if (remainingOwnerContainers.length !== 0) {
     throw new Error(`ROLLBACK_OWNER_CONTAINERS_REMAIN count=${remainingOwnerContainers.length}`)
@@ -1292,10 +1214,7 @@ function config(context, environmentPath) {
       throw new Error(`COMPOSE_BUILD_BINDING_INVALID service=${service.name}`)
     }
     const url = new URL(definition.environment?.DATABASE_URL)
-    if (
-      url.hostname !== 'postgres' ||
-      decodeURIComponent(url.pathname.slice(1)) !== service.database
-    ) {
+    if (url.hostname !== 'postgres' || decodeURIComponent(url.pathname.slice(1)) !== service.database) {
       throw new Error(`COMPOSE_DATABASE_BINDING_INVALID service=${service.name}`)
     }
   }
@@ -1321,9 +1240,7 @@ function config(context, environmentPath) {
       }
     }
   }
-  process.stdout.write(
-    `COMPOSE_CONFIG=PASS backendServices=${backend.size} totalServices=${services.length}\n`
-  )
+  process.stdout.write(`COMPOSE_CONFIG=PASS backendServices=${backend.size} totalServices=${services.length}\n`)
 }
 
 /** Executes the bounded database lifecycle CLI. */
@@ -1346,9 +1263,7 @@ export function main(argv = process.argv.slice(2)) {
     verify(context, environmentPath)
     rollback(context, environmentPath)
   } else {
-    throw new Error(
-      'DATABASE_COMMAND_REQUIRED expected=config|up|health|migrate|seed|verify|rollback|cycle'
-    )
+    throw new Error('DATABASE_COMMAND_REQUIRED expected=config|up|health|migrate|seed|verify|rollback|cycle')
   }
 }
 
