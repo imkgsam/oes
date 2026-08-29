@@ -1,437 +1,440 @@
-# File: docker-compose.yml
+include:
+  - path: docker-compose.infra.yml
+
+x-service-defaults: &service-defaults
+  labels:
+    oes.local.owner: ${OES_TASK_KEY:?run pnpm env:bootstrap}
+    oes.local.scope: infrastructure-databases
+  networks: [oes_network]
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+    otel-collector: { condition: service_started }
+  restart: unless-stopped
+
+x-service-environment: &service-environment
+  NODE_ENV: development
+  GRPC_LISTEN_HOST: 0.0.0.0
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  NACOS_SERVER: nacos:8848
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  AUTH_SERVICE_HOST: auth-service
+  AUTH_SERVICE_PORT: 50050
+  AUTH_EXECUTION_ISSUER: https://issuer.local.oes.internal
+
 services:
-  # The bootstrap and rotator are the only local containers allowed to see the local CA private key.
   grpc-trust-bootstrap:
-    image: alpine:3.21
-    container_name: oes_grpc_trust_bootstrap
-    command:
-      - /bin/sh
-      - -ec
-      - apk add --no-cache bash openssl && exec /scripts/bootstrap-local-trust.sh --output /trust
+    image: alpine:3.21@sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d65087abc07d
+    labels:
+      oes.local.owner: ${OES_TASK_KEY:?run pnpm env:bootstrap}
+      oes.local.scope: infrastructure-databases
+    command: ['/bin/sh', '-ec', 'apk add --no-cache bash openssl && exec /scripts/bootstrap-local-trust.sh --output /trust']
     environment:
-      - OES_TRUST_ENV=local
-      - OES_TRUST_OUTPUT_DIRECTORY=/trust
-      - OES_ROTATION_CHECK_INTERVAL_SECONDS=300
+      OES_TRUST_ENV: local
+      OES_TRUST_OUTPUT_DIRECTORY: /trust
+      OES_ROTATION_CHECK_INTERVAL_SECONDS: 300
     volumes:
       - ./docker/grpc-trust:/scripts:ro
       - grpc_trust_runtime:/trust
+    networks: [oes_network]
 
-  # The local rotator renews the short-lived leaves before two-thirds of their lifetime elapses.
   grpc-trust-rotator:
-    image: alpine:3.21
-    container_name: oes_grpc_trust_rotator
-    command:
-      - /bin/sh
-      - -ec
-      - apk add --no-cache bash openssl && exec /scripts/rotate-local-trust.sh
+    image: alpine:3.21@sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d65087abc07d
+    labels:
+      oes.local.owner: ${OES_TASK_KEY:?run pnpm env:bootstrap}
+      oes.local.scope: infrastructure-databases
+    command: ['/bin/sh', '-ec', 'apk add --no-cache bash openssl && exec /scripts/rotate-local-trust.sh']
     depends_on:
-      grpc-trust-bootstrap:
-        condition: service_completed_successfully
+      grpc-trust-bootstrap: { condition: service_completed_successfully }
     environment:
-      - OES_TRUST_ENV=local
-      - OES_TRUST_OUTPUT_DIRECTORY=/trust
-      - OES_ROTATION_CHECK_INTERVAL_SECONDS=300
+      OES_TRUST_ENV: local
+      OES_TRUST_OUTPUT_DIRECTORY: /trust
+      OES_ROTATION_CHECK_INTERVAL_SECONDS: 300
     restart: unless-stopped
     volumes:
       - ./docker/grpc-trust:/scripts:ro
       - grpc_trust_runtime:/trust
+    networks: [oes_network]
 
-  # ============ Infrastructure ============
-  postgres:
-    image: 'bitnami/postgresql:latest'
-    container_name: oes_postgres
-    environment:
-      - POSTGRESQL_USERNAME=imkgsam
-      - POSTGRESQL_PASSWORD=imkgsam
-      - POSTGRESQL_DATABASE=mydb
-    ports:
-      - '5432:5432'
-    volumes:
-      - postgres_data:/bitnami/postgresql
-    networks:
-      - oes_network
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U oes_user -d oes_db']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: 'redis:7-alpine'
-    container_name: oes_redis
-    ports:
-      - '6379:6379'
-    volumes:
-      - redis_data:/data
-    networks:
-      - oes_network
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # ============ OpenTelemetry Stack ============
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.137.0
-    container_name: oes_otel_collector
-    command: ['--config=/etc/otelcol-contrib/config.yaml']
-    volumes:
-      - ./docker/otel/collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
-      - ./docker/output/otel-logs:/var/log/oes
-    ports:
-      - '4317:4317'
-      - '4318:4318'
-    depends_on:
-      - tempo
-      - loki
-    networks:
-      - oes_network
-
-  tempo:
-    image: grafana/tempo:2.8.2
-    container_name: oes_tempo
-    command: ['-config.file=/etc/tempo/tempo.yaml']
-    volumes:
-      - ./docker/otel/tempo.yaml:/etc/tempo/tempo.yaml:ro
-    tmpfs:
-      - /tmp/tempo:mode=1777,uid=0,gid=0
-    ports:
-      - '3200:3200'
-    networks:
-      - oes_network
-
-  loki:
-    image: grafana/loki:3.5.3
-    container_name: oes_loki
-    command: ['-config.file=/etc/loki/loki.yaml']
-    volumes:
-      - ./docker/otel/loki.yaml:/etc/loki/loki.yaml:ro
-    tmpfs:
-      - /tmp/loki:mode=1777,uid=0,gid=0
-    ports:
-      - '3100:3100'
-    networks:
-      - oes_network
-
-  grafana:
-    image: grafana/grafana:11.6.2
-    container_name: oes_grafana
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
-    volumes:
-      - ./docker/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
-      - grafana_data:/var/lib/grafana
-    ports:
-      - '3000:3000'
-    depends_on:
-      - tempo
-      - loki
-    networks:
-      - oes_network
-
-  # ============ Nacos Service Registry ============
-  nacos:
-    image: nacos/nacos-server:v2.3.1
-    container_name: nacos
-    environment:
-      - MODE=standalone
-      - PREFER_HOST_MODE=hostname
-      - SPRING_DATASOURCE_PLATFORM=mysql
-      - MYSQL_SERVICE_HOST=mysql
-      - MYSQL_SERVICE_PORT=3306
-      - MYSQL_SERVICE_DB_NAME=nacos
-      - MYSQL_SERVICE_USER=nacos
-      - MYSQL_SERVICE_PASSWORD=nacos
-      - NACOS_AUTH_ENABLE=true
-      - NACOS_AUTH_TOKEN=SecretKey012345678901234567890123456789012345678901234567890123456789
-      - NACOS_AUTH_IDENTITY_KEY=serverIdentity
-      - NACOS_AUTH_IDENTITY_VALUE=security
-    ports:
-      - '8848:8848'
-      - '9848:9848'
-      - '9849:9849'
-    depends_on:
-      - mysql
-    volumes:
-      - ./nacos/logs:/home/nacos/logs
-    networks:
-      - oes_network
-
-  mysql:
-    image: mysql:8.0
-    container_name: nacos-mysql
-    environment:
-      - MYSQL_ROOT_PASSWORD=root
-      - MYSQL_DATABASE=nacos
-      - MYSQL_USER=nacos
-      - MYSQL_PASSWORD=nacos
-    ports:
-      - '3307:3306'
-    volumes:
-      - ./nacos/mysql:/var/lib/mysql
-      - ./nacos/init.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - oes_network
-
-  # ============ System Services ============
   api-gateway:
+    <<: *service-defaults
     build:
       context: .
-      dockerfile: ./docker/Dockerfile.api-gateway
-    container_name: oes_api_gateway
+      dockerfile: docker/Dockerfile.api-gateway
     environment:
-      - NODE_ENV=production
-      - MODULE_NAME=api-gateway
-      - API_GATEWAY_PORT=9101
-      - SERVICE_PORT=9101
-      # ── Nacos registration & discovery ──
-      - NACOS_SERVER=nacos:8848
-      - NACOS_NAMESPACE=public
-      # ── Downstream service (static fallback, prefer Nacos discovery) ──
-      - AUTH_SERVICE_HOST=auth-service
-      - AUTH_SERVICE_PORT=9202
-      - IDENTITY_SERVICE_HOST=identity-service
-      - IDENTITY_SERVICE_PORT=9402
-      - PERMISSION_SERVICE_HOST=permission-service
-      - PERMISSION_SERVICE_PORT=9302
-      # ── Observability ──
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
-      - OTEL_SERVICE_NAME=api-gateway
-      - OES_GRPC_TLS_ENABLED=true
-      - OES_GRPC_TLS_CA_PATH=/var/run/oes/grpc-trust/current/ca.pem
-      - OES_GRPC_TLS_CERT_PATH=/var/run/oes/grpc-trust/current/cert.pem
-      - OES_GRPC_TLS_KEY_PATH=/var/run/oes/grpc-trust/current/key.pem
-      - OES_GRPC_TLS_MIN_VERSION=TLSv1.2
-      - OES_WORKLOAD_SPIFFE_ID=spiffe://local.oes.internal/ns/oes/sa/api-gateway
-    ports:
-      - '9101:9101'
-    networks:
-      - oes_network
-    depends_on:
-      nacos:
-        condition: service_started
-      otel-collector:
-        condition: service_started
-      auth-service:
-        condition: service_started
-      identity-service:
-        condition: service_started
-      permission-service:
-        condition: service_started
-      grpc-trust-bootstrap:
-        condition: service_completed_successfully
-    volumes:
-      - type: volume
-        source: grpc_trust_runtime
-        target: /var/run/oes/grpc-trust
-        read_only: true
-        volume:
-          subpath: api-gateway
+      <<: *service-environment
+      MODULE_NAME: api-gateway
+      SERVICE_PORT: 9101
+      AUTH_SERVICE_HOST: auth-service
+      AUTH_SERVICE_PORT: 50050
+      IDENTITY_SERVICE_HOST: identity-service
+      IDENTITY_SERVICE_PORT: 50052
+      PERMISSION_SERVICE_HOST: permission-service
+      PERMISSION_SERVICE_PORT: 50051
+      PARTY_SERVICE_HOST: party-service
+      PARTY_SERVICE_PORT: 50053
+      TENANT_ORG_SERVICE_HOST: tenant-org-service
+      TENANT_ORG_SERVICE_PORT: 50054
+      HR_SERVICE_HOST: hr-service
+      HR_SERVICE_PORT: 50055
+      ASSET_SERVICE_HOST: asset-service
+      ASSET_SERVICE_PORT: 50056
+      TERMINAL_DEVICE_SERVICE_HOST: terminal-device-service
+      TERMINAL_DEVICE_SERVICE_PORT: 50057
+      ITEM_MASTER_SERVICE_HOST: item-master-service
+      ITEM_MASTER_SERVICE_PORT: 50058
+      SALES_SERVICE_HOST: sales-service
+      SALES_SERVICE_PORT: 50059
+      CRM_SERVICE_HOST: crm-service
+      CRM_SERVICE_PORT: 50060
+      SRM_SERVICE_HOST: srm-service
+      SRM_SERVICE_PORT: 50061
+      PROCUREMENT_SERVICE_HOST: procurement-service
+      PROCUREMENT_SERVICE_PORT: 50062
+      FINANCE_SERVICE_HOST: finance-service
+      FINANCE_SERVICE_PORT: 50063
+      WMS_SERVICE_HOST: wms-service
+      WMS_SERVICE_PORT: 50064
+      MES_SERVICE_HOST: mes-service
+      MES_SERVICE_PORT: 50065
+      PUBLIC_ENTRY_SERVICE_HOST: public-entry-service
+      PUBLIC_ENTRY_SERVICE_PORT: 50067
+      COLLABORATION_SERVICE_HOST: collaboration-service
+      COLLABORATION_SERVICE_PORT: 50068
+      SITE_SERVICE_HOST: site-service
+      SITE_SERVICE_PORT: 50069
+      BROWSER_ACTIVITY_SERVICE_HOST: browser-activity-service
+      BROWSER_ACTIVITY_SERVICE_PORT: 50070
+    ports: ['127.0.0.1::9101']
+
+  asset-service:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        PACKAGE_NAME: asset-service
+        SERVICE_PATH: src/services/system/asset-service
+    environment:
+      <<: *service-environment
+      MODULE_NAME: asset-service
+      DATABASE_URL: ${OES_DB_ASSET_SERVICE_URL:?run pnpm db:config}
+      GRPC_LISTEN_PORT: 50056
+      ASSET_S3_ENDPOINT: http://minio:9000
+      ASSET_S3_BUCKET: ${MINIO_BUCKET:-oes-local-assets}
+      ASSET_S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:?run pnpm db:config}
+      ASSET_S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?run pnpm db:config}
+    expose: ['50056']
 
   auth-service:
+    <<: *service-defaults
     build:
       context: .
-      dockerfile: ./docker/Dockerfile.auth-service
-    container_name: oes_auth_service
+      dockerfile: docker/Dockerfile.service
+      args:
+        PACKAGE_NAME: auth-service
+        SERVICE_PATH: src/services/system/auth-service
     environment:
-      - NODE_ENV=production
-      - MODULE_NAME=auth-service
-      - DATABASE_URL=postgresql://oes_user:oes_password@postgres:5432/oes_db
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
-      - OTEL_SERVICE_NAME=auth-service
-      - OES_GRPC_TLS_ENABLED=true
-      - OES_GRPC_TLS_CA_PATH=/var/run/oes/grpc-trust/current/ca.pem
-      - OES_GRPC_TLS_CERT_PATH=/var/run/oes/grpc-trust/current/cert.pem
-      - OES_GRPC_TLS_KEY_PATH=/var/run/oes/grpc-trust/current/key.pem
-      - OES_GRPC_TLS_MIN_VERSION=TLSv1.2
-      - OES_WORKLOAD_SPIFFE_ID=spiffe://local.oes.internal/ns/oes/sa/auth-service
-      - AUTH_EXECUTION_ISSUER=https://issuer.local.oes.internal
-      - 'AUTH_EXECUTION_WORKLOAD_POLICIES=[{"spiffeId":"spiffe://local.oes.internal/ns/oes/sa/api-gateway","audiences":["urn:oes:service:permission-service"]}]'
-      - AUTH_EXECUTION_SIGNER_SOCKET_PATH=/var/run/oes/execution-token-signer/signer.sock
-      - AUTH_EXECUTION_KMS_KEY_REF=${AUTH_EXECUTION_KMS_KEY_REF:?AUTH_EXECUTION_KMS_KEY_REF must be the deployment-bound opaque PKCS#11 reference}
-    ports:
-      - '9202:9202'
-    networks:
-      - oes_network
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      otel-collector:
-        condition: service_started
-      grpc-trust-bootstrap:
-        condition: service_completed_successfully
-    volumes:
-      - type: volume
-        source: grpc_trust_runtime
-        target: /var/run/oes/grpc-trust
-        read_only: true
-        volume:
-          subpath: auth-service
-      - type: volume
-        source: execution_token_signer_runtime
-        target: /var/run/oes/execution-token-signer
-        read_only: true
+      <<: *service-environment
+      MODULE_NAME: auth-service
+      DATABASE_URL: ${OES_DB_AUTH_SERVICE_URL:?run pnpm db:config}
+      GRPC_LISTEN_PORT: 50050
+      AUTH_HTTP_PORT: 50051
+    expose: ['50050']
+
+  browser-activity-service:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        PACKAGE_NAME: browser-activity-service
+        SERVICE_PATH: src/services/system/browser-activity-service
+    environment:
+      <<: *service-environment
+      MODULE_NAME: browser-activity-service
+      DATABASE_URL: ${OES_DB_BROWSER_ACTIVITY_SERVICE_URL:?run pnpm db:config}
+      GRPC_LISTEN_PORT: 50070
+    expose: ['50070']
+
+  collaboration-service:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        PACKAGE_NAME: collaboration-service
+        SERVICE_PATH: src/services/system/collaboration-service
+    environment:
+      <<: *service-environment
+      MODULE_NAME: collaboration-service
+      DATABASE_URL: ${OES_DB_COLLABORATION_SERVICE_URL:?run pnpm db:config}
+      GRPC_LISTEN_PORT: 50068
+      NATS_COLLABORATION_USER: ${NATS_COLLABORATION_USER:?run pnpm db:config}
+      NATS_COLLABORATION_PASSWORD: ${NATS_COLLABORATION_PASSWORD:?run pnpm db:config}
+      COLLABORATION_DATABASE_URL: ${OES_DB_COLLABORATION_SERVICE_URL:?run pnpm db:config}
+    expose: ['50068']
+
+  hr-service:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        PACKAGE_NAME: hr-service
+        SERVICE_PATH: src/services/system/hr-service
+    environment:
+      <<: *service-environment
+      MODULE_NAME: hr-service
+      DATABASE_URL: ${OES_DB_HR_SERVICE_URL:?run pnpm db:config}
+      GRPC_LISTEN_PORT: 50055
+    expose: ['50055']
 
   identity-service:
+    <<: *service-defaults
     build:
       context: .
-      dockerfile: ./docker/Dockerfile.identity-service
-    container_name: oes_identity_service
+      dockerfile: docker/Dockerfile.service
+      args:
+        PACKAGE_NAME: identity-service
+        SERVICE_PATH: src/services/system/identity-service
     environment:
-      - NODE_ENV=production
-      - MODULE_NAME=identity-service
-      - DATABASE_URL=postgresql://oes_user:oes_password@postgres:5432/oes_db
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
-      - OTEL_SERVICE_NAME=identity-service
-      - OES_GRPC_TLS_ENABLED=true
-      - OES_GRPC_TLS_CA_PATH=/var/run/oes/grpc-trust/current/ca.pem
-      - OES_GRPC_TLS_CERT_PATH=/var/run/oes/grpc-trust/current/cert.pem
-      - OES_GRPC_TLS_KEY_PATH=/var/run/oes/grpc-trust/current/key.pem
-      - OES_GRPC_TLS_MIN_VERSION=TLSv1.2
-      - OES_WORKLOAD_SPIFFE_ID=spiffe://local.oes.internal/ns/oes/sa/identity-service
-    ports:
-      - '9402:9402'
-    networks:
-      - oes_network
-    depends_on:
-      postgres:
-        condition: service_healthy
-      otel-collector:
-        condition: service_started
-      grpc-trust-bootstrap:
-        condition: service_completed_successfully
-    volumes:
-      - type: volume
-        source: grpc_trust_runtime
-        target: /var/run/oes/grpc-trust
-        read_only: true
-        volume:
-          subpath: identity-service
+      <<: *service-environment
+      MODULE_NAME: identity-service
+      DATABASE_URL: ${OES_DB_IDENTITY_SERVICE_URL:?run pnpm db:config}
+      GRPC_LISTEN_PORT: 50052
+    expose: ['50052']
+
+  item-master-service:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        PACKAGE_NAME: item-master-service
+        SERVICE_PATH: src/services/system/item-master-service
+    environment:
+      <<: *service-environment
+      MODULE_NAME: item-master-service
+      DATABASE_URL: ${OES_DB_ITEM_MASTER_SERVICE_URL:?run pnpm db:config}
+      GRPC_LISTEN_PORT: 50058
+    expose: ['50058']
+
+  notification-service:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        PACKAGE_NAME: notification-service
+        SERVICE_PATH: src/services/system/notification-service
+    environment:
+      <<: *service-environment
+      MODULE_NAME: notification-service
+      DATABASE_URL: ${OES_DB_NOTIFICATION_SERVICE_URL:?run pnpm db:config}
+      GRPC_LISTEN_PORT: 50066
+      NATS_NOTIFICATION_USER: ${NATS_NOTIFICATION_USER:?run pnpm db:config}
+      NATS_NOTIFICATION_PASSWORD: ${NATS_NOTIFICATION_PASSWORD:?run pnpm db:config}
+    expose: ['50066']
+
+  party-service:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        PACKAGE_NAME: party-service
+        SERVICE_PATH: src/services/system/party-service
+    environment:
+      <<: *service-environment
+      MODULE_NAME: party-service
+      DATABASE_URL: ${OES_DB_PARTY_SERVICE_URL:?run pnpm db:config}
+      GRPC_LISTEN_PORT: 50053
+    expose: ['50053']
 
   permission-service:
+    <<: *service-defaults
     build:
       context: .
-      dockerfile: ./docker/Dockerfile.permission-service
-    container_name: oes_permission_service
+      dockerfile: docker/Dockerfile.service
+      args:
+        PACKAGE_NAME: permission-service
+        SERVICE_PATH: src/services/system/permission-service
     environment:
-      - NODE_ENV=production
-      - MODULE_NAME=permission-service
-      - DATABASE_URL=postgresql://oes_user:oes_password@postgres:5432/oes_db
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
-      - OTEL_SERVICE_NAME=permission-service
-      - OES_GRPC_TLS_ENABLED=true
-      - OES_GRPC_TLS_CA_PATH=/var/run/oes/grpc-trust/current/ca.pem
-      - OES_GRPC_TLS_CERT_PATH=/var/run/oes/grpc-trust/current/cert.pem
-      - OES_GRPC_TLS_KEY_PATH=/var/run/oes/grpc-trust/current/key.pem
-      - OES_GRPC_TLS_MIN_VERSION=TLSv1.2
-      - OES_WORKLOAD_SPIFFE_ID=spiffe://local.oes.internal/ns/oes/sa/permission-service
-    ports:
-      - '9302:9302'
-    networks:
-      - oes_network
-    depends_on:
-      postgres:
-        condition: service_healthy
-      otel-collector:
-        condition: service_started
-      grpc-trust-bootstrap:
-        condition: service_completed_successfully
-    volumes:
-      - type: volume
-        source: grpc_trust_runtime
-        target: /var/run/oes/grpc-trust
-        read_only: true
-        volume:
-          subpath: permission-service
+      <<: *service-environment
+      MODULE_NAME: permission-service
+      DATABASE_URL: ${OES_DB_PERMISSION_SERVICE_URL:?run pnpm db:config}
+      GRPC_LISTEN_PORT: 50051
+    expose: ['50051']
 
-  entity-service:
+  public-entry-service:
+    <<: *service-defaults
     build:
       context: .
-      dockerfile: ./docker/Dockerfile.entity-service
-    container_name: oes_entity_service
+      dockerfile: docker/Dockerfile.service
+      args:
+        PACKAGE_NAME: public-entry-service
+        SERVICE_PATH: src/services/system/public-entry-service
     environment:
-      - NODE_ENV=production
-      - MODULE_NAME=entity-service
-      - DATABASE_URL=postgresql://oes_user:oes_password@postgres:5432/oes_db
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
-      - OTEL_SERVICE_NAME=entity-service
-      - OES_GRPC_TLS_ENABLED=true
-      - OES_GRPC_TLS_CA_PATH=/var/run/oes/grpc-trust/current/ca.pem
-      - OES_GRPC_TLS_CERT_PATH=/var/run/oes/grpc-trust/current/cert.pem
-      - OES_GRPC_TLS_KEY_PATH=/var/run/oes/grpc-trust/current/key.pem
-      - OES_GRPC_TLS_MIN_VERSION=TLSv1.2
-      - OES_WORKLOAD_SPIFFE_ID=spiffe://local.oes.internal/ns/oes/sa/entity-service
-    ports:
-      - '9502:9502'
-    networks:
-      - oes_network
-    depends_on:
-      postgres:
-        condition: service_healthy
-      otel-collector:
-        condition: service_started
-      grpc-trust-bootstrap:
-        condition: service_completed_successfully
-    volumes:
-      - type: volume
-        source: grpc_trust_runtime
-        target: /var/run/oes/grpc-trust
-        read_only: true
-        volume:
-          subpath: entity-service
+      <<: *service-environment
+      MODULE_NAME: public-entry-service
+      DATABASE_URL: ${OES_DB_PUBLIC_ENTRY_SERVICE_URL:?run pnpm db:config}
+      GRPC_LISTEN_PORT: 50067
+    expose: ['50067']
 
-  # ============ Business Services ============
-  resource-service:
+  site-service:
+    <<: *service-defaults
     build:
       context: .
-      dockerfile: ./docker/Dockerfile.resource-service
-    container_name: oes_resource_service
+      dockerfile: docker/Dockerfile.service
+      args:
+        PACKAGE_NAME: site-service
+        SERVICE_PATH: src/services/system/site-service
     environment:
-      - NODE_ENV=production
-      - MODULE_NAME=resource-service
-      - DATABASE_URL=postgresql://oes_user:oes_password@postgres:5432/oes_db
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
-      - OTEL_SERVICE_NAME=resource-service
-      - OES_GRPC_TLS_ENABLED=true
-      - OES_GRPC_TLS_CA_PATH=/var/run/oes/grpc-trust/current/ca.pem
-      - OES_GRPC_TLS_CERT_PATH=/var/run/oes/grpc-trust/current/cert.pem
-      - OES_GRPC_TLS_KEY_PATH=/var/run/oes/grpc-trust/current/key.pem
-      - OES_GRPC_TLS_MIN_VERSION=TLSv1.2
-      - OES_WORKLOAD_SPIFFE_ID=spiffe://local.oes.internal/ns/oes/sa/resource-service
-    ports:
-      - '11502:11502'
-    networks:
-      - oes_network
-    depends_on:
-      postgres:
-        condition: service_healthy
-      otel-collector:
-        condition: service_started
-      grpc-trust-bootstrap:
-        condition: service_completed_successfully
-    volumes:
-      - type: volume
-        source: grpc_trust_runtime
-        target: /var/run/oes/grpc-trust
-        read_only: true
-        volume:
-          subpath: resource-service
+      <<: *service-environment
+      MODULE_NAME: site-service
+      DATABASE_URL: ${OES_DB_SITE_SERVICE_URL:?run pnpm db:config}
+      GRPC_LISTEN_PORT: 50069
+    expose: ['50069']
+
+  tenant-org-service:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        PACKAGE_NAME: tenant-org-service
+        SERVICE_PATH: src/services/system/tenant-org-service
+    environment:
+      <<: *service-environment
+      MODULE_NAME: tenant-org-service
+      DATABASE_URL: ${OES_DB_TENANT_ORG_SERVICE_URL:?run pnpm db:config}
+      GRPC_LISTEN_PORT: 50054
+    expose: ['50054']
+
+  terminal-device-service:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        PACKAGE_NAME: terminal-device-service
+        SERVICE_PATH: src/services/system/terminal-device-service
+    environment:
+      <<: *service-environment
+      MODULE_NAME: terminal-device-service
+      DATABASE_URL: ${OES_DB_TERMINAL_DEVICE_SERVICE_URL:?run pnpm db:config}
+      GRPC_LISTEN_PORT: 50057
+    expose: ['50057']
+
+  crm-service:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        PACKAGE_NAME: crm-service
+        SERVICE_PATH: src/services/business/crm-service
+    environment:
+      <<: *service-environment
+      MODULE_NAME: crm-service
+      DATABASE_URL: ${OES_DB_CRM_SERVICE_URL:?run pnpm db:config}
+      GRPC_LISTEN_PORT: 50060
+    expose: ['50060']
+
+  finance-service:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        PACKAGE_NAME: finance-service
+        SERVICE_PATH: src/services/business/finance-service
+    environment:
+      <<: *service-environment
+      MODULE_NAME: finance-service
+      DATABASE_URL: ${OES_DB_FINANCE_SERVICE_URL:?run pnpm db:config}
+      GRPC_LISTEN_PORT: 50063
+    expose: ['50063']
+
+  mes-service:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        PACKAGE_NAME: mes-service
+        SERVICE_PATH: src/services/business/mes-service
+    environment:
+      <<: *service-environment
+      MODULE_NAME: mes-service
+      DATABASE_URL: ${OES_DB_MES_SERVICE_URL:?run pnpm db:config}
+      GRPC_LISTEN_PORT: 50065
+    expose: ['50065']
+
+  procurement-service:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        PACKAGE_NAME: procurement-service
+        SERVICE_PATH: src/services/business/procurement-service
+    environment:
+      <<: *service-environment
+      MODULE_NAME: procurement-service
+      DATABASE_URL: ${OES_DB_PROCUREMENT_SERVICE_URL:?run pnpm db:config}
+      GRPC_LISTEN_PORT: 50062
+    expose: ['50062']
+
+  sales-service:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        PACKAGE_NAME: sales-service
+        SERVICE_PATH: src/services/business/sales-service
+    environment:
+      <<: *service-environment
+      MODULE_NAME: sales-service
+      DATABASE_URL: ${OES_DB_SALES_SERVICE_URL:?run pnpm db:config}
+      GRPC_LISTEN_PORT: 50059
+    expose: ['50059']
+
+  srm-service:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        PACKAGE_NAME: srm-service
+        SERVICE_PATH: src/services/business/srm-service
+    environment:
+      <<: *service-environment
+      MODULE_NAME: srm-service
+      DATABASE_URL: ${OES_DB_SRM_SERVICE_URL:?run pnpm db:config}
+      GRPC_LISTEN_PORT: 50060
+    expose: ['50060']
+
+  wms-service:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        PACKAGE_NAME: wms-service
+        SERVICE_PATH: src/services/business/wms-service
+    environment:
+      <<: *service-environment
+      MODULE_NAME: wms-service
+      DATABASE_URL: ${OES_DB_WMS_SERVICE_URL:?run pnpm db:config}
+      GRPC_LISTEN_PORT: 50064
+    expose: ['50064']
 
 volumes:
-  postgres_data:
-  redis_data:
-  grafana_data:
   grpc_trust_runtime:
-  execution_token_signer_runtime:
-
-networks:
-  oes_network:
-    driver: bridge
+    labels:
+      oes.local.owner: ${OES_TASK_KEY:?run pnpm env:bootstrap}
+      oes.local.scope: infrastructure-databases

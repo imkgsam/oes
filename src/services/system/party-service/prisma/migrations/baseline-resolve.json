@@ -1,0 +1,19 @@
+{
+  "strategy": "PRISMA_BASELINE_RESOLVE",
+  "baselineMigration": "20260825000000_baseline",
+  "baselineSha256": "e5c3ba6912a240c172de1802593e8584419b99145d866e6290e56e3e1272312a",
+  "supersededMigrations": [
+    {
+      "name": "20260610_tenant_party_primary_model",
+      "sha256": "91a660fc7cd310cec89a36e1267f74fcb4c984e811987839ea252706961c40e3"
+    },
+    {
+      "name": "20260614_tenant_party_contact_points",
+      "sha256": "590003b4f96f488650a186f3cdb5b70636ed0ed9b5c418284de53c1464c92c73"
+    },
+    {
+      "name": "20260627_tenant_party_profile_items",
+      "sha256": "8b84d12ed579830e48639baacd949a3c2e66b640726d3f32dad4f26085960f92"
+    }
+  ]
+}

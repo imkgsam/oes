@@ -28,6 +28,7 @@ const SEED_TASK_IDS = [
   '10000000-0000-4000-8000-000000000007',
   '10000000-0000-4000-8000-000000000008'
 ]
+const SEED_REFERENCE_TIME = new Date('2026-01-15T12:00:00.000Z')
 
 /** withCollaborationSchema scopes local seed writes to collaboration-service storage. */
 function withCollaborationSchema(rawUrl) {
@@ -39,7 +40,7 @@ function withCollaborationSchema(rawUrl) {
 }
 
 /** buildTaskSeedRows creates the frozen Task P1 sample set for local tenant-web smoke. */
-function buildTaskSeedRows(now = new Date()) {
+function buildTaskSeedRows(now = SEED_REFERENCE_TIME) {
   const dueSoon = new Date(now.getTime() + 24 * 60 * 60 * 1000)
   const overdue = new Date(now.getTime() - 24 * 60 * 60 * 1000)
   const completedAt = new Date(now.getTime() - 2 * 60 * 60 * 1000)
@@ -162,16 +163,13 @@ function buildTaskSeedRows(now = new Date()) {
   }))
 }
 
-/** main upserts local Task P1 sample rows without mutating other service databases. */
+/** main creates missing deterministic Task P1 samples without rewriting an existing fixture. */
 async function main() {
   const rows = buildTaskSeedRows()
 
   for (const task of rows) {
-    await prisma.collaborationTask.upsert({
-      where: { id: task.id },
-      create: task,
-      update: task
-    })
+    const existing = await prisma.collaborationTask.findUnique({ where: { id: task.id }, select: { id: true } })
+    if (!existing) await prisma.collaborationTask.create({ data: task })
   }
 
   console.log(
