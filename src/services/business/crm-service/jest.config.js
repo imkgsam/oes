@@ -3,7 +3,7 @@ module.exports = {
   rootDir: '.',
   moduleFileExtensions: ['js', 'json', 'ts'],
   testEnvironment: 'node',
-  testMatch: ['<rootDir>/test/**/*.spec.ts'],
+  testMatch: ['<rootDir>/src/**/*.spec.ts', '<rootDir>/test/**/*.spec.ts'],
   setupFiles: ['reflect-metadata'],
   transform: {
     '^.+\\.ts$': [

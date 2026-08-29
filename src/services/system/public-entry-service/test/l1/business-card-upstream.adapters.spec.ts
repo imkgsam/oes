@@ -1,3 +1,4 @@
+import { Metadata } from '@grpc/grpc-js'
 import { of, throwError } from 'rxjs'
 import {
   EmployeeLifecycleStatus,
@@ -8,10 +9,9 @@ import {
   BusinessCardEmployeeGrpcAdapter,
   BusinessCardTenantProfileGrpcAdapter
 } from '../../src/infrastructure/adapters/business-card-upstream.grpc.adapters'
+import { PublicEntryFoundationTrustedGrpcExecutionProducer } from '../../src/infrastructure/adapters/foundation-trusted-grpc.clients'
 
-const metadataFactory = {
-  createInternalCallMetadata: jest.fn(() => ({ internal: true }))
-}
+let trustedMetadata: Metadata
 
 // buildGrpcClient creates a minimal Nest ClientGrpc double for adapter tests.
 function buildGrpcClient<T extends object>(service: T) {
@@ -23,6 +23,14 @@ function buildGrpcClient<T extends object>(service: T) {
 describe('BusinessCard upstream gRPC adapters', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    trustedMetadata = new Metadata()
+    jest
+      .spyOn(PublicEntryFoundationTrustedGrpcExecutionProducer.prototype, 'forBusinessCall')
+      .mockResolvedValue(trustedMetadata)
+  })
+
+  afterEach(() => {
+    jest.restoreAllMocks()
   })
 
   it('resolves an employee summary from HR, Identity account binding, and Tenant Org references', async () => {
@@ -79,8 +87,7 @@ describe('BusinessCard upstream gRPC adapters', () => {
     const adapter = new BusinessCardEmployeeGrpcAdapter(
       buildGrpcClient(hrQuery) as any,
       buildGrpcClient(identityQuery) as any,
-      buildGrpcClient(tenantOrgQuery) as any,
-      metadataFactory as any
+      buildGrpcClient(tenantOrgQuery) as any
     )
     adapter.onModuleInit()
 
@@ -142,8 +149,7 @@ describe('BusinessCard upstream gRPC adapters', () => {
     const adapter = new BusinessCardEmployeeGrpcAdapter(
       buildGrpcClient(hrQuery) as any,
       buildGrpcClient(identityQuery) as any,
-      buildGrpcClient({}) as any,
-      metadataFactory as any
+      buildGrpcClient({}) as any
     )
     adapter.onModuleInit()
 
@@ -197,8 +203,7 @@ describe('BusinessCard upstream gRPC adapters', () => {
     const adapter = new BusinessCardEmployeeGrpcAdapter(
       buildGrpcClient(hrQuery) as any,
       buildGrpcClient(identityQuery) as any,
-      buildGrpcClient({}) as any,
-      metadataFactory as any
+      buildGrpcClient({}) as any
     )
     adapter.onModuleInit()
 
@@ -244,8 +249,7 @@ describe('BusinessCard upstream gRPC adapters', () => {
     const adapter = new BusinessCardEmployeeGrpcAdapter(
       buildGrpcClient(hrQuery) as any,
       buildGrpcClient(identityQuery) as any,
-      buildGrpcClient({}) as any,
-      metadataFactory as any
+      buildGrpcClient({}) as any
     )
     adapter.onModuleInit()
 
@@ -300,10 +304,7 @@ describe('BusinessCard upstream gRPC adapters', () => {
       listAccountWorkEmailAssets: jest.fn(),
       listAccountWorkPhoneAssets: jest.fn()
     }
-    const adapter = new BusinessCardContactAssetGrpcAdapter(
-      buildGrpcClient(identityQuery) as any,
-      metadataFactory as any
-    )
+    const adapter = new BusinessCardContactAssetGrpcAdapter(buildGrpcClient(identityQuery) as any)
     adapter.onModuleInit()
 
     await expect(
@@ -345,7 +346,7 @@ describe('BusinessCard upstream gRPC adapters', () => {
           { contactActionType: 'OPEN_WHATSAPP', targetRefType: 'CONTACT_ASSET', targetRefId: 'whatsapp_001' }
         ]
       },
-      { internal: true }
+      trustedMetadata
     )
     expect(identityQuery.listAccountWorkEmailAssets).not.toHaveBeenCalled()
     expect(identityQuery.listAccountWorkPhoneAssets).not.toHaveBeenCalled()
@@ -366,8 +367,7 @@ describe('BusinessCard upstream gRPC adapters', () => {
       )
     }
     const adapter = new BusinessCardTenantProfileGrpcAdapter(
-      buildGrpcClient(tenantOrgQuery) as any,
-      metadataFactory as any
+      buildGrpcClient(tenantOrgQuery) as any
     )
     adapter.onModuleInit()
 
@@ -383,8 +383,7 @@ describe('BusinessCard upstream gRPC adapters', () => {
     const adapter = new BusinessCardTenantProfileGrpcAdapter(
       buildGrpcClient({
         getTenantById: jest.fn(() => throwError(() => new Error('tenant-org unavailable')))
-      }) as any,
-      metadataFactory as any
+      }) as any
     )
     adapter.onModuleInit()
 

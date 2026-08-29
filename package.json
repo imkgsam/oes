@@ -50,7 +50,7 @@
     "proto:gen": "buf generate --template src/common/src/contracts/buf.gen.yaml src/common/src/contracts",
     "proto:regen": "rimraf src/common/src/generated && pnpm run proto:gen",
     "proto:lint": "buf lint src/common/src/contracts",
-    "proto:breaking": "buf breaking src/common/src/contracts --against .git#subdir=src/common/src/contracts",
+    "proto:breaking": "node scripts/local/proto-breaking.mjs",
     "proto:format": "buf format -w src/common/src/contracts",
     "clear:nm": "rimraf node_modules",
     "clear:nm:all": "pnpm -r run clear:nm && pnpm clear:nm",
@@ -121,6 +121,7 @@
     "collaboration-runtime:static": "node scripts/collaboration-runtime/test/static-check.mjs",
     "collaboration-runtime:check": "pnpm collaboration-runtime:typecheck && pnpm collaboration-runtime:test && pnpm collaboration-runtime:static",
     "env:bootstrap": "node scripts/local/worktree-env.mjs bootstrap",
+    "env:ensure": "node scripts/local/worktree-env.mjs ensure",
     "env:check": "node scripts/local/worktree-env.mjs check",
     "generated:all": "pnpm proto:gen && pnpm prisma:generate:all",
     "workspace:check": "node scripts/local/reproducible-build-check.mjs",
@@ -136,7 +137,14 @@
     "db:verify": "node scripts/local/database-lifecycle.mjs verify",
     "db:rollback": "node scripts/local/database-lifecycle.mjs rollback",
     "db:cycle": "node scripts/local/database-lifecycle.mjs cycle",
-    "test:database-lifecycle": "node --test scripts/local/database-lifecycle.spec.mjs"
+    "test:database-lifecycle": "node --test scripts/local/database-lifecycle.spec.mjs",
+    "test:matrix:check": "node scripts/local/test-matrix.mjs check && node scripts/local/l2-test-runner.mjs check",
+    "test:tooling": "node --test scripts/local/worktree-env.spec.mjs scripts/local/reproducible-build-check.spec.mjs scripts/local/database-lifecycle.spec.mjs scripts/local/test-matrix.spec.mjs scripts/local/l2-test-runner.spec.mjs scripts/local/proto-breaking.spec.mjs",
+    "test:unit": "node scripts/local/test-matrix.mjs unit",
+    "test:design-gap": "pnpm --filter crm-service exec jest --config jest.config.js --runInBand --runTestsByPath test/l3/crm-trusted-grpc-security.spec.ts",
+    "test:l2": "node scripts/local/l2-test-runner.mjs run",
+    "test:risk": "pnpm test:tooling && pnpm test:unit && pnpm collaboration-runtime:check && node --test scripts/local/foundation-trusted-grpc-atomic-group.spec.mjs",
+    "test:ci": "pnpm env:ensure && pnpm proto:lint && pnpm proto:gen && pnpm proto:breaking && pnpm build && pnpm test:risk && pnpm test:l2"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.14.3",

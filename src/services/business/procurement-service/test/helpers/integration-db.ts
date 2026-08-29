@@ -19,6 +19,12 @@ function parseEnvValue(raw: string): string {
 
 /** ensureIntegrationDatabaseUrl loads procurement-service DATABASE_URL for Prisma-backed L2 tests. */
 export function ensureIntegrationDatabaseUrl(): string {
+  const taskOwnedUrl = process.env.OES_L2_DATABASE_URL?.trim()
+  if (taskOwnedUrl) {
+    process.env.DATABASE_URL = taskOwnedUrl
+    return taskOwnedUrl
+  }
+
   if (process.env.DATABASE_URL) {
     const databaseUrl = rewriteSchemaForL2(process.env.DATABASE_URL)
     process.env.DATABASE_URL = databaseUrl

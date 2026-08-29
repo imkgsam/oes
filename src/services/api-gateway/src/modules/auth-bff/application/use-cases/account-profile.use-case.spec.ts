@@ -97,11 +97,8 @@ describe('AccountProfileUseCase', () => {
     expect(identityAdapter.updateAccountProfile).not.toHaveBeenCalled()
     expect(assetAdapter.bindAccountAvatar).toHaveBeenCalledWith(
       {
-        accountId: 'account-1',
         newAssetId: 'asset-1',
-        operatorId: 'account-1',
-        scopeLevel: 'TENANT',
-        tenantId: 'tenant-1'
+        previousAssetId: undefined
       },
       expect.objectContaining({ user: { sub: 'user-1', aid: 'account-1', sid: 'session-1', tid: 'tenant-1' } })
     )
@@ -187,11 +184,8 @@ describe('AccountProfileUseCase', () => {
 
     expect(assetAdapter.bindAccountAvatar).toHaveBeenCalledWith(
       {
-        accountId: 'account-1',
         newAssetId: 'asset-system-1',
-        operatorId: 'account-1',
-        scopeLevel: 'SYSTEM',
-        tenantId: undefined
+        previousAssetId: undefined
       },
       expect.objectContaining({ user: { sub: 'user-1', aid: 'account-1', scopeLevel: 'SYSTEM' } })
     )

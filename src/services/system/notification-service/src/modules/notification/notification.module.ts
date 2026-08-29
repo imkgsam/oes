@@ -46,7 +46,10 @@ const trustedRuntime = createLazyTrustedExecutionRuntime(NOTIFICATION_AUDIENCE)
     { provide: REPO_NOTIFICATION_DISPATCH, useClass: PrismaNotificationDispatchRepository },
     { provide: EMAIL_PROVIDER_PORT, useClass: LocalEmailProviderAdaptor },
     { provide: SMS_PROVIDER_PORT, useClass: LocalSmsProviderAdaptor },
-    { provide: NOTIFICATION_DELIVERY_PAYLOAD_PROTECTOR, useClass: DeploymentNotificationDeliveryPayloadProtector },
+    {
+      provide: NOTIFICATION_DELIVERY_PAYLOAD_PROTECTOR,
+      useClass: DeploymentNotificationDeliveryPayloadProtector
+    },
     {
       provide: ExecutionTokenVerifier,
       useFactory: () => trustedRuntime.verifier
@@ -55,10 +58,14 @@ const trustedRuntime = createLazyTrustedExecutionRuntime(NOTIFICATION_AUDIENCE)
       provide: GrpcWorkloadIdentityProvider,
       useFactory: () => trustedRuntime.workloadIdentityProvider
     },
+    { provide: String, useValue: NOTIFICATION_AUDIENCE },
     {
       provide: TrustedInternalExecutionGuard,
-      useFactory: (reflector: Reflector, verifier: ExecutionTokenVerifier, workload: GrpcWorkloadIdentityProvider) =>
-        new TrustedInternalExecutionGuard(reflector, verifier, workload, NOTIFICATION_AUDIENCE),
+      useFactory: (
+        reflector: Reflector,
+        verifier: ExecutionTokenVerifier,
+        workload: GrpcWorkloadIdentityProvider
+      ) => new TrustedInternalExecutionGuard(reflector, verifier, workload, NOTIFICATION_AUDIENCE),
       inject: [Reflector, ExecutionTokenVerifier, GrpcWorkloadIdentityProvider]
     },
     GrpcRequestContextStore,

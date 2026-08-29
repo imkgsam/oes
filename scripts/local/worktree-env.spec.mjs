@@ -6,6 +6,7 @@ import test from 'node:test'
 import {
   bootstrapEnvironment,
   checkEnvironment,
+  ensureEnvironment,
   normalizeTaskKey,
   parseEnvironmentFile
 } from './worktree-env.mjs'
@@ -71,6 +72,23 @@ test('bootstrap creates isolated environments and check accepts an idempotent re
   })
   assert.equal(checked.databases.size, 2)
   assert.equal(checked.taskKey, 'fixture_a')
+})
+
+test('ensure bootstraps once and then checks the exact existing owner binding', (t) => {
+  const repositoryRoot = createFixture(t)
+  const options = {
+    expectedBackendCount: 2,
+    expectedPrismaCount: 2,
+    output: { write() {} },
+    repositoryRoot,
+    taskKey: 'fixture_ensure'
+  }
+  assert.equal(ensureEnvironment(options).mode, 'bootstrap')
+  assert.equal(ensureEnvironment(options).mode, 'check')
+  assert.throws(
+    () => ensureEnvironment({ ...options, taskKey: 'foreign_ensure' }),
+    /ENV_ENSURE_TASK_KEY_MISMATCH expected=foreign_ensure actual=fixture_ensure/
+  )
 })
 
 test('bootstrap includes Gateway without assigning it a database', (t) => {

@@ -63,10 +63,7 @@ describe('site-service application closed loop L2', () => {
     const operatorId = `${prefix}_operator`
 
     const createdSite = await admin.createSite({
-      tenantId,
-      orgId: `${prefix}_org`,
-      operatorId,
-      traceId: `${prefix}_trace`,
+      context: { tenantId, orgId: `${prefix}_org`, operatorId, traceId: `${prefix}_trace` },
       siteName: `${prefix} Brand`,
       siteType: 'brand',
       defaultLocale: 'en-US',
@@ -100,7 +97,13 @@ describe('site-service application closed loop L2', () => {
       siteId: createdSite.siteId,
       sortOrder: 10,
       initialLocaleVersion: {
-        locale: 'en-US', slug: `${prefix}-guides`, displayName: 'Guides', archiveIntro: 'Practical ceramic guides', archiveLabel: 'Guides', seoTitle: 'Guides', seoDescription: 'Practical ceramic guides'
+        locale: 'en-US',
+        slug: `${prefix}-guides`,
+        displayName: 'Guides',
+        archiveIntro: 'Practical ceramic guides',
+        archiveLabel: 'Guides',
+        seoTitle: 'Guides',
+        seoDescription: 'Practical ceramic guides'
       }
     })
     await admin.updateContentCategoryLocaleVersion({
@@ -272,9 +275,7 @@ describe('site-service application closed loop L2', () => {
     ).resolves.toEqual({ accepted: true, serverTime: now.toISOString() })
 
     const siteCards = await admin.listSiteCards({
-      tenantId,
-      operatorId,
-      traceId: `${prefix}_trace`
+      context: { tenantId, operatorId, traceId: `${prefix}_trace` }
     })
     expect(siteCards.cards).toEqual([
       expect.objectContaining({
@@ -404,10 +405,7 @@ describe('site-service application closed loop L2', () => {
     const tenantId = `${prefix}_tenant`
     const operatorId = `${prefix}_operator`
     const createdSite = await admin.createSite({
-      tenantId,
-      orgId: `${prefix}_org`,
-      operatorId,
-      traceId: `${prefix}_trace`,
+      context: { tenantId, orgId: `${prefix}_org`, operatorId, traceId: `${prefix}_trace` },
       siteName: `${prefix} Brand`,
       siteType: 'brand',
       defaultLocale: 'en-US',
@@ -416,7 +414,13 @@ describe('site-service application closed loop L2', () => {
     const createdContentCategory = await admin.createContentCategory({
       context: { tenantId, operatorId, traceId: `${prefix}_trace` },
       siteId: createdSite.siteId,
-      initialLocaleVersion: { locale: 'en-US', slug: `${prefix}-guides`, displayName: 'Guides', seoTitle: 'Guides', seoDescription: 'Guides SEO' }
+      initialLocaleVersion: {
+        locale: 'en-US',
+        slug: `${prefix}-guides`,
+        displayName: 'Guides',
+        seoTitle: 'Guides',
+        seoDescription: 'Guides SEO'
+      }
     })
     await admin.updateContentCategoryLocaleVersion({
       context: { tenantId, operatorId, traceId: `${prefix}_trace` },
@@ -503,7 +507,9 @@ describe('site-service application closed loop L2', () => {
       })
     ).rejects.toMatchObject({
       definition: expect.objectContaining({ code: 'APP_VALIDATION_001' }),
-      additionalDetails: expect.objectContaining({ reason: expect.stringContaining('already reserved') })
+      additionalDetails: expect.objectContaining({
+        reason: expect.stringContaining('already reserved')
+      })
     })
 
     const sync = await admin.syncAllPendingChanges({

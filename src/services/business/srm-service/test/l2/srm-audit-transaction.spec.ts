@@ -1,4 +1,5 @@
 import { AuditEnvelope } from '@oes/common'
+import { GrpcRequestContextStore } from '@oes/common/authorization'
 import { CreateSupplierProfileCommand } from '../../src/application/commands/create-supplier-profile.command'
 import { CreateSupplierProfileHandler } from '../../src/application/commands/create-supplier-profile.handler'
 import { TenantPartyLookupPort } from '../../src/application/ports/tenant-party-lookup.port'
@@ -43,6 +44,34 @@ class NullTenantPartyLookupPort implements TenantPartyLookupPort {
   }
 }
 
+/** Creates the guard-established HUMAN context required by SRM audit authority checks. */
+function createTrustedHumanContext(prefix: string, tenantId: string, suffix = '') {
+  const certificateThumbprint = 'A'.repeat(43)
+  const marker = suffix ? `${prefix}_${suffix}` : prefix
+  return {
+    verifiedExecutionToken: {
+      issuer: 'https://auth.example',
+      audience: 'urn:oes:service:srm-service',
+      subject: `${marker}_operator`,
+      principalType: 'HUMAN',
+      clientId: 'spiffe://oes/api-gateway',
+      tenantId,
+      orgId: `${prefix}_org`,
+      permissionCodes: ['srm.supplier_profile.manage'],
+      tokenId: `${marker}_token`,
+      issuedAt: 1,
+      notBefore: 1,
+      expiresAt: 9_999_999_999,
+      certificateThumbprint,
+      sessionId: `${marker}_session`,
+      sessionTerminal: 'WEB'
+    },
+    verifiedWorkloadIdentity: { spiffeId: 'spiffe://oes/api-gateway', certificateThumbprint },
+    requestId: `${marker}_request`,
+    traceId: `${marker}_trace`
+  } as never
+}
+
 describe('SRM audit transaction L2', () => {
   let prisma: PrismaService
   let accountRepository: PrismaSupplierProfileRepository
@@ -71,45 +100,49 @@ describe('SRM audit transaction L2', () => {
   it('when success audit persistence fails / should roll back the supplier profile write in the same Prisma transaction', async () => {
     const tenantId = `${prefix}_tenant`
     const handler = new CreateSupplierProfileHandler(accountRepository)
+    const requestContextStore = new GrpcRequestContextStore()
     const auditService = new SrmAuditService(
       new PrismaSrmTransactionRunner(prisma),
-      new FailOnceAuditWriter()
+      new FailOnceAuditWriter(),
+      requestContextStore
     )
 
     await expect(
-      auditService.recordCommand(
-        {
-          tenantId,
-          operatorContext: {
-            operatorId: `${prefix}_operator`,
-            operatorType: 'HUMAN',
-            orgId: `${prefix}_org`
+      requestContextStore.run(createTrustedHumanContext(prefix, tenantId), () =>
+        auditService.recordCommand(
+          {
+            tenantId,
+            operatorContext: {
+              operatorId: `${prefix}_operator`,
+              operatorType: 'HUMAN',
+              orgId: `${prefix}_org`
+            },
+            traceContext: {
+              traceId: `${prefix}_trace`,
+              requestId: `${prefix}_request`
+            },
+            auditContext: {
+              auditId: `${prefix}_audit`,
+              reason: 'supplier profile create',
+              source: 'srm-l2'
+            },
+            commandName: 'CreateSupplierProfile',
+            resourceType: 'supplier_profile',
+            targetId: null,
+            requestSummary: {
+              tenantId
+            }
           },
-          traceContext: {
-            traceId: `${prefix}_trace`,
-            requestId: `${prefix}_request`
-          },
-          auditContext: {
-            auditId: `${prefix}_audit`,
-            reason: 'supplier profile create',
-            source: 'srm-l2'
-          },
-          commandName: 'CreateSupplierProfile',
-          resourceType: 'supplier_profile',
-          targetId: null,
-          requestSummary: {
-            tenantId
-          }
-        },
-        () =>
-          handler.execute(
-            new CreateSupplierProfileCommand({
-              tenantId,
-              displayName: `${prefix} Acme SRM`,
-              supplierCategory: 'EXPORT',
-              tags: []
-            })
-          )
+          () =>
+            handler.execute(
+              new CreateSupplierProfileCommand({
+                tenantId,
+                displayName: `${prefix} Acme SRM`,
+                supplierCategory: 'EXPORT',
+                tags: []
+              })
+            )
+        )
       )
     ).rejects.toThrow('audit sink unavailable')
 
@@ -126,44 +159,48 @@ describe('SRM audit transaction L2', () => {
   it('when the command succeeds / should persist the supplier profile and success audit envelope in the same database path', async () => {
     const tenantId = `${prefix}_tenant`
     const handler = new CreateSupplierProfileHandler(accountRepository)
+    const requestContextStore = new GrpcRequestContextStore()
     const auditService = new SrmAuditService(
       new PrismaSrmTransactionRunner(prisma),
-      new PrismaSrmAuditRepository(prisma)
+      new PrismaSrmAuditRepository(prisma),
+      requestContextStore
     )
 
-    const created = await auditService.recordCommand(
-      {
-        tenantId,
-        operatorContext: {
-          operatorId: `${prefix}_operator`,
-          operatorType: 'HUMAN',
-          orgId: `${prefix}_org`
+    const created = await requestContextStore.run(createTrustedHumanContext(prefix, tenantId), () =>
+      auditService.recordCommand(
+        {
+          tenantId,
+          operatorContext: {
+            operatorId: `${prefix}_operator`,
+            operatorType: 'HUMAN',
+            orgId: `${prefix}_org`
+          },
+          traceContext: {
+            traceId: `${prefix}_trace`,
+            requestId: `${prefix}_request`
+          },
+          auditContext: {
+            auditId: `${prefix}_audit_success`,
+            reason: 'supplier profile create',
+            source: 'srm-l2'
+          },
+          commandName: 'CreateSupplierProfile',
+          resourceType: 'supplier_profile',
+          targetId: null,
+          requestSummary: {
+            tenantId
+          }
         },
-        traceContext: {
-          traceId: `${prefix}_trace`,
-          requestId: `${prefix}_request`
-        },
-        auditContext: {
-          auditId: `${prefix}_audit_success`,
-          reason: 'supplier profile create',
-          source: 'srm-l2'
-        },
-        commandName: 'CreateSupplierProfile',
-        resourceType: 'supplier_profile',
-        targetId: null,
-        requestSummary: {
-          tenantId
-        }
-      },
-      () =>
-        handler.execute(
-          new CreateSupplierProfileCommand({
-            tenantId,
-            displayName: `${prefix} Audit SRM`,
-            supplierCategory: 'EXPORT',
-            tags: ['priority']
-          })
-        )
+        () =>
+          handler.execute(
+            new CreateSupplierProfileCommand({
+              tenantId,
+              displayName: `${prefix} Audit SRM`,
+              supplierCategory: 'EXPORT',
+              tags: ['priority']
+            })
+          )
+      )
     )
 
     const persisted = await accountRepository.search({
@@ -195,76 +232,86 @@ describe('SRM audit transaction L2', () => {
     const firstTenantId = `${prefix}_tenant_first`
     const secondTenantId = `${prefix}_tenant_second`
     const handler = new CreateSupplierProfileHandler(accountRepository)
+    const requestContextStore = new GrpcRequestContextStore()
     const auditService = new SrmAuditService(
       new PrismaSrmTransactionRunner(prisma),
-      new PrismaSrmAuditRepository(prisma)
+      new PrismaSrmAuditRepository(prisma),
+      requestContextStore
     )
 
-    const first = await auditService.recordCommand(
-      {
-        tenantId: firstTenantId,
-        operatorContext: {
-          operatorId: `${prefix}_operator_first`,
-          operatorType: 'HUMAN',
-          orgId: `${prefix}_org`
-        },
-        traceContext: {
-          traceId: `${prefix}_trace_first`,
-          requestId: `${prefix}_request_first`
-        },
-        auditContext: {
-          auditId: `${prefix}_audit_first`,
-          reason: 'supplier profile create',
-          source: 'srm-l2'
-        },
-        commandName: 'CreateSupplierProfile',
-        resourceType: 'supplier_profile',
-        targetId: null,
-        requestSummary: {
-          tenantId: firstTenantId
-        }
-      },
+    const first = await requestContextStore.run(
+      createTrustedHumanContext(prefix, firstTenantId, 'first'),
       () =>
-        handler.execute(
-          new CreateSupplierProfileCommand({
+        auditService.recordCommand(
+          {
             tenantId: firstTenantId,
-            displayName: `${prefix} First Tenant SRM`,
-            tags: []
-          })
+            operatorContext: {
+              operatorId: `${prefix}_operator_first`,
+              operatorType: 'HUMAN',
+              orgId: `${prefix}_org`
+            },
+            traceContext: {
+              traceId: `${prefix}_trace_first`,
+              requestId: `${prefix}_request_first`
+            },
+            auditContext: {
+              auditId: `${prefix}_audit_first`,
+              reason: 'supplier profile create',
+              source: 'srm-l2'
+            },
+            commandName: 'CreateSupplierProfile',
+            resourceType: 'supplier_profile',
+            targetId: null,
+            requestSummary: {
+              tenantId: firstTenantId
+            }
+          },
+          () =>
+            handler.execute(
+              new CreateSupplierProfileCommand({
+                tenantId: firstTenantId,
+                displayName: `${prefix} First Tenant SRM`,
+                tags: []
+              })
+            )
         )
     )
 
-    const second = await auditService.recordCommand(
-      {
-        tenantId: secondTenantId,
-        operatorContext: {
-          operatorId: `${prefix}_operator_second`,
-          operatorType: 'HUMAN',
-          orgId: `${prefix}_org`
-        },
-        traceContext: {
-          traceId: `${prefix}_trace_second`,
-          requestId: `${prefix}_request_second`
-        },
-        auditContext: {
-          auditId: `${prefix}_audit_second`,
-          reason: 'supplier profile create',
-          source: 'srm-l2'
-        },
-        commandName: 'CreateSupplierProfile',
-        resourceType: 'supplier_profile',
-        targetId: null,
-        requestSummary: {
-          tenantId: secondTenantId
-        }
-      },
+    const second = await requestContextStore.run(
+      createTrustedHumanContext(prefix, secondTenantId, 'second'),
       () =>
-        handler.execute(
-          new CreateSupplierProfileCommand({
+        auditService.recordCommand(
+          {
             tenantId: secondTenantId,
-            displayName: `${prefix} Second Tenant SRM`,
-            tags: []
-          })
+            operatorContext: {
+              operatorId: `${prefix}_operator_second`,
+              operatorType: 'HUMAN',
+              orgId: `${prefix}_org`
+            },
+            traceContext: {
+              traceId: `${prefix}_trace_second`,
+              requestId: `${prefix}_request_second`
+            },
+            auditContext: {
+              auditId: `${prefix}_audit_second`,
+              reason: 'supplier profile create',
+              source: 'srm-l2'
+            },
+            commandName: 'CreateSupplierProfile',
+            resourceType: 'supplier_profile',
+            targetId: null,
+            requestSummary: {
+              tenantId: secondTenantId
+            }
+          },
+          () =>
+            handler.execute(
+              new CreateSupplierProfileCommand({
+                tenantId: secondTenantId,
+                displayName: `${prefix} Second Tenant SRM`,
+                tags: []
+              })
+            )
         )
     )
 

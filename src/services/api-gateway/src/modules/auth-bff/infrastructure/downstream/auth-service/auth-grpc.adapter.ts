@@ -1239,6 +1239,7 @@ export class AuthGrpcAdapter implements OnModuleInit {
       'updateTenantMfaPolicy',
       this.svc.updateTenantMfaPolicy(
         {
+          tenantId: request.tenantId,
           loginRequired: request.loginRequired,
           scenarioRequirements: (request.scenarioRequirements ?? []).map((item) => ({
             scenario: this.toGrpcMfaScenario(item.scenario),

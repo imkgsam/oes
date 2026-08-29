@@ -44,13 +44,9 @@ describe('AccountAvatarUploadUseCase', () => {
 
     expect(assetAdapter.uploadAccountAvatar).toHaveBeenCalledWith(
       {
-        accountId: 'account-1',
         contentType: 'image/webp',
         file: Buffer.from('avatar'),
-        fileName: 'avatar.webp',
-        operatorId: 'account-1',
-        scopeLevel: 'TENANT',
-        tenantId: 'tenant-1'
+        fileName: 'avatar.webp'
       },
       expect.objectContaining({
         user: expect.objectContaining({
@@ -121,13 +117,9 @@ describe('AccountAvatarUploadUseCase', () => {
 
     expect(assetAdapter.uploadAccountAvatar).toHaveBeenCalledWith(
       {
-        accountId: 'account-1',
         contentType: 'image/webp',
         file: Buffer.from('avatar'),
-        fileName: 'avatar.webp',
-        operatorId: 'account-1',
-        scopeLevel: 'SYSTEM',
-        tenantId: undefined
+        fileName: 'avatar.webp'
       },
       expect.objectContaining({
         user: expect.objectContaining({

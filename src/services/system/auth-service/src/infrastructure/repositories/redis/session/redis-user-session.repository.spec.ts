@@ -2,30 +2,30 @@ import { Session } from '../../../../domain/aggregates/usersession.aggregate'
 import { SessionStatus } from '../../../../common/constants'
 import { RedisUserSessionRepository } from './redis-user-session.repository'
 
-const execMock = jest.fn().mockResolvedValue([])
-const expireMock = jest.fn().mockReturnThis()
-const saddMock = jest.fn().mockReturnThis()
-const setMock = jest.fn().mockReturnThis()
-const smembersMock = jest.fn().mockResolvedValue([])
-const sremMock = jest.fn().mockReturnThis()
-const delMock = jest.fn().mockReturnThis()
-const multiMock = jest.fn(() => ({
-  del: delMock,
-  exec: execMock,
-  expire: expireMock,
-  sadd: saddMock,
-  set: setMock,
-  srem: sremMock
+const mockExec = jest.fn().mockResolvedValue([])
+const mockExpire = jest.fn().mockReturnThis()
+const mockSadd = jest.fn().mockReturnThis()
+const mockSet = jest.fn().mockReturnThis()
+const mockSmembers = jest.fn().mockResolvedValue([])
+const mockSrem = jest.fn().mockReturnThis()
+const mockDel = jest.fn().mockReturnThis()
+const mockMulti = jest.fn(() => ({
+  del: mockDel,
+  exec: mockExec,
+  expire: mockExpire,
+  sadd: mockSadd,
+  set: mockSet,
+  srem: mockSrem
 }))
-const getMock = jest.fn().mockResolvedValue(null)
-const scanMock = jest.fn().mockResolvedValue(['0', []])
+const mockGet = jest.fn().mockResolvedValue(null)
+const mockScan = jest.fn().mockResolvedValue(['0', []])
 
 jest.mock('ioredis', () => {
   return jest.fn().mockImplementation(() => ({
-    get: getMock,
-    multi: multiMock,
-    scan: scanMock,
-    smembers: smembersMock
+    get: mockGet,
+    multi: mockMulti,
+    scan: mockScan,
+    smembers: mockSmembers
   }))
 })
 
@@ -72,16 +72,16 @@ function createSessionFixture(input?: {
 describe('RedisUserSessionRepository', () => {
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(new Date('2026-04-17T08:00:00.000Z'))
-    delMock.mockClear()
-    execMock.mockClear()
-    expireMock.mockClear()
-    getMock.mockClear()
-    multiMock.mockClear()
-    saddMock.mockClear()
-    scanMock.mockReset().mockResolvedValue(['0', []])
-    setMock.mockClear()
-    smembersMock.mockReset().mockResolvedValue([])
-    sremMock.mockClear()
+    mockDel.mockClear()
+    mockExec.mockClear()
+    mockExpire.mockClear()
+    mockGet.mockClear()
+    mockMulti.mockClear()
+    mockSadd.mockClear()
+    mockScan.mockReset().mockResolvedValue(['0', []])
+    mockSet.mockClear()
+    mockSmembers.mockReset().mockResolvedValue([])
+    mockSrem.mockClear()
   })
 
   afterEach(() => {
@@ -94,8 +94,8 @@ describe('RedisUserSessionRepository', () => {
 
     await repository.save(session)
 
-    expect(expireMock).toHaveBeenCalledWith('session:session-1', 600)
-    expect(expireMock).toHaveBeenCalledWith('refresh_token:refresh-token-1', 600)
+    expect(mockExpire).toHaveBeenCalledWith('session:session-1', 600)
+    expect(mockExpire).toHaveBeenCalledWith('refresh_token:refresh-token-1', 600)
   })
 
   it('serializes terminal-aware session metadata into Redis', async () => {
@@ -109,7 +109,7 @@ describe('RedisUserSessionRepository', () => {
 
     await repository.save(session)
 
-    const persisted = JSON.parse(setMock.mock.calls[0][1])
+    const persisted = JSON.parse(mockSet.mock.calls[0][1])
     expect(persisted).toEqual(
       expect.objectContaining({
         terminal: 'PDA',
@@ -118,7 +118,7 @@ describe('RedisUserSessionRepository', () => {
         deviceBoundTenantId: 'tenant-1'
       })
     )
-    expect(saddMock).toHaveBeenCalledWith(
+    expect(mockSadd).toHaveBeenCalledWith(
       'terminal_device_sessions:terminal-device-1',
       'session-1'
     )
@@ -153,7 +153,7 @@ describe('RedisUserSessionRepository', () => {
       ['session:session-system', JSON.stringify(systemSession.toRedis())],
       ['session:session-suspended', JSON.stringify(suspendedSession.toRedis())]
     ])
-    scanMock.mockResolvedValue([
+    mockScan.mockResolvedValue([
       '0',
       [
         'session:session-target',
@@ -162,14 +162,14 @@ describe('RedisUserSessionRepository', () => {
         'session:session-suspended'
       ]
     ])
-    getMock.mockImplementation(async (key: string) => dataByKey.get(key) ?? null)
+    mockGet.mockImplementation(async (key: string) => dataByKey.get(key) ?? null)
 
     await expect(repository.deleteActiveTenantScopeSessionsByTenantId('tenant-1')).resolves.toBe(1)
 
-    expect(delMock).toHaveBeenCalledWith('session:session-target')
-    expect(delMock).not.toHaveBeenCalledWith('session:session-other-tenant')
-    expect(delMock).not.toHaveBeenCalledWith('session:session-system')
-    expect(delMock).not.toHaveBeenCalledWith('session:session-suspended')
+    expect(mockDel).toHaveBeenCalledWith('session:session-target')
+    expect(mockDel).not.toHaveBeenCalledWith('session:session-other-tenant')
+    expect(mockDel).not.toHaveBeenCalledWith('session:session-system')
+    expect(mockDel).not.toHaveBeenCalledWith('session:session-suspended')
   })
 
   it('finds only active sessions for one managed terminal device id', async () => {
@@ -192,18 +192,18 @@ describe('RedisUserSessionRepository', () => {
       ['session:session-other-device', JSON.stringify(otherDeviceSession.toRedis())],
       ['session:session-suspended-target', JSON.stringify(suspendedTargetSession.toRedis())]
     ])
-    smembersMock.mockResolvedValue([
+    mockSmembers.mockResolvedValue([
       'session-target',
       'session-other-device',
       'session-suspended-target'
     ])
-    getMock.mockImplementation(async (key: string) => dataByKey.get(key) ?? null)
+    mockGet.mockImplementation(async (key: string) => dataByKey.get(key) ?? null)
 
     await expect(repository.findActiveByTerminalDeviceId('terminal-device-1')).resolves.toEqual([
       targetSession
     ])
-    expect(smembersMock).toHaveBeenCalledWith('terminal_device_sessions:terminal-device-1')
-    expect(scanMock).not.toHaveBeenCalled()
+    expect(mockSmembers).toHaveBeenCalledWith('terminal_device_sessions:terminal-device-1')
+    expect(mockScan).not.toHaveBeenCalled()
   })
 
   it('removes managed terminal device session index entries when deleting a session', async () => {
@@ -212,10 +212,10 @@ describe('RedisUserSessionRepository', () => {
       id: 'session-1',
       terminalDeviceId: 'terminal-device-1'
     })
-    getMock.mockResolvedValue(JSON.stringify(session.toRedis()))
+    mockGet.mockResolvedValue(JSON.stringify(session.toRedis()))
 
     await repository.delete('session-1')
 
-    expect(sremMock).toHaveBeenCalledWith('terminal_device_sessions:terminal-device-1', 'session-1')
+    expect(mockSrem).toHaveBeenCalledWith('terminal_device_sessions:terminal-device-1', 'session-1')
   })
 })
