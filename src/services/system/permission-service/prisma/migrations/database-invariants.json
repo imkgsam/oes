@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "assertions": [
+    {
+      "kind": "constraint",
+      "name": "principal_role_binding_scope_tenant_check",
+      "sha256": "880576a6b528e7e8c70cf79ed2ea6e7b0ab9e2a934f6178e9fcd1720e486831b"
+    },
+    {
+      "kind": "constraint",
+      "name": "principal_role_binding_time_window_check",
+      "sha256": "5c7ac868ff97951206b17012e669bfb1bb36ecacdf079e4d903340438ddbb76d"
+    },
+    {
+      "kind": "constraint",
+      "name": "principal_role_binding_revoke_facts_check",
+      "sha256": "887239faf41400b627b449ee9f78af7272dd9885294a3c7d2431d6b60ae81268"
+    },
+    {
+      "kind": "constraint",
+      "name": "principal_role_binding_non_overlapping_window",
+      "sha256": "fc32eb861b9b45fecc660f60bb8f5defdc51e21c2ea68d82af76eeb5915ddf02"
+    },
+    {
+      "kind": "function",
+      "name": "prevent_principal_role_binding_identity_mutation",
+      "sha256": "cd80cafc6e483a6f662c6e99c032c2431c860ab15fb5cedf0f7a2883bc74bdb7"
+    },
+    {
+      "kind": "trigger",
+      "name": "PrincipalRoleBinding_immutable_grant",
+      "sha256": "c15cb09d58747c872e0e4c45d2cc030d066be67dc65efdf34e259ceefb43ee40"
+    }
+  ]
+}

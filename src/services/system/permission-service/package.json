@@ -26,7 +26,8 @@
     "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo",
     "clear:nm": "rimraf node_modules",
     "clear": "pnpm run clear:build && pnpm run clear:nm",
-    "rb": "pnpm run clear && pnpm install && pnpm run build"
+    "rb": "pnpm run clear && pnpm install && pnpm run build",
+    "prisma:migrate:deploy": "prisma migrate deploy --schema=./prisma/schema.prisma"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

@@ -5,11 +5,24 @@ import {
 import {
   applyPermissionServiceSeed,
   buildPermissionServiceSeedExecutionPlan,
+  deterministicPermissionSeedId,
   parsePermissionServiceSeedArgs
 } from '../../src/scripts/permission-service-seed-writer'
 
 // Verifies the permission-service seed writer is safe-by-default and requires explicit apply.
 describe('permission service seed writer', () => {
+  it('derives stable distinct permission identifiers from canonical codes', () => {
+    expect(deterministicPermissionSeedId('permission.read')).toBe(
+      deterministicPermissionSeedId('permission.read')
+    )
+    expect(deterministicPermissionSeedId('permission.read')).toMatch(
+      /^[a-f0-9]{8}-[a-f0-9]{4}-5[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/
+    )
+    expect(deterministicPermissionSeedId('permission.read')).not.toBe(
+      deterministicPermissionSeedId('permission.write')
+    )
+  })
+
   it('defaults to dry-run mode unless --apply is provided', () => {
     expect(parsePermissionServiceSeedArgs([])).toEqual({ apply: false })
     expect(parsePermissionServiceSeedArgs(['--dry-run'])).toEqual({ apply: false })
@@ -93,6 +106,14 @@ describe('permission service seed writer', () => {
     }
 
     await applyPermissionServiceSeed(prisma as any, seed)
+
+    expect(prisma.permission.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          id: deterministicPermissionSeedId(seed.permissionCodes[0].code)
+        })
+      })
+    )
 
     expect(prisma.roleNavigationVisibility.deleteMany).toHaveBeenCalledWith({
       where: { roleId: { in: seed.roles.map((role) => role.id) } }

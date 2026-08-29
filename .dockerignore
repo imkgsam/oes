@@ -1,0 +1,13 @@
+.git
+.github
+docs
+.tmp
+.env
+**/.env
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+**/prisma/generated
+coverage
+artifacts
+*.log

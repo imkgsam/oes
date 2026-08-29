@@ -1,29 +1,20 @@
-# File: docker/Dockerfile.api-gateway
+# The Gateway uses the same reproducible workspace image strategy as every backend service.
+FROM bufbuild/buf:1.61.0@sha256:3b7fb27f8ff153037b3f781924c6aa1327352f14ee547cf45fd75f6d994fe0eb AS buf
 
-FROM node:20-alpine AS base
-RUN npm install -g pnpm
-
-FROM base AS deps
+FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS builder
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 WORKDIR /app
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY src/common/package.json ./src/common/
-COPY src/services/system/api-gateway/package.json ./src/services/system/api-gateway/
-RUN pnpm install --frozen-lockfile
-
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=buf /usr/local/bin/buf /usr/local/bin/buf
 COPY . .
-RUN pnpm --filter common run build
-RUN pnpm --filter api-gateway run build
+RUN pnpm install --frozen-lockfile \
+  && pnpm proto:gen \
+  && pnpm prisma:generate:all \
+  && pnpm common:build \
+  && pnpm --filter api-gateway build
 
-FROM node:20-alpine AS runner
+FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS runner
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 WORKDIR /app
-ENV NODE_ENV=production
-
-COPY --from=builder /app/src/services/system/api-gateway/dist ./dist
-COPY --from=builder /app/src/services/system/api-gateway/node_modules ./node_modules
-COPY --from=builder /app/src/services/system/api-gateway/keys ./keys
-
-EXPOSE 9101
-CMD ["node", "dist/main.js"]
+ENV NODE_ENV=development
+COPY --from=builder /app /app
+CMD ["node", "src/services/api-gateway/dist/main.js"]

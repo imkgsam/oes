@@ -297,7 +297,7 @@ Terminal Device 的 17 个 RPC 统一使用 audience `urn:oes:service:terminal-d
 
 `ChangeTerminalDeviceStatus` 必须在 guard 的 `any` 通过后继续执行目标绑定：`DISABLED -> terminal-device.status.disable`、`LOST -> terminal-device.status.mark-lost`、`MAINTENANCE -> terminal-device.status.mark-maintenance`、`ACTIVE -> terminal-device.status.restore-active`、`DECOMMISSIONED -> terminal-device.status.disable`。`DECOMMISSIONED` 仍由服务端作为不可恢复终态处理，并要求高风险原因与审计；本 RPC 不允许把目标设为 `PENDING_APPROVAL`。
 
-BUSINESS 请求的 tenant、account、org、operator 与 trace 只来自 verified ExecutionToken / trusted transport；设备、enrollment 与分页字段只是当前 tenant 内的业务 target。四个 INTERNAL 请求只接受环境 registry 中准确 Gateway SPIFFE workload 的 certificate-bound ET；Gateway 复用既有 Machine workload source credential、STS、`ResolveWorkloadIssuance` 与最多五分钟的进程内 target-token cache，不新增 Auth credential profile。SYSTEM Machine Token 不携带或伪造 tenant；Terminal Device 从 enrollment 或现有设备 registry 解析 tenant。
+BUSINESS 请求的 tenant、account、org、operator 与 trace 只来自 verified ExecutionToken / trusted transport；设备、enrollment 与分页字段只是当前 tenant 内的业务 target。四个 INTERNAL 请求只接受环境 registry 中准确 Gateway SPIFFE workload 的 certificate-bound ET；Gateway 使用 current mTLS + Identity-provisioned exact SYSTEM selector、STS、`ResolveWorkloadIssuance` 与最多五分钟的进程内 target-token cache。SYSTEM Machine Token 不携带或伪造 tenant；Terminal Device 从 enrollment 或现有设备 registry 解析 tenant。
 
 ### 8.2 Device credential boundary
 

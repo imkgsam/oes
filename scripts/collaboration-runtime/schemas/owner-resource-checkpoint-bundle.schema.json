@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/owner-resource-checkpoint-bundle-v1.json",
+  "title": "OES durable owner checkpoint bundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "bundleFingerprint",
+    "ownerTaskId",
+    "transitionId",
+    "resourceBindingFingerprint",
+    "ownerRef",
+    "headSha",
+    "featurePacket",
+    "currentEvidenceManifest",
+    "gitBundle"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "OES_OWNER_CHECKPOINT_BUNDLE" },
+    "bundleFingerprint": { "$ref": "#/$defs/sha256" },
+    "ownerTaskId": { "type": "string", "minLength": 1 },
+    "transitionId": { "type": "string", "minLength": 1 },
+    "resourceBindingFingerprint": { "$ref": "#/$defs/sha256" },
+    "ownerRef": { "type": "string", "pattern": "^refs/heads/" },
+    "headSha": { "$ref": "#/$defs/gitSha" },
+    "featurePacket": { "$ref": "#/$defs/evidenceReference" },
+    "currentEvidenceManifest": { "$ref": "#/$defs/resourceReference" },
+    "gitBundle": {
+      "type": ["object", "null"],
+      "allOf": [
+        {
+          "if": { "type": "object" },
+          "then": { "$ref": "#/$defs/evidenceReference" }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "gitSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "evidenceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "resourceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "fingerprint"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^/" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "fingerprint": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

@@ -4,6 +4,7 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from '
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { canonicalJson, sha256 } from '../src/canonical.ts'
+import { validateJsonSchema } from '../src/schema-validation.ts'
 import {
   classifyCapabilityIssue,
   credentialReferenceKeys,
@@ -22,6 +23,13 @@ import type {
   CapabilityObservation,
   EffectiveProfileReport
 } from '../src/types.ts'
+
+const effectiveProfileSchema = JSON.parse(
+  readFileSync(
+    join(import.meta.dirname, '..', 'schemas', 'effective-profile-report.schema.json'),
+    'utf8'
+  )
+) as Record<string, unknown>
 
 class PassingProbe implements PreflightProbeAdapter {
   readonly root: string
@@ -122,6 +130,49 @@ test('profile verification reopens evidence, profile bytes, and telemetry', asyn
   )
   writeFileSync(report.telemetry.eventSource, '')
   assert.throws(() => verifyEffectiveProfileReport(report), /APPROVAL_TELEMETRY_PROFILE_MISMATCH/)
+})
+
+test('effective profile schema pairs stable topology with one sealed owner binding', () => {
+  const value = {
+    schemaVersion: 1,
+    kind: 'OES_EFFECTIVE_PROFILE_REPORT',
+    ownerTaskId: '/root/fl',
+    transitionId: 'handoff:stable',
+    expectedState: 'HANDOFF_PENDING',
+    declaredCapabilities: ['filesystemWrite'],
+    profile: { name: 'profile', permission: 'owner', path: '/profile', sha256: 'a'.repeat(64) },
+    observations: [
+      {
+        name: 'filesystemWrite',
+        command: 'probe',
+        literalOutput: 'PASS',
+        exitCode: 0,
+        result: 'PASS',
+        evidencePath: '/evidence',
+        evidenceSha256: 'b'.repeat(64)
+      }
+    ],
+    credentialReference: {
+      reference: 'git',
+      keys: ['username', 'password'],
+      secretValuesRecorded: false
+    },
+    telemetry: {
+      eventSource: '/telemetry',
+      eventSourceSha256: 'c'.repeat(64),
+      approvalPolicy: 'on-request',
+      approvalsReviewer: 'auto_review',
+      approvalEventCount: 0,
+      normalPermissionPromptCount: 0
+    },
+    resourceTopology: {
+      resourceTopologyVersion: 'pre-cutover-v1',
+      ownerResourceBinding: null
+    }
+  }
+  validateJsonSchema(effectiveProfileSchema, value)
+  value.resourceTopology.resourceTopologyVersion = 'stable-owner-exclusive-v1'
+  assert.throws(() => validateJsonSchema(effectiveProfileSchema, value), /type|required/)
 })
 
 test('failure routing distinguishes handoff, active-owner profile defect, and genuine expansion', () => {

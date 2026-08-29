@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/owner-resource-current-manifest-v1.json",
+  "title": "OES current owner evidence manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "manifestFingerprint",
+    "ownerTaskId",
+    "transitionId",
+    "stateVersion",
+    "resourceBindingFingerprint",
+    "featurePacket",
+    "candidateSha",
+    "evidence",
+    "scratchPaths"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "OES_OWNER_CURRENT_EVIDENCE_MANIFEST" },
+    "manifestFingerprint": { "$ref": "#/$defs/sha256" },
+    "ownerTaskId": { "type": "string", "minLength": 1 },
+    "transitionId": { "type": "string", "minLength": 1 },
+    "stateVersion": { "type": "integer", "minimum": 1 },
+    "resourceBindingFingerprint": { "$ref": "#/$defs/sha256" },
+    "featurePacket": { "$ref": "#/$defs/evidenceReference" },
+    "candidateSha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" },
+    "evidence": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/evidenceReference" }
+    },
+    "scratchPaths": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^/" }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "evidenceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

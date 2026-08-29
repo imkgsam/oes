@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -11,12 +11,129 @@ import {
   validateStageCleanupAuthorization
 } from '../src/binding.ts'
 import { canonicalJson, objectFingerprint, sha256 } from '../src/canonical.ts'
+import { validateJsonSchema } from '../src/schema-validation.ts'
 import { cleanupAuthorization, remoteBinding, remoteTrust } from './helpers.ts'
 import type {
+  RemoteActionAuthorization,
+  RemoteAuthorizationRoot,
+  RemoteDriverBinding,
   RemoteTrustRoots,
   StageChildCleanupAuthorization,
   StageCleanupCurrentAuthorization
 } from '../src/types.ts'
+import type {
+  OwnerResourceBinding,
+  OwnerResourceReference
+} from '../src/resource-topology.types.ts'
+import { stableOwnerTaskTempLeaf } from '../src/resource-topology.ts'
+
+const schema = (name: string) =>
+  JSON.parse(readFileSync(join(import.meta.dirname, '..', 'schemas', name), 'utf8')) as Record<
+    string,
+    unknown
+  >
+
+/** Creates one sealed stable owner binding without changing the shared pre-cutover fixtures. */
+function stableOwnerResourceFixture(): {
+  binding: OwnerResourceBinding
+  reference: OwnerResourceReference
+} {
+  const referenceRoot = mkdtempSync(join(tmpdir(), 'oes-stable-owner-binding-test-'))
+  const ownerClone = '/Users/fixture/.codex/oes/owners/11111111/oes'
+  const artifactRoot = '/Users/fixture/.codex/oes/artifacts/11111111/runtime'
+  const binding: OwnerResourceBinding = {
+    schemaVersion: 1,
+    kind: 'OES_OWNER_RESOURCE_BINDING',
+    bindingFingerprint: '',
+    resourceTopologyVersion: 'stable-owner-exclusive-v1',
+    ownerTaskId: '11111111-1111-4111-8111-111111111111',
+    directParentTaskId: '22222222-2222-4222-8222-222222222222',
+    transitionId: 'stable-owner:1',
+    repositoryRoot: ownerClone,
+    repositoryRemoteUrl: 'https://github.com/example/oes.git',
+    ownerClone,
+    ownerGitDirectory: `${ownerClone}/.git`,
+    ownerRef: 'refs/heads/codex/feature/runtime',
+    artifactRoot,
+    taskTempRoot: `/private/tmp/${stableOwnerTaskTempLeaf(
+      '11111111-1111-4111-8111-111111111111'
+    )}`,
+    featurePacket: 'docs/plans/features/runtime.md',
+    featurePacketCheckpointPath: `${artifactRoot}/feature-packet.md`,
+    currentEvidenceManifestPath: `${artifactRoot}/current-evidence-manifest.json`,
+    checkpointBundlePath: `${artifactRoot}/checkpoint-bundle.json`,
+    gitBundlePath: `${artifactRoot}/owner.bundle`
+  }
+  binding.bindingFingerprint = objectFingerprint(
+    binding as unknown as Record<string, unknown>,
+    'bindingFingerprint'
+  )
+  const path = join(referenceRoot, 'owner-resource-binding.json')
+  const bytes = `${canonicalJson(binding)}\n`
+  writeFileSync(path, bytes)
+  return {
+    binding,
+    reference: { path, sha256: sha256(bytes), fingerprint: binding.bindingFingerprint }
+  }
+}
+
+/** Reissues the shared fixture authority with the stable fields selected by one binding. */
+function sealStableRemoteBinding(binding: RemoteDriverBinding): RemoteDriverBinding {
+  const trust = remoteTrust(binding)
+  trust.resourceTopologyVersion = 'stable-owner-exclusive-v1'
+  trust.ownerResourceBinding = binding.ownerResourceBinding as OwnerResourceReference
+  const authority = JSON.parse(
+    readFileSync(binding.authorization.path, 'utf8')
+  ) as RemoteActionAuthorization
+  const root = JSON.parse(
+    readFileSync(authority.rootAuthorization.path, 'utf8')
+  ) as RemoteAuthorizationRoot
+  root.resourceTopologyVersion = 'stable-owner-exclusive-v1'
+  root.ownerResourceBinding = binding.ownerResourceBinding
+  root.recordFingerprint = objectFingerprint(
+    root as unknown as Record<string, unknown>,
+    'recordFingerprint'
+  )
+  const rootBytes = `${canonicalJson(root)}\n`
+  writeFileSync(authority.rootAuthorization.path, rootBytes)
+  authority.rootAuthorization = {
+    path: authority.rootAuthorization.path,
+    sha256: sha256(rootBytes),
+    fingerprint: root.recordFingerprint
+  }
+  authority.resourceTopologyVersion = 'stable-owner-exclusive-v1'
+  authority.ownerResourceBinding = binding.ownerResourceBinding
+  authority.resourceSetFingerprint = objectFingerprint(
+    {
+      checkpointPath: binding.checkpointPath,
+      resultPath: binding.resultPath,
+      invalidationPath: binding.invalidationPath,
+      pullRequest: binding.pullRequest,
+      admission: binding.admission ?? null,
+      cleanupResources: binding.cleanupResources ?? [],
+      expectedMergeSha: binding.expectedMergeSha ?? null,
+      resourceTopologyVersion: binding.resourceTopologyVersion,
+      ownerResourceBinding: binding.ownerResourceBinding
+    },
+    '__none__'
+  )
+  authority.authorizationFingerprint = objectFingerprint(
+    authority as unknown as Record<string, unknown>,
+    'authorizationFingerprint'
+  )
+  const authorityBytes = `${canonicalJson(authority)}\n`
+  writeFileSync(binding.authorization.path, authorityBytes)
+  binding.authorization = {
+    path: binding.authorization.path,
+    sha256: sha256(authorityBytes),
+    fingerprint: authority.authorizationFingerprint
+  }
+  binding.bindingFingerprint = objectFingerprint(
+    binding as unknown as Record<string, unknown>,
+    'bindingFingerprint'
+  )
+  return binding
+}
 
 test('remote binding accepts exact owner-scoped Draft PR publication', () => {
   const binding = remoteBinding()
@@ -24,6 +141,71 @@ test('remote binding accepts exact owner-scoped Draft PR publication', () => {
     validateRemoteBinding(binding, remoteTrust(binding)).bindingFingerprint,
     binding.bindingFingerprint
   )
+})
+
+test('stable remote binding requires the profile-sealed owner and action-specific artifacts', () => {
+  const { binding: ownerResources, reference } = stableOwnerResourceFixture()
+  const actionRoot = `${ownerResources.artifactRoot}/remote-actions/publish-pr/nonce-1`
+  const binding = sealStableRemoteBinding(
+    remoteBinding({
+      owner: { role: 'Feature Lead', taskId: ownerResources.ownerTaskId },
+      repositoryRoot: ownerResources.repositoryRoot,
+      artifactRoot: ownerResources.artifactRoot,
+      checkpointPath: `${actionRoot}/checkpoint.json`,
+      resultPath: `${actionRoot}/result.json`,
+      invalidationPath: `${actionRoot}/invalidated.json`,
+      headRef: 'codex/feature/runtime',
+      resourceTopologyVersion: 'stable-owner-exclusive-v1',
+      ownerResourceBinding: reference
+    })
+  )
+  assert.equal(
+    validateRemoteBinding(binding, remoteTrust(binding)).resourceTopologyVersion,
+    'stable-owner-exclusive-v1'
+  )
+  const authority = JSON.parse(
+    readFileSync(binding.authorization.path, 'utf8')
+  ) as RemoteActionAuthorization
+  const root = JSON.parse(
+    readFileSync(authority.rootAuthorization.path, 'utf8')
+  ) as RemoteAuthorizationRoot
+  validateJsonSchema(schema('remote-binding.schema.json'), binding)
+  validateJsonSchema(schema('remote-authorization.schema.json'), authority)
+  validateJsonSchema(schema('remote-authorization-root.schema.json'), root)
+
+  binding.checkpointPath = `${ownerResources.artifactRoot}/checkpoint.json`
+  binding.bindingFingerprint = objectFingerprint(
+    binding as unknown as Record<string, unknown>,
+    'bindingFingerprint'
+  )
+  assert.throws(
+    () => validateRemoteBinding(binding, remoteTrust(binding)),
+    /REMOTE_STABLE_ACTION_PATH_MISMATCH/
+  )
+})
+
+test('pre-cutover remote profile rejects a stable binding as mixed topology', () => {
+  const { binding: ownerResources, reference } = stableOwnerResourceFixture()
+  const actionRoot = `${ownerResources.artifactRoot}/remote-actions/publish-pr/nonce-1`
+  const binding = sealStableRemoteBinding(
+    remoteBinding({
+      owner: { role: 'Feature Lead', taskId: ownerResources.ownerTaskId },
+      repositoryRoot: ownerResources.repositoryRoot,
+      artifactRoot: ownerResources.artifactRoot,
+      checkpointPath: `${actionRoot}/checkpoint.json`,
+      resultPath: `${actionRoot}/result.json`,
+      invalidationPath: `${actionRoot}/invalidated.json`,
+      headRef: 'codex/feature/runtime',
+      resourceTopologyVersion: 'stable-owner-exclusive-v1',
+      ownerResourceBinding: reference
+    })
+  )
+  const legacyTrust = {
+    ...remoteTrust(binding),
+    resourceTopologyVersion: 'pre-cutover-v1' as const,
+    ownerResourceBinding: null
+  }
+  assert.throws(() => validateRemoteBinding(binding, legacyTrust), /REMOTE_RESOURCE_TOPOLOGY_MIXED/)
 })
 
 test('remote binding rejects main as a head ref even with a recomputed fingerprint', () => {
@@ -157,7 +339,10 @@ test('Stage cleanup runtime enforces the child-owned resource authority ceiling'
     authorization as unknown as Record<string, unknown>,
     'authorizationFingerprint'
   )
-  assert.equal(validateStageCleanupAuthorization(authorization).stageKey, 'stage-1')
+  assert.throws(
+    () => validateStageCleanupAuthorization(authorization),
+    /CLEANUP_RESOURCE_KIND_DUPLICATE/
+  )
 })
 
 test('Stage cleanup rejects Stage-owned, protected, aliased, and Git-invalid child resources', () => {
