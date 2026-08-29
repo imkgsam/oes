@@ -86,6 +86,8 @@ ADR 解释“为什么选择当前高影响方案”，而 architecture 解释�
 
 role task的标题、身份、Human可见性与parent binding遵循执行模型。Planner、Design、Direct、SL、FL、Feature RI和Stage RI必须在正常Codex项目任务列表中可发现、可打开、可继续；文档不得建立task registry、title migration ledger、隐藏owner清单或按标题推断owner的流程。
 
+Human-visible project task与Git worktree是独立概念。`HOST_LOCAL_OPERATION` role task使用project-associated local载体和task-local current evidence，不为可见性、状态或本机操作创建repository Packet、worktree、branch、candidate或PR。
+
 Planner的月、周、日项目组合建议是带生成时间和有效期的noncanonical task消息，不写入`docs/plans/`，不形成roadmap镜像、日报/周报/月报、task registry或第二状态源。需要冻结的稳定设计进入Design Owner → exact UD；Human选中的实现方向继续使用Direct、FL或SL的Packet和既有确认边界。
 
 ### 3.5 Direct文档维护
@@ -143,7 +145,7 @@ Proposal及UD envelope只保留能独立证明以下事实的一份当前记录�
 
 ## 6. Stage Packet
 
-一个SL对应一个compact active Stage Packet：
+一个`REPOSITORY_DELIVERY` SL对应一个compact active Stage Packet：
 
 ```text
 docs/plans/stages/<stage-key>.md
@@ -153,9 +155,11 @@ Stage Packet只存在于SL本地coordination branch/worktree，不push、不创�
 
 Human正常进度以可见SL task为入口，Stage Packet提供可恢复的当前协调状态。全部FL完成和Stage exit通过后，SL展示一张批量cleanup卡；每个FL清理自己的资源，SL只汇总结果并通过一个cleanup-only PR删除卡内terminal Feature Packets，最后清理Stage Packet和自身资源。
 
+纯`HOST_LOCAL_OPERATION` Stage只在SL task-local current evidence中保存同等精简的objective、scope/protected scope、FL引用、依赖、WIP、exit criteria和blocker，不创建repository Stage Packet或协调worktree。
+
 ## 7. Feature Packet
 
-一个FL对应一个compact active Feature Packet：
+一个`REPOSITORY_DELIVERY` FL对应一个compact active Feature Packet：
 
 ```text
 docs/plans/features/<feature-key>.md
@@ -166,6 +170,8 @@ FP只保存当前scope/protected scope、slices、依赖、acceptance、candidat
 一个FL同时最多一个Feature RI。IT的进度默认由FL和FP汇总；独立可恢复IT另建可见task。candidate验证只维护一份当前记录，输入未变的focused/affected evidence直接复用。
 
 feature merge和main验证通过后进入cleanup。standalone FL使用自己的cleanup卡；有parent SL时由一张Stage Cleanup卡统一授权，各FL仍只清理自己的exact资源。未terminal、coverage不完整、owner不明、dirty或SHA不匹配的FP和资源保持原状。
+
+`HOST_LOCAL_OPERATION` FL只在task-local current evidence中保留当前scope/protected scope、精确资源清单、验收、review和post-check，不创建Feature Packet、Git candidate或PR。破坏性操作确认绑定的是当前精确操作候选而不是repository artifact；完成后按同一owner的cleanup边界处理task-local临时资源和task归档。
 
 ## 8. Intake 与 Backlog
 

@@ -36,7 +36,7 @@ UD 是全局唯一、长期存在的 Chief/Enterprise Architect 级 canonical wr
 
 ### 2.4 Direct
 
-Direct 由一个 Senior/Principal Engineer 级 owner 闭合一个无稳定设计变化的有界 Change Set。它不创建 SL、FL 或 RI，但仍使用独立 branch、PR、required CI、Human merge 与 cleanup。
+Direct 由一个 Senior/Principal Engineer 级 owner 闭合一个无稳定设计变化的有界 Change Set。它不创建 SL、FL 或 RI。修改repository时使用独立branch、PR、required CI、Human merge与cleanup；只操作host-local资源时使用local执行载体，不创建Git交付资源。
 
 ### 2.5 Stage Lead（SL）
 
@@ -44,7 +44,7 @@ SL 是一个多 feature Delivery Stage 的 Technical Delivery Lead。SL建立一
 
 ### 2.6 Feature Lead（FL）
 
-FL 是一个独立 feature 的 Staff/Principal Engineer 级 owner。每个FL拥有一个active Feature Packet、owner-exclusive branch/worktree、完整feature candidate、Feature RI、Draft PR及自己的merge/main验证/cleanup结果。
+FL 是一个独立 feature 结果的 Staff/Principal Engineer 级 owner。`REPOSITORY_DELIVERY` FL拥有一个active Feature Packet、owner-exclusive branch/worktree、完整feature candidate、Feature RI、Draft PR及自己的merge/main验证/cleanup结果；`HOST_LOCAL_OPERATION` FL拥有精确本地资源范围、current operation evidence、按风险需要的Feature RI和验收结果，但默认不拥有Feature Packet、branch/worktree、Git candidate或PR。
 
 ### 2.7 Implementation Task（IT）
 
@@ -75,6 +75,9 @@ Planner不成为work item owner、artifact owner、canonical writer、reviewer�
 | 只读咨询、比较、状态 | 当前task直接回答 |
 | 跨业务方向、基础能力和时间盒的月/周/日组合规划 | Planner |
 | 小而明确、无稳定语义变化 | Direct |
+| 单次、有界且不修改repository的Docker、数据库、模拟器或本地服务维护 | Direct + `HOST_LOCAL_OPERATION` |
+| 跨turn、多阶段、需要独立验收的一个host-local结果 | FL + `HOST_LOCAL_OPERATION` |
+| 两个及以上相互独立的host-local结果 | SL → sibling FLs，均使用`HOST_LOCAL_OPERATION` |
 | 新服务、跨服务契约/事件、权限、租户、共享抽象、AI工具协议或canonical gap | Design Owner → UD |
 | 一个独立可验收feature | FL |
 | 两个及以上独立可交付feature | SL → sibling FLs |
@@ -99,6 +102,23 @@ Planner每次从现有真相重新计算，不维护镜像状态。规划只保�
 Planner优先收尾、解除阻塞和关键路径，默认保留约20%风险缓冲并限制WIP。未关联周/月目标、设计未冻结、依赖未满足、执行环境未就绪或无法在目标时间盒闭合验收的事项不得进入推荐执行组合。每日只轻量校正，每周重新排序，每月重新选择方向；仅关键阻塞、优先级或依赖变化触发中途重算并向Human提示。
 
 月、周、日计划是带生成时间与有效期的noncanonical task消息：每日计划到期后重新评估，不机械顺延；计划与实际只用于校准后续估时，不形成长期日报、周报、月报、历史账本或repository artifact。Human选择一个或多个方向后，Planner输出简洁执行意图并进入现有路由；该选择不绕过Proposal、任务启动、main merge、scope扩大或cleanup确认。
+
+### 3.2 执行载体选择
+
+角色、Human可见性和执行载体相互独立。创建有状态owner前，creator必须根据真实工作回答：是否写repository、是否形成Git candidate/PR、是否操作host-local资源、是否跨turn、是否需要独立review与Human跟踪。
+
+只允许两种owner执行形态：
+
+| 形态 | 适用范围 | task与资源 |
+| --- | --- | --- |
+| `REPOSITORY_DELIVERY` | 修改repository并形成可合并结果 | Human-visible project task；owner-exclusive branch/worktree；按角色使用Packet、candidate、RI和PR |
+| `HOST_LOCAL_OPERATION` | Docker、数据库、模拟器、本地服务等不修改repository的本机操作 | Human-visible project-associated local task；task-local current evidence；默认无worktree、branch、Packet、Git candidate和PR |
+
+`HOST_LOCAL_OPERATION` task创建时不得传Git `startingState`，不得调用worktree provisioner，也不得因task创建隐式fetch/pull。若creator已经验证一个本地canonical commit，可把exact SHA作为只读truth binding传给child；child只验证本地object与规范内容，不重复联网。只有任务结果依赖尚未在本地证明的remote truth时，creator才在创建前显式完成一次remote freshness检查。
+
+`REPOSITORY_DELIVERY`仍在worktree创建前验证latest remote main；provisioner必须继承与creator一致的approved network/proxy profile。真实需要remote的创建因profile不一致而失败属于runtime transport defect，不得通过把无关host-local任务强制联网来掩盖。
+
+host-local owner发现必须写repository时，保持host资源和证据不变，停止repository写入并使用既有scope/capability扩大边界重新路由；不得在local task中静默开始Git交付。
 
 ## 4. Human可见状态与复杂度预算
 
@@ -153,6 +173,8 @@ role task只有在creator read-after-create同时证明以下事实后才算创�
 
 任一失败即为`TASK_VISIBILITY_DEFECT`：保持creating owner、暂停该lane、不创建replacement、不允许新task写role-owned资源。
 
+provisioning在正式task id和worktree产生前失败时，只保留一份creation receipt并视为owner尚未创建；同一intent重试必须幂等，不得产生duplicate task、partial worktree或残留owner binding。
+
 ### 5.3 单一owner
 
 任何有状态work item同时只有一个current owner和一个artifact owner。通知不转移ownership；新owner接受且creating parent read-after-accept之前，旧owner保持current。不得静默替换、按标题猜测或创建双owner。
@@ -165,13 +187,13 @@ UD只通过repository Git common directory中的`codex-runtime/ud-target.json`�
 
 ### 6.1 Profile bootstrap
 
-创建Direct、SL、FL、独立IT或RI前，creating owner必须通过支持原子profile注入的启动路径准备最小充分能力。普通owner profile覆盖owner workspace和Git metadata、标准build/test、task-owned service/database、localhost与approved network、credential reference、task evidence root，以及`on-request + auto_review`的剩余低风险平台审核。
+创建Direct、SL、FL、独立IT或RI前，creating owner必须通过支持原子profile注入的启动路径准备最小充分能力。`REPOSITORY_DELIVERY` profile覆盖owner workspace和Git metadata、标准build/test、task-owned service/database、localhost与approved network、credential reference、task evidence root，以及`on-request + auto_review`的剩余低风险平台审核。`HOST_LOCAL_OPERATION` profile只加入本次精确需要的Docker socket/CLI、数据库、模拟器、本地服务、localhost和task evidence能力；repository保持只读且不以Full Access代替精确能力。
 
 Full Access不得作为普通owner profile的回退。
 
 ### 6.2 一次目标会话验证
 
-target task在第一次role-owned写入前从自己的实际session读取profile，并完成必要的file、Git、toolchain、local service/network smoke。creator复核一次真实结果即可转移ownership。
+target task在第一次role-owned写入前从自己的实际session读取profile，并完成所选执行形态必要的file、Git、toolchain、local service/network smoke。`HOST_LOCAL_OPERATION`不执行无关Git remote/network smoke，并必须证明未创建worktree且执行前后的repository状态完全一致；既有dirty/untracked内容只作为protected scope保留，不要求清除。creator复核一次真实结果即可转移ownership。
 
 只要task、host、repository、worktree、toolchain、credential identity和permission policy未变，后续turn复用该profile，不重复生成证明。发生真实漂移时保持原owner/candidate，自动修复同一个任务并补做一次受影响smoke。
 
@@ -189,7 +211,7 @@ Human不需要理解或操作中间技术状态。身份、可见性、profile�
 
 ### 6.4 Owner资源拓扑
 
-长期owner的目标拓扑是稳定路径中的owner-exclusive clone和task稳定artifact root；owner之间不共享可写Git common directory，`/private/tmp`只承载可重建scratch。该目标只有repository-owned profile、driver、cleanup schema与测试合入main且effective profile明确启用后才约束新owner。在cutover完成前，existing owner继续使用其frozen exact path/ref/resource binding；允许把Packet、bundle和current evidence checkpoint复制到稳定artifact root，但不借机迁移或创建replacement owner。
+`REPOSITORY_DELIVERY`长期owner的目标拓扑是稳定路径中的owner-exclusive clone和task稳定artifact root；owner之间不共享可写Git common directory，`/private/tmp`只承载可重建scratch。`HOST_LOCAL_OPERATION`使用saved project的local task载体和task稳定artifact root，不创建owner clone/worktree，且不得写repository。repository拓扑目标只有repository-owned profile、driver、cleanup schema与测试合入main且effective profile明确启用后才约束新owner。在cutover完成前，existing owner继续使用其frozen exact path/ref/resource binding；允许把Packet、bundle和current evidence checkpoint复制到稳定artifact root，但不借机迁移或创建replacement owner。
 
 ## 7. Design与UD流程
 
@@ -224,21 +246,39 @@ UD不把implementation发给Design Owner的祖先、最初请求task或其他gen
 
 ### 8.1 Direct
 
+Repository delivery：
+
 ```text
 Human确认根范围 → 实现 → Focused/Affected验证 → Draft PR → Human merge → main验证 → cleanup
 ```
 
+Host-local operation：
+
+```text
+Human确认根范围 → 可见local task/profile验证 → 只读盘点 → exact操作候选 → 必要的破坏性操作确认 → 执行 → 结果复查 → cleanup
+```
+
 ### 8.2 Feature
+
+Repository delivery：
 
 ```text
 FL → Feature Packet → 实现/IT → candidate → Feature RI → Draft PR → Human merge → main验证
+```
+
+Host-local operation：
+
+```text
+FL → task-local current evidence → 实现/IT → exact操作候选 → 按风险Feature RI → 必要的破坏性操作确认 → 执行 → 结果复查
 ```
 
 一个independently acceptable、reviewable、publishable、main-safe的结果对应一个FL。必须共同原子验收的slices保持一个FL，由bounded IT并行实现。
 
 ### 8.3 Stage
 
-SL建立本地Stage Packet，按WIP启动sibling FL。每个FL独立拥有candidate、Feature RI和Draft PR。SL只组合exact candidates和latest-main results，不创建总产品分支或大PR。
+`REPOSITORY_DELIVERY` Stage中，SL建立本地Stage Packet，按WIP启动sibling FL。每个FL独立拥有candidate、Feature RI和Draft PR。SL只组合exact candidates和latest-main results，不创建总产品分支或大PR。
+
+纯`HOST_LOCAL_OPERATION` Stage中，SL只在task-local current evidence协调sibling FL、依赖、WIP和exit criteria；每个FL独立拥有精确host资源范围、操作候选和验收结果，不创建Stage/Feature Git资源或产品PR。
 
 FL发现范围实际包含多个独立交付物时返回SL；只要新拓扑仍在confirmed Stage scope、protected scope、capabilities和WIP ceiling内，SL自动调整并只发状态通知。真实扩围或不可消解的owner/write conflict才询问Human。
 
@@ -279,6 +319,8 @@ main前进本身不使授权失效。无关变化自动集成并复用证据；�
 
 ## 10. Git、PR与main
 
+本节只约束`REPOSITORY_DELIVERY`。`HOST_LOCAL_OPERATION`不得创建remote branch、PR或main mutation；若需要任何repository写入，必须先按3.2重新路由。
+
 ### 10.1 权限边界
 
 - 禁止直接push `main`；
@@ -305,11 +347,11 @@ Human确认exact PR后，driver在mutation边界重新读取base/head/checks/rev
 
 ## 11. Cleanup
 
-### 11.1 Standalone Direct/FL
+### 11.1 Repository-delivery standalone Direct/FL
 
 main验证后显示一次cleanup卡。owner只删除卡中exact、clean、merged、SHA-matched的Packet、worktree、local/remote temporary branch、IT/RI和临时验证资源。dirty、未知或不匹配资源保持原状。
 
-### 11.2 Stage
+### 11.2 Repository-delivery Stage
 
 全部FL merge且Stage exit通过后，SL显示一张批量cleanup卡。Human确认一次后：
 
@@ -320,6 +362,10 @@ main验证后显示一次cleanup卡。owner只删除卡中exact、clean、merged
 5. 最终复核后archive完成的role tasks。
 
 Design Owner与UD分别清理自己的资源，互不代替。
+
+### 11.3 Host-local operation
+
+host操作本身属于已确认work scope，不伪装成Git cleanup。post-check通过后，standalone owner显示一次既有cleanup卡，只列task-local临时证据、scratch和task归档；有parent SL时由Stage批量cleanup卡统一授权。实际host资源、既有repository状态、未知/共享/仍在使用的资源和卡外对象保持原状。
 
 ## 12. 失败恢复
 
@@ -429,6 +475,19 @@ Design首次写入前展示完整只读Preview。确认卡：
 
 已确认范围内的普通文件、Git、测试、本地服务、task-owned数据库、localhost和approved network不向Human逐项请求许可。
 
+#### 14.4.1 Host-local破坏性操作
+
+该确认是6.2既有destructive-operation边界的具体表达，不新增常规状态。执行前必须绑定精确资源标识、依赖关系、保护清单、预计释放量、不可逆风险、允许命令和post-check；禁止用无边界的泛化prune代替精确动作。
+
+```text
+本地资源盘点已完成，精确操作清单已验证。
+1. 执行本卡列明的本地资源操作
+2. 保留资源
+3. 查看清单与风险
+```
+
+清单中的目标、依赖和保护范围均确定且风险可接受时标记选项1为建议；存在unknown、共享依赖、活跃使用或不可接受的不可逆风险时标记选项2为建议。每张卡必须且只能标记一个当前可执行建议。
+
 ### 14.5 Merge
 
 ```text
@@ -494,3 +553,4 @@ same-owner自动恢复失败且replacement确实必要时：
 8. 已确认范围内普通permission prompt为零；
 9. Human可在30秒内理解状态；
 10. 不存在隐藏owner、重复owner、全局调度中心或重复完整测试。
+11. host-local owner可在无GitHub连接时创建为可见local task，且不会创建worktree或触发Git fetch。
