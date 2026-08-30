@@ -33,10 +33,10 @@ state: RUNNING
 candidate: pending
 review: global-ri
 
-- Scope: public-entry-service idempotent seed entrypoint, isolated fixture identifiers/data, and focused seed replay/isolation tests.
-- Protected scope: shared or production data, other service databases, employee/contact/tenant master-data ownership, credentials, and existing foundation seeds.
+- Scope: public-entry-service idempotent seed entrypoint, isolated fixture identifiers/data, and one task-owned Permission SYSTEM role/binding granting the exact Gateway machine principal only `public-entry.business-card.read`; focused seed replay/isolation tests.
+- Protected scope: shared or production data, non-task databases, employee/contact/tenant master-data ownership, credentials, existing foundation roles/bindings, wildcard audiences, and every Permission Code other than exact public BusinessCard read.
 - Dependencies: task-owned worktree environment and the existing Public Entry Prisma schema.
-- Acceptance: two consecutive seed runs converge to the same deterministic fixture set; the fixture includes available, disabled, and unavailable public results without draft/private-field disclosure; writes are limited to the task-owned Public Entry database and can be removed by the matching cleanup operation.
+- Acceptance: two consecutive seed runs converge to the same deterministic fixture set; the fixture includes available, disabled, and unavailable public results without draft/private-field disclosure; writes are limited to the task-owned Public Entry rows plus one task-owned Permission role, one exact role-permission edge, and one Gateway MACHINE/SYSTEM binding, all removed by the matching cleanup operation with foreign-conflict protection.
 
 ## Feature acceptance
 

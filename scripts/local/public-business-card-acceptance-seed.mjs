@@ -4,6 +4,14 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { buildBusinessCardLiveFixtureSeed } from './business-card-live-fixtures.mjs'
+import {
+  applyPermissionAcceptanceFixture,
+  assertTaskOwnedPermissionDatabase,
+  buildPublicBusinessCardPermissionAcceptanceSeed,
+  checkPermissionAcceptanceFixture,
+  cleanupPermissionAcceptanceFixture,
+  loadPermissionAcceptanceContext
+} from './public-business-card-permission-acceptance-fixture.mjs'
 import { normalizeTaskKey, parseEnvironmentFile } from './worktree-env.mjs'
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -11,7 +19,10 @@ const serviceDirectory = path.join(repositoryRoot, 'src/services/system/public-e
 const allowedModes = new Set(['--apply', '--check', '--cleanup'])
 
 /** Builds the three persisted public-card states plus one deliberately absent identifier. */
-export function buildPublicBusinessCardAcceptanceSeed(taskKey, source = buildBusinessCardLiveFixtureSeed()) {
+export function buildPublicBusinessCardAcceptanceSeed(
+  taskKey,
+  source = buildBusinessCardLiveFixtureSeed()
+) {
   const normalizedTaskKey = normalizeTaskKey(taskKey)
   const fixtureOwner = `fixture:public-business-card:${normalizedTaskKey}`
   const fixtureTraceId = `fixture-public-business-card-${normalizedTaskKey}`
@@ -125,10 +136,16 @@ export function buildPublicBusinessCardAcceptanceSeed(taskKey, source = buildBus
 /** Resolves the ignored task environment without echoing database credentials. */
 export function loadPublicEntryDatabaseContext(root = repositoryRoot, environment = process.env) {
   const rootValues = parseEnvironmentFile(fs.readFileSync(path.join(root, '.env'), 'utf8'))
-  const taskKey = normalizeTaskKey(environment.OES_TASK_KEY?.trim() || rootValues.get('OES_TASK_KEY'))
+  const taskKey = normalizeTaskKey(
+    environment.OES_TASK_KEY?.trim() || rootValues.get('OES_TASK_KEY')
+  )
   const serviceEnvPath = path.join(root, 'src/services/system/public-entry-service/.env')
-  const serviceValues = parseEnvironmentFile(fs.readFileSync(serviceEnvPath, 'utf8'), serviceEnvPath)
-  const databaseUrl = environment.PUBLIC_ENTRY_DATABASE_URL?.trim() || serviceValues.get('DATABASE_URL')
+  const serviceValues = parseEnvironmentFile(
+    fs.readFileSync(serviceEnvPath, 'utf8'),
+    serviceEnvPath
+  )
+  const databaseUrl =
+    environment.PUBLIC_ENTRY_DATABASE_URL?.trim() || serviceValues.get('DATABASE_URL')
   assertTaskOwnedPublicEntryDatabase(databaseUrl, taskKey)
   return { databaseUrl, taskKey }
 }
@@ -202,7 +219,9 @@ export async function checkFixture(prisma, fixture) {
       orderBy: { id: 'asc' }
     }),
     prisma.businessCard.count({ where: { id: fixture.notFoundBusinessCardId } }),
-    prisma.businessCardAuditLog.count({ where: { id: { in: fixture.auditLogs.map((audit) => audit.id) } } })
+    prisma.businessCardAuditLog.count({
+      where: { id: { in: fixture.auditLogs.map((audit) => audit.id) } }
+    })
   ])
   const actual = {
     version: 1,
@@ -213,7 +232,8 @@ export async function checkFixture(prisma, fixture) {
     notFoundBusinessCardId: fixture.notFoundBusinessCardId
   }
   if (notFoundCount !== 0) throw new Error('PUBLIC_BUSINESS_CARD_FIXTURE_NOT_FOUND_ID_PRESENT')
-  if (auditCount !== fixture.auditLogs.length) throw new Error('PUBLIC_BUSINESS_CARD_FIXTURE_AUDIT_MISMATCH')
+  if (auditCount !== fixture.auditLogs.length)
+    throw new Error('PUBLIC_BUSINESS_CARD_FIXTURE_AUDIT_MISMATCH')
   if (stableJson(actual) !== stableJson(toExpectedProjection(fixture))) {
     throw new Error('PUBLIC_BUSINESS_CARD_FIXTURE_PROJECTION_MISMATCH')
   }
@@ -233,17 +253,27 @@ export async function cleanupFixture(prisma, fixture) {
   await assertNoForeignConflicts(prisma, fixture)
   const result = await prisma.$transaction(async (tx) => {
     const deletedCards = await tx.businessCard.deleteMany({
-      where: { id: { in: fixture.cards.map((card) => card.businessCardId) }, createdBy: fixture.fixtureOwner }
+      where: {
+        id: { in: fixture.cards.map((card) => card.businessCardId) },
+        createdBy: fixture.fixtureOwner
+      }
     })
     const deletedShortLinks = await tx.shortLink.deleteMany({
-      where: { id: { in: fixture.shortLinks.map((link) => link.id) }, createdBy: fixture.fixtureOwner }
+      where: {
+        id: { in: fixture.shortLinks.map((link) => link.id) },
+        createdBy: fixture.fixtureOwner
+      }
     })
     return { deletedCards: deletedCards.count, deletedShortLinks: deletedShortLinks.count }
   })
   const [remainingCards, remainingShortLinks, remainingAudits] = await Promise.all([
-    prisma.businessCard.count({ where: { id: { in: fixture.cards.map((card) => card.businessCardId) } } }),
+    prisma.businessCard.count({
+      where: { id: { in: fixture.cards.map((card) => card.businessCardId) } }
+    }),
     prisma.shortLink.count({ where: { id: { in: fixture.shortLinks.map((link) => link.id) } } }),
-    prisma.businessCardAuditLog.count({ where: { id: { in: fixture.auditLogs.map((audit) => audit.id) } } })
+    prisma.businessCardAuditLog.count({
+      where: { id: { in: fixture.auditLogs.map((audit) => audit.id) } }
+    })
   ])
   if (remainingCards + remainingShortLinks + remainingAudits !== 0) {
     throw new Error('PUBLIC_BUSINESS_CARD_FIXTURE_CLEANUP_INCOMPLETE')
@@ -343,33 +373,73 @@ function omit(value, keys) {
 function stableJson(value) {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`
   if (value && typeof value === 'object' && !(value instanceof Date)) {
-    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(',')}}`
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`)
+      .join(',')}}`
   }
   return JSON.stringify(value)
 }
 
 async function main() {
   const modes = process.argv.slice(2).filter((argument) => allowedModes.has(argument))
-  if (modes.length !== 1) throw new Error('Usage: public-business-card-acceptance-seed.mjs --apply|--check|--cleanup')
+  if (modes.length !== 1)
+    throw new Error('Usage: public-business-card-acceptance-seed.mjs --apply|--check|--cleanup')
   const [mode] = modes
   const context = loadPublicEntryDatabaseContext()
+  const permissionContext = loadPermissionAcceptanceContext(repositoryRoot)
+  if (permissionContext.taskKey !== context.taskKey) {
+    throw new Error('PUBLIC_BUSINESS_CARD_FIXTURE_TASK_KEY_MISMATCH')
+  }
   const target = assertTaskOwnedPublicEntryDatabase(context.databaseUrl, context.taskKey)
+  const permissionTarget = assertTaskOwnedPermissionDatabase(
+    permissionContext.databaseUrl,
+    permissionContext.taskKey
+  )
   const require = createRequire(import.meta.url)
-  const { PrismaClient } = require(
+  const { PrismaClient: PublicEntryPrismaClient } = require(
     path.join(serviceDirectory, 'prisma/generated/prisma')
   )
-  const prisma = new PrismaClient({ datasources: { db: { url: context.databaseUrl } } })
+  const { PrismaClient: PermissionPrismaClient } = require(
+    path.join(repositoryRoot, 'src/services/system/permission-service/prisma/generated/prisma')
+  )
+  const prisma = new PublicEntryPrismaClient({ datasources: { db: { url: context.databaseUrl } } })
+  const permissionPrisma = new PermissionPrismaClient({
+    datasources: { db: { url: permissionContext.databaseUrl } }
+  })
   const fixture = buildPublicBusinessCardAcceptanceSeed(context.taskKey)
-  process.stdout.write(`TARGET taskKey=${context.taskKey} database=${target.database} host=${target.host} port=${target.port}\n`)
+  const permissionFixture = buildPublicBusinessCardPermissionAcceptanceSeed(
+    context.taskKey,
+    permissionContext.gatewayMachinePrincipalId
+  )
+  process.stdout.write(
+    `TARGET taskKey=${context.taskKey} publicEntryDatabase=${target.database} permissionDatabase=${permissionTarget.database} host=${target.host} publicEntryPort=${target.port} permissionPort=${permissionTarget.port}\n`
+  )
   try {
-    const result = mode === '--apply'
-      ? await applyFixture(prisma, fixture)
-      : mode === '--check'
-        ? await checkFixture(prisma, fixture)
-        : await cleanupFixture(prisma, fixture)
+    const result =
+      mode === '--apply'
+        ? {
+            permission: await applyPermissionAcceptanceFixture(permissionPrisma, permissionFixture),
+            publicEntry: await applyFixture(prisma, fixture)
+          }
+        : mode === '--check'
+          ? {
+              permission: await checkPermissionAcceptanceFixture(
+                permissionPrisma,
+                permissionFixture
+              ),
+              publicEntry: await checkFixture(prisma, fixture)
+            }
+          : {
+              publicEntry: await cleanupFixture(prisma, fixture),
+              permission: await cleanupPermissionAcceptanceFixture(
+                permissionPrisma,
+                permissionFixture
+              )
+            }
     process.stdout.write(`${JSON.stringify(result)}\n`)
   } finally {
-    await prisma.$disconnect()
+    await Promise.all([prisma.$disconnect(), permissionPrisma.$disconnect()])
   }
 }
 
