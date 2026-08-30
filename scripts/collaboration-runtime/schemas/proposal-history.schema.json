@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/proposal-history-v1.json",
+  "title": "OES UD Proposal Native History V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["history", "audience"],
+  "properties": {
+    "audience": {
+      "enum": ["EXACT_UD", "PROJECT_ROLE", "BOUNDED_HELPER"]
+    },
+    "history": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/event"
+      }
+    }
+  },
+  "$defs": {
+    "fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "kind"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "kind": { "enum": ["PROPOSAL_TRANSPORT", "PROPOSAL_RECEIPT"] },
+        "envelope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "kind",
+            "proposalId",
+            "proposalFingerprint",
+            "scope",
+            "source",
+            "returnTaskId",
+            "supersedesProposalId"
+          ],
+          "properties": {
+            "schemaVersion": { "const": 1 },
+            "kind": { "const": "OES_UD_PROPOSAL" },
+            "proposalId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$" },
+            "proposalFingerprint": { "$ref": "#/$defs/fingerprint" },
+            "scope": { "type": "string", "minLength": 1 },
+            "source": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["role", "taskId"],
+              "properties": {
+                "role": { "type": "string", "minLength": 1 },
+                "taskId": { "type": "string", "minLength": 1 }
+              }
+            },
+            "returnTaskId": { "type": "string", "minLength": 1 },
+            "supersedesProposalId": { "type": ["string", "null"] }
+          }
+        },
+        "proposalId": { "type": "string", "minLength": 1 },
+        "proposalFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "sourceTaskId": { "type": "string", "minLength": 1 },
+        "returnTaskId": { "type": "string", "minLength": 1 },
+        "receipt": {
+          "enum": [
+            "TRANSPORT_ACCEPTED",
+            "UD_ADMITTED",
+            "PROCESSING",
+            "SUPERSEDED",
+            "CANCELLED",
+            "TERMINAL"
+          ]
+        },
+        "terminalStatus": { "type": ["string", "null"] },
+        "terminalResultDeliveryKey": { "type": ["string", "null"] },
+        "safeBoundary": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "PROPOSAL_TRANSPORT" } } },
+          "then": { "required": ["envelope"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "PROPOSAL_RECEIPT" } } },
+          "then": {
+            "required": [
+              "proposalId",
+              "proposalFingerprint",
+              "sourceTaskId",
+              "returnTaskId",
+              "receipt",
+              "terminalStatus",
+              "terminalResultDeliveryKey",
+              "safeBoundary"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/local-main-sync-binding-v1.json",
+  "title": "OES Local Main Sync Binding V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "bindingFingerprint",
+    "action",
+    "repositoryRoot",
+    "remote",
+    "branch",
+    "expectedRemoteUrl",
+    "expectedRemoteMainSha",
+    "humanConfirmationFingerprint"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "OES_LOCAL_MAIN_SYNC_BINDING" },
+    "bindingFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "action": { "enum": ["inspect", "sync"] },
+    "repositoryRoot": { "type": "string", "pattern": "^/" },
+    "remote": { "const": "origin" },
+    "branch": { "const": "main" },
+    "expectedRemoteUrl": { "type": "string", "minLength": 1 },
+    "expectedRemoteMainSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "humanConfirmationFingerprint": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "action": { "const": "sync" } } },
+      "then": { "properties": { "humanConfirmationFingerprint": { "type": "string" } } }
+    },
+    {
+      "if": { "properties": { "action": { "const": "inspect" } } },
+      "then": { "properties": { "humanConfirmationFingerprint": { "type": "null" } } }
+    }
+  ]
+}

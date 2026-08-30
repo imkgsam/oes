@@ -12,7 +12,9 @@ import {
 } from './cleanup.ts'
 import { assessDrift, createEvidenceKey } from './evidence.ts'
 import { RuntimeContractError, fail } from './errors.ts'
-import { GitHubRemoteAdapter } from './github-adapter.ts'
+import { GitHubRemoteAdapter, SpawnCommandRunner } from './github-adapter.ts'
+import { LocalMainController, type LocalMainSyncBinding } from './local-main.ts'
+import { proposalQueueView, type ProposalHistoryEvent } from './proposal-queue.ts'
 import {
   SystemPreflightProbeAdapter,
   loadRemoteTrustRootsFromProfileReport,
@@ -23,6 +25,7 @@ import {
 } from './profile-preflight.ts'
 import { validateJsonSchema } from './schema-validation.ts'
 import { RemoteDriver } from './remote-driver.ts'
+import { decideCiRecovery, type CiRecoveryInput } from './retry-policy.ts'
 import type {
   CleanupDiffEntry,
   CleanupResourceDecision,
@@ -112,6 +115,24 @@ async function main(args: string[]): Promise<void> {
     const output = flag(args, '--output')
     writeJsonAtomic(output, assessment)
     emit(assessment)
+    return
+  }
+  if (command === 'ud-queue-view') {
+    const input = readJson<{
+      history: ProposalHistoryEvent[]
+      audience: 'EXACT_UD' | 'PROJECT_ROLE' | 'BOUNDED_HELPER'
+    }>(flag(args, '--input'))
+    emit(proposalQueueView(input.history, input.audience))
+    return
+  }
+  if (command === 'ci-recovery-decision') {
+    emit(decideCiRecovery(readJson<CiRecoveryInput>(flag(args, '--input'))))
+    return
+  }
+  if (command === 'local-main') {
+    const binding = readJson<LocalMainSyncBinding>(flag(args, '--binding'))
+    const controller = new LocalMainController(new SpawnCommandRunner())
+    emit(binding.action === 'inspect' ? controller.inspect(binding) : controller.sync(binding))
     return
   }
   if (command === 'cleanup-plan') {

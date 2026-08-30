@@ -67,6 +67,40 @@ test('executable schemas accept representative runtime bindings and Stage author
   })
 })
 
+test('Proposal history and local-main bindings have executable closed schemas', () => {
+  validateJsonSchema(schema('proposal-history.schema.json'), {
+    audience: 'PROJECT_ROLE',
+    history: [
+      {
+        schemaVersion: 1,
+        kind: 'PROPOSAL_TRANSPORT',
+        envelope: {
+          schemaVersion: 1,
+          kind: 'OES_UD_PROPOSAL',
+          proposalId: 'proposal-001',
+          proposalFingerprint: 'a'.repeat(64),
+          scope: 'Continuous optimization',
+          source: { role: 'Design Owner', taskId: '/root/design' },
+          returnTaskId: '/root/fl',
+          supersedesProposalId: null
+        }
+      }
+    ]
+  })
+  validateJsonSchema(schema('local-main-sync-binding.schema.json'), {
+    schemaVersion: 1,
+    kind: 'OES_LOCAL_MAIN_SYNC_BINDING',
+    bindingFingerprint: 'a'.repeat(64),
+    action: 'sync',
+    repositoryRoot: '/fixture/oes',
+    remote: 'origin',
+    branch: 'main',
+    expectedRemoteUrl: 'https://github.com/example/oes.git',
+    expectedRemoteMainSha: 'b'.repeat(40),
+    humanConfirmationFingerprint: 'c'.repeat(64)
+  })
+})
+
 test('executable Stage schema and runtime both reject an empty batch', () => {
   const value = cleanupAuthorization()
   value.terminalFeatures = []
