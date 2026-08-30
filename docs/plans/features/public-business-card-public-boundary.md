@@ -8,7 +8,7 @@ worktreeKey: 2af8
 pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
-state: RUNNING
+state: DESIGN_GAP_BLOCKED
 
 ## Objective
 
@@ -18,9 +18,9 @@ Close the anonymous `/public/business-cards/:businessCardId` page as one determi
 
 ### PBC-1 Public result boundary
 
-state: RUNNING
-candidate: pending
-review: global-ri
+state: DESIGN_GAP_BLOCKED
+candidate: 8b4435c2051557de6a36f76acb39c3b26e8bb2cf
+review: pending-after-design-resume
 
 - Scope: tenant-web core route and public BusinessCard view/API; the exact Gateway → Public Entry and Public Entry → frozen foundation target entries in the versioned local execution-token registry; focused route/view/API/trust tests.
 - Protected scope: authenticated admin routes, generic authenticated 404 behavior, public-entry domain result vocabulary, wildcard or unrelated audience admission, permission policy semantics, and unrelated tenant-web pages.
@@ -29,9 +29,9 @@ review: global-ri
 
 ### PBC-2 Task-owned published-card fixture
 
-state: RUNNING
-candidate: pending
-review: global-ri
+state: CANDIDATE_READY
+candidate: 8b4435c2051557de6a36f76acb39c3b26e8bb2cf
+review: pending-feature-candidate
 
 - Scope: public-entry-service idempotent seed entrypoint, isolated fixture identifiers/data, and one task-owned Permission SYSTEM role/binding granting the exact Gateway machine principal only `public-entry.business-card.read`; focused seed replay/isolation tests.
 - Protected scope: shared or production data, non-task databases, employee/contact/tenant master-data ownership, credentials, existing foundation roles/bindings, wildcard audiences, and every Permission Code other than exact public BusinessCard read.
@@ -46,3 +46,10 @@ review: global-ri
 - Prove the rendered payload is limited to the contract's public view and omits draft/private/contact-source fields.
 - Replay the task-owned seed twice and prove deterministic rows plus Public Entry database isolation.
 - Freeze one candidate, obtain independent Feature RI, then open a Draft PR without merging.
+
+## Current design gap
+
+- Exact runtime evidence at product candidate `8b4435c2051557de6a36f76acb39c3b26e8bb2cf` proves Gateway admission, Auth machine-source bootstrap, Permission ingress decision, and Public Entry handler execution are healthy; NOT_FOUND, DISABLED, and UNAVAILABLE pass, while AVAILABLE alone degrades to controlled UNAVAILABLE during upstream owner-fact hydration.
+- The missing stable truth is the target-owned minimum Public Entry public-render collaboration across HR, Identity, and TenantOrg: exact INTERNAL resolver names and projections, Code ownership, SYSTEM MACHINE target declarations, workload issuance tuples, tenant-selector rules, rollout compatibility, validation, and rollback.
+- Existing `hr.employee.get_by_id`, `identity.account.list`, `identity.account.self.read`, `tenant_org.tenant.get_by_id`, and `tenant_org.org_unit.list_tree` BUSINESS Codes remain protected and must not be widened to SYSTEM or granted through a task role to close this gap.
+- Only PBC-1 is paused. Preserve this FL, branch, worktree, product candidate, task-owned databases, fixture, runtime evidence, and Runtime Owner binding. Resume the same lane only after the exact global design truth merges; then update from latest `origin/main`, revalidate the affected downstream path, freeze the final candidate, and create the independent Feature RI.
