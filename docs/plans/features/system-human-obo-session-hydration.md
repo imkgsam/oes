@@ -21,8 +21,8 @@ SYSTEM session stays tenantless while TENANT preserves one exact tenant.
 ### scope-aware-human-obo
 
 state: CANDIDATE_READY
-candidate: bb58b282e3eccbb1f30031f9085ff1de1f99febe
-review: local-ri pending
+candidate: 5bc49c23e79e811659d28304705bf4e8387adb59
+review: local-ri re-review pending after P1 subject-workload/certificate/scope and registry-actor binding fix
 
 - Scope: Auth HUMAN OBO subject verifier and signing gate; OBO audit subject-scope attribution;
   Common certificate-bound cache subject-scope separation; focused SYSTEM/TENANT/negative tests.
@@ -36,12 +36,12 @@ review: local-ri pending
 
 ## Scope / tenant truth table
 
-| Subject scope | Signed `tenant_id` | Result |
-| --- | --- | --- |
-| `SYSTEM` | absent | accept and preserve absence |
-| `SYSTEM` | present, blank, wildcard, or exact tenant | reject |
-| `TENANT` | one exact non-wildcard tenant | accept and preserve exact value |
-| `TENANT` | absent, blank, or wildcard | reject |
+| Subject scope | Signed `tenant_id`                        | Result                          |
+| ------------- | ----------------------------------------- | ------------------------------- |
+| `SYSTEM`      | absent                                    | accept and preserve absence     |
+| `SYSTEM`      | present, blank, wildcard, or exact tenant | reject                          |
+| `TENANT`      | one exact non-wildcard tenant             | accept and preserve exact value |
+| `TENANT`      | absent, blank, or wildcard                | reject                          |
 
 ## Negative matrix
 
