@@ -32,7 +32,6 @@ docs/
 ├── runbooks/
 └── plans/
     ├── index.md
-    ├── intake.md
     ├── backlog.md
     ├── designs/
     ├── stages/
@@ -175,8 +174,12 @@ feature merge和main验证通过后进入cleanup。standalone FL使用自己的c
 
 ## 8. Intake 与 Backlog
 
-- `plans/intake.md`：尚未进入设计的当前候选；Design Owner开始有状态设计后从intake删除。
+- cutover完成后，带`capability-candidate` label的open GitHub Issue是尚未进入设计或实现的唯一intake真相；Human称其为“能力候选”。标题使用`[Capability] 能力名称`，正文只保存能力、业务价值/目标、当前问题和`暂不设计、暂不实现`。
+- 候选登记不创建Codex task、worktree、branch、Packet、PR或CI，也不在repository建立Issue镜像、roadmap、状态表或历史账本。Planner直接读取open候选。
+- Human选择进入Design或Direct后，只有exact owner task完成创建与接受才关闭候选；重复、取消或失效候选直接关闭。GitHub不可用时保持阻塞，不写本地影子记录。
 - `plans/backlog.md`：仍有效但明确延期的事项；完成、取消或失效后删除。
+
+迁移期间，既有`plans/intake.md`及其Index链接是明确的临时例外，并继续作为唯一可写intake。一次独立Human-confirmed Direct必须幂等创建label和全部既有Issue、逐项验证唯一链接，全部成功后才由一个PR删除旧文件和Index链接；该PR合入且main CI通过后，Issue入口才激活。任何中断都保留旧文件，禁止双写。
 
 不记录 `PROMOTED`、`CANCELLED` 或完成历史。
 
