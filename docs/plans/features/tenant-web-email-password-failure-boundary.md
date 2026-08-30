@@ -8,7 +8,7 @@ worktreeKey: 90e0
 pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
-state: RUNNING
+state: CANDIDATE_READY
 
 ## Objective
 
@@ -17,8 +17,8 @@ Keep email/phone password credential failures inside the Auth-owned `LoginMethod
 ## Slices
 
 ### password-failure-boundary
-state: RUNNING
-candidate: pending
+state: CANDIDATE_READY
+candidate: 2755791104d36fa5233a051e7339c2ad129496ce
 review: local-ri
 
 - Scope:
