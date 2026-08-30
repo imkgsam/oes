@@ -8,7 +8,7 @@ worktreeKey: 9d4f
 pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
-state: RUNNING
+state: CANDIDATE_READY
 
 ## Objective
 
@@ -18,8 +18,8 @@ Make the repository-owned tenant-web authentication fixture seeder part of the o
 
 ### task-bound-seed-orchestration
 
-state: RUNNING
-candidate: pending
+state: CANDIDATE_READY
+candidate: f06e8b290b505636405ed4c4e8b5c8fc7af79725
 review: feature-ri pending
 
 - Scope: local database lifecycle orchestration, tenant-web authentication seed environment contract, dedicated password-recovery/MFA-required/first-login-password-setup acceptance fixtures, credential-redacted seeder output, focused tooling tests, and current runbook guidance.
