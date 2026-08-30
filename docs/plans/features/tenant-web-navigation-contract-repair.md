@@ -8,7 +8,7 @@ worktreeKey: a95f
 pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
-state: RUNNING
+state: CANDIDATE_READY
 
 ## Objective
 
@@ -17,8 +17,8 @@ Align the tenant-web navigation registry request with the canonical API Gateway 
 ## Slices
 
 ### navigation-contract-client-and-route-mapping
-state: RUNNING
-candidate: pending
+state: CANDIDATE_READY
+candidate: edc1c3053cd32d0d23835e329135b540e30ec564
 review: local-ri
 
 - Scope:
