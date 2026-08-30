@@ -1,5 +1,8 @@
 import { generateKeyPairSync, sign, verify } from 'node:crypto'
-import { ExecutionTokenExchangeService } from './execution-token-exchange.service'
+import {
+  ExchangeExecutionTokenInput,
+  ExecutionTokenExchangeService
+} from './execution-token-exchange.service'
 import {
   ExecutionTokenSigningKey,
   ExecutionTokenSigningPort
@@ -33,8 +36,207 @@ class FakeExecutionTokenSigningPort implements ExecutionTokenSigningPort {
   }
 }
 
+const REQUEST_ID = 'request-system-obo-1'
+const TRACE_ID = '4bf92f3577b34da6a3ce929d0e0e4736'
+const SPAN_ID = '00f067aa0ba902b7'
+
+/** Builds the canonical tenantless SYSTEM HUMAN OBO signing input for focused mutation tests. */
+function systemOboInput(): ExchangeExecutionTokenInput {
+  return {
+    targetAudience: 'urn:oes:service:permission-service',
+    requestedPermissionCodes: ['permission.internal.account_access_summary.resolve'],
+    workloadIdentity: {
+      spiffeId: 'spiffe://local.oes/gateway',
+      certificateThumbprint: 'A'.repeat(43)
+    },
+    execution: {
+      subject: 'system-account-1',
+      principalType: 'HUMAN',
+      scopeLevel: 'SYSTEM',
+      sessionId: 'system-session-1',
+      sessionTerminal: 'WEB',
+      actor: {
+        sub: 'machine-gateway',
+        principal_type: 'MACHINE',
+        scope_level: 'SYSTEM'
+      },
+      sourceTokenId: 'system-subject-jti',
+      sourceExpiresAt: 1_700_000_420,
+      requestId: REQUEST_ID,
+      traceId: TRACE_ID,
+      spanId: SPAN_ID
+    },
+    authorizationDecision: {
+      allowed: true,
+      kind: 'INTERNAL',
+      grantedPermissionCodes: ['permission.internal.account_access_summary.resolve'],
+      deniedPermissionCodes: [],
+      principalType: 'HUMAN',
+      principalId: 'system-account-1',
+      scopeLevel: 'SYSTEM',
+      targetAudience: 'urn:oes:service:permission-service',
+      originalWorkloadSpiffeId: 'spiffe://local.oes/gateway',
+      requestedPermissionCodes: ['permission.internal.account_access_summary.resolve'],
+      decisionReference: 'decision-system-obo-1',
+      authzVersion: 'authz-system-obo-1'
+    }
+  }
+}
+
 /** Proves Auth issues only one registered, ES256, certificate-bound access token from trusted execution facts. */
 describe('ExecutionTokenExchangeService', () => {
+  it('issues and audits a tenantless SYSTEM HUMAN OBO token', async () => {
+    const signer = new FakeExecutionTokenSigningPort()
+    const audit = { appendOboLink: jest.fn().mockResolvedValue(undefined) }
+    const service = new ExecutionTokenExchangeService(
+      new ExecutionTokenRegistry({
+        issuer: 'https://auth.local.oes.example',
+        workloadPolicies: [
+          {
+            spiffeId: 'spiffe://local.oes/gateway',
+            audiences: ['urn:oes:service:permission-service']
+          }
+        ]
+      }),
+      signer,
+      () => 1_700_000_300,
+      audit
+    )
+    const input = systemOboInput()
+    const result = await service.exchange(input)
+
+    const claims = JSON.parse(
+      Buffer.from(result.accessToken.split('.')[1], 'base64url').toString('utf8')
+    )
+    expect(claims).toMatchObject({
+      sub: 'system-account-1',
+      principal_type: 'HUMAN',
+      act: input.execution.actor,
+      scope: 'permission.internal.account_access_summary.resolve'
+    })
+    expect(claims).not.toHaveProperty('tenant_id')
+    expect(claims).not.toHaveProperty('scope_level')
+    expect(audit.appendOboLink).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceTokenId: 'system-subject-jti',
+        subject: 'system-account-1',
+        subjectScope: 'SYSTEM',
+        actor: input.execution.actor,
+        decisionReference: 'decision-system-obo-1',
+        requestId: REQUEST_ID,
+        traceId: TRACE_ID,
+        spanId: SPAN_ID
+      })
+    )
+  })
+
+  it.each([
+    [
+      'TENANT without tenant',
+      (input: ExchangeExecutionTokenInput) => ({
+        ...input,
+        execution: { ...input.execution, scopeLevel: 'TENANT' as const },
+        authorizationDecision: { ...input.authorizationDecision, scopeLevel: 'TENANT' as const }
+      })
+    ],
+    [
+      'SYSTEM with tenant',
+      (input: ExchangeExecutionTokenInput) => ({
+        ...input,
+        execution: { ...input.execution, tenantId: 'tenant-1' },
+        authorizationDecision: { ...input.authorizationDecision, tenantId: 'tenant-1' }
+      })
+    ],
+    [
+      'wrong tenant decision',
+      (input: ExchangeExecutionTokenInput) => ({
+        ...input,
+        execution: { ...input.execution, scopeLevel: 'TENANT' as const, tenantId: 'tenant-1' },
+        authorizationDecision: {
+          ...input.authorizationDecision,
+          scopeLevel: 'TENANT' as const,
+          tenantId: 'tenant-2'
+        }
+      })
+    ],
+    [
+      'actor mismatch',
+      (input: ExchangeExecutionTokenInput) => ({
+        ...input,
+        execution: {
+          ...input.execution,
+          actor: { ...(input.execution.actor as object), tenant_id: 'tenant-1' }
+        }
+      })
+    ],
+    [
+      'subject mismatch',
+      (input: ExchangeExecutionTokenInput) => ({
+        ...input,
+        authorizationDecision: { ...input.authorizationDecision, principalId: 'other-account' }
+      })
+    ],
+    [
+      'scope mismatch',
+      (input: ExchangeExecutionTokenInput) => ({
+        ...input,
+        authorizationDecision: { ...input.authorizationDecision, scopeLevel: 'TENANT' as const }
+      })
+    ],
+    [
+      'target mismatch',
+      (input: ExchangeExecutionTokenInput) => ({
+        ...input,
+        authorizationDecision: {
+          ...input.authorizationDecision,
+          targetAudience: 'urn:oes:service:other-service'
+        }
+      })
+    ],
+    [
+      'workload mismatch',
+      (input: ExchangeExecutionTokenInput) => ({
+        ...input,
+        authorizationDecision: {
+          ...input.authorizationDecision,
+          originalWorkloadSpiffeId: 'spiffe://local.oes/other-service'
+        }
+      })
+    ],
+    [
+      'missing correlation',
+      (input: ExchangeExecutionTokenInput) => ({
+        ...input,
+        execution: {
+          ...input.execution,
+          requestId: undefined,
+          traceId: undefined,
+          spanId: undefined
+        }
+      })
+    ]
+  ])('rejects %s before signer invocation', async (_label, mutate) => {
+    const signer = new FakeExecutionTokenSigningPort()
+    const signSpy = jest.spyOn(signer, 'sign')
+    const service = new ExecutionTokenExchangeService(
+      new ExecutionTokenRegistry({
+        issuer: 'https://auth.local.oes.example',
+        workloadPolicies: [
+          {
+            spiffeId: 'spiffe://local.oes/gateway',
+            audiences: ['urn:oes:service:permission-service']
+          }
+        ]
+      }),
+      signer,
+      () => 1_700_000_300,
+      { appendOboLink: jest.fn().mockResolvedValue(undefined) }
+    )
+
+    await expect(service.exchange(mutate(systemOboInput()))).rejects.toThrow()
+    expect(signSpy).not.toHaveBeenCalled()
+  })
+
   it('issues a registered ES256 at+jwt bound to the verified workload certificate', async () => {
     const signer = new FakeExecutionTokenSigningPort()
     const service = new ExecutionTokenExchangeService(
@@ -259,7 +461,10 @@ describe('ExecutionTokenExchangeService', () => {
         sessionTerminal: 'WEB',
         actor,
         sourceTokenId: 'subject-jti',
-        sourceExpiresAt: 1_700_000_420
+        sourceExpiresAt: 1_700_000_420,
+        requestId: 'request-tenant-obo-1',
+        traceId: TRACE_ID,
+        spanId: SPAN_ID
       },
       authorizationDecision: {
         allowed: true,
@@ -297,9 +502,14 @@ describe('ExecutionTokenExchangeService', () => {
       expect.objectContaining({
         sourceTokenId: 'subject-jti',
         targetTokenId: claims.jti,
+        subjectScope: 'TENANT',
+        tenantId: 'tenant-1',
         actor,
         audience: 'urn:oes:service:item-master-service',
-        decisionReference: 'decision-obo-1'
+        decisionReference: 'decision-obo-1',
+        requestId: 'request-tenant-obo-1',
+        traceId: TRACE_ID,
+        spanId: SPAN_ID
       })
     )
   })
@@ -335,7 +545,10 @@ describe('ExecutionTokenExchangeService', () => {
         sessionId: 'session-1',
         actor: { sub: 'machine-mes', principal_type: 'MACHINE', scope_level: 'SYSTEM' },
         sourceTokenId: 'subject-jti',
-        sourceExpiresAt: 1_700_000_420
+        sourceExpiresAt: 1_700_000_420,
+        requestId: 'request-tenant-obo-1',
+        traceId: TRACE_ID,
+        spanId: SPAN_ID
       },
       authorizationDecision: {
         allowed: true,

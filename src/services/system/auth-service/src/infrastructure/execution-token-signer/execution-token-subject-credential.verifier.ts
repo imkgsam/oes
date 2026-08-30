@@ -2,6 +2,7 @@ import { createPublicKey, verify } from 'node:crypto'
 import { ExecutionTokenSigningPort } from '../../domain/ports/execution-token-signing.port'
 import { ExecutionTokenRegistry } from '../../domain/services/execution-token-registry'
 import { IIdentityServicePort } from '../../application/ports/identity-service.port'
+import { requireHumanOboSubjectScope } from '../../domain/services/human-obo-subject-scope'
 import { requireTrustedSessionTerminal } from '@oes/common/authorization'
 import type {
   TrustedExecutionContext,
@@ -23,6 +24,7 @@ export class ExecutionTokenSubjectCredentialVerifier {
     targetAudience: string,
     correlation?: { requestId?: string; traceparent?: string; tracestate?: string }
   ): Promise<TrustedExecutionContext> {
+    const trustedCorrelation = requireCorrelation(correlation)
     const [headerPart, claimsPart, signaturePart, extra] = token.split('.')
     if (!headerPart || !claimsPart || !signaturePart || extra) throw invalid()
     const header = decode(headerPart),
@@ -52,9 +54,6 @@ export class ExecutionTokenSubjectCredentialVerifier {
       typeof claims.aud !== 'string' ||
       typeof claims.sub !== 'string' ||
       !exact(claims.sub) ||
-      typeof claims.tenant_id !== 'string' ||
-      !exact(claims.tenant_id) ||
-      claims.tenant_id === '*' ||
       typeof claims.session_id !== 'string' ||
       !exact(claims.session_id) ||
       typeof claims.jti !== 'string' ||
@@ -75,9 +74,14 @@ export class ExecutionTokenSubjectCredentialVerifier {
       throw invalid()
     let sessionTerminal
     let authzVersion
+    let subjectScope
     try {
       sessionTerminal = requireTrustedSessionTerminal(claims.session_terminal)
       authzVersion = optionalAuthzVersion(claims.authz_version)
+      subjectScope = requireHumanOboSubjectScope(
+        claims.tenant_id === undefined ? 'SYSTEM' : 'TENANT',
+        claims.tenant_id
+      )
     } catch {
       throw invalid()
     }
@@ -91,9 +95,9 @@ export class ExecutionTokenSubjectCredentialVerifier {
       bindingId: selector.actorBindingId,
       bindingVersion: BigInt(selector.actorBindingVersion),
       workloadSpiffeId: workload.spiffeId,
-      requestId: correlation?.requestId,
-      traceparent: correlation?.traceparent,
-      tracestate: correlation?.tracestate
+      requestId: trustedCorrelation.requestId,
+      traceparent: trustedCorrelation.traceparent,
+      tracestate: trustedCorrelation.tracestate
     })
     if (
       !decision.allowed ||
@@ -112,8 +116,10 @@ export class ExecutionTokenSubjectCredentialVerifier {
     return Object.freeze({
       subject: claims.sub,
       principalType: 'HUMAN',
-      scopeLevel: 'TENANT',
-      tenantId: claims.tenant_id,
+      scopeLevel: subjectScope.subjectScope,
+      ...(subjectScope.optionalTenantId === undefined
+        ? {}
+        : { tenantId: subjectScope.optionalTenantId }),
       ...(typeof claims.org_id === 'string' ? { orgId: claims.org_id } : {}),
       sessionId: claims.session_id,
       sessionTerminal,
@@ -124,7 +130,10 @@ export class ExecutionTokenSubjectCredentialVerifier {
         scope_level: 'SYSTEM'
       }),
       sourceTokenId: claims.jti,
-      sourceExpiresAt: claims.exp as number
+      sourceExpiresAt: claims.exp as number,
+      requestId: trustedCorrelation.requestId,
+      traceId: trustedCorrelation.traceId,
+      spanId: trustedCorrelation.spanId
     })
   }
 }
@@ -153,4 +162,39 @@ function optionalAuthzVersion(value: unknown): string | number | undefined {
   if (exact(value)) return value
   if (typeof value === 'number' && Number.isInteger(value) && Number.isFinite(value)) return value
   throw invalid()
+}
+
+/** Requires request and W3C trace correlation before OBO actor or Permission resolution. */
+function requireCorrelation(correlation?: {
+  requestId?: string
+  traceparent?: string
+  tracestate?: string
+}): Readonly<{
+  requestId: string
+  traceparent: string
+  tracestate?: string
+  traceId: string
+  spanId: string
+}> {
+  const traceparent = correlation?.traceparent
+  const match =
+    typeof traceparent === 'string'
+      ? /^00-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$/i.exec(traceparent)
+      : null
+  if (
+    !exact(correlation?.requestId) ||
+    match === null ||
+    /^0{32}$/.test(match[1]) ||
+    /^0{16}$/.test(match[2]) ||
+    (correlation?.tracestate !== undefined && !exact(correlation.tracestate))
+  ) {
+    throw new Error('EXECUTION_HUMAN_OBO_CORRELATION_REQUIRED')
+  }
+  return Object.freeze({
+    requestId: correlation.requestId,
+    traceparent: traceparent.toLowerCase(),
+    ...(correlation.tracestate === undefined ? {} : { tracestate: correlation.tracestate }),
+    traceId: match[1].toLowerCase(),
+    spanId: match[2].toLowerCase()
+  })
 }
