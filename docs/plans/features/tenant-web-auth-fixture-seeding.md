@@ -1,8 +1,8 @@
 # Tenant Web Auth Fixture Seeding
 
 featureKey: tenant-web-auth-fixture-seeding
-truthCommit: 0c8adcaf382c09fb56d9790b44a02de783a63ea8
-baseSha: 0c8adcaf382c09fb56d9790b44a02de783a63ea8
+truthCommit: a912abb73e64f8065044f5a278d02439c473d171
+baseSha: a912abb73e64f8065044f5a278d02439c473d171
 integrationBranch: codex/tenant-web-auth-fixture-seed
 worktreeKey: 9d4f
 pullRequest: pending
@@ -20,11 +20,12 @@ Make the repository-owned tenant-web authentication fixture seeder part of the o
 
 state: ACCEPTED
 candidate: 72b9ae7929b471af1f4871888821f119425ea366
-review: feature-ri `01a052d7-1611-7001-8e91-e6d6e70b2fb5` accepted exact candidate `56f13d31f4f96468a4801d6891db542ef775c93d`
+review: feature-ri `01a052d7-1611-7001-8e91-e6d6e70b2fb5` accepted exact publish predecessor `cc9b358a0fee2a90e303c95ab77280a3b70965b7`; bounded moving-main rebind pending
 
 - Scope: local database lifecycle orchestration, tenant-web authentication seed environment contract, dedicated password-recovery/MFA-required/first-login-password-setup acceptance fixtures, credential-redacted seeder output, focused tooling tests, and current runbook guidance.
 - Protected scope: production or shared databases, legacy Docker projects, non-task-owned containers/volumes/networks, committed credentials, service business contracts, and unrelated seeders.
 - Dependencies: the existing task-owned environment bootstrap, database lifecycle ownership checks, official tenant-web fixture builders, and the six service-owned Prisma schemas used by the seeder.
+- Moving-main revalidation: `origin/main@a912abb73e64f8065044f5a278d02439c473d171` changes only stable design documents outside this feature's changed paths; the same Feature RI performs a bounded exact-head rebind after integration.
 - Acceptance: fresh `db:seed` includes the official fixture; repeat `db:seed` is stable; missing/foreign/mixed-port database bindings fail before writes; lifecycle host URLs use the current task runtime port rather than service `.env`; recovery, MFA-required and setup-required journeys each have a dedicated resettable identity/state; expiry, invalid challenge and replay remain fail-closed; no login identifier, password, OTP, TOTP secret, or database credential is printed; a failed tenant-web seed exits non-zero and does not record `SEEDED`; rollback remains bound to the exact task project.
 
 ## Feature acceptance
