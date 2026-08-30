@@ -195,6 +195,7 @@ class PublicEntryFoundationMachineSourceCredentialClient {
   private client?: ClientGrpc
   private service?: MachineWorkloadSourceCredentialServiceClient
   async issue(): Promise<string> {
+    const metadata = buildPublicEntryMachineSourceCredentialMetadata()
     const response = await safeGrpcCall(
       this.machine().issueMachineWorkloadSourceCredential(
         {
@@ -204,7 +205,7 @@ class PublicEntryFoundationMachineSourceCredentialClient {
             'PUBLIC_ENTRY_FOUNDATION_MACHINE_WORKLOAD_BINDING_VERSION'
           )
         },
-        new Metadata()
+        metadata
       ),
       { caller: 'public-entry-service', method: 'IssueMachineWorkloadSourceCredential' }
     )
@@ -227,6 +228,16 @@ class PublicEntryFoundationMachineSourceCredentialClient {
       'MachineWorkloadSourceCredentialService'
     ))
   }
+}
+
+/** Propagates only guard-verified request correlation to Auth's machine-source bootstrap. */
+export function buildPublicEntryMachineSourceCredentialMetadata(): Metadata {
+  const correlation = inboundExecutionTokenCredentialScope.requireCorrelation()
+  const metadata = new Metadata()
+  metadata.set('x-request-id', correlation.requestId)
+  metadata.set('traceparent', correlation.traceparent)
+  if (correlation.tracestate) metadata.set('tracestate', correlation.tracestate)
+  return metadata
 }
 
 /** Scopes one opaque MACHINE source credential to exactly one STS exchange. */
