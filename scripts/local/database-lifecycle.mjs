@@ -8,6 +8,8 @@ import {
   normalizeTaskKey,
   parseEnvironmentFile
 } from './worktree-env.mjs'
+import { buildTenantWebAuthSeedEnvironment } from './tenant-web-auth-seed-environment.mjs'
+import { AUTH_ACCEPTANCE_FIXTURES } from './tenant-web-auth-test-fixtures.mjs'
 import {
   EXPECTED_PRISMA_SERVICE_COUNT,
   defaultRepositoryRoot,
@@ -1063,26 +1065,83 @@ function migrate(context, environmentPath) {
 }
 
 function seedSnapshot(context, environmentPath) {
+  const auth = context.services.find((service) => service.name === 'auth-service')
+  const identity = context.services.find((service) => service.name === 'identity-service')
   const permission = context.services.find((service) => service.name === 'permission-service')
   const collaboration = context.services.find((service) => service.name === 'collaboration-service')
   const digest = (database, sql) =>
-    crypto.createHash('sha256').update(postgresExec(context, environmentPath, database, sql)).digest('hex')
+    crypto
+      .createHash('sha256')
+      .update(postgresExec(context, environmentPath, database, sql))
+      .digest('hex')
   return {
+    authAcceptanceRecoveryGrantCount: Number(
+      postgresExec(
+        context,
+        environmentPath,
+        auth.database,
+        `SELECT count(*) FROM "PasswordRecoveryGrant" WHERE "userId" = '${AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.userId}'`
+      )
+    ),
+    authAcceptanceRecoveryLoginMethodCount: Number(
+      postgresExec(
+        context,
+        environmentPath,
+        auth.database,
+        `SELECT count(*) FROM "LoginMethod" WHERE "userId" = '${AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.userId}' AND "verified" = true AND "enabled" = true`
+      )
+    ),
+    authAcceptanceMfaBindingCount: Number(
+      postgresExec(
+        context,
+        environmentPath,
+        auth.database,
+        `SELECT count(*) FROM "MfaBinding" WHERE "id" = '${AUTH_ACCEPTANCE_FIXTURES.mfa.binding.id}' AND "userId" = '${AUTH_ACCEPTANCE_FIXTURES.mfa.userId}' AND "enabled" = true`
+      )
+    ),
+    authAcceptancePasswordSetupCount: Number(
+      postgresExec(
+        context,
+        environmentPath,
+        auth.database,
+        `SELECT count(*) FROM "PasswordSetupRequirement" WHERE "id" = '${AUTH_ACCEPTANCE_FIXTURES.passwordSetup.requirement.id}' AND "userId" = '${AUTH_ACCEPTANCE_FIXTURES.passwordSetup.userId}' AND "required" = true AND "completedAt" IS NULL`
+      )
+    ),
+    identityAuthAcceptanceUserCount: Number(
+      postgresExec(
+        context,
+        environmentPath,
+        identity.database,
+        `SELECT count(*) FROM "User" WHERE "id" IN ('${AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.userId}', '${AUTH_ACCEPTANCE_FIXTURES.passwordSetup.userId}', '${AUTH_ACCEPTANCE_FIXTURES.mfa.userId}') AND "isActive" = true`
+      )
+    ),
     collaborationTaskCount: Number(
-      postgresExec(context, environmentPath, collaboration.database, 'SELECT count(*) FROM "CollaborationTask"')
+      postgresExec(
+        context,
+        environmentPath,
+        collaboration.database,
+        'SELECT count(*) FROM "CollaborationTask"'
+      )
     ),
     collaborationTaskDigest: digest(
       collaboration.database,
       `SELECT COALESCE(jsonb_agg(to_jsonb(t) ORDER BY t."id")::text, '[]') FROM "CollaborationTask" t WHERE t."id"::text LIKE '10000000-0000-4000-8000-%'`
     ),
     permissionCount: Number(
-      postgresExec(context, environmentPath, permission.database, 'SELECT count(*) FROM "Permission"')
+      postgresExec(
+        context,
+        environmentPath,
+        permission.database,
+        'SELECT count(*) FROM "Permission"'
+      )
     ),
     permissionDigest: digest(
       permission.database,
       `SELECT COALESCE(jsonb_agg(to_jsonb(t) - 'createdAt' - 'updatedAt' ORDER BY t."id")::text, '[]') FROM "Permission" t`
     ),
-    roleCount: Number(postgresExec(context, environmentPath, permission.database, 'SELECT count(*) FROM "Role"')),
+    roleCount: Number(
+      postgresExec(context, environmentPath, permission.database, 'SELECT count(*) FROM "Role"')
+    ),
     roleDigest: digest(
       permission.database,
       `SELECT COALESCE(jsonb_agg(to_jsonb(t) - 'createdAt' - 'updatedAt' ORDER BY t."id")::text, '[]') FROM "Role" t`
@@ -1090,34 +1149,100 @@ function seedSnapshot(context, environmentPath) {
   }
 }
 
+/** Verifies the ordinary seed produced every dedicated tenant-web auth acceptance state. */
+export function assertTenantWebAuthSeedSnapshot(snapshot) {
+  const expected = {
+    authAcceptanceRecoveryGrantCount: 0,
+    authAcceptanceRecoveryLoginMethodCount: 2,
+    authAcceptanceMfaBindingCount: 1,
+    authAcceptancePasswordSetupCount: 1,
+    identityAuthAcceptanceUserCount: 3
+  }
+  for (const [field, value] of Object.entries(expected)) {
+    if (snapshot[field] !== value) {
+      throw new Error(
+        `TENANT_WEB_AUTH_SEED_INCOMPLETE field=${field} expected=${value} actual=${snapshot[field]}`
+      )
+    }
+  }
+}
+
+/** Builds the ordered, explicit command plan for all repository-owned database seeds. */
+export function buildDatabaseSeedCommands(context, port, environment = process.env) {
+  const permission = context.services.find((service) => service.name === 'permission-service')
+  const collaboration = context.services.find((service) => service.name === 'collaboration-service')
+  if (!permission || !collaboration) throw new Error('SEED_SERVICE_INVENTORY_INCOMPLETE')
+
+  return [
+    {
+      command: 'pnpm',
+      args: ['generated:all'],
+      environment,
+      cwd: context.repositoryRoot
+    },
+    {
+      command: 'pnpm',
+      args: ['common:build'],
+      environment,
+      cwd: context.repositoryRoot
+    },
+    {
+      command: 'pnpm',
+      args: ['--filter', 'permission-service', 'seed:apply', '--', '--apply'],
+      environment: { ...environment, DATABASE_URL: postgresUrl(context, permission, port) },
+      cwd: context.repositoryRoot
+    },
+    {
+      command: 'pnpm',
+      args: ['--filter', 'collaboration-service', 'seed:p1'],
+      environment: {
+        ...environment,
+        COLLABORATION_DATABASE_URL: postgresUrl(context, collaboration, port),
+        DATABASE_URL: postgresUrl(context, collaboration, port)
+      },
+      cwd: context.repositoryRoot
+    },
+    {
+      command: 'node',
+      args: ['scripts/local/seed-tenant-web-auth-test-data.mjs'],
+      environment: buildTenantWebAuthSeedEnvironment(context, port, environment),
+      cwd: context.repositoryRoot
+    }
+  ]
+}
+
+/** Executes seed commands serially so the first failure prevents later commands and state writes. */
+export function executeDatabaseSeedCommands(commands, runner = run) {
+  for (const command of commands) {
+    runner(command.command, command.args, {
+      cwd: command.cwd,
+      env: command.environment
+    })
+  }
+}
+
 function seed(context, environmentPath) {
   const state = readState(context)
   assertRollbackBinding(context, state)
   const port = state.postgresPort ?? postgresPort(context, environmentPath)
-  const permission = context.services.find((service) => service.name === 'permission-service')
-  const collaboration = context.services.find((service) => service.name === 'collaboration-service')
-  run('pnpm', ['generated:all'], { cwd: context.repositoryRoot })
-  run('pnpm', ['common:build'], { cwd: context.repositoryRoot })
-  run('pnpm', ['--filter', 'permission-service', 'seed:apply', '--', '--apply'], {
-    cwd: context.repositoryRoot,
-    env: { ...process.env, DATABASE_URL: postgresUrl(context, permission, port) }
-  })
-  run('pnpm', ['--filter', 'collaboration-service', 'seed:p1'], {
-    cwd: context.repositoryRoot,
-    env: {
-      ...process.env,
-      COLLABORATION_DATABASE_URL: postgresUrl(context, collaboration, port),
-      DATABASE_URL: postgresUrl(context, collaboration, port)
-    }
-  })
+  executeDatabaseSeedCommands(buildDatabaseSeedCommands(context, port))
   const snapshot = seedSnapshot(context, environmentPath)
+  assertTenantWebAuthSeedSnapshot(snapshot)
   if (state.seedSnapshot && JSON.stringify(state.seedSnapshot) !== JSON.stringify(snapshot)) {
     throw new Error(
       `SEED_NOT_IDEMPOTENT before=${JSON.stringify(state.seedSnapshot)} after=${JSON.stringify(snapshot)}`
     )
   }
   for (const service of context.services) {
-    const status = ['permission-service', 'collaboration-service'].includes(service.name)
+    const status = [
+      'auth-service',
+      'collaboration-service',
+      'hr-service',
+      'identity-service',
+      'party-service',
+      'permission-service',
+      'tenant-org-service'
+    ].includes(service.name)
       ? 'APPLIED'
       : 'NOT_DECLARED'
     process.stdout.write(`SEED service=${service.name} status=${status}\n`)
