@@ -8,7 +8,7 @@ worktreeKey: 917a
 pullRequest: https://github.com/imkgsam/oes/pull/55
 mergeSha: pending
 cleanup: HOLD
-state: CANDIDATE_READY
+state: ACCEPTED
 
 ## Objective
 
@@ -20,16 +20,16 @@ SYSTEM session stays tenantless while TENANT preserves one exact tenant.
 
 ### scope-aware-human-obo
 
-state: CANDIDATE_READY
+state: ACCEPTED
 candidate: b12769942e87098cf71a758ddccc2206aa8f5ed0
-review: local-ri re-review pending after CI prior-hop HUMAN OBO binding correction
+review: local-ri ACCEPTED exact ca9e4c92fce8d4d23d2f568feed7c12e231fb57f
 
 - Scope: Auth HUMAN OBO subject verifier and signing gate; OBO audit subject-scope attribution;
   Common certificate-bound cache subject-scope separation; focused SYSTEM/TENANT/negative tests.
 - Protected scope: Gateway/Permission wire; Proto/JWT claims; roles, grants, Permission Codes,
   wildcards and fallbacks; PDA semantics; Tenant Session Owner-Fact Hydration candidate/PR #48.
 - Dependencies: canonical Design Merge Commit `a912abb73e64f8065044f5a278d02439c473d171`;
-  runtime replay PASS on exact `84bb3b662adb4b4fdbf651fbde336afea7af4e46`, owned by
+  runtime replay/rebind PASS on exact `ca9e4c92fce8d4d23d2f568feed7c12e231fb57f`, owned by
   `[FL] Full Local Runtime Validation`.
 - Acceptance: the verifier and signer consume the same scope/tenant truth table; audit records the
   derived scope and optional tenant before return; cache keys cannot alias SYSTEM and TENANT; all
