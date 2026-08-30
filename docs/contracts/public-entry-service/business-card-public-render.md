@@ -27,6 +27,7 @@ Rules:
 - `redirectUrl` must not include internal tenant id, employee identity, contact values or sensitive fields.
 - Anonymous public render and vCard download do not call permission-service.
 - Public accessibility is controlled by ShortLink status / expiresAt / resolver plus BusinessCard readiness, card status, employee active status and public-safe render rules.
+- Public Entry 在服务端按 [Public Business Card owner-fact resolution](../../architecture/collaborations/public-business-card-owner-facts.md) 读取三个 target-owned public-safe projections 并组装单一 response；匿名 browser 不直接调用 HR、Identity 或 TenantOrg。
 - Final path is implementation detail for BusinessCard public render contract; examples use `/public/business-cards/{businessCardId}`.
 - Phase 1 does not do WeChat mini program deep routing or complex device/channel routing.
 
@@ -162,6 +163,7 @@ Rules:
 
 - BusinessCard stores configuration and references, not display field truth.
 - Public view may include resolved display values because it is a rendered output.
+- 每个 readiness/render/vCard operation 使用一个 request-private owner-fact aggregate；该 aggregate 不跨 request 持久化，不能成为 HR、Identity 或 TenantOrg 的第二真相。
 - Hidden fields must not appear in public view.
 - Contact values appear only through displayable action outputs.
 - Renderer labels are based on `contactActionType` and locale, not stored labels.
@@ -169,12 +171,12 @@ Rules:
 
 ## 5. Contact Action Render Rules
 
-BusinessCard public render resolves `CONTACT_ASSET` targets through [identity-service query contract](../identity-service/query.md) `ResolveContactActionTargets`.
+BusinessCard public render resolves identity display/binding and `CONTACT_ASSET` targets through [identity-service query contract](../identity-service/query.md) Public Entry-only `ResolvePublicBusinessCardIdentity`; generic `ResolveContactActionTargets` remains a BUSINESS/management compatibility method.
 
 Rules:
 
-- BusinessCard sends only `tenantId / accountId / employeeId / contactActionConfigs[].targetRef` from its resolved internal context.
-- `identity-service` returns `ResolvedContactActionTarget.publicValueSummary` for renderable Contact Asset targets.
+- BusinessCard sends only card-derived `tenantId / employeeId / contactActionConfigs[].targetRef`; Identity resolves and verifies the account/binding inside its owner boundary.
+- `identity-service` returns its minimum public display projection plus `ResolvedContactActionTarget.publicValueSummary` for renderable Contact Asset targets.
 - BusinessCard must not store Contact Asset value snapshots after resolution.
 - Anonymous public responses must omit `hiddenReason`; admin readiness diagnostics may consume normalized hidden reasons.
 
@@ -263,8 +265,26 @@ Rules:
 | tenant mismatch | generic unavailable |
 | optional Contact Asset unavailable | hide action |
 | vCard cannot include optional contact | omit optional contact |
+| owner resolver trust/dependency or required owner fact unavailable | generic unavailable |
+| supplied employee/account/org selector owner mismatch | generic unavailable |
 
 Rules:
 
 - Public render should not leak stack traces or internal reason codes.
 - Public render may log diagnostics with trace id.
+
+## 9. Owner-Fact Projection And Readiness
+
+Public Entry loads its BusinessCard first, then composes the exact owner projections:
+
+| Owner | Dedicated resolver | Required result | Optional result |
+| --- | --- | --- | --- |
+| HR | `ResolvePublicBusinessCardEmployee` | active employee + unique current active employment | position, org reference, official photo URL |
+| Identity | `ResolvePublicBusinessCardIdentity` | enabled same-tenant account/binding + nonblank display name | per-ref public-safe contact target |
+| TenantOrg | `ResolvePublicBusinessCardOrganization` | active tenant + nonblank company display name | website, department display when an org ref exists |
+
+Public Entry uses a tenantless SYSTEM MACHINE direct root and exact workload -> audience -> INTERNAL Code issuance for each resolver. Card-derived `tenant_id` is only a target owner lookup selector. The resolver contracts do not grant tenant authority, and Public Entry receives no tenant role or existing BUSINESS read grant.
+
+Required resolver unavailable, inactive owner fact, malformed relation or tenant mismatch keeps the existing generic unavailable behavior. Missing optional position/photo/website/contact, or an absent org reference, only omits that field/action. A non-empty org reference that TenantOrg proves missing, inactive or cross-tenant is an owner-integrity failure and therefore generic unavailable.
+
+Phase 1 performs request-time composition and does not persist owner projection snapshots. Cache/event invalidation/materialized view remains a separately designed optimization.
