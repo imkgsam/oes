@@ -636,6 +636,99 @@ describe('tenant-web auth store logout', () => {
     expect(replaceMock).toHaveBeenCalledWith({ name: 'Login' })
   })
 
+  it.each([401, 409])(
+    'preserves pending selection and propagates an unknown %s response',
+    async (status) => {
+      const conflict = {
+        response: {
+          data: {
+            code: 'UNRELATED_SELECTION_CONFLICT'
+          },
+          status
+        }
+      }
+      selectAccountApiMock.mockRejectedValue(conflict)
+
+      const { useAuthStore } = await import('./auth')
+      const store = useAuthStore()
+      store.accountSelectionOptions = [
+        {
+          accountId: 'account-1',
+          displayName: 'Tenant Admin',
+          scopeLevel: 'TENANT',
+          tenantId: 'tenant-1',
+          tenantName: 'Tenant 1'
+        }
+      ]
+      store.pendingUserId = 'user-1'
+      store.pendingLoginMethod = 'EMAIL_PASSWORD'
+
+      await expect(store.submitAccountSelection('account-1')).rejects.toBe(
+        conflict
+      )
+
+      expect(store.hasPendingAccountSelection).toBe(true)
+      expect(replaceMock).not.toHaveBeenCalledWith({ name: 'Login' })
+    }
+  )
+
+  it('propagates post-selection session hydration conflicts without reclassifying them as stale selection', async () => {
+    const hydrationConflict = {
+      response: {
+        data: {
+          code: 'SESSION_CONTEXT_CONFLICT'
+        },
+        status: 409
+      }
+    }
+    selectAccountApiMock.mockResolvedValue({
+      operator: {
+        accountId: 'account-1',
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1',
+        userId: 'user-1'
+      },
+      session: {
+        accessToken: 'new-access-token',
+        expiresIn: 3600,
+        refreshToken: 'new-refresh-token'
+      },
+      status: 'SUCCESS'
+    })
+    getSessionContextApiMock.mockRejectedValue(hydrationConflict)
+    getSessionAccessSummaryApiMock.mockResolvedValue({
+      actionCodes: [],
+      roles: []
+    })
+
+    const { useAuthStore } = await import('./auth')
+    const store = useAuthStore()
+    store.accountSelectionOptions = [
+      {
+        accountId: 'account-1',
+        displayName: 'Tenant Admin',
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1',
+        tenantName: 'Tenant 1'
+      }
+    ]
+    store.pendingUserId = 'user-1'
+    store.pendingLoginMethod = 'EMAIL_PASSWORD'
+
+    await expect(store.submitAccountSelection('account-1')).rejects.toBe(
+      hydrationConflict
+    )
+
+    expect(accessStoreMock.setAccessToken).toHaveBeenCalledWith(
+      'new-access-token'
+    )
+    expect(accessStoreMock.setRefreshToken).toHaveBeenCalledWith(
+      'new-refresh-token'
+    )
+    expect(store.hasPendingAccountSelection).toBe(true)
+    expect(replaceMock).not.toHaveBeenCalledWith({ name: 'Login' })
+  })
+
   it('redirects to the dedicated unavailable-mfa page when account selection hits no usable MFA factor', async () => {
     selectAccountApiMock.mockRejectedValue({
       response: {

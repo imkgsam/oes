@@ -383,12 +383,23 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       loginLoading.value = true;
       authBlockReason.value = null;
-      const result = await selectAccountApi({
-        accountId,
-        device: resolveAuthDeviceHints(),
-        loginMethod: pendingLoginMethod.value,
-        userId: pendingUserId.value,
-      });
+      let result: AuthApi.LoginResult;
+      try {
+        result = await selectAccountApi({
+          accountId,
+          device: resolveAuthDeviceHints(),
+          loginMethod: pendingLoginMethod.value,
+          userId: pendingUserId.value,
+        });
+      } catch (error) {
+        if (await handleUnavailableMfaFactorError(error)) {
+          return { userInfo: null };
+        }
+        if (await handleStaleAccountSelectionError(error)) {
+          return { userInfo: null };
+        }
+        throw error;
+      }
 
       if (result.status !== 'SUCCESS' || !result.session) {
         await handleIntermediateLoginState(result, {
@@ -404,14 +415,6 @@ export const useAuthStore = defineStore('auth', () => {
         pendingIdentifier.value,
       );
       return { userInfo };
-    } catch (error) {
-      if (await handleUnavailableMfaFactorError(error)) {
-        return { userInfo: null };
-      }
-      if (await handleStaleAccountSelectionError(error)) {
-        return { userInfo: null };
-      }
-      throw error;
     } finally {
       loginLoading.value = false;
     }
@@ -808,7 +811,6 @@ export const useAuthStore = defineStore('auth', () => {
   async function handleStaleAccountSelectionError(error: any) {
     const responseData = error?.response?.data ?? error ?? {};
     const code = `${responseData?.code ?? ''}`;
-    const status = Number(error?.response?.status ?? 0);
     const staleCodes = new Set([
       'AUTH_ACCOUNT_DISABLED',
       'AUTH_ACCOUNT_NOT_FOUND',
@@ -817,7 +819,7 @@ export const useAuthStore = defineStore('auth', () => {
       'AUTH_TENANT_NOT_ACTIVE',
     ]);
 
-    if (!staleCodes.has(code) && status !== 401 && status !== 409) {
+    if (!staleCodes.has(code)) {
       return false;
     }
 
