@@ -6,6 +6,7 @@
       "urn:oes:service:identity-service",
       "urn:oes:service:item-master-service",
       "urn:oes:service:permission-service",
+      "urn:oes:service:public-entry-service",
       "urn:oes:service:terminal-device-service"
     ]
   },
@@ -25,6 +26,15 @@
       "urn:oes:service:collaboration-service",
       "urn:oes:service:identity-service",
       "urn:oes:service:permission-service"
+    ]
+  },
+  {
+    "spiffeId": "spiffe://local.oes.internal/ns/oes/sa/public-entry-service",
+    "audiences": [
+      "urn:oes:service:hr-service",
+      "urn:oes:service:identity-service",
+      "urn:oes:service:permission-service",
+      "urn:oes:service:tenant-org-service"
     ]
   }
 ]

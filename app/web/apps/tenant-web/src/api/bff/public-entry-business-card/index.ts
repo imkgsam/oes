@@ -210,7 +210,6 @@ export function renderPublicBusinessCardApi(businessCardId: string) {
   return fetch(`/public-entry/public/business-cards/${businessCardId}`, {
     headers: { Accept: 'application/json' }
   }).then(async (response) => {
-    if (!response.ok) return { state: 'PUBLIC_CARD_UNAVAILABLE' as const }
     const contentType = response.headers.get('content-type') ?? ''
     if (!contentType.includes('application/json')) {
       return { state: 'PUBLIC_CARD_UNAVAILABLE' as const }
@@ -223,10 +222,82 @@ export function renderPublicBusinessCardApi(businessCardId: string) {
 function normalizePublicRenderResponse(payload: unknown): PublicEntryBusinessCardApi.PublicRenderResult {
   const envelope = payload as PublicEntryBusinessCardApi.PublicRenderEnvelope
   const result = envelope.data ?? (payload as PublicEntryBusinessCardApi.PublicRenderResult)
-  if (result?.state === 'AVAILABLE' || result?.state === 'PUBLIC_CARD_NOT_FOUND' || result?.state === 'PUBLIC_CARD_UNAVAILABLE') {
-    return result
+  if (result?.state === 'PUBLIC_CARD_NOT_FOUND' || result?.state === 'PUBLIC_CARD_UNAVAILABLE') {
+    return { state: result.state }
+  }
+  if (result?.state === 'AVAILABLE') {
+    const view = normalizePublicView(result.view)
+    return view ? { state: 'AVAILABLE', view } : { state: 'PUBLIC_CARD_UNAVAILABLE' }
   }
   return { state: 'PUBLIC_CARD_UNAVAILABLE' }
+}
+
+// normalizePublicView copies only anonymous contract fields and drops any management or upstream source fields.
+function normalizePublicView(value: unknown): PublicEntryBusinessCardApi.PublicView | undefined {
+  if (!isRecord(value) || !isRecord(value.person) || !isRecord(value.company)) return undefined
+  const businessCardId = requiredString(value.businessCardId)
+  const templateKey = requiredString(value.templateKey)
+  const displayName = requiredString(value.person.displayName)
+  const companyDisplayName = requiredString(value.company.companyDisplayName)
+  if (!businessCardId || !templateKey || !displayName || !companyDisplayName) return undefined
+
+  return {
+    businessCardId,
+    templateKey,
+    person: {
+      displayName,
+      ...optionalStringField('englishName', value.person.englishName),
+      ...optionalStringField('title', value.person.title),
+      ...optionalStringField('department', value.person.department),
+      ...optionalStringField('officialPhotoUrl', value.person.officialPhotoUrl)
+    },
+    company: {
+      companyDisplayName,
+      ...optionalStringField('logoUrl', value.company.logoUrl),
+      ...optionalStringField('websiteUrl', value.company.websiteUrl)
+    },
+    contactActions: Array.isArray(value.contactActions)
+      ? value.contactActions.flatMap(normalizePublicAction)
+      : [],
+    ...optionalStringField('publicUrl', value.publicUrl)
+  }
+}
+
+// normalizePublicAction admits only supported action types and display fields from the public contract.
+function normalizePublicAction(value: unknown): PublicEntryBusinessCardApi.PublicView['contactActions'] {
+  if (!isRecord(value)) return []
+  const contactActionType = value.contactActionType
+  const displayOrder = value.displayOrder
+  if (!PUBLIC_ACTION_TYPES.has(contactActionType as PublicEntryBusinessCardApi.ActionType)
+    || typeof displayOrder !== 'number'
+    || !Number.isFinite(displayOrder)) return []
+  return [{
+    contactActionType: contactActionType as PublicEntryBusinessCardApi.ActionType,
+    displayOrder,
+    ...optionalStringField('displayValue', value.displayValue),
+    ...optionalStringField('actionUrl', value.actionUrl)
+  }]
+}
+
+const PUBLIC_ACTION_TYPES = new Set<PublicEntryBusinessCardApi.ActionType>([
+  'ADD_WECHAT',
+  'CALL_PHONE',
+  'OPEN_COMPANY_WEBSITE',
+  'OPEN_WHATSAPP',
+  'SAVE_VCARD',
+  'SEND_EMAIL'
+])
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function requiredString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value : undefined
+}
+
+function optionalStringField<Key extends string>(key: Key, value: unknown): Partial<Record<Key, string>> {
+  return typeof value === 'string' && value.trim() ? { [key]: value } as Record<Key, string> : {}
 }
 
 // resolveBusinessCardVCardUrl returns the anonymous vCard download path.

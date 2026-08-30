@@ -95,24 +95,61 @@ describe('tenant-web public entry business card api', () => {
       headers: { get: () => 'application/json; charset=utf-8' },
       json: async () => ({
         code: 'SYS_000000',
-        data: { state: 'AVAILABLE', view: { businessCardId: 'card_001' } },
+        data: {
+          state: 'AVAILABLE',
+          view: {
+            businessCardId: 'card_001',
+            company: { companyDisplayName: 'OES Manufacturing', privateRegistrationId: 'hidden' },
+            contactActions: [{
+              actionUrl: 'mailto:public@example.com',
+              contactActionType: 'SEND_EMAIL',
+              displayOrder: 10,
+              sourceCredential: 'hidden'
+            }],
+            draftNotes: 'hidden',
+            person: { accountAvatarUrl: 'hidden', displayName: 'Alex Chen' },
+            publicUrl: 'https://go.oes.local/c/ABC1234',
+            templateKey: 'TENANT_STANDARD',
+            tenantId: 'hidden'
+          }
+        },
         message: 'Success'
       }),
       ok: true
     })
     await expect(renderPublicBusinessCardApi('card_001')).resolves.toEqual({
       state: 'AVAILABLE',
-      view: { businessCardId: 'card_001' }
+      view: {
+        businessCardId: 'card_001',
+        company: { companyDisplayName: 'OES Manufacturing' },
+        contactActions: [{
+          actionUrl: 'mailto:public@example.com',
+          contactActionType: 'SEND_EMAIL',
+          displayOrder: 10
+        }],
+        person: { displayName: 'Alex Chen' },
+        publicUrl: 'https://go.oes.local/c/ABC1234',
+        templateKey: 'TENANT_STANDARD'
+      }
     })
 
     fetchMock.mockResolvedValueOnce({
       headers: { get: () => 'application/json; charset=utf-8' },
-      json: async () => ({ state: 'AVAILABLE', view: { businessCardId: 'card_001' } }),
+      json: async () => ({ state: 'PUBLIC_CARD_NOT_FOUND', internalReason: 'tenant mismatch' }),
+      ok: false,
+      status: 404
+    })
+    await expect(renderPublicBusinessCardApi('card_001')).resolves.toEqual({
+      state: 'PUBLIC_CARD_NOT_FOUND'
+    })
+
+    fetchMock.mockResolvedValueOnce({
+      headers: { get: () => 'application/json; charset=utf-8' },
+      json: async () => ({ state: 'PUBLIC_CARD_UNAVAILABLE', reasons: ['CARD_DISABLED'] }),
       ok: true
     })
     await expect(renderPublicBusinessCardApi('card_001')).resolves.toEqual({
-      state: 'AVAILABLE',
-      view: { businessCardId: 'card_001' }
+      state: 'PUBLIC_CARD_UNAVAILABLE'
     })
     expect(fetchMock).toHaveBeenCalledWith('/public-entry/public/business-cards/card_001', {
       headers: { Accept: 'application/json' }

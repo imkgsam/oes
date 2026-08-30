@@ -168,15 +168,40 @@ test('projects exact Gateway Web journey HUMAN_OBO targets without wildcard', as
   assert.ok(gateway)
   assert.ok(gateway.audiences.includes('urn:oes:service:identity-service'))
   assert.ok(gateway.audiences.includes('urn:oes:service:collaboration-service'))
+  assert.ok(gateway.audiences.includes('urn:oes:service:public-entry-service'))
   assert.ok(gateway.audiences.includes('urn:oes:service:tenant-org-service'))
   assert.deepEqual(gateway.humanObo?.targetAudiences, [
     'urn:oes:service:identity-service',
     'urn:oes:service:permission-service',
+    'urn:oes:service:public-entry-service',
     'urn:oes:service:collaboration-service',
     'urn:oes:service:tenant-org-service'
   ])
   assert.equal(gateway.humanObo?.selfAudience, 'urn:oes:service:api-gateway')
   assert.ok(gateway.humanObo?.targetAudiences.every((audience) => !audience.includes('*')))
+})
+
+test('projects only the frozen Public Entry ingress and foundation target audiences', async () => {
+  const runtimeAuth = await readProjectedRuntimeAuthPolicies(54350)
+  const gateway = runtimeAuth.find((entry) => entry.spiffeId.endsWith('/api-gateway'))
+  const publicEntry = runtimeAuth.find((entry) => entry.spiffeId.endsWith('/public-entry-service'))
+  const expectedFoundationAudiences = [
+    'urn:oes:service:hr-service',
+    'urn:oes:service:identity-service',
+    'urn:oes:service:permission-service',
+    'urn:oes:service:tenant-org-service'
+  ]
+
+  assert.ok(gateway?.audiences.includes('urn:oes:service:public-entry-service'))
+  assert.equal(gateway?.audiences.includes('urn:oes:service:*'), false)
+  assert.equal(gateway?.audiences.includes('urn:oes:service:notification-service'), false)
+  assert.deepEqual(publicEntry?.audiences, expectedFoundationAudiences)
+  assert.equal(publicEntry?.humanObo?.selfAudience, 'urn:oes:service:public-entry-service')
+  assert.deepEqual(publicEntry?.humanObo?.targetAudiences, expectedFoundationAudiences)
+  assert.ok(publicEntry?.humanObo?.actorMachinePrincipalId)
+  assert.ok(publicEntry?.humanObo?.actorBindingId)
+  assert.ok(publicEntry?.humanObo?.actorBindingVersion)
+  assert.ok(publicEntry?.audiences.every((audience) => !audience.includes('*')))
 })
 
 /** Reads the semantic projected Auth policy instead of coupling tests to source formatting. */

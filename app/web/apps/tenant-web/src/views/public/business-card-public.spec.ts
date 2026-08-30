@@ -13,7 +13,6 @@ const businessCardPublicSource = readFileSync(
 )
 
 const renderPublicBusinessCardApi = vi.fn()
-const routerReplace = vi.fn()
 const routeState = {
   params: {
     businessCardId: 'card_001'
@@ -25,10 +24,7 @@ vi.mock('#/api', () => ({
 }))
 
 vi.mock('vue-router', () => ({
-  useRoute: () => routeState,
-  useRouter: () => ({
-    replace: routerReplace
-  })
+  useRoute: () => routeState
 }))
 
 vi.mock('ant-design-vue', () => ({
@@ -59,7 +55,6 @@ vi.mock('@vben/icons', () => ({
 describe('public BusinessCard page', () => {
   beforeEach(() => {
     renderPublicBusinessCardApi.mockReset()
-    routerReplace.mockReset()
     routeState.params.businessCardId = 'card_001'
   })
 
@@ -67,7 +62,7 @@ describe('public BusinessCard page', () => {
     document.body.innerHTML = ''
   })
 
-  it('redirects unavailable public cards to the 404 fallback', async () => {
+  it('keeps unavailable public cards inside the anonymous public shell', async () => {
     renderPublicBusinessCardApi.mockResolvedValue({ state: 'PUBLIC_CARD_UNAVAILABLE' })
     const view = await import('./business-card-public.vue')
 
@@ -75,14 +70,29 @@ describe('public BusinessCard page', () => {
     await flushPromises()
 
     expect(renderPublicBusinessCardApi).toHaveBeenCalledWith('card_001')
-    expect(routerReplace).toHaveBeenCalledWith({
-      name: 'FallbackNotFound',
-      params: { path: ['404'] }
-    })
-    expect(wrapper.text()).not.toContain('名片暂不可用')
-    expect(wrapper.text()).not.toContain('该公开名片当前无法展示，请稍后再试。')
+    expect(wrapper.find('[data-public-card-state="PUBLIC_CARD_UNAVAILABLE"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('名片暂不可用')
+    expect(wrapper.text()).toContain('该公开名片当前无法展示，请稍后再试。')
     expect(wrapper.text()).not.toContain('EMPLOYEE_NOT_ACTIVE')
     expect(wrapper.text()).not.toContain('CARD_DISABLED')
+    expect(wrapper.html()).not.toContain('/auth/login')
+    expect(wrapper.html()).not.toContain('redirect=')
+  })
+
+  it('renders missing public cards as controlled anonymous not-found state', async () => {
+    renderPublicBusinessCardApi.mockResolvedValue({ state: 'PUBLIC_CARD_NOT_FOUND' })
+    const view = await import('./business-card-public.vue')
+
+    const wrapper = mount(view.default, { attachTo: document.body })
+    await flushPromises()
+
+    expect(wrapper.find('[data-public-card-state="PUBLIC_CARD_NOT_FOUND"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('名片不存在')
+    expect(wrapper.text()).toContain('该公开名片不存在或链接已失效。')
+    expect(wrapper.html()).not.toContain('businessCardId')
+    expect(wrapper.html()).not.toContain('tenantId')
+    expect(wrapper.html()).not.toContain('/auth/login')
+    expect(wrapper.html()).not.toContain('%252F404')
   })
 
   it('renders contract-provided public actions including the vCard href', async () => {
