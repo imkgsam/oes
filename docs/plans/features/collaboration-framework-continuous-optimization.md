@@ -7,11 +7,13 @@ integrationBranch: codex/feature/collaboration-framework-continuous-optimization
 pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
-state: IMPLEMENTING
+state: CANDIDATE_READY
+implementationCandidateAncestor: 6ee286013028171c799b2dcee60d43ffde4ee7d5
+review: exact candidate pending independent Feature RI
 
 ## Status
 
-`IMPLEMENTING`
+`CANDIDATE_READY`
 
 ## Scope
 
@@ -42,3 +44,10 @@ Implement the merged command-contract v8 follow-on cutover without replacing the
 - Focused: collaboration runtime typecheck, unit tests, static invariants, workflow syntax/topology.
 - Affected: repository tooling tests, prepared build, isolated L2 runner and cleanup.
 - Full gate: the exact commands represented by both optimized CI jobs, then independent Feature RI.
+
+## Current verification
+
+- `static-risk`: PASS; prepared build passed, unit matrix passed with 8 packages / 449 suites / 2033 tests, collaboration runtime passed 150/150, and all contract/risk checks passed.
+- `l2-runtime`: PASS; 18 packages / 59 suites / 185 tests, database rollback passed, and task-owned container/volume/network residue is zero.
+- Local-main scenario: PASS; an exact confirmed ff-only update changed only the designated `main`, while a sibling FL worktree retained its original branch and HEAD.
+- CLI smoke: PASS; UD queue output is derived, CI infrastructure failure selects one same-SHA failed-job rerun, and an ineligible local checkout returns `PRESERVE_NO_CARD` without changing HEAD, branch, or status.
