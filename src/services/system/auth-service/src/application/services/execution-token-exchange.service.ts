@@ -24,6 +24,7 @@ export interface TrustedExecutionContext {
   readonly delegationId?: string
   readonly actor?: unknown
   readonly sourceTokenId?: string
+  readonly sourceAudience?: string
   readonly sourceExpiresAt?: number
   readonly requestId?: string
   readonly traceId?: string
@@ -181,19 +182,26 @@ export class ExecutionTokenExchangeService {
     }
     let humanOboScope: HumanOboSubjectScope | undefined
     if (input.execution.sourceTokenId !== undefined) {
+      let expectedActorId: string
       try {
         humanOboScope = requireHumanOboSubjectScope(
           input.execution.scopeLevel,
           input.execution.tenantId
         )
+        expectedActorId = this.registry.resolveHumanOboActor(
+          input.workloadIdentity.spiffeId,
+          input.execution.sourceAudience as string,
+          input.targetAudience
+        ).actorMachinePrincipalId
       } catch {
         throw new Error('execution token HUMAN OBO context is invalid')
       }
       if (
         !isExact(input.execution.sourceTokenId) ||
+        !isExact(input.execution.sourceAudience) ||
         input.execution.principalType !== 'HUMAN' ||
         !isExact(input.execution.sessionId) ||
-        !isDirectSystemMachineActor(input.execution.actor) ||
+        !isDirectSystemMachineActor(input.execution.actor, expectedActorId) ||
         !Number.isInteger(input.execution.sourceExpiresAt) ||
         (input.execution.sourceExpiresAt as number) <= now ||
         !isExact(input.execution.requestId) ||
@@ -203,7 +211,10 @@ export class ExecutionTokenExchangeService {
       ) {
         throw new Error('execution token HUMAN OBO context is invalid')
       }
-    } else if (input.execution.sourceExpiresAt !== undefined) {
+    } else if (
+      input.execution.sourceAudience !== undefined ||
+      input.execution.sourceExpiresAt !== undefined
+    ) {
       throw new Error('execution token HUMAN OBO context is invalid')
     }
     if (input.authorizationDecision.kind === 'SELF_SERVICE' && permissionCodes.length === 0) {
@@ -216,12 +227,12 @@ export class ExecutionTokenExchangeService {
 }
 
 /** Accepts only one direct registry-selected SYSTEM MACHINE actor and no caller-built actor chain. */
-function isDirectSystemMachineActor(actor: unknown): boolean {
+function isDirectSystemMachineActor(actor: unknown, expectedActorId: string): boolean {
   if (!actor || typeof actor !== 'object' || Array.isArray(actor)) return false
   const value = actor as Record<string, unknown>
   return (
     Object.keys(value).length === 3 &&
-    isExact(value.sub) &&
+    value.sub === expectedActorId &&
     value.principal_type === 'MACHINE' &&
     value.scope_level === 'SYSTEM'
   )

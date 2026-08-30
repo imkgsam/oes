@@ -52,6 +52,10 @@ export class ExecutionTokenSubjectCredentialVerifier {
       claims.iss !== this.registry.issuer ||
       claims.principal_type !== 'HUMAN' ||
       typeof claims.aud !== 'string' ||
+      claims.client_id !== workload.spiffeId ||
+      !isCertificateBinding(claims.cnf, workload.certificateThumbprint) ||
+      !isCanonicalPermissionScope(claims.scope) ||
+      claims.scope_level !== undefined ||
       typeof claims.sub !== 'string' ||
       !exact(claims.sub) ||
       typeof claims.session_id !== 'string' ||
@@ -130,6 +134,7 @@ export class ExecutionTokenSubjectCredentialVerifier {
         scope_level: 'SYSTEM'
       }),
       sourceTokenId: claims.jti,
+      sourceAudience: claims.aud,
       sourceExpiresAt: claims.exp as number,
       requestId: trustedCorrelation.requestId,
       traceId: trustedCorrelation.traceId,
@@ -154,6 +159,34 @@ function invalid(): Error {
 /** Accepts only trimmed non-empty strings for authority-bearing subject claims. */
 function exact(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.trim() === value
+}
+
+/** Binds the signed subject credential to the verified current workload certificate only. */
+function isCertificateBinding(value: unknown, expectedThumbprint: string): boolean {
+  if (
+    value === null ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    !/^[A-Za-z0-9_-]{43}$/.test(expectedThumbprint)
+  ) {
+    return false
+  }
+  const entries = Object.entries(value)
+  return (
+    entries.length === 1 && entries[0]?.[0] === 'x5t#S256' && entries[0]?.[1] === expectedThumbprint
+  )
+}
+
+/** Accepts only the canonical sorted set of Permission Codes carried by an Auth-issued subject ET. */
+function isCanonicalPermissionScope(value: unknown): boolean {
+  if (typeof value !== 'string') return false
+  if (value.length === 0) return true
+  const codes = value.split(' ')
+  return (
+    codes.every((code) => /^[a-z][a-z0-9]*(?:[._:-][a-z0-9]+)+$/.test(code)) &&
+    new Set(codes).size === codes.length &&
+    [...codes].sort().join(' ') === value
+  )
 }
 
 /** Preserves only the signed security-version shapes accepted by every ExecutionToken verifier. */

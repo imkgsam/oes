@@ -39,6 +39,33 @@ class FakeExecutionTokenSigningPort implements ExecutionTokenSigningPort {
 const REQUEST_ID = 'request-system-obo-1'
 const TRACE_ID = '4bf92f3577b34da6a3ce929d0e0e4736'
 const SPAN_ID = '00f067aa0ba902b7'
+const GATEWAY_SELF_AUDIENCE = 'urn:oes:service:api-gateway'
+const MES_SELF_AUDIENCE = 'urn:oes:service:mes-service'
+
+/** Builds one immutable registry whose HUMAN OBO selector is independently enforced again at signing. */
+function oboRegistry(input: {
+  spiffeId: string
+  selfAudience: string
+  targetAudience: string
+  actorMachinePrincipalId: string
+}): ExecutionTokenRegistry {
+  return new ExecutionTokenRegistry({
+    issuer: 'https://auth.local.oes.example',
+    workloadPolicies: [
+      {
+        spiffeId: input.spiffeId,
+        audiences: [input.targetAudience],
+        humanObo: {
+          selfAudience: input.selfAudience,
+          actorMachinePrincipalId: input.actorMachinePrincipalId,
+          actorBindingId: `binding-${input.actorMachinePrincipalId}`,
+          actorBindingVersion: '1',
+          targetAudiences: [input.targetAudience]
+        }
+      }
+    ]
+  })
+}
 
 /** Builds the canonical tenantless SYSTEM HUMAN OBO signing input for focused mutation tests. */
 function systemOboInput(): ExchangeExecutionTokenInput {
@@ -61,6 +88,7 @@ function systemOboInput(): ExchangeExecutionTokenInput {
         scope_level: 'SYSTEM'
       },
       sourceTokenId: 'system-subject-jti',
+      sourceAudience: GATEWAY_SELF_AUDIENCE,
       sourceExpiresAt: 1_700_000_420,
       requestId: REQUEST_ID,
       traceId: TRACE_ID,
@@ -89,14 +117,11 @@ describe('ExecutionTokenExchangeService', () => {
     const signer = new FakeExecutionTokenSigningPort()
     const audit = { appendOboLink: jest.fn().mockResolvedValue(undefined) }
     const service = new ExecutionTokenExchangeService(
-      new ExecutionTokenRegistry({
-        issuer: 'https://auth.local.oes.example',
-        workloadPolicies: [
-          {
-            spiffeId: 'spiffe://local.oes/gateway',
-            audiences: ['urn:oes:service:permission-service']
-          }
-        ]
+      oboRegistry({
+        spiffeId: 'spiffe://local.oes/gateway',
+        selfAudience: GATEWAY_SELF_AUDIENCE,
+        targetAudience: 'urn:oes:service:permission-service',
+        actorMachinePrincipalId: 'machine-gateway'
       }),
       signer,
       () => 1_700_000_300,
@@ -160,13 +185,34 @@ describe('ExecutionTokenExchangeService', () => {
       })
     ],
     [
-      'actor mismatch',
+      'actor shape mismatch',
       (input: ExchangeExecutionTokenInput) => ({
         ...input,
         execution: {
           ...input.execution,
           actor: { ...(input.execution.actor as object), tenant_id: 'tenant-1' }
         }
+      })
+    ],
+    [
+      'registry actor identity mismatch',
+      (input: ExchangeExecutionTokenInput) => ({
+        ...input,
+        execution: {
+          ...input.execution,
+          actor: {
+            sub: 'machine-not-registry-selected',
+            principal_type: 'MACHINE',
+            scope_level: 'SYSTEM'
+          }
+        }
+      })
+    ],
+    [
+      'source audience mismatch',
+      (input: ExchangeExecutionTokenInput) => ({
+        ...input,
+        execution: { ...input.execution, sourceAudience: 'urn:oes:service:other-service' }
       })
     ],
     [
@@ -219,14 +265,11 @@ describe('ExecutionTokenExchangeService', () => {
     const signer = new FakeExecutionTokenSigningPort()
     const signSpy = jest.spyOn(signer, 'sign')
     const service = new ExecutionTokenExchangeService(
-      new ExecutionTokenRegistry({
-        issuer: 'https://auth.local.oes.example',
-        workloadPolicies: [
-          {
-            spiffeId: 'spiffe://local.oes/gateway',
-            audiences: ['urn:oes:service:permission-service']
-          }
-        ]
+      oboRegistry({
+        spiffeId: 'spiffe://local.oes/gateway',
+        selfAudience: GATEWAY_SELF_AUDIENCE,
+        targetAudience: 'urn:oes:service:permission-service',
+        actorMachinePrincipalId: 'machine-gateway'
       }),
       signer,
       () => 1_700_000_300,
@@ -427,14 +470,11 @@ describe('ExecutionTokenExchangeService', () => {
     const signer = new FakeExecutionTokenSigningPort()
     const audit = { appendOboLink: jest.fn().mockResolvedValue(undefined) }
     const service = new ExecutionTokenExchangeService(
-      new ExecutionTokenRegistry({
-        issuer: 'https://auth.local.oes.example',
-        workloadPolicies: [
-          {
-            spiffeId: 'spiffe://local.oes/mes-service',
-            audiences: ['urn:oes:service:item-master-service']
-          }
-        ]
+      oboRegistry({
+        spiffeId: 'spiffe://local.oes/mes-service',
+        selfAudience: MES_SELF_AUDIENCE,
+        targetAudience: 'urn:oes:service:item-master-service',
+        actorMachinePrincipalId: 'machine-mes'
       }),
       signer,
       () => 1_700_000_300,
@@ -461,6 +501,7 @@ describe('ExecutionTokenExchangeService', () => {
         sessionTerminal: 'WEB',
         actor,
         sourceTokenId: 'subject-jti',
+        sourceAudience: MES_SELF_AUDIENCE,
         sourceExpiresAt: 1_700_000_420,
         requestId: 'request-tenant-obo-1',
         traceId: TRACE_ID,
@@ -517,14 +558,11 @@ describe('ExecutionTokenExchangeService', () => {
   it('fails closed when OBO audit persistence fails', async () => {
     const signer = new FakeExecutionTokenSigningPort()
     const service = new ExecutionTokenExchangeService(
-      new ExecutionTokenRegistry({
-        issuer: 'https://auth.local.oes.example',
-        workloadPolicies: [
-          {
-            spiffeId: 'spiffe://local.oes/mes-service',
-            audiences: ['urn:oes:service:item-master-service']
-          }
-        ]
+      oboRegistry({
+        spiffeId: 'spiffe://local.oes/mes-service',
+        selfAudience: MES_SELF_AUDIENCE,
+        targetAudience: 'urn:oes:service:item-master-service',
+        actorMachinePrincipalId: 'machine-mes'
       }),
       signer,
       () => 1_700_000_300,
@@ -545,6 +583,7 @@ describe('ExecutionTokenExchangeService', () => {
         sessionId: 'session-1',
         actor: { sub: 'machine-mes', principal_type: 'MACHINE', scope_level: 'SYSTEM' },
         sourceTokenId: 'subject-jti',
+        sourceAudience: MES_SELF_AUDIENCE,
         sourceExpiresAt: 1_700_000_420,
         requestId: 'request-tenant-obo-1',
         traceId: TRACE_ID,
