@@ -8,7 +8,7 @@ worktreeKey: tenant-web-account-selection-pending-context-guard
 pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
-state: CANDIDATE_READY
+state: ACCEPTED
 
 ## Objective
 
@@ -17,7 +17,7 @@ Make `/auth/account-selection` deterministically reject missing, expired, reload
 ## Slices
 
 ### account-selection-route-guard
-state: CANDIDATE_READY
+state: ACCEPTED
 candidate: 266a6723fcd399c793a640d8b90c07a1f80ab5f9
 review: local-ri
 
