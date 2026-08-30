@@ -52,8 +52,10 @@ export class ExecutionTokenSubjectCredentialVerifier {
       claims.iss !== this.registry.issuer ||
       claims.principal_type !== 'HUMAN' ||
       typeof claims.aud !== 'string' ||
-      claims.client_id !== workload.spiffeId ||
-      !isCertificateBinding(claims.cnf, workload.certificateThumbprint) ||
+      !isCanonicalSpiffeId(claims.client_id) ||
+      !isCanonicalSpiffeId(workload.spiffeId) ||
+      !isCertificateBinding(claims.cnf) ||
+      !isThumbprint(workload.certificateThumbprint) ||
       !isCanonicalPermissionScope(claims.scope) ||
       claims.scope_level !== undefined ||
       typeof claims.sub !== 'string' ||
@@ -161,20 +163,42 @@ function exact(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.trim() === value
 }
 
-/** Binds the signed subject credential to the verified current workload certificate only. */
-function isCertificateBinding(value: unknown, expectedThumbprint: string): boolean {
-  if (
-    value === null ||
-    typeof value !== 'object' ||
-    Array.isArray(value) ||
-    !/^[A-Za-z0-9_-]{43}$/.test(expectedThumbprint)
-  ) {
+/** Requires the prior-hop certificate fact already verified by the current service to remain canonical. */
+function isCertificateBinding(value: unknown): boolean {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     return false
   }
   const entries = Object.entries(value)
-  return (
-    entries.length === 1 && entries[0]?.[0] === 'x5t#S256' && entries[0]?.[1] === expectedThumbprint
+  return entries.length === 1 && entries[0]?.[0] === 'x5t#S256' && isThumbprint(entries[0]?.[1])
+}
+
+/** Accepts one exact SPIFFE URI without wildcard or caller-controlled URL extensions. */
+function isCanonicalSpiffeId(value: unknown): value is string {
+  if (
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    value.trim() !== value ||
+    value.includes('*')
   )
+    return false
+  try {
+    const parsed = new URL(value)
+    return (
+      parsed.protocol === 'spiffe:' &&
+      Boolean(parsed.hostname) &&
+      !parsed.username &&
+      !parsed.password &&
+      !parsed.search &&
+      !parsed.hash
+    )
+  } catch {
+    return false
+  }
+}
+
+/** Accepts only one unpadded base64url SHA-256 leaf thumbprint projection. */
+function isThumbprint(value: unknown): value is string {
+  return typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value)
 }
 
 /** Accepts only the canonical sorted set of Permission Codes carried by an Auth-issued subject ET. */

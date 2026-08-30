@@ -164,9 +164,9 @@ describe('ExecutionTokenSubjectCredentialVerifier', () => {
     ['MACHINE subject', { principal_type: 'MACHINE' }],
     ['missing subject', { sub: undefined }],
     ['missing client', { client_id: undefined }],
-    ['wrong client', { client_id: 'spiffe://oes/other-service' }],
+    ['malformed client', { client_id: 'other-service' }],
     ['missing certificate binding', { cnf: undefined }],
-    ['wrong certificate binding', { cnf: { 'x5t#S256': 'B'.repeat(43) } }],
+    ['malformed certificate binding', { cnf: { 'x5t#S256': 'not-a-thumbprint' } }],
     [
       'extended certificate binding',
       { cnf: { 'x5t#S256': WORKLOAD.certificateThumbprint, caller: 'spoofed' } }
@@ -201,6 +201,22 @@ describe('ExecutionTokenSubjectCredentialVerifier', () => {
     const current = fixture(claims)
     await expect(verifySubject(current)).rejects.toThrow('SUBJECT_INVALID')
     expect(current.identity.resolveMachinePrincipalForAuth).not.toHaveBeenCalled()
+  })
+
+  it('preserves a locally verified prior-hop binding while the registry binds the current exchanger actor', async () => {
+    const current = fixture({
+      client_id: 'spiffe://oes/api-gateway',
+      cnf: { 'x5t#S256': 'B'.repeat(43) }
+    })
+
+    await expect(verifySubject(current)).resolves.toMatchObject({
+      subject: 'account-1',
+      sourceAudience: 'urn:oes:service:mes-service',
+      actor: { sub: 'machine-mes', principal_type: 'MACHINE', scope_level: 'SYSTEM' }
+    })
+    expect(current.identity.resolveMachinePrincipalForAuth).toHaveBeenCalledWith(
+      expect.objectContaining({ workloadSpiffeId: WORKLOAD.spiffeId })
+    )
   })
 
   it('rejects a wrong current-service audience before Identity actor resolution', async () => {
