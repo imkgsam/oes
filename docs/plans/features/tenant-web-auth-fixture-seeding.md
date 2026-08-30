@@ -8,7 +8,7 @@ worktreeKey: 9d4f
 pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
-state: CANDIDATE_READY
+state: ACCEPTED
 
 ## Objective
 
@@ -18,9 +18,9 @@ Make the repository-owned tenant-web authentication fixture seeder part of the o
 
 ### task-bound-seed-orchestration
 
-state: CANDIDATE_READY
+state: ACCEPTED
 candidate: 72b9ae7929b471af1f4871888821f119425ea366
-review: feature-ri `01a052d7-1611-7001-8e91-e6d6e70b2fb5` final re-review pending after one additional P2 change on `0d82e12c8e420c2bfa286dad406862ca2654570a`
+review: feature-ri `01a052d7-1611-7001-8e91-e6d6e70b2fb5` accepted exact candidate `56f13d31f4f96468a4801d6891db542ef775c93d`
 
 - Scope: local database lifecycle orchestration, tenant-web authentication seed environment contract, dedicated password-recovery/MFA-required/first-login-password-setup acceptance fixtures, credential-redacted seeder output, focused tooling tests, and current runbook guidance.
 - Protected scope: production or shared databases, legacy Docker projects, non-task-owned containers/volumes/networks, committed credentials, service business contracts, and unrelated seeders.
