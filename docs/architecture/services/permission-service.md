@@ -171,7 +171,7 @@ Permission Service 在既有 `PermissionCheckService` 上提供两个只服务 A
 
 `ResolveWorkloadIssuance` 是 ExecutionToken 发证链路唯一的 bootstrap authorization primitive。调用它不预先要求 ExecutionToken；Permission 必须直接消费平台 mTLS / SPIFFE transport 注入的 `VerifiedWorkloadIdentity`，并只接受环境注册的准确 `auth-service` workload 调用这一准确方法。该 bootstrap trust policy 不是 Permission Code、Role grant、Bearer credential 或通用 mTLS 放行规则，不能被其他 workload、其他 Permission RPC、service-name header、网络位置或 wildcard policy 复用。Auth 提交的原始 caller workload、target audience、tenant / org attribution 与 requested INTERNAL Code 必须来自其已验证 exchange context；Permission 仍独立按 workload -> audience -> Code policy 判定。
 
-对于同步 HUMAN OBO 调用 Item Master 三个 tenant-scoped INTERNAL 资格查询，Permission 仍只判断准确 exchanger workload -> Item Master audience -> exact INTERNAL Code，不提供、推导或背书 HUMAN subject/tenant authority，也不接收 subject bearer。Auth 独立验证当前 HUMAN ET，保持其 subject/tenant，并把 exchanger 记录为目标 Token actor。caller body/local metadata、Permission request echo 或 policy 配置都不能替代 subject credential。
+对于同步 HUMAN OBO，Permission 仍只判断准确 exchanger workload -> target audience -> exact INTERNAL Code，不提供、推导或背书 HUMAN subject scope / tenant authority，也不接收 subject bearer。Auth 独立验证当前 HUMAN ET：signed `tenant_id` 缺席表示 SYSTEM，精确非 wildcard 值表示 TENANT；Auth 保持该 subject pair，并把 exchanger 记录为目标 Token 的 tenantless SYSTEM MACHINE actor。caller body/local metadata、Permission request echo 或 policy 配置都不能替代 subject credential。Permission 的 workload decision 对 SYSTEM 与 TENANT HUMAN subject 使用同一 actor workload policy，不把 SYSTEM 解释成 tenant wildcard，也不要求为固定 actor建立 BUSINESS grant。
 
 `ResolvePrincipalAuthorization` 不是 bootstrap primitive。它必须同时验证直接 `auth-service` mTLS identity、`aud=permission-service` 的 certificate-bound ExecutionToken 与精确 INTERNAL Code `permission.internal.principal_authorization.resolve`。该 Code 只能由 `ResolveWorkloadIssuance` 所有的准确 Auth workload -> Permission audience issuance policy 批准，不能进入 HUMAN / MACHINE role。输入只包含已验证 principal typed reference、scope / tenant / org、target audience、非空 requested BUSINESS Code 集以及适用的 session / delegation / AgentPrincipal / ToolContract reference；不接收 role id、admin flag、caller-computed grant、target RPC id、业务 resource facts 或 domain state。SELF_SERVICE 不调用该判定；目标服务从可信 HUMAN principal 派生 self target。
 
@@ -266,6 +266,7 @@ Access summary 包含：
 - `roles` 只用于展示、诊断或解释当前 operator context。
 - system-scope 账号解析 `SYSTEM_INSTANCE` roles。
 - tenant-scope 账号解析当前 tenant 的 `TENANT_INSTANCE` roles。
+- Gateway / BFF 调用 `GetAccountAccessSummary` 与 `ResolveAccountNavigation` 时使用 exact HUMAN OBO：SYSTEM session 派生 `scopeLevel=SYSTEM` 且省略 tenant，TENANT session 派生 `scopeLevel=TENANT` 且携带同一精确 tenant。request 字段用于选择 owner query，不建立 subject authority；Permission 的 target admission 必须先验证 ExecutionToken 派生的 subject scope / tenant 与这些字段一致。
 - active account-role windows、disabled roles 与 scope 必须参与解析。
 
 黑盒契约见 [permission-service/access-summary.md](../../contracts/permission-service/access-summary.md) 与 [api-gateway/access-summary.md](../../contracts/api-gateway/access-summary.md)。

@@ -18,6 +18,8 @@ OES 需要一个同时覆盖 HUMAN、MACHINE、DELEGATED、多跳、外部 API K
 
 2026-08-26 canonical refresh 确认部署库存缺少首个 MACHINE source input，且 `IssueMachineWorkloadSourceCredential -> ResolveMachinePrincipalForAuth -> Auth foundation MACHINE producer -> IssueMachineWorkloadSourceCredential` 构成语义调用环；因此冻结 current mTLS/SPIFFE + non-secret exact selector + Identity live owner resolution 的 direct MACHINE root。2026-08-27 交付验证进一步证明：root 成功后，Auth 固定 SYSTEM principal 仍会因无 `PrincipalRoleBinding` 而在登录前 `identity.account.list` BUSINESS issuance 被正确拒绝。该 fail-closed 结果是“技术 owner-fact read 被误建模为 principal BUSINESS capability”的独立证据；本 ADR 以 target-owned Auth-only INTERNAL resolver 闭合此缺口，而不为固定 Auth principal 创建登录用业务角色。
 
+2026-08-30 SYSTEM Web journey 验证暴露另一处 contract drift：canonical SYSTEM account/session 正确保持 tenantless，Permission 也正确解析 `SYSTEM_INSTANCE` access summary，但 HUMAN OBO subject contract 仍要求非空 `tenant_id` 并把 verified subject 固定为 `TENANT`，导致后续 target-audience exchange 失败。本 ADR 将 HUMAN OBO 明确为 scope-aware identity propagation：signed exact `tenant_id` 表示 TENANT，claim 完全缺席表示 SYSTEM；不增加 `scope_level` claim、不为 SYSTEM 构造 tenant，也不扩大 actor workload 或业务授权。
+
 ## Decision
 
 ### 1. 分离工作负载身份与执行身份
@@ -55,7 +57,7 @@ Execution Principal 只有三种稳定模式：
 - `requestedPermissionCodes` 仅是最小能力申请，绝不建立授权。Auth 从 Auth/Identity 可验证的 HUMAN、MACHINE、DELEGATED source/owner facts 恢复 execution principal，以 Permission Service `ResolvePrincipalAuthorization` 的独立 decision 形成 BUSINESS 上限，以 `ResolveWorkloadIssuance` 形成 INTERNAL workload→audience→Code 上限；必须全部获准且 subject、actor workload、audience、kind、decision reference 与 `authzVersion` 一致，tenant/org 也必须来自已验证 subject credential 或 Identity owner decision 后才签名。同步 HUMAN OBO 的 INTERNAL decision 只授权 actor workload→audience→Code，既不改变 HUMAN subject，也不提供 tenant authority。caller request、legacy operator roles、Auth 本地 Permission 副本或同源集合比较不能成为上限；依赖失败、部分批准或 mismatch 全部 fail closed。
 - Permission issuance control plane 使用现有 mTLS / SPIFFE workload identity 建立非循环 trust root：`ResolveWorkloadIssuance` 是唯一不预先要求 ExecutionToken 的 bootstrap authorization primitive，只接受环境注册的准确 `auth-service` identity 调用这一准确方法，并独立判断 original verified workload → target audience → INTERNAL Code。该 method policy 不能扩散到其他 Permission RPC、其他 workload 或 wildcard。`ResolvePrincipalAuthorization` 仍要求准确 Auth mTLS identity 加 certificate-bound `aud=permission-service` ExecutionToken 与 exact Code `permission.internal.principal_authorization.resolve`；它只形成 HUMAN/MACHINE/DELEGATED BUSINESS Code 发证上限，不接收 resource/domain facts，SELF_SERVICE 不调用。Permission 不签发 Token，Auth 对任一 denied/partial/mismatch decision 均不签名。
 - source credential 仍只由 Common transport-private runtime 在 mTLS-protected exchange channel 携带：首跳 HUMAN 使用 Auth 可复核的 active session/access credential，多跳使用当前 signed ExecutionToken 并要求其 `aud` 精确对应 verified exchanger workload，API Key root 使用既有 Gateway-only external credential，DELEGATED 使用对应 owner credential/reference。MACHINE root 不再创建第二张 Auth bearer；`ExchangeExecutionToken` 接受当前 mTLS/SPIFFE transport facts 与非秘密 exact Machine selector，Auth 通过 Identity owner resolver 复核 active principal/binding/version 后才建立 MACHINE execution。selector 只选择候选 binding，不提供 subject、tenant、Permission 或 certificate authority。对于 session-bound HUMAN execution，Auth 从同一 active session truth 把单值 `session_id` 与 `session_terminal` 一并签入；目标 RPC 的声明层统一使用非空、去重、不可变的 `sessionTerminals` 精确允许集合，当前 Token 的单值 terminal 必须命中该集合。声明层不得同时或继续提供单值 `sessionTerminal` 字段，所有既有声明一次性迁移为数组；MACHINE Token 不携带 session claim。Token 按 principal/tenant/audience/exact Code set/delegation/session-terminal/security version/`cnf` tuple 缓存和复用，不按 RPC 签发；目标服务继续独占 RPC mode、Code、terminal allowlist 与 resource/domain enforcement，Auth 不维护 target-RPC registry。
-- 同步 HUMAN 多跳采用 OBO：当前服务把它已验证、且 `aud` 精确等于自身的入站 ExecutionToken 作为下一跳唯一 subject credential；Auth 重新验证 Token 与当前 exchanger 的 mTLS/SPIFFE 身份，为目标 audience 签发新 Token。新 Token 保持原 HUMAN `sub/principal_type/tenant/org/session`，用 `act` 记录当前直接 SYSTEM MACHINE actor，并把 `client_id/cnf` 绑定该 actor 的 workload/leaf certificate；`exp` 不晚于 subject Token。OBO 是身份传播，不是第四种 RPC mode；BUSINESS、SELF_SERVICE、INTERNAL 仍描述目标能力与授权规则。没有入站 subject 的 Cron/Robot/worker 继续使用 MACHINE root，不得伪造 HUMAN OBO。
+- 同步 HUMAN 多跳采用 scope-aware OBO：当前服务把它已验证、且 `aud` 精确等于自身的入站 ExecutionToken 作为下一跳唯一 subject credential；Auth 重新验证 Token 与当前 exchanger 的 mTLS/SPIFFE 身份，为目标 audience 签发新 Token。HUMAN subject 的 wire encoding 只有一个规范规则：精确非 wildcard `tenant_id` 存在表示 `TENANT`，claim 完全缺席表示 `SYSTEM`；空值、wildcard、session mismatch 或 caller 补交的 scope / tenant 均拒绝。新 Token 保持原 HUMAN `sub/principal_type`、derived subject scope、适用 tenant/org/session，用 `act` 记录当前 tenantless SYSTEM MACHINE actor，并把 `client_id/cnf` 绑定该 actor 的 workload/leaf certificate；`exp` 不晚于 subject Token。`scope` claim 继续只承载 Permission Code，不增加 `scope_level` claim。OBO 是身份传播，不是第四种 RPC mode；BUSINESS、SELF_SERVICE、INTERNAL 仍描述目标能力与授权规则。没有入站 subject 的 Cron/Robot/worker 继续使用 MACHINE root，不得伪造 HUMAN OBO。
 
 ### 4. 多跳与 cache
 
@@ -63,7 +65,7 @@ Execution Principal 只有三种稳定模式：
 
 调用端可按 subject、principal type、delegation、tenant、org、audience、精确 Permission Code 集、`cnf` 与安全版本建立严格进程内 cache。禁止创建 Redis 或其他跨服务共享 Bearer Token 池。合法 cache 复用由 mTLS + `cnf`、短 TTL、最小 audience、命令幂等与高危 ActionGrant 共同控制风险。
 
-HUMAN OBO cache entry 必须绑定不泄露 bearer 的 current subject-token fingerprint/reference、actor workload、target audience、Code set 与 current leaf；cache hit 仍要求当前 request scope 持有同一 subject credential。不同 subject `jti` 不得共享目标 Token，且 cache expiry 不晚于 subject Token expiry。
+HUMAN OBO cache entry 必须绑定不泄露 bearer 的 current subject-token fingerprint/reference、derived subject scope、optional exact tenant、actor workload、target audience、Code set 与 current leaf；cache hit 仍要求当前 request scope 持有同一 subject credential。SYSTEM 与 TENANT、不同 tenant、不同 subject `jti` 均不得共享目标 Token，且 cache expiry 不晚于 subject Token expiry。
 
 ### 5. API Key 与机器授权 owner
 
@@ -169,6 +171,7 @@ Site Runtime 现有 HMAC、nonce、method/path/body hash 是独立的外部 cred
 - 所有 gRPC 服务最终不再因重复 body tenant/operator 形成 confused-deputy 边界。
 - Permission Code 继续作为 RBAC 与 Token scope 的同一能力词汇，不引入平行授权目录。
 - 登录/会话安全技术事实通过 Auth-only INTERNAL method 与 workload policy 授权；固定 Auth Machine Principal 的身份生命周期与业务角色生命周期不再因登录 prerequisite 而耦合。
+- SYSTEM 与 TENANT HUMAN OBO 共享同一 target-audience wire contract，同时保持平台账号 tenantless、租户账号 exact-tenant 与 actor workload tenantless 三个边界互不混淆。
 
 成本与风险：
 
