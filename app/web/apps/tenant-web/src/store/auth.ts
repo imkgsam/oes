@@ -2,7 +2,7 @@ import type { Recordable, UserInfo } from '@vben/types';
 
 import type { AuthApi } from '#/api';
 
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { LOGIN_PATH } from '@vben/constants';
@@ -66,6 +66,12 @@ export const useAuthStore = defineStore('auth', () => {
   const pendingUserId = ref('');
   const authBlockReason = ref<null | 'MFA_FACTOR_UNAVAILABLE'>(null);
   const requiresPasswordSetup = ref(false);
+  const hasPendingAccountSelection = computed(
+    () =>
+      accountSelectionOptions.value.length > 0
+      && Boolean(pendingUserId.value)
+      && Boolean(pendingLoginMethod.value),
+  );
   let pendingMfaCooldownTimer: null | ReturnType<typeof setInterval> = null;
 
   /**
@@ -402,6 +408,9 @@ export const useAuthStore = defineStore('auth', () => {
       if (await handleUnavailableMfaFactorError(error)) {
         return { userInfo: null };
       }
+      if (await handleStaleAccountSelectionError(error)) {
+        return { userInfo: null };
+      }
       throw error;
     } finally {
       loginLoading.value = false;
@@ -705,6 +714,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     switch (result.status) {
       case 'MFA_REQUIRED': {
+        consumePendingAccountSelection();
         const orderedAvailableFactors = normalizePendingMfaFactors(
           result.challenge?.availableFactors,
         );
@@ -754,7 +764,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function resetPendingAuthFlow(options?: { preserveAuthBlockReason?: boolean }) {
-    accountSelectionOptions.value = [];
+    consumePendingAccountSelection();
     pendingChallengeId.value = '';
     pendingMfaFactor.value = null;
     pendingMfaFactorChallengeId.value = '';
@@ -765,10 +775,15 @@ export const useAuthStore = defineStore('auth', () => {
     stopPendingMfaCooldown();
     pendingIdentifier.value = '';
     pendingLoginMethod.value = null;
-    pendingUserId.value = '';
     if (!options?.preserveAuthBlockReason) {
       authBlockReason.value = null;
     }
+  }
+
+  // Consumes the local selection tuple once the login flow advances past account selection.
+  function consumePendingAccountSelection() {
+    accountSelectionOptions.value = [];
+    pendingUserId.value = '';
   }
 
   async function handleUnavailableMfaFactorError(error: any) {
@@ -787,6 +802,29 @@ export const useAuthStore = defineStore('auth', () => {
     const responseData = error?.response?.data ?? error ?? {};
     const combined = `${responseData?.code ?? ''} ${responseData?.messageKey ?? ''}`;
     return /AUTH_MFA_FACTOR_UNAVAILABLE|auth\.mfa_factor_unavailable/i.test(combined);
+  }
+
+  // Converts a server-rejected stale selection snapshot into one bounded restart while preserving unknown failures.
+  async function handleStaleAccountSelectionError(error: any) {
+    const responseData = error?.response?.data ?? error ?? {};
+    const code = `${responseData?.code ?? ''}`;
+    const status = Number(error?.response?.status ?? 0);
+    const staleCodes = new Set([
+      'AUTH_ACCOUNT_DISABLED',
+      'AUTH_ACCOUNT_NOT_FOUND',
+      'AUTH_ACCOUNT_OWNER_MISMATCH',
+      'AUTH_NO_AVAILABLE_ACCOUNT',
+      'AUTH_TENANT_NOT_ACTIVE',
+    ]);
+
+    if (!staleCodes.has(code) && status !== 401 && status !== 409) {
+      return false;
+    }
+
+    message.warning('账户选择已失效，请重新登录。');
+    resetPendingAuthFlow();
+    await router.replace({ name: 'Login' });
+    return true;
   }
 
   function clearAuthBlockReason() {
@@ -894,6 +932,7 @@ export const useAuthStore = defineStore('auth', () => {
     completeMfa,
     cyclePendingMfaFactor,
     fetchUserInfo,
+    hasPendingAccountSelection,
     loginLoading,
     logout,
     pendingChallengeId,

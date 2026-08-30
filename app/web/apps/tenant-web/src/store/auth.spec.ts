@@ -143,7 +143,8 @@ vi.mock('#/utils/auth-device', () => ({
 vi.mock('ant-design-vue', () => ({
   message: {
     error: vi.fn(),
-    success: vi.fn()
+    success: vi.fn(),
+    warning: vi.fn()
   },
   notification: {
     success: vi.fn(),
@@ -543,6 +544,98 @@ describe('tenant-web auth store logout', () => {
     })
   })
 
+  it('requires the complete option, user, and login-method tuple for pending selection', async () => {
+    const { useAuthStore } = await import('./auth')
+    const store = useAuthStore()
+
+    store.accountSelectionOptions = [
+      {
+        accountId: 'account-1',
+        displayName: 'Tenant Admin',
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1',
+        tenantName: 'Tenant 1'
+      }
+    ]
+    expect(store.hasPendingAccountSelection).toBe(false)
+
+    store.pendingUserId = 'user-1'
+    expect(store.hasPendingAccountSelection).toBe(false)
+
+    store.pendingLoginMethod = 'EMAIL_PASSWORD'
+    expect(store.hasPendingAccountSelection).toBe(true)
+
+    store.resetPendingAuthFlow()
+    expect(store.hasPendingAccountSelection).toBe(false)
+  })
+
+  it('consumes account-selection state when the selected account advances to MFA', async () => {
+    selectAccountApiMock.mockResolvedValue({
+      status: 'MFA_REQUIRED',
+      challenge: {
+        availableFactors: [
+          { label: '认证器 App', priority: 1, type: 'TOTP' }
+        ],
+        challengeId: 'challenge-1',
+        defaultFactor: 'TOTP',
+        scenario: 'LOGIN'
+      }
+    })
+
+    const { useAuthStore } = await import('./auth')
+    const store = useAuthStore()
+    store.accountSelectionOptions = [
+      {
+        accountId: 'account-1',
+        displayName: 'Tenant Admin',
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1',
+        tenantName: 'Tenant 1'
+      }
+    ]
+    store.pendingUserId = 'user-1'
+    store.pendingLoginMethod = 'EMAIL_PASSWORD'
+
+    await store.submitAccountSelection('account-1')
+
+    expect(store.hasPendingAccountSelection).toBe(false)
+    expect(store.pendingChallengeId).toBe('challenge-1')
+    expect(store.pendingLoginMethod).toBe('EMAIL_PASSWORD')
+    expect(pushMock).toHaveBeenCalledWith({ name: 'CompleteMfa' })
+  })
+
+  it('bounds an expired or consumed server selection response to one login restart', async () => {
+    selectAccountApiMock.mockRejectedValue({
+      response: {
+        data: {
+          code: 'AUTH_ACCOUNT_NOT_FOUND'
+        },
+        status: 409
+      }
+    })
+
+    const { useAuthStore } = await import('./auth')
+    const store = useAuthStore()
+    store.accountSelectionOptions = [
+      {
+        accountId: 'account-1',
+        displayName: 'Tenant Admin',
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1',
+        tenantName: 'Tenant 1'
+      }
+    ]
+    store.pendingUserId = 'user-1'
+    store.pendingLoginMethod = 'EMAIL_PASSWORD'
+
+    await expect(store.submitAccountSelection('account-1')).resolves.toEqual({
+      userInfo: null
+    })
+
+    expect(store.hasPendingAccountSelection).toBe(false)
+    expect(replaceMock).toHaveBeenCalledWith({ name: 'Login' })
+  })
+
   it('redirects to the dedicated unavailable-mfa page when account selection hits no usable MFA factor', async () => {
     selectAccountApiMock.mockRejectedValue({
       response: {
@@ -698,6 +791,6 @@ describe('tenant-web auth store logout', () => {
     expect(getSessionAccessSummaryApiMock).not.toHaveBeenCalled()
     expect(accessStoreMock.setAccessCodes).not.toHaveBeenCalled()
     expect(authContextStoreMock.setAuthContext).not.toHaveBeenCalled()
-    expect(store.fetchUserInfo()).resolves.toEqual(userStoreMock.userInfo)
+    await expect(store.fetchUserInfo()).resolves.toEqual(userStoreMock.userInfo)
   })
 })
