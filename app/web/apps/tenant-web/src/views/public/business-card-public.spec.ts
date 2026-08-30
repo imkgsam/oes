@@ -5,6 +5,7 @@ import { resolve } from 'node:path'
 
 import { flushPromises, mount } from '@vue/test-utils'
 import { defineComponent } from 'vue'
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const businessCardPublicSource = readFileSync(

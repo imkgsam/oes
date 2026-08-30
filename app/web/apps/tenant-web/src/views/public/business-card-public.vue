@@ -12,7 +12,7 @@ import { renderPublicBusinessCardApi } from '#/api'
 
 const route = useRoute()
 const loading = ref(false)
-const result = ref<PublicEntryBusinessCardApi.PublicRenderResult | null>(null)
+const result = ref<null | PublicEntryBusinessCardApi.PublicRenderResult>(null)
 const businessCardId = computed(() => String(route.params.businessCardId ?? ''))
 const view = computed(() => result.value?.view)
 const publicState = computed(() => result.value?.state)
@@ -29,9 +29,9 @@ const publicStateContent = computed(() => {
   }
 })
 const sortedActions = computed(() => {
-  return [...(view.value?.contactActions ?? [])]
+  return (view.value?.contactActions ?? [])
     .filter((action) => action.actionUrl || action.contactActionType === 'SAVE_VCARD')
-    .sort((left, right) => (left.displayOrder ?? 0) - (right.displayOrder ?? 0))
+    .toSorted((left, right) => (left.displayOrder ?? 0) - (right.displayOrder ?? 0))
 })
 const publicQrValue = computed(() =>
   view.value?.publicUrl || `/public/business-cards/${businessCardId.value}`

@@ -257,7 +257,7 @@ function normalizePublicView(value: unknown): PublicEntryBusinessCardApi.PublicV
       ...optionalStringField('websiteUrl', value.company.websiteUrl)
     },
     contactActions: Array.isArray(value.contactActions)
-      ? value.contactActions.flatMap(normalizePublicAction)
+      ? value.contactActions.flatMap((action) => normalizePublicAction(action))
       : [],
     ...optionalStringField('publicUrl', value.publicUrl)
   }
