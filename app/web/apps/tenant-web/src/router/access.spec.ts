@@ -787,7 +787,7 @@ describe('router access visible-entry filtering', () => {
     });
     generateAccessibleMock.mockImplementationOnce(async (_mode, input) => {
       return {
-        accessibleMenus: await input.fetchMenuListAsync(),
+        accessibleMenus: input.routes,
         accessibleRoutes: input.routes,
       };
     });
@@ -836,34 +836,11 @@ describe('router access visible-entry filtering', () => {
       pageSize: 100,
       terminal: 'WEB',
     });
-    expect(result.accessibleMenus).toEqual([
-      {
-        children: [
-          {
-            meta: {
-              entryKey: 'admin.permission-management',
-            },
-            name: 'AdminPermissionManagement',
-            path: '/admin/permission-management',
-          },
-        ],
-        name: 'TenantAdminGovernance',
-        path: '/admin',
-      },
-      {
-        children: [
-          {
-            meta: {
-              entryKey: 'tenant-settings.org-structure',
-            },
-            name: 'TenantOrgStructureManagement',
-            path: '/settings/org-structure',
-          },
-        ],
-        name: 'TenantSettings',
-        path: '/settings',
-      },
-    ]);
+    expect(generateAccessibleMock).toHaveBeenCalledWith(
+      'frontend',
+      expect.objectContaining({ routes }),
+    );
+    expect(result.accessibleMenus).toEqual(routes);
     expect(result.accessibleRoutes).toEqual(routes);
   });
 
@@ -886,7 +863,7 @@ describe('router access visible-entry filtering', () => {
         total: 2,
       });
     generateAccessibleMock.mockImplementationOnce(async (_mode, input) => ({
-      accessibleMenus: await input.fetchMenuListAsync(),
+      accessibleMenus: input.routes,
       accessibleRoutes: input.routes,
     }));
 
@@ -928,7 +905,7 @@ describe('router access visible-entry filtering', () => {
       total: 0,
     });
     generateAccessibleMock.mockImplementationOnce(async (_mode, input) => ({
-      accessibleMenus: await input.fetchMenuListAsync(),
+      accessibleMenus: input.routes,
       accessibleRoutes: input.routes,
     }));
 
@@ -981,52 +958,6 @@ describe('router access visible-entry filtering', () => {
         ] as any,
       }),
     ).rejects.toBe(error);
-  });
-
-  it('keeps a local legacy redirect only when its shared entry key is canonical and visible', async () => {
-    authContextStoreMock.visibleEntries = ['public-entry.business-cards'];
-    listNavigationEntriesApiMock.mockResolvedValueOnce({
-      entries: [{ entryKey: 'public-entry.business-cards' }],
-      page: 1,
-      pageSize: 100,
-      total: 1,
-    });
-    generateAccessibleMock.mockImplementationOnce(async (_mode, input) => ({
-      accessibleMenus: await input.fetchMenuListAsync(),
-      accessibleRoutes: input.routes,
-    }));
-
-    const { generateAccess } = await import('./access');
-    const routes = [
-      {
-        meta: { entryKey: 'public-entry.business-cards' },
-        name: 'AdminBusinessCards',
-        path: '/public-entry/business-cards',
-      },
-      {
-        meta: {
-          entryKey: 'public-entry.business-cards',
-          hideInMenu: true,
-        },
-        name: 'AdminBusinessCardsLegacyRedirect',
-        path: '/admin/business-cards',
-        redirect: '/public-entry/business-cards',
-      },
-      {
-        meta: { entryKey: 'unknown.unmapped' },
-        name: 'UnknownLocalRoute',
-        path: '/unknown',
-      },
-    ] as any;
-
-    const result = await generateAccess({
-      roles: ['TENANT_ADMIN'],
-      router: {} as never,
-      routes,
-    });
-
-    expect(result.accessibleMenus).toEqual(routes.slice(0, 2));
-    expect(result.accessibleRoutes).toEqual(routes.slice(0, 2));
   });
 
   it('removes the procurement parent when the procurement entry is not visible', async () => {

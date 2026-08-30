@@ -1,8 +1,4 @@
-import type {
-  ComponentRecordType,
-  GenerateMenuAndRoutesOptions,
-  RouteRecordStringComponent,
-} from '@vben/types';
+import type { GenerateMenuAndRoutesOptions } from '@vben/types';
 
 import { generateAccessible } from '@vben/access';
 import { preferences } from '@vben/preferences';
@@ -10,7 +6,6 @@ import { preferences } from '@vben/preferences';
 import { message } from 'ant-design-vue';
 
 import { listNavigationEntriesApi } from '#/api';
-import { BasicLayout, IFrameView } from '#/layouts';
 import { $t } from '#/locales';
 import { useAuthContextStore } from '#/store';
 
@@ -69,31 +64,6 @@ function filterRoutesByVisibleEntries<T>(
     routes as EntryKeyRouteLike[],
     visibleEntries,
   ) as T[];
-}
-
-// Converts one local Vue route into the string-component shape consumed by backend/mixed route generation.
-function toMenuRouteRecordItem(
-  route: EntryKeyRouteLike,
-): RouteRecordStringComponent {
-  const { children, component, ...rest } = route;
-  const menuRoute = { ...rest } as unknown as RouteRecordStringComponent;
-
-  if (typeof component === 'string') {
-    menuRoute.component = component;
-  }
-
-  if (children && children.length > 0) {
-    menuRoute.children = children.map(toMenuRouteRecordItem);
-  }
-
-  return menuRoute;
-}
-
-// Maps the local Web route tree into menu records without moving route or hierarchy truth to the back end.
-function toMenuRouteRecords(
-  routes: EntryKeyRouteLike[],
-): RouteRecordStringComponent[] {
-  return routes.map(toMenuRouteRecordItem);
 }
 
 // Reads every enabled WEB registry page so pagination cannot silently remove a managed route.
@@ -160,7 +130,6 @@ async function resolveAccessEntryKeys(visibleEntries: string[]) {
 
 // Generates the accessible route tree from local route definitions and BFF navigation visibility.
 async function generateAccess(options: GenerateMenuAndRoutesOptions) {
-  const pageMap: ComponentRecordType = import.meta.glob('../views/**/*.vue');
   const authContextStore = useAuthContextStore();
   const accessEntryKeys = await resolveAccessEntryKeys(
     authContextStore.visibleEntries,
@@ -170,21 +139,12 @@ async function generateAccess(options: GenerateMenuAndRoutesOptions) {
     accessEntryKeys,
   );
 
-  const layoutMap: ComponentRecordType = {
-    BasicLayout,
-    IFrameView,
-  };
-
-  return await generateAccessible(preferences.app.accessMode, {
+  // The Gateway returns registry entry keys rather than Web components; every access mode must retain local route/component truth.
+  return await generateAccessible('frontend', {
     ...options,
     routes: filteredLocalRoutes,
-    fetchMenuListAsync: async () =>
-      toMenuRouteRecords(filteredLocalRoutes as unknown as EntryKeyRouteLike[]),
     // 可以指定没有权限跳转403页面
     forbiddenComponent,
-    // 如果 route.meta.menuVisibleWithForbidden = true
-    layoutMap,
-    pageMap,
   });
 }
 

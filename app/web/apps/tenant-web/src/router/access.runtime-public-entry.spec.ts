@@ -1,28 +1,45 @@
 import { createMemoryHistory, createRouter } from 'vue-router';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const listNavigationEntriesApiMock = vi.fn();
 
 const localStorageMock = {
   getItem: vi.fn(() => null),
   removeItem: vi.fn(),
   setItem: vi.fn(),
 };
+const defaultVisibleEntries = [
+  'workbench.home',
+  'admin.auth-session-management',
+  'admin.role-management',
+  'admin.account-management',
+  'admin.permission-management',
+  'admin.terminal-device-management',
+  'tenant-settings.org-structure',
+  'tenant-settings.employee-employment',
+  'tenant-settings.login-mfa',
+  'master-data.customer-management',
+  'public-entry.business-cards',
+  'public-entry.short-links',
+];
 const authContextStoreMock = {
-  visibleEntries: [
-    'workbench.home',
-    'admin.auth-session-management',
-    'admin.role-management',
-    'admin.account-management',
-    'admin.terminal-device-management',
-    'tenant-settings.org-structure',
-    'tenant-settings.employee-employment',
-    'tenant-settings.login-mfa',
-    'master-data.customer-management',
-    'public-entry.business-cards',
-    'public-entry.short-links',
-  ],
+  visibleEntries: [...defaultVisibleEntries],
+};
+const preferencesMock = {
+  app: {
+    accessMode: 'frontend',
+  },
 };
 
 vi.stubGlobal('localStorage', localStorageMock);
+
+vi.mock('@vben/preferences', () => ({
+  preferences: preferencesMock,
+}));
+
+vi.mock('#/api', () => ({
+  listNavigationEntriesApi: listNavigationEntriesApiMock,
+}));
 
 vi.mock('ant-design-vue', () => ({
   message: {
@@ -45,6 +62,12 @@ vi.mock('#/store', () => ({
 
 // Verifies the real access generator keeps public touchpoint menus on canonical paths while preserving legacy redirects.
 describe('runtime public-entry route generation', () => {
+  beforeEach(() => {
+    authContextStoreMock.visibleEntries = [...defaultVisibleEntries];
+    listNavigationEntriesApiMock.mockReset();
+    preferencesMock.app.accessMode = 'frontend';
+  });
+
   it('registers public-entry routes and legacy redirects from local Web mappings', async () => {
     const { generateAccess } = await import('./access');
     const { accessRoutes, routes } = await import('./routes');
@@ -71,6 +94,15 @@ describe('runtime public-entry route generation', () => {
     ).toBe('AdminBusinessCards');
     expect(router.resolve('/admin/business-cards').matched.at(-1)?.name).toBe(
       'AdminBusinessCardsLegacyRedirect',
+    );
+    const businessCardLegacyRoute = accessRoutes.find(
+      (route) => route.name === 'AdminBusinessCardsLegacyRedirect',
+    );
+    expect(businessCardLegacyRoute?.redirect).toBe(
+      '/settings/employee-employment/business-cards',
+    );
+    expect(businessCardLegacyRoute?.meta?.entryKey).toBe(
+      'tenant-settings.employee-employment',
     );
     expect(
       router.resolve('/public-entry/short-links').matched.at(-1)?.name,
@@ -105,4 +137,50 @@ describe('runtime public-entry route generation', () => {
     expect(serializedRoutes).not.toContain('TenantEmployeeBusinessCards');
     expect(serializedRoutes).not.toContain('AdminBusinessCardsLegacyRedirect');
   });
+
+  it.each(['frontend', 'mixed', 'backend'])(
+    'keeps SYSTEM and TENANT local route components in %s preference mode',
+    async (accessMode) => {
+      preferencesMock.app.accessMode = accessMode;
+      authContextStoreMock.visibleEntries = [
+        'admin.permission-management',
+        'tenant-settings.org-structure',
+      ];
+      listNavigationEntriesApiMock.mockResolvedValue({
+        entries: [
+          { entryKey: 'admin.permission-management' },
+          { entryKey: 'tenant-settings.org-structure' },
+        ],
+        page: 1,
+        pageSize: 100,
+        total: 2,
+      });
+      const { generateAccess } = await import('./access');
+      const { accessRoutes, routes } = await import('./routes');
+      const router = createRouter({
+        history: createMemoryHistory(),
+        routes,
+      });
+
+      const result = await generateAccess({
+        roles: ['system.admin', 'tenant.admin'],
+        router,
+        routes: accessRoutes,
+      });
+      const generatedRoutes = router.getRoutes();
+      const systemRoute = generatedRoutes.find(
+        (route) => route.name === 'AdminPermissionManagement',
+      );
+      const tenantRoute = generatedRoutes.find(
+        (route) => route.name === 'TenantOrgStructureManagement',
+      );
+
+      expect(result.accessibleRoutes.length).toBeGreaterThan(0);
+      expect(systemRoute?.components?.default).toBeTypeOf('function');
+      expect(tenantRoute?.components?.default).toBeTypeOf('function');
+      expect(listNavigationEntriesApiMock).toHaveBeenCalledTimes(
+        accessMode === 'frontend' ? 0 : 1,
+      );
+    },
+  );
 });

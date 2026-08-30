@@ -8,7 +8,7 @@ worktreeKey: a95f
 pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
-state: CANDIDATE_READY
+state: RUNNING
 
 ## Objective
 
@@ -17,8 +17,8 @@ Align the tenant-web navigation registry request with the canonical API Gateway 
 ## Slices
 
 ### navigation-contract-client-and-route-mapping
-state: CANDIDATE_READY
-candidate: c5045ed765e7b7660e2b38751652d6c20709bda3
+state: RUNNING
+candidate: pending
 review: local-ri
 
 - Scope:
@@ -41,6 +41,7 @@ review: local-ri
   - an empty registry list yields no governed menu routes
   - permission denial and service failure remain observable failures and do not expose local routes through a catch-all fallback
   - unknown registry keys and local legacy redirects stay inside the documented compatibility boundary
+  - frontend, mixed, and backend preference modes all keep local lazy route components because the Gateway does not return Web component paths
   - no tenant-web runtime call site references `/menu/all`
 
 ## Request / response mapping truth table
@@ -55,7 +56,7 @@ review: local-ri
 | paginated success | visible | read all pages before mapping, de-duplicate by `entryKey` |
 | `403` permission denial | any | propagate the request failure; do not fall back to local routes |
 | `5xx` or transport failure | any | propagate the request failure; do not fall back to local routes |
-| local legacy redirect sharing an allowed `entryKey` | visible | preserve the local redirect compatibility route |
+| `/admin/business-cards` local legacy redirect | `tenant-settings.employee-employment` visible | preserve the existing redirect to `/settings/employee-employment/business-cards` |
 
 ## Feature acceptance
 
