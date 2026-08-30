@@ -321,12 +321,18 @@ async function runtimePolicyEnvironment() {
     (entry) => entry.spiffeId === 'spiffe://local.oes.internal/ns/oes/sa/public-entry-service'
   )
   if (!publicEntry) throw new Error('TRUSTED_RUNTIME_AUTH_POLICY_MISSING_PUBLIC_ENTRY')
+  const publicEntryHumanOboTargetAudiences = [
+    'urn:oes:service:hr-service',
+    'urn:oes:service:identity-service',
+    'urn:oes:service:permission-service',
+    'urn:oes:service:tenant-org-service'
+  ]
   publicEntry.humanObo = {
     selfAudience: 'urn:oes:service:public-entry-service',
     actorMachinePrincipalId: publicEntrySelector.machinePrincipalId,
     actorBindingId: publicEntrySelector.machineWorkloadBindingId,
     actorBindingVersion: publicEntrySelector.machineWorkloadBindingVersion,
-    targetAudiences: [...publicEntry.audiences]
+    targetAudiences: publicEntryHumanOboTargetAudiences
   }
   return {
     AUTH_EXECUTION_WORKLOAD_POLICIES: JSON.stringify(auth),

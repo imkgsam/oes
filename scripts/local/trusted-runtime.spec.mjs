@@ -185,6 +185,13 @@ test('projects only the frozen Public Entry ingress and foundation target audien
   const runtimeAuth = await readProjectedRuntimeAuthPolicies(54350)
   const gateway = runtimeAuth.find((entry) => entry.spiffeId.endsWith('/api-gateway'))
   const publicEntry = runtimeAuth.find((entry) => entry.spiffeId.endsWith('/public-entry-service'))
+  const expectedWorkloadAudiences = [
+    'urn:oes:service:auth-service',
+    'urn:oes:service:hr-service',
+    'urn:oes:service:identity-service',
+    'urn:oes:service:permission-service',
+    'urn:oes:service:tenant-org-service'
+  ]
   const expectedFoundationAudiences = [
     'urn:oes:service:hr-service',
     'urn:oes:service:identity-service',
@@ -195,9 +202,14 @@ test('projects only the frozen Public Entry ingress and foundation target audien
   assert.ok(gateway?.audiences.includes('urn:oes:service:public-entry-service'))
   assert.equal(gateway?.audiences.includes('urn:oes:service:*'), false)
   assert.equal(gateway?.audiences.includes('urn:oes:service:notification-service'), false)
-  assert.deepEqual(publicEntry?.audiences, expectedFoundationAudiences)
+  assert.deepEqual(publicEntry?.audiences, expectedWorkloadAudiences)
+  assert.ok(publicEntry?.audiences.includes('urn:oes:service:auth-service'))
   assert.equal(publicEntry?.humanObo?.selfAudience, 'urn:oes:service:public-entry-service')
   assert.deepEqual(publicEntry?.humanObo?.targetAudiences, expectedFoundationAudiences)
+  assert.equal(
+    publicEntry?.humanObo?.targetAudiences.includes('urn:oes:service:auth-service'),
+    false
+  )
   assert.ok(publicEntry?.humanObo?.actorMachinePrincipalId)
   assert.ok(publicEntry?.humanObo?.actorBindingId)
   assert.ok(publicEntry?.humanObo?.actorBindingVersion)

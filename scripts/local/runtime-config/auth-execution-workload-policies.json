@@ -31,6 +31,7 @@
   {
     "spiffeId": "spiffe://local.oes.internal/ns/oes/sa/public-entry-service",
     "audiences": [
+      "urn:oes:service:auth-service",
       "urn:oes:service:hr-service",
       "urn:oes:service:identity-service",
       "urn:oes:service:permission-service",
