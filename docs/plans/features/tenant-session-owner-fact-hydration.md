@@ -32,7 +32,9 @@ Repair TENANT Web `GET /auth/session/context` after successful account selection
 - Direct parent: `01a052a5-81d6-7322-a8ba-59b818f8b8fe`
 - Base: `origin/main@0c8adcaf382c09fb56d9790b44a02de783a63ea8`
 - Branch: `codex/tenant-session-owner-fact-hydration`
-- Status: candidate preparation
+- Product candidate: `52d47952ad921bf96b5d76d1d02ea261e3daae30`
+- Draft PR: `#48`
+- Status: independently reviewed and runtime-verified; waiting for Human merge decision
 
 ## Acceptance evidence
 
@@ -41,8 +43,15 @@ Repair TENANT Web `GET /auth/session/context` after successful account selection
 - Owner-fact transport checks: 3/3 passed for exact target audience, Auth runtime binding, INTERNAL resolver, and Code.
 - Auth BFF HTTP integration: 17/17 passed; TENANT session context returned 200 and observed zero `GetTenantById` calls.
 - `api-gateway` and `auth-service` builds passed; both spec typechecks passed after standard Proto/Prisma generation.
+- Independent Feature RI task `01a052cc-cb52-7113-afd7-42db435e443d` returned PASS with no findings for the exact product candidate.
+- Draft PR `#48` Baseline Checks completed successfully; the PR remains Draft and unmerged.
 - Changed-file ESLint is currently blocked before rule execution by the repository configuration combining `project` and `projectService`; this does not affect build, typecheck, or executed tests.
 
-## Runtime regression handoff
+## Runtime regression
 
-The original runtime owner must replay the successful TENANT account-selection flow, then verify `/auth/session/context` and `/auth/session/access-summary` in the task-owned stack and Chrome. It must also exercise tenant mismatch, inactive tenant, and TenantOrg dependency failure, confirming no shell payload is emitted for rejected session continuation.
+- Runtime owner task `01a05265-f658-7331-a403-c23ba803a895` returned PASS for the exact product candidate; verification record SHA-256: `7e93d5252b59f2296a55fa4bbe900ecf76db404e03368880f4211c174c3e981b`.
+- Baseline login/account-selection/context returned `201/201/500`; the candidate returned `201/201/200`, and access-summary returned `200` with 119 actions and 6 roles.
+- The candidate context trace observed zero `GetTenantById` calls and retained `ResolveAuthSessionTenantLifecycle` plus the exact Permission INTERNAL lifecycle evidence.
+- Real Chrome reached `/workbench/home` with TENANT shell, navigation, and account display; no new browser warning or error was emitted.
+- Account-claim and tenant-claim mismatches each returned `401 APP_AUTH_004`; TenantOrg unavailability returned controlled `500 INFRA_INTERNAL_DEPENDENCY_UNAVALABLE`; a suspended tenant returned `412 AUTH_TENANT_NOT_ACTIVE`.
+- Tenant state, services, sessions, token-bearing temporary files, and the main runtime were restored; the recovered context and access-summary both returned `200`.
