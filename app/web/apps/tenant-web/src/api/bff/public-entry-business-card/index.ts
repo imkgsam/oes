@@ -238,8 +238,8 @@ function normalizePublicView(value: unknown): PublicEntryBusinessCardApi.PublicV
   const businessCardId = requiredString(value.businessCardId)
   const templateKey = requiredString(value.templateKey)
   const displayName = requiredString(value.person.displayName)
-  const companyDisplayName = requiredString(value.company.companyDisplayName)
-  if (!businessCardId || !templateKey || !displayName || !companyDisplayName) return undefined
+  const companyDisplayName = stringValue(value.company.companyDisplayName)
+  if (!businessCardId || !templateKey || !displayName || companyDisplayName === undefined) return undefined
 
   return {
     businessCardId,
@@ -294,6 +294,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function requiredString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value : undefined
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined
 }
 
 function optionalStringField<Key extends string>(key: Key, value: unknown): Partial<Record<Key, string>> {

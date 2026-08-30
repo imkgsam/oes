@@ -135,6 +135,31 @@ describe('tenant-web public entry business card api', () => {
 
     fetchMock.mockResolvedValueOnce({
       headers: { get: () => 'application/json; charset=utf-8' },
+      json: async () => ({
+        state: 'AVAILABLE',
+        view: {
+          businessCardId: 'card_hidden_company',
+          company: { companyDisplayName: '' },
+          contactActions: [],
+          person: { displayName: 'Alex Chen' },
+          templateKey: 'TENANT_STANDARD'
+        }
+      }),
+      ok: true
+    })
+    await expect(renderPublicBusinessCardApi('card_hidden_company')).resolves.toEqual({
+      state: 'AVAILABLE',
+      view: {
+        businessCardId: 'card_hidden_company',
+        company: { companyDisplayName: '' },
+        contactActions: [],
+        person: { displayName: 'Alex Chen' },
+        templateKey: 'TENANT_STANDARD'
+      }
+    })
+
+    fetchMock.mockResolvedValueOnce({
+      headers: { get: () => 'application/json; charset=utf-8' },
       json: async () => ({ state: 'PUBLIC_CARD_NOT_FOUND', internalReason: 'tenant mismatch' }),
       ok: false,
       status: 404
