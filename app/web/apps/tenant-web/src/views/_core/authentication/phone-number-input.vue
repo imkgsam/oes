@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useAttrs, watch } from 'vue';
+import { computed, ref, useAttrs, useId, watch } from 'vue';
 
 import { Input, Select } from 'ant-design-vue';
 
@@ -22,6 +22,7 @@ const props = withDefaults(defineProps<Props>(), {
   placeholder: '请输入手机号',
 });
 const attrs = useAttrs();
+const countrySelectId = useId();
 
 const modelValue = defineModel<string>();
 
@@ -103,9 +104,12 @@ function getInputControlAttrs() {
     class="phone-number-input flex w-full items-center rounded-md border border-border bg-background transition-colors focus-within:border-primary"
     role="group"
   >
+    <label :for="countrySelectId" class="sr-only">
+      国家或地区：{{ selectedCountryLabel }}
+    </label>
     <Select
+      :id="countrySelectId"
       :value="countryCode"
-      :aria-label="`国家或地区：${selectedCountryLabel}`"
       :options="countrySelectOptions"
       class="phone-country-select shrink-0"
       option-label-prop="label"

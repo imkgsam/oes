@@ -41,12 +41,17 @@ describe('PhoneNumberInput accessibility', () => {
     });
     const wrapper = mount(harness);
     const group = wrapper.get('.phone-number-input');
+    const countrySelect = wrapper.get('.phone-country-select');
     const input = wrapper.get('.phone-local-input');
     const alert = wrapper.get('#phone-error');
+    const countryLabel = wrapper.get(
+      `label[for="${countrySelect.attributes('id')}"]`,
+    );
 
     expect(group.attributes('role')).toBe('group');
     expect(group.attributes('aria-label')).toBe('请输入手机号');
     expect(group.classes()).toContain('form-valid-error');
+    expect(countryLabel.text()).toBe('国家或地区：China (+86)');
     expect(input.attributes('id')).toBe('phone-field');
     expect(input.attributes('aria-invalid')).toBe('true');
     expect(input.attributes('aria-describedby')).toBe(alert.attributes('id'));
