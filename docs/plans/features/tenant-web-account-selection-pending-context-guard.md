@@ -8,7 +8,7 @@ worktreeKey: tenant-web-account-selection-pending-context-guard
 pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
-state: RUNNING
+state: CANDIDATE_READY
 
 ## Objective
 
@@ -17,8 +17,8 @@ Make `/auth/account-selection` deterministically reject missing, expired, reload
 ## Slices
 
 ### account-selection-route-guard
-state: RUNNING
-candidate: pending
+state: CANDIDATE_READY
+candidate: 266a6723fcd399c793a640d8b90c07a1f80ab5f9
 review: local-ri
 
 - Scope: Tenant Web router/auth-store/account-selection view and focused specifications needed to guard real pending account-selection state at route entry.
