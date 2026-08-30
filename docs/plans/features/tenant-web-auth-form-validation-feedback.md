@@ -5,10 +5,10 @@ truthCommit: 0c8adcaf382c09fb56d9790b44a02de783a63ea8
 baseSha: 0c8adcaf382c09fb56d9790b44a02de783a63ea8
 integrationBranch: codex/tenant-web-auth-form-validation-feedback
 worktreeKey: 0027
-pullRequest: pending
+pullRequest: https://github.com/imkgsam/oes/pull/53
 mergeSha: pending
 cleanup: HOLD
-state: CANDIDATE_READY
+state: ACCEPTED
 
 ## Objective
 
@@ -18,7 +18,7 @@ Close the tenant-web public Login and CodeLogin client-side validation and feedb
 
 ### AUTH-FORM-VALIDATION-FEEDBACK
 
-state: CANDIDATE_READY
+state: ACCEPTED
 candidate: 2611e874fb3ea3fb97534af4be20487e5bf1a810
 review: feature-ri
 
