@@ -1,6 +1,6 @@
 /* @vitest-environment happy-dom */
 
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { defineComponent } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -66,5 +66,48 @@ describe('AuthenticationCodeLogin actions layout', () => {
     expect(actions.exists()).toBe(true)
     expect(actions.findAll('button')).toHaveLength(2)
     expect(actions.classes()).toEqual(expect.arrayContaining(['flex', 'gap-4']))
+  })
+
+  it('does not emit submit when identifier or code validation fails', async () => {
+    formApi.validate.mockResolvedValue({
+      errors: { code: 'authentication.codeTip' },
+      valid: false
+    })
+    formApi.getValues.mockResolvedValue({ code: '', phoneNumber: '' })
+    const onSubmit = vi.fn()
+    const view = await import('./code-login.vue')
+    const wrapper = mount(view.default, {
+      props: {
+        formSchema: [],
+        onSubmit,
+        showBack: false
+      }
+    })
+
+    await wrapper.get('.auth-code-actions button').trigger('click')
+    await flushPromises()
+
+    expect(formApi.validate).toHaveBeenCalledTimes(1)
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('emits current values when identifier and code validation succeeds', async () => {
+    const values = { code: '123456', email: 'user@example.com' }
+    formApi.validate.mockResolvedValue({ errors: {}, valid: true })
+    formApi.getValues.mockResolvedValue(values)
+    const onSubmit = vi.fn()
+    const view = await import('./code-login.vue')
+    const wrapper = mount(view.default, {
+      props: {
+        formSchema: [],
+        onSubmit,
+        showBack: false
+      }
+    })
+
+    await wrapper.get('.auth-code-actions button').trigger('click')
+    await flushPromises()
+
+    expect(onSubmit).toHaveBeenCalledWith(values)
   })
 })

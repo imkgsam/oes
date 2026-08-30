@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { VbenFormSchema } from '@vben/common-ui'
 
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, markRaw, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { AuthenticationLogin, VbenButton, z } from '@vben/common-ui'
@@ -47,7 +47,7 @@ const isPhoneMode = computed(() => loginMode.value === 'phone')
 const formSchema = computed((): VbenFormSchema[] => {
   const phoneSchema: VbenFormSchema[] = [
     {
-      component: PhoneNumberInput,
+      component: markRaw(PhoneNumberInput),
       componentProps: {
         placeholder: '请输入手机号'
       },
@@ -112,9 +112,8 @@ async function handleSubmit(values: Record<string, any>) {
         password: values.password,
         phoneNumber: values.phoneNumber
       })
-      return
     } catch {
-      return
+      // The auth store owns controlled login failure feedback.
     }
     return
   }
@@ -126,7 +125,7 @@ async function handleSubmit(values: Record<string, any>) {
   try {
     await authStore.authLogin(values)
   } catch {
-    return
+    // The auth store owns controlled login failure feedback.
   }
 }
 
