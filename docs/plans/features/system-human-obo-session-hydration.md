@@ -8,7 +8,7 @@ worktreeKey: 917a
 pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
-state: RUNNING
+state: CANDIDATE_READY
 
 ## Objective
 
@@ -20,8 +20,8 @@ SYSTEM session stays tenantless while TENANT preserves one exact tenant.
 
 ### scope-aware-human-obo
 
-state: RUNNING
-candidate: pending
+state: CANDIDATE_READY
+candidate: bb58b282e3eccbb1f30031f9085ff1de1f99febe
 review: local-ri pending
 
 - Scope: Auth HUMAN OBO subject verifier and signing gate; OBO audit subject-scope attribution;
