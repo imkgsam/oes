@@ -62,7 +62,7 @@ RI不成为实现owner；发现缺陷后把精确finding返回artifact owner。
 
 ### 2.9 Portfolio Planner（Planner）
 
-Planner是长期可见的Principal Portfolio Planner / Principal Architect级只读顾问，持续以latest canonical truth、正常可见task、PR/CI、阻塞、Human优先级和可用容量为输入，默认使用Plan mode形成月、周、日三级滚动项目组合建议。
+Planner是长期可见的Principal Portfolio Planner / Principal Architect级只读顾问，持续以latest canonical truth、open `capability-candidate` Issues、正常可见task、PR/CI、阻塞、Human优先级和可用容量为输入，默认使用Plan mode形成月、周、日三级滚动项目组合建议。
 
 Planner不成为work item owner、artifact owner、canonical writer、reviewer、remote owner或全局调度中心；不写设计/代码、不创建branch/worktree/PR、不merge、不cleanup，也不建立task registry、项目状态数据库、watchdog、持续polling或第二真相源。Human选择规划方向只形成新的自然语言工作意图，后续仍由现有Direct、Design、FL或SL入口按本模型确认和执行。
 
@@ -73,6 +73,7 @@ Planner不成为work item owner、artifact owner、canonical writer、reviewer�
 | 真实情况 | 路由 |
 | --- | --- |
 | 只读咨询、比较、状态 | 当前task直接回答 |
+| 只记录尚未设计、尚未实现的能力想法 | cutover后登记一个`capability-candidate` Issue；不创建role task或Git资源 |
 | 跨业务方向、基础能力和时间盒的月/周/日组合规划 | Planner |
 | 小而明确、无稳定语义变化 | Direct |
 | 单次、有界且不修改repository的Docker、数据库、模拟器或本地服务维护 | Direct + `HOST_LOCAL_OPERATION` |
@@ -121,6 +122,16 @@ task identity/Human可见性验收与owner Git资源准备是两个独立判断�
 `REPOSITORY_DELIVERY`仍在worktree创建前验证latest remote main；provisioner必须继承与creator一致的approved network/proxy profile。真实需要remote的创建因profile不一致而失败属于runtime transport defect，不得通过把无关host-local任务强制联网来掩盖。
 
 host-local owner发现必须写repository时，保持host资源和证据不变，停止repository写入并使用既有scope/capability扩大边界重新路由；不得在local task中静默开始Git交付。
+
+### 3.3 能力候选登记
+
+能力候选只表示“值得保留、尚未设计、尚未实现”的项目想法，不是缺陷状态、Design Workspace、Backlog、roadmap承诺或执行授权。cutover完成后，带`capability-candidate` label的open GitHub Issue是唯一intake真相；Human看到的名称统一为“能力候选”。
+
+每个候选使用标题`[Capability] HUMAN_READABLE_CAPABILITY`，正文只保留能力、业务价值/目标、当前问题和`暂不设计、暂不实现`。Console或当前对话只是一键触发入口，不成为owner：Human确认精确候选后，先搜索同名同义的open候选；命中则返回既有链接，未命中才创建一个Issue并返回链接，然后停止。登记不创建Codex task、worktree、branch、Packet、PR或CI。
+
+GitHub不可用时保留本次Human确认的输入并报告阻塞，不写本地影子清单。Planner直接读取open候选，不复制为repository roadmap或第二数据库。候选被取消、判定重复或失效时关闭；Human选择进入Design或Direct时，只有在exact owner task完成创建与接受后才关闭原Issue，避免意图丢失。
+
+本路由在一次性迁移完成前保持inactive：既有`docs/plans/intake.md`继续是唯一可写intake，不并行创建候选Issue。迁移必须在独立Human-confirmed Direct中幂等创建label和全部既有候选、逐项验证唯一链接，并仅在全部成功后通过一个PR删除旧文件及其Index链接；该PR合入且main CI通过后才激活Issue入口。中断或失败时保留旧文件，不形成双写真相。
 
 ## 4. Human可见状态与复杂度预算
 
@@ -433,6 +444,19 @@ canonical merge后按以下顺序恢复：
 2. 常规协同框架
 3. 继续讨论
 ```
+
+#### 14.1.1 能力候选登记
+
+3.3的cutover完成后，Human表达“只记录想法，暂不设计、不实现”时显示：
+
+```text
+记录能力候选：HUMAN_READABLE_CAPABILITY
+1. 创建本卡列明的能力候选（建议）
+2. 继续修改
+3. 暂不记录
+```
+
+选项1只授权幂等查重和创建一个绑定精确标题、正文与`capability-candidate` label的Issue；命中既有候选或创建成功后返回链接并停止。该确认不授权创建role task、Git资源、设计或实现。迁移cutover前不得显示或执行本卡。
 
 ### 14.2 Proposal Preview
 
