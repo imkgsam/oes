@@ -5,7 +5,7 @@ truthCommit: a912abb73e64f8065044f5a278d02439c473d171
 baseSha: a912abb73e64f8065044f5a278d02439c473d171
 integrationBranch: codex/system-human-obo-session-hydration
 worktreeKey: 917a
-pullRequest: pending
+pullRequest: https://github.com/imkgsam/oes/pull/55
 mergeSha: pending
 cleanup: HOLD
 state: ACCEPTED
@@ -22,7 +22,7 @@ SYSTEM session stays tenantless while TENANT preserves one exact tenant.
 
 state: ACCEPTED
 candidate: 5bc49c23e79e811659d28304705bf4e8387adb59
-review: local-ri ACCEPTED exact 84bb3b662adb4b4fdbf651fbde336afea7af4e46
+review: local-ri ACCEPTED exact 7ce6adfa010d7f62237e4265e819683a4151d09f
 
 - Scope: Auth HUMAN OBO subject verifier and signing gate; OBO audit subject-scope attribution;
   Common certificate-bound cache subject-scope separation; focused SYSTEM/TENANT/negative tests.
