@@ -8,7 +8,7 @@ worktreeKey: 0027
 pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
-state: RUNNING
+state: CANDIDATE_READY
 
 ## Objective
 
@@ -18,8 +18,8 @@ Close the tenant-web public Login and CodeLogin client-side validation and feedb
 
 ### AUTH-FORM-VALIDATION-FEEDBACK
 
-state: RUNNING
-candidate: 3652adbcbeb27c9a4db9b14ade4fc245b2290ea3
+state: CANDIDATE_READY
+candidate: 2611e874fb3ea3fb97534af4be20487e5bf1a810
 review: feature-ri
 
 - Scope:
