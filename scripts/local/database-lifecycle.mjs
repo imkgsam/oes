@@ -1069,6 +1069,10 @@ function seedSnapshot(context, environmentPath) {
   const identity = context.services.find((service) => service.name === 'identity-service')
   const permission = context.services.find((service) => service.name === 'permission-service')
   const collaboration = context.services.find((service) => service.name === 'collaboration-service')
+  const mfaSecretDigest = crypto
+    .createHash('md5')
+    .update(AUTH_ACCEPTANCE_FIXTURES.mfa.binding.secret)
+    .digest('hex')
   const digest = (database, sql) =>
     crypto
       .createHash('sha256')
@@ -1091,12 +1095,36 @@ function seedSnapshot(context, environmentPath) {
         `SELECT count(*) FROM "LoginMethod" WHERE "userId" = '${AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.userId}' AND "verified" = true AND "enabled" = true`
       )
     ),
+    authAcceptanceRecoveryEmailMethodCount: Number(
+      postgresExec(
+        context,
+        environmentPath,
+        auth.database,
+        `SELECT count(*) FROM "LoginMethod" WHERE "userId" = '${AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.userId}' AND "type" = 'EMAIL' AND "verified" = true AND "enabled" = true`
+      )
+    ),
+    authAcceptanceRecoveryPhoneMethodCount: Number(
+      postgresExec(
+        context,
+        environmentPath,
+        auth.database,
+        `SELECT count(*) FROM "LoginMethod" WHERE "userId" = '${AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.userId}' AND "type" = 'PHONE' AND "verified" = true AND "enabled" = true`
+      )
+    ),
     authAcceptanceMfaBindingCount: Number(
       postgresExec(
         context,
         environmentPath,
         auth.database,
-        `SELECT count(*) FROM "MfaBinding" WHERE "id" = '${AUTH_ACCEPTANCE_FIXTURES.mfa.binding.id}' AND "userId" = '${AUTH_ACCEPTANCE_FIXTURES.mfa.userId}' AND "enabled" = true`
+        `SELECT count(*) FROM "MfaBinding" WHERE "id" = '${AUTH_ACCEPTANCE_FIXTURES.mfa.binding.id}' AND "userId" = '${AUTH_ACCEPTANCE_FIXTURES.mfa.userId}' AND "type" = 'TOTP' AND "enabled" = true AND md5("secret") = '${mfaSecretDigest}'`
+      )
+    ),
+    authAcceptanceMfaWebPolicyCount: Number(
+      postgresExec(
+        context,
+        environmentPath,
+        auth.database,
+        `SELECT count(*) FROM "TenantTerminalMfaPolicy" WHERE "tenantId" = '${AUTH_ACCEPTANCE_FIXTURES.mfa.tenantId}' AND "terminal" = 'WEB' AND "loginMfaRequired" = true AND "newDeviceMfaRequired" = false AND "allowedFactors" = '["TOTP"]'::jsonb AND "factorPriority" = '["TOTP"]'::jsonb`
       )
     ),
     authAcceptancePasswordSetupCount: Number(
@@ -1104,7 +1132,7 @@ function seedSnapshot(context, environmentPath) {
         context,
         environmentPath,
         auth.database,
-        `SELECT count(*) FROM "PasswordSetupRequirement" WHERE "id" = '${AUTH_ACCEPTANCE_FIXTURES.passwordSetup.requirement.id}' AND "userId" = '${AUTH_ACCEPTANCE_FIXTURES.passwordSetup.userId}' AND "required" = true AND "completedAt" IS NULL`
+        `SELECT count(*) FROM "PasswordSetupRequirement" WHERE "id" = '${AUTH_ACCEPTANCE_FIXTURES.passwordSetup.requirement.id}' AND "userId" = '${AUTH_ACCEPTANCE_FIXTURES.passwordSetup.userId}' AND "reason" = 'FIRST_LOGIN' AND "required" = true AND "completedAt" IS NULL`
       )
     ),
     identityAuthAcceptanceUserCount: Number(
@@ -1154,7 +1182,10 @@ export function assertTenantWebAuthSeedSnapshot(snapshot) {
   const expected = {
     authAcceptanceRecoveryGrantCount: 0,
     authAcceptanceRecoveryLoginMethodCount: 2,
+    authAcceptanceRecoveryEmailMethodCount: 1,
+    authAcceptanceRecoveryPhoneMethodCount: 1,
     authAcceptanceMfaBindingCount: 1,
+    authAcceptanceMfaWebPolicyCount: 1,
     authAcceptancePasswordSetupCount: 1,
     identityAuthAcceptanceUserCount: 3
   }
@@ -1221,17 +1252,35 @@ export function executeDatabaseSeedCommands(commands, runner = run) {
   }
 }
 
+/** Invalidates any older successful seed record before the first seed command can write. */
+export function beginDatabaseSeedState() {
+  return { phase: 'SEEDING', seedSnapshot: null }
+}
+
+/** Records a failed seed without retaining a stale successful snapshot. */
+export function failDatabaseSeedState() {
+  return { phase: 'SEED_FAILED', seedSnapshot: null }
+}
+
 function seed(context, environmentPath) {
   const state = readState(context)
   assertRollbackBinding(context, state)
   const port = state.postgresPort ?? postgresPort(context, environmentPath)
-  executeDatabaseSeedCommands(buildDatabaseSeedCommands(context, port))
-  const snapshot = seedSnapshot(context, environmentPath)
-  assertTenantWebAuthSeedSnapshot(snapshot)
-  if (state.seedSnapshot && JSON.stringify(state.seedSnapshot) !== JSON.stringify(snapshot)) {
-    throw new Error(
-      `SEED_NOT_IDEMPOTENT before=${JSON.stringify(state.seedSnapshot)} after=${JSON.stringify(snapshot)}`
-    )
+  const previousSnapshot = state.seedSnapshot
+  writeState(context, beginDatabaseSeedState())
+  let snapshot
+  try {
+    executeDatabaseSeedCommands(buildDatabaseSeedCommands(context, port))
+    snapshot = seedSnapshot(context, environmentPath)
+    assertTenantWebAuthSeedSnapshot(snapshot)
+    if (previousSnapshot && JSON.stringify(previousSnapshot) !== JSON.stringify(snapshot)) {
+      throw new Error(
+        `SEED_NOT_IDEMPOTENT before=${JSON.stringify(previousSnapshot)} after=${JSON.stringify(snapshot)}`
+      )
+    }
+  } catch (error) {
+    writeState(context, failDatabaseSeedState())
+    throw error
   }
   for (const service of context.services) {
     const status = [
@@ -1276,11 +1325,11 @@ function verify(context, environmentPath) {
       `VERIFY service=${service.name} database=${service.database} migrations=${applied} status=PASS\n`
     )
   }
-  if (state.seedSnapshot) {
-    const current = seedSnapshot(context, environmentPath)
-    if (JSON.stringify(current) !== JSON.stringify(state.seedSnapshot)) {
-      throw new Error('VERIFY_SEED_SNAPSHOT_MISMATCH')
-    }
+  if (!state.seedSnapshot) throw new Error('VERIFY_SEED_SNAPSHOT_MISSING')
+  const current = seedSnapshot(context, environmentPath)
+  assertTenantWebAuthSeedSnapshot(current)
+  if (JSON.stringify(current) !== JSON.stringify(state.seedSnapshot)) {
+    throw new Error('VERIFY_SEED_SNAPSHOT_MISMATCH')
   }
   writeState(context, { phase: 'VERIFIED' })
   process.stdout.write(`DATABASE_VERIFY=PASS databases=${seen.size}\n`)

@@ -22,9 +22,11 @@ pnpm db:seed
 pnpm db:verify
 ```
 
-`pnpm db:seed` is the only supported host entry for repository-owned seeders. It generates clients, builds Common, applies permission and collaboration seeds, and runs the tenant-web auth fixture seeder with six explicit loopback URLs using the current task runtime PostgreSQL port. Direct seeder invocation has no service `.env` fallback and fails before database writes when the task binding is missing, foreign, duplicated, non-loopback, or split across ports.
+`pnpm db:seed` is the only supported host entry for repository-owned seeders. It generates clients, builds Common, applies permission and collaboration seeds, and runs the tenant-web auth fixture seeder with six explicit loopback URLs using the current task runtime PostgreSQL port. The lifecycle also passes the exact environment-key-to-database inventory and runtime port; the seeder validates every URL against that binding before loading a Prisma client. Direct seeder invocation has no service `.env` fallback and fails before database writes when the task binding is missing, foreign, merely contains the task key, duplicated, non-loopback, or uses any other port.
 
 The tenant-web auth seed output contains counts and status only. It does not print login identifiers, passwords, OTPs, TOTP secrets, or database URLs.
+
+Before running the first seed command, the lifecycle replaces any older `SEEDED` or `VERIFIED` record with `SEEDING` and clears its snapshot. A command or snapshot failure records `SEED_FAILED` with no snapshot and exits non-zero; only a complete verified snapshot records `SEEDED`.
 
 ## Replay and acceptance fixtures
 
@@ -35,7 +37,7 @@ pnpm db:seed
 pnpm db:verify
 ```
 
-Replay removes stale managed password-recovery grants and OTPs, MFA bindings, and password-setup requirements before recreating the declared baseline. The lifecycle snapshot rejects missing fixture state and detects non-idempotent results.
+Replay removes stale managed password-recovery grants and OTPs, MFA bindings, and password-setup requirements before recreating the declared baseline. The lifecycle snapshot rejects missing fixture state and detects non-idempotent results. `db:verify` requires a successful seed snapshot and rechecks the exact recovery channel types, TOTP binding fingerprint, Beichen `WEB` policy flags/factor order, and `FIRST_LOGIN` setup reason; semantic drift exits non-zero.
 
 The source of the three dedicated acceptance identities is `scripts/local/tenant-web-auth-test-fixtures.mjs` under `AUTH_ACCEPTANCE_FIXTURES`:
 

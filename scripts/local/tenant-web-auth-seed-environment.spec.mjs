@@ -73,10 +73,16 @@ test('seeder rejects missing, foreign, mixed-port, and duplicate database bindin
   }
   assert.throws(
     () => resolveTenantWebAuthSeedDatabaseUrls(mixedPort),
-    /SEED_DATABASE_PORT_MISMATCH/
+    /SEED_DATABASE_RUNTIME_PORT_MISMATCH/
   )
 
-  const duplicate = { ...valid, [second.envKey]: valid[first.envKey] }
+  const duplicateBinding = JSON.parse(valid.OES_TENANT_WEB_AUTH_SEED_BINDING)
+  duplicateBinding.databases[second.envKey] = duplicateBinding.databases[first.envKey]
+  const duplicate = {
+    ...valid,
+    [second.envKey]: valid[first.envKey],
+    OES_TENANT_WEB_AUTH_SEED_BINDING: JSON.stringify(duplicateBinding)
+  }
   assert.throws(() => resolveTenantWebAuthSeedDatabaseUrls(duplicate), /SEED_DATABASE_DUPLICATE/)
 
   const wrongTask = {
@@ -85,7 +91,32 @@ test('seeder rejects missing, foreign, mixed-port, and duplicate database bindin
   }
   assert.throws(
     () => resolveTenantWebAuthSeedDatabaseUrls(wrongTask),
-    /SEED_DATABASE_TASK_MISMATCH/
+    /SEED_DATABASE_NAME_MISMATCH/
+  )
+})
+
+test('seeder rejects task-key-shaped foreign names and a uniformly wrong runtime port', () => {
+  const valid = buildTenantWebAuthSeedEnvironment(context(), 49123)
+  const foreignNames = { ...valid }
+  for (const [index, { envKey }] of TENANT_WEB_AUTH_DATABASE_BINDINGS.entries()) {
+    const url = new URL(foreignNames[envKey])
+    url.pathname = `/foreign_${taskKey}_unrelated_${index}`
+    foreignNames[envKey] = url.toString()
+  }
+  assert.throws(
+    () => resolveTenantWebAuthSeedDatabaseUrls(foreignNames),
+    /SEED_DATABASE_NAME_MISMATCH/
+  )
+
+  const wrongPort = { ...valid }
+  for (const { envKey } of TENANT_WEB_AUTH_DATABASE_BINDINGS) {
+    const url = new URL(wrongPort[envKey])
+    url.port = '59999'
+    wrongPort[envKey] = url.toString()
+  }
+  assert.throws(
+    () => resolveTenantWebAuthSeedDatabaseUrls(wrongPort),
+    /SEED_DATABASE_RUNTIME_PORT_MISMATCH/
   )
 })
 
@@ -98,4 +129,13 @@ test('seeder error sanitization removes URLs and fixture credential values', () 
   assert.doesNotMatch(message, /fixture_user|fixture_password|123456|totp-value|postgresql:\/\//)
   assert.match(message, /<TASK_DATABASE_URL>/)
   assert.match(message, /<REDACTED>/)
+})
+
+test('seeder error sanitization removes encoded and decoded credential forms', () => {
+  const message = sanitizeTenantWebAuthSeedMessage(
+    'encoded=user%40task%3Aname/pass%2Ftask%25value decoded=user@task:name/pass/task%value',
+    ['user%40task%3Aname', 'pass%2Ftask%25value']
+  )
+
+  assert.doesNotMatch(message, /user(?:%40|@)task|pass(?:%2F|\/)task|%25value|%value/i)
 })

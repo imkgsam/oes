@@ -19,7 +19,9 @@ import {
   databaseLifecycleComposeArgs,
   databaseRollbackComposeArgs,
   buildDatabaseSeedCommands,
+  beginDatabaseSeedState,
   executeDatabaseSeedCommands,
+  failDatabaseSeedState,
   loadBaselineResolvePlan,
   loadDatabaseContext,
   ownerNamedResourceListArgs,
@@ -276,7 +278,10 @@ test('database seed snapshot requires every dedicated auth acceptance fixture', 
   const valid = {
     authAcceptanceRecoveryGrantCount: 0,
     authAcceptanceRecoveryLoginMethodCount: 2,
+    authAcceptanceRecoveryEmailMethodCount: 1,
+    authAcceptanceRecoveryPhoneMethodCount: 1,
     authAcceptanceMfaBindingCount: 1,
+    authAcceptanceMfaWebPolicyCount: 1,
     authAcceptancePasswordSetupCount: 1,
     identityAuthAcceptanceUserCount: 3
   }
@@ -285,6 +290,34 @@ test('database seed snapshot requires every dedicated auth acceptance fixture', 
     () => assertTenantWebAuthSeedSnapshot({ ...valid, authAcceptanceMfaBindingCount: 0 }),
     /TENANT_WEB_AUTH_SEED_INCOMPLETE.*authAcceptanceMfaBindingCount/
   )
+  assert.throws(
+    () => assertTenantWebAuthSeedSnapshot({ ...valid, authAcceptanceMfaWebPolicyCount: 0 }),
+    /TENANT_WEB_AUTH_SEED_INCOMPLETE.*authAcceptanceMfaWebPolicyCount/
+  )
+  assert.throws(
+    () => assertTenantWebAuthSeedSnapshot({ ...valid, authAcceptanceRecoveryPhoneMethodCount: 0 }),
+    /TENANT_WEB_AUTH_SEED_INCOMPLETE.*authAcceptanceRecoveryPhoneMethodCount/
+  )
+})
+
+test('database seed invalidates earlier SEEDED or VERIFIED success before work and on failure', () => {
+  for (const phase of ['SEEDED', 'VERIFIED']) {
+    const earlier = { phase, seedSnapshot: { digest: 'old-success' } }
+    assert.deepEqual(
+      { ...earlier, ...beginDatabaseSeedState() },
+      {
+        phase: 'SEEDING',
+        seedSnapshot: null
+      }
+    )
+    assert.deepEqual(
+      { ...earlier, ...failDatabaseSeedState() },
+      {
+        phase: 'SEED_FAILED',
+        seedSnapshot: null
+      }
+    )
+  }
 })
 
 test('Compose image policy covers main and infra rendered references', () => {
