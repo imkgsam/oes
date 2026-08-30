@@ -3,7 +3,10 @@ import { TerminalLoginFlow } from '@oes/common/auth'
 import { LoginMethodEnum, LoginMethodType } from '@oes/common/constants'
 import { ExceptionDefinition, ExceptionFactory, OESExceptionBase } from '@oes/common/exceptions'
 import { validate } from 'class-validator'
-import { AUTH_INVALID_CREDENTIALS } from '../../../common/constants/exception-enums'
+import {
+  AUTH_INVALID_CREDENTIALS,
+  AUTH_LOGIN_TEMPORARILY_LOCKED
+} from '../../../common/constants/exception-enums'
 import { LoginWithEmailPasswordCommand } from './login-with-email-password.command'
 import { LoginWithEmailPasswordHandler } from './login-with-email-password.handler'
 
@@ -32,10 +35,9 @@ describe('LoginWithEmailPasswordHandler', () => {
     expect(errors).toEqual([])
   })
 
-  it('resolves the user id before recording a failed login audit event for known email identities', async () => {
-    const invalidCredentialsError = ExceptionFactory.domain(AUTH_INVALID_CREDENTIALS)
+  it('uses the Auth-owned login method user id when auditing a known email credential failure', async () => {
     const strategy = {
-      authenticate: jest.fn().mockRejectedValue(invalidCredentialsError)
+      authenticate: jest.fn().mockResolvedValue({ authenticated: false, auditUserId: 'user-1' })
     }
     const authStrategyFactory = {
       get: jest.fn().mockReturnValue(strategy)
@@ -52,8 +54,9 @@ describe('LoginWithEmailPasswordHandler', () => {
     const terminalLoginPolicyService = {
       assertFlowAllowed: jest.fn().mockResolvedValue(undefined)
     }
+    const legacyGetUserByEmail = jest.fn()
     const identityService = {
-      getUserByEmail: jest.fn().mockResolvedValue({ userId: 'user-1' }),
+      getUserByEmail: legacyGetUserByEmail,
       getAvailableAccountsByUserId: jest.fn()
     }
     const handler = new LoginWithEmailPasswordHandler(
@@ -74,13 +77,16 @@ describe('LoginWithEmailPasswordHandler', () => {
           loginFlow: TerminalLoginFlow.Password
         })
       )
-    ).rejects.toBe(invalidCredentialsError)
+    ).rejects.toMatchObject({
+      definition: AUTH_INVALID_CREDENTIALS,
+      additionalDetails: undefined
+    })
 
     expect(loginRiskThrottleService.recordPasswordLoginFailure).toHaveBeenCalledWith(
       LoginMethodType.EMAIL,
       'user@example.com'
     )
-    expect(identityService.getUserByEmail).toHaveBeenCalledWith('user@example.com')
+    expect(legacyGetUserByEmail).not.toHaveBeenCalled()
     expect(authAuditService.emitLoginFailed).toHaveBeenCalledWith(
       'user@example.com',
       'INVALID_CREDENTIALS',
@@ -99,6 +105,96 @@ describe('LoginWithEmailPasswordHandler', () => {
     expect(terminalLoginPolicyService.assertFlowAllowed).toHaveBeenCalledWith(
       'PDA',
       TerminalLoginFlow.Password
+    )
+  })
+
+  it('preserves uniform invalid credentials when the legacy identity email lookup is unavailable', async () => {
+    const legacyIdentityFailure = new Error('legacy identity dependency unavailable')
+    const identityService = {
+      getUserByEmail: jest.fn().mockRejectedValue(legacyIdentityFailure),
+      getAvailableAccountsByUserId: jest.fn()
+    }
+    const handler = new LoginWithEmailPasswordHandler(
+      {
+        get: jest.fn().mockReturnValue({
+          authenticate: jest.fn().mockResolvedValue({ authenticated: false })
+        })
+      } as any,
+      { emitLoginBlocked: jest.fn(), emitLoginFailed: jest.fn() } as any,
+      {
+        assertPasswordLoginAllowed: jest.fn().mockResolvedValue(undefined),
+        recordPasswordLoginFailure: jest.fn().mockResolvedValue(undefined),
+        clearPasswordLoginFailures: jest.fn()
+      } as any,
+      identityService as any,
+      { filterActiveAccountCandidates: jest.fn() } as any,
+      { assertFlowAllowed: jest.fn().mockResolvedValue(undefined) } as any
+    )
+
+    await expect(
+      handler.execute(new LoginWithEmailPasswordCommand('unknown@example.com', 'bad-password'))
+    ).rejects.toMatchObject({
+      definition: AUTH_INVALID_CREDENTIALS,
+      additionalDetails: undefined
+    })
+    expect(identityService.getUserByEmail).not.toHaveBeenCalled()
+  })
+
+  it('fails closed without audit fallback when the Auth-owned credential route is unavailable', async () => {
+    const ownerFailure = new Error('auth credential repository unavailable')
+    const identityService = {
+      getUserByEmail: jest.fn(),
+      getAvailableAccountsByUserId: jest.fn()
+    }
+    const authAuditService = { emitLoginBlocked: jest.fn(), emitLoginFailed: jest.fn() }
+    const loginRiskThrottleService = {
+      assertPasswordLoginAllowed: jest.fn().mockResolvedValue(undefined),
+      recordPasswordLoginFailure: jest.fn(),
+      clearPasswordLoginFailures: jest.fn()
+    }
+    const handler = new LoginWithEmailPasswordHandler(
+      {
+        get: jest.fn().mockReturnValue({ authenticate: jest.fn().mockRejectedValue(ownerFailure) })
+      } as any,
+      authAuditService as any,
+      loginRiskThrottleService as any,
+      identityService as any,
+      { filterActiveAccountCandidates: jest.fn() } as any,
+      { assertFlowAllowed: jest.fn().mockResolvedValue(undefined) } as any
+    )
+
+    await expect(
+      handler.execute(new LoginWithEmailPasswordCommand('user@example.com', 'password'))
+    ).rejects.toBe(ownerFailure)
+    expect(identityService.getUserByEmail).not.toHaveBeenCalled()
+    expect(loginRiskThrottleService.recordPasswordLoginFailure).not.toHaveBeenCalled()
+    expect(authAuditService.emitLoginFailed).not.toHaveBeenCalled()
+  })
+
+  it('keeps the risk lock boundary ahead of the Auth-owned credential lookup', async () => {
+    const lockedError = ExceptionFactory.domain(AUTH_LOGIN_TEMPORARILY_LOCKED)
+    const strategy = { authenticate: jest.fn() }
+    const authAuditService = { emitLoginBlocked: jest.fn(), emitLoginFailed: jest.fn() }
+    const handler = new LoginWithEmailPasswordHandler(
+      { get: jest.fn().mockReturnValue(strategy) } as any,
+      authAuditService as any,
+      {
+        assertPasswordLoginAllowed: jest.fn().mockRejectedValue(lockedError),
+        recordPasswordLoginFailure: jest.fn(),
+        clearPasswordLoginFailures: jest.fn()
+      } as any,
+      { getAvailableAccountsByUserId: jest.fn() } as any,
+      { filterActiveAccountCandidates: jest.fn() } as any,
+      { assertFlowAllowed: jest.fn().mockResolvedValue(undefined) } as any
+    )
+
+    await expect(
+      handler.execute(new LoginWithEmailPasswordCommand('user@example.com', 'password'))
+    ).rejects.toBe(lockedError)
+    expect(strategy.authenticate).not.toHaveBeenCalled()
+    expect(authAuditService.emitLoginBlocked).toHaveBeenCalledWith(
+      'user@example.com',
+      AUTH_LOGIN_TEMPORARILY_LOCKED.code
     )
   })
 
@@ -144,9 +240,8 @@ describe('LoginWithEmailPasswordHandler', () => {
   })
 
   it('uses the explicit PDA password login flow when enforcing terminal policy', async () => {
-    const invalidCredentialsError = ExceptionFactory.domain(AUTH_INVALID_CREDENTIALS)
     const strategy = {
-      authenticate: jest.fn().mockRejectedValue(invalidCredentialsError)
+      authenticate: jest.fn().mockResolvedValue({ authenticated: false })
     }
     const terminalLoginPolicyService = {
       assertFlowAllowed: jest.fn().mockResolvedValue(undefined)
@@ -159,7 +254,10 @@ describe('LoginWithEmailPasswordHandler', () => {
         recordPasswordLoginFailure: jest.fn().mockResolvedValue(undefined),
         clearPasswordLoginFailures: jest.fn()
       } as any,
-      { getUserByEmail: jest.fn().mockResolvedValue(null), getAvailableAccountsByUserId: jest.fn() } as any,
+      {
+        getUserByEmail: jest.fn().mockResolvedValue(null),
+        getAvailableAccountsByUserId: jest.fn()
+      } as any,
       { filterActiveAccountCandidates: jest.fn() } as any,
       terminalLoginPolicyService as any
     )
@@ -171,7 +269,7 @@ describe('LoginWithEmailPasswordHandler', () => {
           loginFlow: TerminalLoginFlow.Password
         })
       )
-    ).rejects.toBe(invalidCredentialsError)
+    ).rejects.toMatchObject({ definition: AUTH_INVALID_CREDENTIALS })
 
     expect(terminalLoginPolicyService.assertFlowAllowed).toHaveBeenCalledWith(
       'PDA',
@@ -181,7 +279,7 @@ describe('LoginWithEmailPasswordHandler', () => {
 
   it('returns account selection even when MFA bindings exist because tenant MFA is resolved after account selection', async () => {
     const strategy = {
-      authenticate: jest.fn().mockResolvedValue('user-1')
+      authenticate: jest.fn().mockResolvedValue({ authenticated: true, userId: 'user-1' })
     }
     const authStrategyFactory = {
       get: jest.fn().mockReturnValue(strategy)
@@ -247,7 +345,7 @@ describe('LoginWithEmailPasswordHandler', () => {
 
   it('filters account selection candidates through tenant-org lifecycle truth', async () => {
     const strategy = {
-      authenticate: jest.fn().mockResolvedValue('user-1')
+      authenticate: jest.fn().mockResolvedValue({ authenticated: true, userId: 'user-1' })
     }
     const authStrategyFactory = {
       get: jest.fn().mockReturnValue(strategy)
@@ -304,7 +402,7 @@ describe('LoginWithEmailPasswordHandler', () => {
 
   it('completes PDA email-password login without returning account selection', async () => {
     const strategy = {
-      authenticate: jest.fn().mockResolvedValue('user-1')
+      authenticate: jest.fn().mockResolvedValue({ authenticated: true, userId: 'user-1' })
     }
     const pdaPrimaryLoginCompletionService = {
       complete: jest.fn().mockResolvedValue({

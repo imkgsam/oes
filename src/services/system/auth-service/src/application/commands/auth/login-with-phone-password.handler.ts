@@ -4,10 +4,7 @@ import { TerminalLoginFlow } from '@oes/common/auth'
 import { PhonePasswordLoginRequestDto } from '@oes/common/dtos'
 import { IDENTITY_SERVICE, LoginMethodEnum, LoginMethodType } from '@oes/common/constants'
 import { ExceptionFactory, OESExceptionBase } from '@oes/common/exceptions'
-import {
-  AccountCandidateSummary,
-  IIdentityServicePort
-} from '../../ports/identity-service.port'
+import { AccountCandidateSummary, IIdentityServicePort } from '../../ports/identity-service.port'
 import { AuthAuditService } from '../../services/auth-audit.service'
 import { LoginRiskThrottleService } from '../../services/login-risk-throttle.service'
 import {
@@ -17,6 +14,7 @@ import {
 import { TerminalLoginPolicyService } from '../../services/terminal-login-policy.service'
 import { TenantSessionAccessService } from '../../services/tenant-session-access.service'
 import {
+  AUTH_INVALID_CREDENTIALS,
   AUTH_LOGIN_TEMPORARILY_LOCKED,
   AUTH_NO_AVAILABLE_ACCOUNT
 } from '../../../common/constants/exception-enums'
@@ -39,9 +37,10 @@ export type LoginWithPhonePasswordResult =
 
 @CommandHandler(LoginWithPhonePasswordCommand)
 // Orchestrates phone-password login after enforcing terminal-level login flow policy.
-export class LoginWithPhonePasswordHandler
-  implements ICommandHandler<LoginWithPhonePasswordCommand, LoginWithPhonePasswordResult>
-{
+export class LoginWithPhonePasswordHandler implements ICommandHandler<
+  LoginWithPhonePasswordCommand,
+  LoginWithPhonePasswordResult
+> {
   constructor(
     private readonly authStrategyFactory: AuthStrategyFactory,
     private readonly authAuditService: AuthAuditService,
@@ -73,41 +72,38 @@ export class LoginWithPhonePasswordHandler
     }
 
     const strategy = this.authStrategyFactory.get(LoginMethodEnum.PhonePassword)
-    let userId: string
+    const authentication = await strategy.authenticate({
+      phone: command.phone,
+      password: command.password
+    } as PhonePasswordLoginRequestDto)
 
-    try {
-      userId = await strategy.authenticate({
-        phone: command.phone,
-        password: command.password
-      } as PhonePasswordLoginRequestDto)
-    } catch (error) {
-      if (this.isInvalidCredentialError(error)) {
-        await this.loginRiskThrottleService.recordPasswordLoginFailure(
-          LoginMethodType.PHONE,
-          command.phone
-        )
-        const user = await this.identityService.getUserByPhone(command.phone)
-        const deviceContext = normalizeAuthDeviceContext({
-          deviceName: command.deviceName,
-          userAgent: command.userAgent,
-          ipAddress: command.ipAddress
-        })
+    if (authentication.authenticated === false) {
+      await this.loginRiskThrottleService.recordPasswordLoginFailure(
+        LoginMethodType.PHONE,
+        command.phone
+      )
+      const deviceContext = normalizeAuthDeviceContext({
+        deviceName: command.deviceName,
+        userAgent: command.userAgent,
+        ipAddress: command.ipAddress
+      })
 
-        this.authAuditService.emitLoginFailed(command.phone, 'INVALID_CREDENTIALS', {
-          method: LoginMethodEnum.PhonePassword,
-          userId: user?.userId,
-          terminal: command.terminal || 'WEB',
-          loginFlow: command.loginFlow || TerminalLoginFlow.PhonePassword,
-          deviceName: deviceContext.deviceName,
-          userAgent: deviceContext.userAgent,
-          ipAddress: deviceContext.ipAddress,
-          platform: deviceContext.platform,
-          browser: deviceContext.browser
-        })
-      }
+      this.authAuditService.emitLoginFailed(command.phone, 'INVALID_CREDENTIALS', {
+        method: LoginMethodEnum.PhonePassword,
+        userId: authentication.auditUserId,
+        terminal: command.terminal || 'WEB',
+        loginFlow: command.loginFlow || TerminalLoginFlow.PhonePassword,
+        deviceName: deviceContext.deviceName,
+        userAgent: deviceContext.userAgent,
+        ipAddress: deviceContext.ipAddress,
+        platform: deviceContext.platform,
+        browser: deviceContext.browser
+      })
 
-      throw error
+      throw ExceptionFactory.domain(AUTH_INVALID_CREDENTIALS)
     }
+
+    const userId = authentication.userId
 
     await this.loginRiskThrottleService.clearPasswordLoginFailures(
       LoginMethodType.PHONE,
@@ -142,12 +138,10 @@ export class LoginWithPhonePasswordHandler
     }
   }
 
-  private isInvalidCredentialError(error: unknown): boolean {
-    return error instanceof OESExceptionBase && error.getCode() === 'AUTH_INVALID_CREDENTIALS'
-  }
-
   private isLoginTemporarilyLockedError(error: unknown): boolean {
-    return error instanceof OESExceptionBase && error.getCode() === AUTH_LOGIN_TEMPORARILY_LOCKED.code
+    return (
+      error instanceof OESExceptionBase && error.getCode() === AUTH_LOGIN_TEMPORARILY_LOCKED.code
+    )
   }
 
   private isPdaLogin(terminal?: string): boolean {
