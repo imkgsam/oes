@@ -5,7 +5,7 @@ truthCommit: a912abb73e64f8065044f5a278d02439c473d171
 baseSha: a912abb73e64f8065044f5a278d02439c473d171
 integrationBranch: codex/tenant-web-auth-fixture-seed
 worktreeKey: 9d4f
-pullRequest: pending
+pullRequest: https://github.com/imkgsam/oes/pull/54
 mergeSha: pending
 cleanup: HOLD
 state: ACCEPTED
@@ -20,7 +20,7 @@ Make the repository-owned tenant-web authentication fixture seeder part of the o
 
 state: ACCEPTED
 candidate: 72b9ae7929b471af1f4871888821f119425ea366
-review: feature-ri `01a052d7-1611-7001-8e91-e6d6e70b2fb5` accepted exact publish predecessor `cc9b358a0fee2a90e303c95ab77280a3b70965b7`; bounded moving-main rebind pending
+review: feature-ri `01a052d7-1611-7001-8e91-e6d6e70b2fb5` accepted exact moving-main candidate `7bb711d0c9571767b210bd9844fd452013037dba`; packet-only PR URL successor rebind pending
 
 - Scope: local database lifecycle orchestration, tenant-web authentication seed environment contract, dedicated password-recovery/MFA-required/first-login-password-setup acceptance fixtures, credential-redacted seeder output, focused tooling tests, and current runbook guidance.
 - Protected scope: production or shared databases, legacy Docker projects, non-task-owned containers/volumes/networks, committed credentials, service business contracts, and unrelated seeders.
