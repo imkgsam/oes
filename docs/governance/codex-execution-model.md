@@ -40,7 +40,7 @@ Direct 由一个 Senior/Principal Engineer 级 owner 闭合一个无稳定设计
 
 ### 2.5 Stage Lead（SL）
 
-SL 是一个多 feature Delivery Stage 的 Technical Delivery Lead。SL建立一个本地 Stage Packet，按独立交付物拆分FL，管理依赖、WIP、moving-main、Stage Review和状态汇总，只在本地verification worktree组合exact candidates。SL不写feature产品代码，不建立remote stage product branch、总PR或stage merge。
+SL 是一个多 feature Delivery Stage 的 Technical Delivery Lead。`REPOSITORY_DELIVERY` 中，SL建立一个本地 Stage Packet，按独立交付物拆分FL，管理依赖、WIP、moving-main、Stage Review和状态汇总，只在本地verification worktree组合exact candidates；`HOST_LOCAL_OPERATION` 中，SL只使用task-local current evidence协调同等范围，不创建Stage Packet、branch或worktree。SL不写feature产品代码，不建立remote stage product branch、总PR或stage merge。
 
 ### 2.6 Feature Lead（FL）
 
@@ -113,6 +113,8 @@ Planner优先收尾、解除阻塞和关键路径，默认保留约20%风险缓�
 | --- | --- | --- |
 | `REPOSITORY_DELIVERY` | 修改repository并形成可合并结果 | Human-visible project task；owner-exclusive branch/worktree；按角色使用Packet、candidate、RI和PR |
 | `HOST_LOCAL_OPERATION` | Docker、数据库、模拟器、本地服务等不修改repository的本机操作 | Human-visible project-associated local task；task-local current evidence；默认无worktree、branch、Packet、Git candidate和PR |
+
+task identity/Human可见性验收与owner Git资源准备是两个独立判断，不要求平台拆成两个创建调用。`REPOSITORY_DELIVERY`可以在task创建时或创建后准备owner-exclusive branch/worktree，但在task可见性与Git资源都验证通过前不得开始role-owned repository写入；`HOST_LOCAL_OPERATION`始终不得为task创建或后续执行准备worktree。可见task不等于worktree task，worktree也不得代替可见性验收。
 
 `HOST_LOCAL_OPERATION` task创建时不得传Git `startingState`，不得调用worktree provisioner，也不得因task创建隐式fetch/pull。若creator已经验证一个本地canonical commit，可把exact SHA作为只读truth binding传给child；child只验证本地object与规范内容，不重复联网。只有任务结果依赖尚未在本地证明的remote truth时，creator才在创建前显式完成一次remote freshness检查。
 
@@ -289,8 +291,8 @@ parent派发child后保存当前checkpoint并结束turn；exact child result到�
 只暂停affected lane并保留原owner、Packet、branch/worktree、candidate、PR和有效证据。Design truth合并后：
 
 1. UD返回exact original delivery owner；
-2. 原owner fetch latest `origin/main`并验证设计merge；
-3. affected FL追加集成latest main；
+2. `REPOSITORY_DELIVERY`原owner fetch latest `origin/main`并验证设计merge，affected FL追加集成latest main；
+3. `HOST_LOCAL_OPERATION`原owner验证creator已在本地绑定的canonical commit与设计内容；只有结果确实依赖尚未在本地证明的remote truth时才执行一次显式freshness检查，且不得创建worktree、branch或Git candidate；
 4. 只运行受影响验证；
 5. unaffected candidates/evidence继续复用；
 6. 恢复原Stage/Feature。
