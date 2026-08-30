@@ -8,7 +8,7 @@ worktreeKey: 0027
 pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
-state: CANDIDATE_READY
+state: RUNNING
 
 ## Objective
 
@@ -18,13 +18,14 @@ Close the tenant-web public Login and CodeLogin client-side validation and feedb
 
 ### AUTH-FORM-VALIDATION-FEEDBACK
 
-state: CANDIDATE_READY
+state: RUNNING
 candidate: f0daac92faf6d856c25027413d9e60654adc691d
 review: feature-ri
 
 - Scope:
   - `app/web/apps/tenant-web/src/views/_core/authentication/login.vue` and its focused specs.
   - `app/web/apps/tenant-web/src/views/_core/authentication/code-login.vue` and its focused specs.
+  - `app/web/apps/tenant-web/src/views/_core/authentication/phone-number-input.vue` and its focused accessibility spec.
   - Directly required common-ui authentication form behavior/specs when the defect is owned by the shared form contract.
   - `app/web/packages/@core/ui-kit/form-ui/src/form-api.ts` validation logging behavior and its focused spec.
 - Protected scope:

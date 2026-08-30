@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref, useAttrs, watch } from 'vue';
 
 import { Input, Select } from 'ant-design-vue';
 
@@ -16,11 +16,12 @@ interface Props {
   placeholder?: string;
 }
 
-defineOptions({ name: 'PhoneNumberInput' });
+defineOptions({ inheritAttrs: false, name: 'PhoneNumberInput' });
 
 const props = withDefaults(defineProps<Props>(), {
   placeholder: '请输入手机号',
 });
+const attrs = useAttrs();
 
 const modelValue = defineModel<string>();
 
@@ -85,13 +86,26 @@ watch(
 const selectedCountryLabel = computed(() => {
   return getPhoneCountryOption(countryCode.value)?.label ?? 'China (+86)';
 });
+
+// Routes form-control identity, validation, and test attributes to the focusable local-number input.
+function getInputControlAttrs() {
+  return Object.fromEntries(
+    Object.entries(attrs).filter(([key]) => key !== 'class' && key !== 'style'),
+  );
+}
 </script>
 
 <template>
-  <div class="phone-number-input flex w-full items-center rounded-md border border-border bg-background transition-colors focus-within:border-primary">
+  <div
+    :aria-label="props.placeholder"
+    :class="attrs.class"
+    :style="attrs.style"
+    class="phone-number-input flex w-full items-center rounded-md border border-border bg-background transition-colors focus-within:border-primary"
+    role="group"
+  >
     <Select
       :value="countryCode"
-      :aria-label="selectedCountryLabel"
+      :aria-label="`国家或地区：${selectedCountryLabel}`"
       :options="countrySelectOptions"
       class="phone-country-select shrink-0"
       option-label-prop="label"
@@ -100,8 +114,9 @@ const selectedCountryLabel = computed(() => {
     />
 
     <Input
+      v-bind="getInputControlAttrs()"
       :value="localPhoneNumber"
-      :aria-label="selectedCountryLabel"
+      :aria-label="props.placeholder"
       :placeholder="props.placeholder"
       class="phone-local-input"
       inputmode="tel"
