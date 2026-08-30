@@ -8,6 +8,17 @@ export const TENANT_WEB_AUTH_DATABASE_BINDINGS = Object.freeze([
 ])
 const SEED_BINDING_ENV = 'OES_TENANT_WEB_AUTH_SEED_BINDING'
 
+/** Decodes every valid percent-encoded run while preserving malformed or literal percent signs. */
+function decodeCredentialVariant(value) {
+  return value.replace(/(?:%[0-9a-f]{2})+/gi, (encoded) => {
+    try {
+      return decodeURIComponent(encoded)
+    } catch {
+      return encoded
+    }
+  })
+}
+
 /** Builds the explicit loopback database environment used by the host-side tenant-web seeder. */
 export function buildTenantWebAuthSeedEnvironment(context, port, baseEnvironment = process.env) {
   const environment = {
@@ -114,11 +125,7 @@ export function sanitizeTenantWebAuthSeedMessage(message, credentialValues = [])
     if (!candidate) continue
     const value = String(candidate)
     variants.add(value)
-    try {
-      variants.add(decodeURIComponent(value))
-    } catch {
-      // A malformed percent sequence still remains covered by its literal value.
-    }
+    variants.add(decodeCredentialVariant(value))
   }
   for (const value of [...variants]
     .filter(Boolean)

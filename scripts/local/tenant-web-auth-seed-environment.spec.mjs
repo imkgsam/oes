@@ -132,10 +132,18 @@ test('seeder error sanitization removes URLs and fixture credential values', () 
 })
 
 test('seeder error sanitization removes encoded and decoded credential forms', () => {
+  const special = context()
+  special.rootValues.set('OES_POSTGRES_USER', 'user@task:name')
+  special.rootValues.set('OES_POSTGRES_PASSWORD', 'pass/task%value')
+  const environment = buildTenantWebAuthSeedEnvironment(special, 49123)
+  const url = new URL(environment.AUTH_DATABASE_URL)
   const message = sanitizeTenantWebAuthSeedMessage(
-    'encoded=user%40task%3Aname/pass%2Ftask%25value decoded=user@task:name/pass/task%value',
-    ['user%40task%3Aname', 'pass%2Ftask%25value']
+    `encoded=${url.username}/${url.password} decoded=user@task:name/pass/task%value`,
+    [url.username, url.password]
   )
 
-  assert.doesNotMatch(message, /user(?:%40|@)task|pass(?:%2F|\/)task|%25value|%value/i)
+  assert.doesNotMatch(
+    message,
+    /user(?:%40|@)task|pass(?:%2F|\/)task|%3Aname|:name|%25value|%value/i
+  )
 })
