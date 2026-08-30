@@ -2,7 +2,6 @@ import { Injectable, InternalServerErrorException, UnauthorizedException } from 
 import { DownstreamRequestSource } from '../../../../common/grpc/gateway-downstream-source.mapper'
 import { AssetGrpcAdapter } from '../../infrastructure/downstream/asset-service/asset-grpc.adapter'
 import { IdentityQueryGrpcAdapter } from '../../infrastructure/downstream/identity-service/identity-query-grpc.adapter'
-import { TenantOrgQueryGrpcAdapter } from '../../infrastructure/downstream/tenant-org-service/tenant-org-query-grpc.adapter'
 import { SessionContextViewModel } from '../../interfaces/http/view-models/session-context.view-model'
 import {
   SessionAccessSummaryUseCase,
@@ -20,7 +19,6 @@ export class SessionContextUseCase {
   constructor(
     private readonly identityAdapter: IdentityQueryGrpcAdapter,
     private readonly sessionAccessSummaryUseCase: SessionAccessSummaryUseCase,
-    private readonly tenantOrgAdapter?: TenantOrgQueryGrpcAdapter,
     private readonly assetAdapter?: AssetGrpcAdapter
   ) {}
 
@@ -39,10 +37,8 @@ export class SessionContextUseCase {
       : await this.identityAdapter.getAccountById(self.accountId, source)
     const accountScope = useSignedPdaSession
       ? self.scopeLevel
-      : normalizeScopeLevel(accountResult?.account?.scopeLevel ?? self.scopeLevel)
-    const tenantId = useSignedPdaSession
-      ? self.tenantId
-      : (normalize(accountResult?.account?.tenantId) ?? self.tenantId)
+      : assertAccountMatchesValidatedSession(accountResult?.account, self)
+    const tenantId = self.tenantId
 
     if (accountScope === 'TENANT' && !tenantId) {
       throw new UnauthorizedException('tenant account context is missing tenant id')
@@ -52,15 +48,9 @@ export class SessionContextUseCase {
       throw new UnauthorizedException('system account context must not be bound to tenant id')
     }
 
-    const tenantResult =
-      !useSignedPdaSession && accountScope === 'TENANT' && tenantId
-        ? await this.requireTenantOrgAdapter().getTenantById(tenantId, source)
-        : null
-
     const accountName = useSignedPdaSession
       ? normalize(source.user?.displayName)
       : normalize(accountResult?.account?.displayName)
-    const tenantName = normalize(tenantResult?.tenant?.name)
     const accountAvatar = useSignedPdaSession
       ? undefined
       : await this.resolveAccountAvatar(
@@ -89,8 +79,7 @@ export class SessionContextUseCase {
       tenant:
         accountScope === 'TENANT' && tenantId
           ? {
-              tenantId,
-              name: tenantName
+              tenantId
             }
           : null,
       org: null,
@@ -108,14 +97,6 @@ export class SessionContextUseCase {
       allowedTerminals: normalizeStringArray(source.user?.allowedTerminals),
       ...(source.user?.passwordSetupRequired === true ? { passwordSetupRequired: true } : {})
     }
-  }
-
-  private requireTenantOrgAdapter(): TenantOrgQueryGrpcAdapter {
-    if (!this.tenantOrgAdapter) {
-      throw new InternalServerErrorException('tenant-org query adapter is unavailable')
-    }
-
-    return this.tenantOrgAdapter
   }
 
   // resolveAccountAvatar turns the stored account avatar asset reference into the shell display URL.
@@ -138,15 +119,51 @@ export class SessionContextUseCase {
   }
 }
 
+// Confirms the Identity account projection still matches the Auth-validated session snapshot.
+function assertAccountMatchesValidatedSession(
+  account:
+    | {
+        id?: string
+        tenantId?: string
+        scopeLevel?: string
+      }
+    | undefined,
+  session: {
+    accountId?: string
+    tenantId?: string
+    scopeLevel: 'SYSTEM' | 'TENANT'
+  }
+): 'SYSTEM' | 'TENANT' {
+  const accountId = normalize(account?.id)
+  if (!accountId || accountId !== session.accountId) {
+    throw new UnauthorizedException('account projection does not match authenticated session')
+  }
+
+  const projectedScope = normalize(account?.scopeLevel)
+  if (
+    (projectedScope !== undefined && projectedScope !== 'SYSTEM' && projectedScope !== 'TENANT') ||
+    (projectedScope !== undefined && projectedScope !== session.scopeLevel)
+  ) {
+    throw new UnauthorizedException('account scope does not match authenticated session')
+  }
+  const accountScope = session.scopeLevel
+
+  const accountTenantId = normalize(account?.tenantId)
+  if (accountScope === 'TENANT' && accountTenantId !== session.tenantId) {
+    throw new UnauthorizedException('account tenant does not match authenticated session')
+  }
+
+  if (accountScope === 'SYSTEM' && (accountTenantId || session.tenantId)) {
+    throw new UnauthorizedException('system account context must not be bound to tenant id')
+  }
+
+  return accountScope
+}
+
 // Normalizes optional string values so the session-context payload can omit unstable blanks.
 function normalize(value?: string): string | undefined {
   const normalized = value?.trim()
   return normalized ? normalized : undefined
-}
-
-// Normalizes account scope while preserving backward-compatible tenant behavior for old tokens.
-function normalizeScopeLevel(scopeLevel?: string): 'SYSTEM' | 'TENANT' {
-  return scopeLevel === 'SYSTEM' ? 'SYSTEM' : 'TENANT'
 }
 
 // Resolves managed navigation and fails closed when the role navigation truth is unavailable.
