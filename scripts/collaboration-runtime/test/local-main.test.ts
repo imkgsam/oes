@@ -125,6 +125,101 @@ test('dirty, diverged, non-main, or active-operation checkout never exposes a sy
     )
 })
 
+test('exact CLAIMED recovery and an interrupted temporary claim remain idempotent', () => {
+  for (const mode of ['exact-claimed', 'orphan-temporary'] as const) {
+    const root = mkdtempSync(join(tmpdir(), `oes-local-main-${mode}-`))
+    const project = join(root, 'project')
+    mkdirSync(project)
+    const trust = trustFixture(join(root, 'runtime-trust'))
+    const oldSha = 'a'.repeat(40)
+    const newSha = 'b'.repeat(40)
+    const remoteUrl = join(root, 'remote.git')
+    const proof = confirmationFixture(trust, project, remoteUrl, newSha)
+    const binding = seal({
+      schemaVersion: 1,
+      kind: 'OES_LOCAL_MAIN_SYNC_BINDING',
+      action: 'sync',
+      repositoryRoot: realpathSync(project),
+      remote: 'origin',
+      branch: 'main',
+      expectedRemoteUrl: remoteUrl,
+      expectedRemoteMainSha: newSha,
+      ownerTaskId: proof.confirmation.ownerTaskId,
+      transitionId: proof.confirmation.transitionId,
+      singleUseNonce: proof.confirmation.singleUseNonce,
+      humanConfirmationFingerprint: proof.confirmation.confirmationFingerprint,
+      confirmation: proof.reference
+    })
+    const checkpointIdentity = sha256(
+      canonicalJson({
+        ownerTaskId: proof.confirmation.ownerTaskId,
+        singleUseNonce: proof.confirmation.singleUseNonce
+      })
+    )
+    const checkpointRoot = join(trust.admissionRoot, 'local-main-sync')
+    const checkpointPath = join(checkpointRoot, `${checkpointIdentity}.json`)
+    mkdirSync(checkpointRoot, { recursive: true })
+    if (mode === 'exact-claimed') {
+      const claim = {
+        schemaVersion: 1,
+        kind: 'OES_LOCAL_MAIN_SYNC_CHECKPOINT',
+        checkpointFingerprint: '',
+        confirmationFingerprint: proof.confirmation.confirmationFingerprint,
+        ownerTaskId: proof.confirmation.ownerTaskId,
+        transitionId: proof.confirmation.transitionId,
+        singleUseNonce: proof.confirmation.singleUseNonce,
+        stage: 'CLAIMED',
+        before: null,
+        after: null
+      }
+      claim.checkpointFingerprint = objectFingerprint(
+        claim as unknown as Record<string, unknown>,
+        'checkpointFingerprint'
+      )
+      writeFileSync(checkpointPath, `${canonicalJson(claim)}\n`)
+    } else writeFileSync(`${checkpointPath}.interrupted.tmp`, '{partial')
+
+    class ClaimRecoveryRunner implements LocalCommandRunner {
+      calls: string[] = []
+      merged = false
+      run(command: string, args: string[]): { stdout: string; stderr: string; exitCode: number } {
+        const call = `${command} ${args.join(' ')}`
+        this.calls.push(call)
+        if (call === 'git branch --show-current')
+          return { stdout: 'main\n', stderr: '', exitCode: 0 }
+        if (call === 'git status --porcelain') return { stdout: '', stderr: '', exitCode: 0 }
+        if (call === 'git remote get-url origin')
+          return { stdout: `${remoteUrl}\n`, stderr: '', exitCode: 0 }
+        if (call === 'git rev-parse HEAD')
+          return { stdout: `${this.merged ? newSha : oldSha}\n`, stderr: '', exitCode: 0 }
+        if (call === 'git rev-parse refs/remotes/origin/main')
+          return { stdout: `${newSha}\n`, stderr: '', exitCode: 0 }
+        if (call === 'git rev-list --left-right --count HEAD...refs/remotes/origin/main')
+          return { stdout: this.merged ? '0 0\n' : '0 1\n', stderr: '', exitCode: 0 }
+        if (args[0] === 'rev-parse' && args[1] === '--git-path')
+          return {
+            stdout: `${join(project, '.git', args[2] as string)}\n`,
+            stderr: '',
+            exitCode: 0
+          }
+        if (call === 'git fetch --no-tags origin main')
+          return { stdout: '', stderr: '', exitCode: 0 }
+        if (call === 'git merge --ff-only refs/remotes/origin/main') {
+          this.merged = true
+          return { stdout: '', stderr: '', exitCode: 0 }
+        }
+        return { stdout: '', stderr: `unexpected ${call}`, exitCode: 99 }
+      }
+    }
+    const runner = new ClaimRecoveryRunner()
+    assert.equal(new LocalMainController(runner).sync(binding, trust).status, 'SYNCED')
+    assert.equal(runner.calls.filter((call) => call.startsWith('git fetch ')).length, 1)
+    assert.equal(runner.calls.filter((call) => call.startsWith('git merge ')).length, 1)
+    const stored = JSON.parse(readFileSync(checkpointPath, 'utf8')) as { stage: string }
+    assert.equal(stored.stage, 'COMPLETED')
+  }
+})
+
 test('confirmed ff-only sync updates only designated main and preserves another FL worktree', () => {
   const root = mkdtempSync(join(tmpdir(), 'oes-local-main-test-'))
   const remote = join(root, 'remote.git')

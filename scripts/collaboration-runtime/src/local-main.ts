@@ -2,12 +2,15 @@ import {
   closeSync,
   existsSync,
   fsyncSync,
+  linkSync,
   mkdirSync,
   openSync,
   readFileSync,
   realpathSync,
+  unlinkSync,
   writeFileSync
 } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import { isAbsolute, join, resolve } from 'node:path'
 import {
   assertPathWithin,
@@ -333,31 +336,19 @@ export class LocalMainController {
     )
     const checkpointPath = join(checkpointRoot, `${checkpointIdentity}.json`)
     let checkpoint = this.checkpoint(confirmation, 'CLAIMED', null, null)
-    let createdClaim = false
-    let descriptor: number | null = null
-    try {
-      descriptor = openSync(checkpointPath, 'wx', 0o600)
-      writeFileSync(descriptor, `${canonicalJson(checkpoint)}\n`, 'utf8')
-      fsyncSync(descriptor)
-      createdClaim = true
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+    if (!this.publishClaimNoReplace(checkpointPath, checkpoint)) {
       checkpoint = validateLocalMainCheckpoint(
         JSON.parse(readFileSync(checkpointPath, 'utf8')) as LocalMainSyncCheckpoint,
         confirmation
       )
-    } finally {
-      if (descriptor !== null) closeSync(descriptor)
     }
-    if (!createdClaim && checkpoint.stage === 'CLAIMED')
-      fail('LOCAL_MAIN_CHECKPOINT_CLAIM_IN_PROGRESS', confirmation.confirmationFingerprint)
     const before = this.observe(binding.repositoryRoot)
     const beforeDecision = evaluateLocalMainObservation(
       before,
       binding.expectedRemoteMainSha,
       binding.expectedRemoteUrl
     )
-    if (!createdClaim) {
+    if (checkpoint.stage !== 'CLAIMED') {
       if (checkpoint.stage === 'COMPLETED' && checkpoint.before) {
         if (
           beforeDecision.status !== 'ALREADY_SYNCED' ||
@@ -377,10 +368,19 @@ export class LocalMainController {
         return { status: 'SYNCED', before: checkpoint.before, after: before }
       }
     }
+    if (
+      checkpoint.stage === 'CLAIMED' &&
+      beforeDecision.status === 'ALREADY_SYNCED' &&
+      before.localMainSha === confirmation.expectedRemoteMainSha
+    ) {
+      checkpoint = this.checkpoint(confirmation, 'COMPLETED', before, before)
+      writeJsonAtomic(checkpointPath, checkpoint)
+      return { status: 'SYNCED', before, after: before }
+    }
     if (beforeDecision.status !== 'SYNC_ELIGIBLE')
       fail('LOCAL_MAIN_SYNC_PRECONDITION_FAILED', beforeDecision.reasons.join(','))
 
-    if (createdClaim) {
+    if (checkpoint.stage === 'CLAIMED') {
       checkpoint = this.checkpoint(confirmation, 'STARTED', before, null)
       writeJsonAtomic(checkpointPath, checkpoint)
     }
@@ -444,6 +444,36 @@ export class LocalMainController {
       'checkpointFingerprint'
     )
     return checkpoint
+  }
+
+  /** Publishes only fully written claim bytes and leaves an existing canonical claim untouched. */
+  private publishClaimNoReplace(
+    checkpointPath: string,
+    checkpoint: LocalMainSyncCheckpoint
+  ): boolean {
+    const temporaryPath = `${checkpointPath}.${process.pid}.${randomUUID()}.tmp`
+    let descriptor: number | null = null
+    try {
+      descriptor = openSync(temporaryPath, 'wx', 0o600)
+      writeFileSync(descriptor, `${canonicalJson(checkpoint)}\n`, 'utf8')
+      fsyncSync(descriptor)
+      closeSync(descriptor)
+      descriptor = null
+      try {
+        linkSync(temporaryPath, checkpointPath)
+        return true
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'EEXIST') return false
+        throw error
+      }
+    } finally {
+      if (descriptor !== null) closeSync(descriptor)
+      try {
+        unlinkSync(temporaryPath)
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      }
+    }
   }
 
   /** Reads one complete observation from the designated checkout. */
