@@ -104,6 +104,8 @@ Machine Principal 生命周期、workload binding 与固定 SYSTEM inventory pro
 
 Auth 在 HUMAN 建立前取得登录事实，或在 session 建立/续期时复核 owner lifecycle，使用同一 direct MACHINE root 为 target-owned Auth-only INTERNAL Code 换取目标 Token。这些方法的 authority 来自 exact Auth workload -> audience -> INTERNAL Code workload policy，不来自固定 Machine Principal 的 BUSINESS `PrincipalRoleBinding`。目标方仅返回最小 Account/Employee/Tenant lifecycle 投影，并使用 request selector 重新验证 owner 关系；selector 仍是查询输入，不是 tenant 或 principal authority。
 
+固定 SYSTEM public aggregator 读取 tenant-scoped owner facts 时复用同一机制，但必须是 separately named dedicated INTERNAL methods/Codes。Public Entry public-card collaboration 使用 exact Public Entry workload -> HR/Identity/TenantOrg audience -> corresponding public-card INTERNAL Code policy；Public Entry subject 保持 tenantless，owner 从 request selector 重新验证 target range 与资源归属。该机制不把 owner 的 TENANT BUSINESS Code 授予 SYSTEM，也不允许 service-name/wildcard/fallback。具体语义以 [Public Business Card owner-fact resolution](../collaborations/public-business-card-owner-facts.md) 为准。
+
 ### DELEGATED
 
 DELEGATED runtime 仅在 DelegationGrant/ActionGrant、ToolContract、risk class、confirmation、idempotency 与 target-side consumption 全部满足对应 ADR/contract 时开放。trusted gRPC 基线本身不授予 AI mutation 权限。

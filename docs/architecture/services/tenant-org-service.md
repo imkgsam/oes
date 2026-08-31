@@ -149,13 +149,14 @@ Management 能力：
 - 不在本服务内直接实现业务域自己的订单、客户、供应商或审批规则
 - 不把“哪些场景必须关联 organizationTenantPartyId”上升为通用 org tree 规则；如 future 场景需要必填，应由对应协同 contract 单独冻结
 
-## 13. Trusted gRPC 21-RPC contract（FROZEN）
+## 13. Trusted gRPC 22-RPC contract（FROZEN）
 
-The baseline 20 RPCs remain `BUSINESS`, and additive `ResolveAuthSessionTenantLifecycle` is the twenty-first `INTERNAL` RPC; audience is `urn:oes:service:tenant-org-service`. Gateway uses direct `HUMAN / WEB`; ordinary Auth/Identity/HR business collaboration uses `HUMAN_OBO` when a verified user chain exists. Auth login establishment, MFA recheck and session continuation lifecycle reads use only the exact Auth SYSTEM MACHINE workload, `tenant_org.internal.auth_session_tenant_lifecycle.resolve`, target audience and current certificate binding. Public Entry keeps its separately named public-render contract. No Cron/worker or generic service-name caller is admitted.
+The baseline 20 RPCs remain `BUSINESS`; additive `ResolveAuthSessionTenantLifecycle` and `ResolvePublicBusinessCardOrganization` are the twenty-first and twenty-second `INTERNAL` RPCs. Audience is `urn:oes:service:tenant-org-service`. Gateway uses direct `HUMAN / WEB`; ordinary Auth/Identity/HR business collaboration uses `HUMAN_OBO` when a verified user chain exists. Auth lifecycle reads use only the Auth resolver; Public Entry public-card reads use only the dedicated organization resolver. No Cron/worker, generic service-name caller or workload wildcard is admitted.
 
 | Code | RPCs |
 | --- | --- |
 | `tenant_org.internal.auth_session_tenant_lifecycle.resolve` | `ResolveAuthSessionTenantLifecycle` |
+| `tenant_org.internal.public_business_card_organization.resolve` | `ResolvePublicBusinessCardOrganization` |
 | `tenant_org.tenant.list` | `ListTenants` |
 | `tenant_org.tenant.get_by_id` | `GetTenantById`, `GetTenantOnboarding` |
 | `tenant_org.tenant.create` | `CreateTenant`, `StartTenantOnboarding`, `RetryTenantOnboarding` |
@@ -167,6 +168,10 @@ The baseline 20 RPCs remain `BUSINESS`, and additive `ResolveAuthSessionTenantLi
 | `tenant_org.org_unit.update` | `UpdateOrgUnit`, `MoveOrgUnit` |
 | `tenant_org.org_unit.archive` | `ArchiveOrgUnit` |
 
-The baseline 15 request `tenant_id=1` fields remain owner resource identifiers for administration and declared public/reference checks; new `ResolveAuthSessionTenantLifecycle.tenant_id=1` is the dedicated Auth login/session lookup selector. None establishes execution tenant: TENANT HUMAN/HUMAN_OBO must match the signed tenant; SYSTEM-scope HUMAN requires the exact BUSINESS Code/scope; allowlisted SYSTEM MACHINE is restricted to the named INTERNAL/public method and exact Code. Operator, trace and audit always come from the verified context. Existing response tenant/org facts and business field numbers remain unchanged.
+The baseline 15 request `tenant_id=1` fields remain owner resource identifiers for administration and declared reference checks; `ResolveAuthSessionTenantLifecycle.tenant_id=1` and `ResolvePublicBusinessCardOrganization.tenant_id=1` are dedicated owner lookup selectors for exact Auth/Public Entry methods. None establishes execution tenant: TENANT HUMAN/HUMAN_OBO must match the signed tenant; SYSTEM-scope HUMAN requires the exact BUSINESS Code/scope; allowlisted SYSTEM MACHINE is restricted to its named INTERNAL method and exact Code. Operator, trace and audit always come from the verified context. Existing response tenant/org facts and business field numbers remain unchanged.
 
 `ResolveAuthSessionTenantLifecycle(tenant_id)` returns only the owner tenant id and lifecycle status required by Auth. TenantOrg resolves the selector from its own store; not found, inactive, malformed, dependency or trust failure is denied/empty and causes Auth to withhold session establishment or continuation. The generic `GetTenantById` BUSINESS projection stays unchanged for existing HUMAN/HUMAN_OBO and other declared consumers.
+
+`ResolvePublicBusinessCardOrganization(tenant_id, optional org_unit_id)` is exact Public Entry-only. TenantOrg requires an active selected tenant and returns only company display name, optional website and, when supplied, the matching active same-tenant org display name. Empty `org_unit_id` means no department projection; a supplied malformed, inactive, missing or cross-tenant org reference is an owner-integrity failure. The request selectors never establish execution tenant. Public Entry receives no `tenant_org.tenant.get_by_id` or `tenant_org.org_unit.list_tree` BUSINESS grant or fallback. The cross-service flow is frozen in [Public Business Card owner-fact resolution](../collaborations/public-business-card-owner-facts.md).
+
+`ResolvePublicBusinessCardOrganization` implementation status is `DESIGN_FROZEN_PENDING_IMPLEMENTATION`.
