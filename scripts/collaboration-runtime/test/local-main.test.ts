@@ -208,9 +208,16 @@ test('confirmed ff-only sync updates only designated main and preserves another 
     inspect.expectedRemoteMainSha,
     { label: 'local-main-confirmation-rebound' }
   )
+  const reboundCalls: string[] = []
+  const reboundController = new LocalMainController({
+    run(command, args) {
+      reboundCalls.push(`${command} ${args.join(' ')}`)
+      return { stdout: '', stderr: '', exitCode: 0 }
+    }
+  })
   assert.throws(
     () =>
-      controller.sync(
+      reboundController.sync(
         seal({
           ...inspect,
           action: 'sync',
@@ -224,6 +231,7 @@ test('confirmed ff-only sync updates only designated main and preserves another 
       ),
     /LOCAL_MAIN_CHECKPOINT_INVALID/
   )
+  assert.deepEqual(reboundCalls, [])
 })
 
 test('caller-minted or drifted local-main confirmation fails before any Git command', () => {

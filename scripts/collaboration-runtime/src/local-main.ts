@@ -94,8 +94,8 @@ interface LocalMainSyncCheckpoint {
   ownerTaskId: string
   transitionId: string
   singleUseNonce: string
-  stage: 'STARTED' | 'COMPLETED'
-  before: LocalMainObservation
+  stage: 'CLAIMED' | 'STARTED' | 'COMPLETED'
+  before: LocalMainObservation | null
   after: LocalMainObservation | null
 }
 
@@ -252,14 +252,18 @@ function validateLocalMainCheckpoint(
     !checkpoint ||
     checkpoint.schemaVersion !== 1 ||
     checkpoint.kind !== 'OES_LOCAL_MAIN_SYNC_CHECKPOINT' ||
-    !['STARTED', 'COMPLETED'].includes(checkpoint.stage) ||
+    !['CLAIMED', 'STARTED', 'COMPLETED'].includes(checkpoint.stage) ||
     checkpoint.confirmationFingerprint !== confirmation.confirmationFingerprint ||
     checkpoint.ownerTaskId !== confirmation.ownerTaskId ||
     checkpoint.transitionId !== confirmation.transitionId ||
-    checkpoint.singleUseNonce !== confirmation.singleUseNonce ||
-    (checkpoint.stage === 'COMPLETED') !== (checkpoint.after !== null)
+    checkpoint.singleUseNonce !== confirmation.singleUseNonce
   )
     fail('LOCAL_MAIN_CHECKPOINT_INVALID', confirmation.confirmationFingerprint)
+  const shapeValid =
+    (checkpoint.stage === 'CLAIMED' && checkpoint.before === null && checkpoint.after === null) ||
+    (checkpoint.stage === 'STARTED' && checkpoint.before !== null && checkpoint.after === null) ||
+    (checkpoint.stage === 'COMPLETED' && checkpoint.before !== null && checkpoint.after !== null)
+  if (!shapeValid) fail('LOCAL_MAIN_CHECKPOINT_INVALID', confirmation.confirmationFingerprint)
   if (
     objectFingerprint(checkpoint as unknown as Record<string, unknown>, 'checkpointFingerprint') !==
     checkpoint.checkpointFingerprint
@@ -328,21 +332,33 @@ export class LocalMainController {
       })
     )
     const checkpointPath = join(checkpointRoot, `${checkpointIdentity}.json`)
-    const existingCheckpoint = existsSync(checkpointPath)
-      ? validateLocalMainCheckpoint(
-          JSON.parse(readFileSync(checkpointPath, 'utf8')) as LocalMainSyncCheckpoint,
-          confirmation
-        )
-      : null
+    let checkpoint = this.checkpoint(confirmation, 'CLAIMED', null, null)
+    let createdClaim = false
+    let descriptor: number | null = null
+    try {
+      descriptor = openSync(checkpointPath, 'wx', 0o600)
+      writeFileSync(descriptor, `${canonicalJson(checkpoint)}\n`, 'utf8')
+      fsyncSync(descriptor)
+      createdClaim = true
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+      checkpoint = validateLocalMainCheckpoint(
+        JSON.parse(readFileSync(checkpointPath, 'utf8')) as LocalMainSyncCheckpoint,
+        confirmation
+      )
+    } finally {
+      if (descriptor !== null) closeSync(descriptor)
+    }
+    if (!createdClaim && checkpoint.stage === 'CLAIMED')
+      fail('LOCAL_MAIN_CHECKPOINT_CLAIM_IN_PROGRESS', confirmation.confirmationFingerprint)
     const before = this.observe(binding.repositoryRoot)
     const beforeDecision = evaluateLocalMainObservation(
       before,
       binding.expectedRemoteMainSha,
       binding.expectedRemoteUrl
     )
-    if (existingCheckpoint) {
-      const checkpoint = existingCheckpoint
-      if (checkpoint.stage === 'COMPLETED') {
+    if (!createdClaim) {
+      if (checkpoint.stage === 'COMPLETED' && checkpoint.before) {
         if (
           beforeDecision.status !== 'ALREADY_SYNCED' ||
           before.localMainSha !== confirmation.expectedRemoteMainSha
@@ -351,6 +367,8 @@ export class LocalMainController {
         return { status: 'SYNCED', before: checkpoint.before, after: before }
       }
       if (
+        checkpoint.stage === 'STARTED' &&
+        checkpoint.before &&
         beforeDecision.status === 'ALREADY_SYNCED' &&
         before.localMainSha === confirmation.expectedRemoteMainSha
       ) {
@@ -362,15 +380,9 @@ export class LocalMainController {
     if (beforeDecision.status !== 'SYNC_ELIGIBLE')
       fail('LOCAL_MAIN_SYNC_PRECONDITION_FAILED', beforeDecision.reasons.join(','))
 
-    if (!existsSync(checkpointPath)) {
-      const started = this.checkpoint(confirmation, 'STARTED', before, null)
-      const descriptor = openSync(checkpointPath, 'wx', 0o600)
-      try {
-        writeFileSync(descriptor, `${canonicalJson(started)}\n`, 'utf8')
-        fsyncSync(descriptor)
-      } finally {
-        closeSync(descriptor)
-      }
+    if (createdClaim) {
+      checkpoint = this.checkpoint(confirmation, 'STARTED', before, null)
+      writeJsonAtomic(checkpointPath, checkpoint)
     }
 
     this.checked(
@@ -411,8 +423,8 @@ export class LocalMainController {
   /** Seals one monotonic local-main checkpoint for response-loss recovery. */
   private checkpoint(
     confirmation: LocalMainSyncConfirmation,
-    stage: 'STARTED' | 'COMPLETED',
-    before: LocalMainObservation,
+    stage: 'CLAIMED' | 'STARTED' | 'COMPLETED',
+    before: LocalMainObservation | null,
     after: LocalMainObservation | null
   ): LocalMainSyncCheckpoint {
     const checkpoint: LocalMainSyncCheckpoint = {
