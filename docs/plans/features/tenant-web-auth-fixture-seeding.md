@@ -1,8 +1,8 @@
 # Tenant Web Auth Fixture Seeding
 
 featureKey: tenant-web-auth-fixture-seeding
-truthCommit: bdbe73970f452716ba4b2026592b9657ea445436
-baseSha: bdbe73970f452716ba4b2026592b9657ea445436
+truthCommit: 37641aca82867c4fa51d5a644efb0740e297803b
+baseSha: 37641aca82867c4fa51d5a644efb0740e297803b
 integrationBranch: codex/tenant-web-auth-fixture-seed
 worktreeKey: 9d4f
 pullRequest: https://github.com/imkgsam/oes/pull/54
@@ -20,12 +20,12 @@ Make the repository-owned tenant-web authentication fixture seeder part of the o
 
 state: ACCEPTED
 candidate: 72b9ae7929b471af1f4871888821f119425ea366
-review: feature-ri `01a052d7-1611-7001-8e91-e6d6e70b2fb5` accepted exact published candidate `33b12a3d2b77d96d30cca58ba8dfeec636155dc9`; bounded latest-main rebind pending
+review: feature-ri `01a052d7-1611-7001-8e91-e6d6e70b2fb5` accepted exact published candidate `9e965a80c00b958d629dd7cd1175456eb1ceac76`; bounded post-PR50 rebind pending
 
 - Scope: local database lifecycle orchestration, tenant-web authentication seed environment contract, dedicated password-recovery/MFA-required/first-login-password-setup acceptance fixtures, credential-redacted seeder output, focused tooling tests, and current runbook guidance.
 - Protected scope: production or shared databases, legacy Docker projects, non-task-owned containers/volumes/networks, committed credentials, service business contracts, and unrelated seeders.
 - Dependencies: the existing task-owned environment bootstrap, database lifecycle ownership checks, official tenant-web fixture builders, and the six service-owned Prisma schemas used by the seeder.
-- Moving-main revalidation: `origin/main@bdbe73970f452716ba4b2026592b9657ea445436` overlaps only `package.json`, where latest main adds `build:prepared` and this feature extends `test:database-lifecycle`; all product implementation paths remain byte-identical to accepted candidate `33b12a3d2b77d96d30cca58ba8dfeec636155dc9`. The same Feature RI performs a bounded exact-head rebind after integration.
+- Moving-main revalidation: `origin/main@37641aca82867c4fa51d5a644efb0740e297803b` has no exact path overlap with this feature. PRs #48/#55/#50 are semantically adjacent through tenant-session hydration, HUMAN OBO, and Auth-owned email/phone password failure handling; they do not alter the task-owned database lifecycle, fixture builders, Prisma schema, migrations, recovery/MFA/first-login state, or Public Card data. The same Feature RI performs a bounded exact-head rebind after affected login/session and task-owned seed validation.
 - Acceptance: fresh `db:seed` includes the official fixture; repeat `db:seed` is stable; missing/foreign/mixed-port database bindings fail before writes; lifecycle host URLs use the current task runtime port rather than service `.env`; recovery, MFA-required and setup-required journeys each have a dedicated resettable identity/state; expiry, invalid challenge and replay remain fail-closed; no login identifier, password, OTP, TOTP secret, or database credential is printed; a failed tenant-web seed exits non-zero and does not record `SEEDED`; rollback remains bound to the exact task project.
 
 ## Feature acceptance

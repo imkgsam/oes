@@ -1,43 +1,55 @@
 import { PrismaAuthAuditRepository } from './prisma.auth-audit.repository'
 
 describe('PrismaAuthAuditRepository', () => {
-  it('durably records only subject-to-target OBO linkage and actor attribution', async () => {
-    const prisma = { auditEvent: { create: jest.fn().mockResolvedValue({}) } } as any
-    const repository = new PrismaAuthAuditRepository(prisma)
+  it.each([
+    ['SYSTEM', undefined],
+    ['TENANT', 'tenant-1']
+  ] as const)(
+    'durably records %s subject scope, optional tenant, correlation and actor attribution',
+    async (subjectScope, tenantId) => {
+      const prisma = { auditEvent: { create: jest.fn().mockResolvedValue({}) } } as any
+      const repository = new PrismaAuthAuditRepository(prisma)
 
-    await repository.appendOboLink({
-      sourceTokenId: 'subject-jti',
-      targetTokenId: 'target-jti',
-      subject: 'account-1',
-      tenantId: 'tenant-1',
-      actor: { sub: 'machine-mes', principal_type: 'MACHINE', scope_level: 'SYSTEM' },
-      workload: 'spiffe://oes/mes-service',
-      audience: 'urn:oes:service:item-master-service',
-      decisionReference: 'decision-1'
-    })
-
-    const data = prisma.auditEvent.create.mock.calls[0][0].data
-    expect(data).toEqual(
-      expect.objectContaining({
-        service: 'auth-service',
-        module: 'auth',
-        eventType: 'EXECUTION_TOKEN_OBO_ISSUED',
-        result: 'SUCCEEDED',
-        operatorId: 'account-1',
-        tenantId: 'tenant-1',
-        traceId: 'target-jti',
-        resourceId: 'target-jti',
-        details: {
-          sourceTokenId: 'subject-jti',
-          actor: { sub: 'machine-mes', principal_type: 'MACHINE', scope_level: 'SYSTEM' },
-          workload: 'spiffe://oes/mes-service',
-          audience: 'urn:oes:service:item-master-service',
-          decisionReference: 'decision-1'
-        }
+      await repository.appendOboLink({
+        sourceTokenId: 'subject-jti',
+        targetTokenId: 'target-jti',
+        subject: 'account-1',
+        subjectScope,
+        ...(tenantId === undefined ? {} : { tenantId }),
+        actor: { sub: 'machine-mes', principal_type: 'MACHINE', scope_level: 'SYSTEM' },
+        workload: 'spiffe://oes/mes-service',
+        audience: 'urn:oes:service:item-master-service',
+        decisionReference: 'decision-1',
+        requestId: 'request-1',
+        traceId: '4bf92f3577b34da6a3ce929d0e0e4736',
+        spanId: '00f067aa0ba902b7'
       })
-    )
-    expect(JSON.stringify(data)).not.toContain('Bearer')
-  })
+
+      const data = prisma.auditEvent.create.mock.calls[0][0].data
+      expect(data).toEqual(
+        expect.objectContaining({
+          service: 'auth-service',
+          module: 'auth',
+          eventType: 'EXECUTION_TOKEN_OBO_ISSUED',
+          result: 'SUCCEEDED',
+          operatorId: 'account-1',
+          tenantId,
+          traceId: '4bf92f3577b34da6a3ce929d0e0e4736',
+          resourceId: 'target-jti',
+          details: {
+            sourceTokenId: 'subject-jti',
+            subjectScope,
+            actor: { sub: 'machine-mes', principal_type: 'MACHINE', scope_level: 'SYSTEM' },
+            workload: 'spiffe://oes/mes-service',
+            audience: 'urn:oes:service:item-master-service',
+            decisionReference: 'decision-1',
+            requestId: 'request-1'
+          }
+        })
+      )
+      expect(JSON.stringify(data)).not.toContain('Bearer')
+    }
+  )
 
   it('should list auth audit events with shared filters and cursor pagination', async () => {
     const prisma = {

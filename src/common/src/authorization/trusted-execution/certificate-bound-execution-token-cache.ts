@@ -4,6 +4,7 @@ import { requireTrustedSessionTerminal, TrustedSessionTerminal } from './trusted
 export type CertificateBoundExecutionTokenCacheKey = {
   readonly subject: string
   readonly principalType: 'HUMAN' | 'MACHINE' | 'DELEGATED'
+  readonly subjectScope: 'SYSTEM' | 'TENANT'
   readonly actor?: string
   readonly delegationId?: string
   readonly tenantId?: string
@@ -98,9 +99,17 @@ function buildCacheKey(key: CertificateBoundExecutionTokenCacheKey): string {
   }
 
   const permissionCodes = [...new Set(key.permissionCodes.map(normalizePermissionCode))].sort()
+  if (
+    (key.subjectScope === 'SYSTEM' && key.tenantId !== undefined) ||
+    (key.subjectScope === 'TENANT' && !isExactTenant(key.tenantId)) ||
+    (key.subjectScope !== 'SYSTEM' && key.subjectScope !== 'TENANT')
+  ) {
+    throw new Error('ExecutionToken cache subject scope and tenant are inconsistent')
+  }
   return JSON.stringify({
     subject: key.subject,
     principalType: key.principalType,
+    subjectScope: key.subjectScope,
     actor: key.actor ?? null,
     delegationId: key.delegationId ?? null,
     tenantId: key.tenantId ?? null,
@@ -123,4 +132,9 @@ function normalizePermissionCode(code: string): string {
     throw new Error('ExecutionToken cache permission codes must be non-empty strings')
   }
   return code.trim()
+}
+
+/** Accepts only one exact non-wildcard tenant for a TENANT cache authority key. */
+function isExactTenant(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.trim() === value && value !== '*'
 }
