@@ -12,6 +12,7 @@
 - [Managed terminal devices](./managed-terminal-device-management.md)
 - [Object activity and timeline](./object-activity-and-timeline.md)
 - [Party, Identity and Tenant Org](./party-identity-and-tenant-org.md)
+- [Public Business Card owner-fact resolution](./public-business-card-owner-facts.md)
 - [Procurement, SRM, Item, WMS and Finance](./procurement-srm-item-wms-finance.md)
 - [Sales, CRM, Party and Item Master](./sales-crm-party-item-master.md)
 - [Sales and Finance order-to-cash](./sales-finance-order-to-cash.md)

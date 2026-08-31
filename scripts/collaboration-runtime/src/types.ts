@@ -55,6 +55,7 @@ export interface RemoteTrustRoots {
   profilePath: string
   profileSha256: string
   ownerTaskId: string
+  profileTransitionId: string
   profileExpectedState: EffectiveProfileReport['expectedState']
 }
 

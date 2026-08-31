@@ -66,4 +66,4 @@
 - 基于正式人员归属的 org scope 解析
 ## Trusted gRPC foundation-group admission
 
-The baseline 20 methods remain BUSINESS with the exact ten current TenantOrg Codes; additive `ResolveAuthSessionTenantLifecycle` is the twenty-first INTERNAL method with `tenant_org.internal.auth_session_tenant_lifecycle.resolve`. Audience and caller rules are frozen by [tenant-org-service.md](../../architecture/services/tenant-org-service.md#13-trusted-grpc-21-rpc-contractfrozen). Existing request tenant fields remain owner resource identifiers; the new resolver's `tenant_id` is likewise a lookup selector and never execution authority.
+The baseline 20 methods remain BUSINESS with the exact ten current TenantOrg Codes; additive `ResolveAuthSessionTenantLifecycle` and `ResolvePublicBusinessCardOrganization` are the twenty-first and twenty-second INTERNAL methods with separate exact Auth/Public Entry Codes. Audience and caller rules are frozen by [tenant-org-service.md](../../architecture/services/tenant-org-service.md#13-trusted-grpc-22-rpc-contractfrozen). Existing request tenant fields and both resolver selectors remain owner resource identifiers and never execution authority.

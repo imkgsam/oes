@@ -91,7 +91,7 @@ Rules:
 - `roles` should not include full role-permission expansion.
 - `actionCodes` are the front-end control source.
 - The response should be scoped to the current authenticated account / tenant context.
-- System-scope accounts are supported; they resolve `SYSTEM_INSTANCE` roles without a tenant binding.
+- System-scope accounts are supported; they resolve `SYSTEM_INSTANCE` roles with `scopeLevel=SYSTEM` and no tenant binding. Gateway does not synthesize a tenant for a platform account.
 
 ## 7. Relationship With Session Context
 
@@ -102,6 +102,19 @@ Long-term direction:
 - Use `session/context` for shell context and navigation.
 - Use `session/access-summary` for roles and action codes.
 - Let front ends refresh access summary independently when needed.
+
+### 7.1 Cross-service execution
+
+After Auth has established the selected session context, Gateway / BFF uses scope-aware HUMAN OBO for both Permission calls:
+
+| HTTP composition | Permission INTERNAL Code | SYSTEM subject | TENANT subject |
+| --- | --- | --- | --- |
+| `GET /auth/session/access-summary` | `permission.internal.account_access_summary.resolve` | `tenant_id` absent | exact session `tenant_id` |
+| `GET /auth/session/context` navigation composition | `permission.internal.account_navigation.resolve` | `tenant_id` absent | exact session `tenant_id` |
+
+The existing signed `tenant_id` presence is the subject scope encoding: exact non-wildcard value means TENANT and complete absence means SYSTEM. Gateway does not send a caller-selected `scope_level` or tenant into `ExchangeExecutionToken`; Auth derives the pair from its verified session/subject Token. `scope` remains the requested/granted Permission Code set. The target request still carries its existing `scope_level` / optional `tenant_id` owner-query fields, derived from the same selected session and checked against the verified target Token.
+
+The direct actor remains the registered tenantless SYSTEM MACHINE Gateway workload. Permission authorizes only that exact workload -> audience -> INTERNAL Code issuance and does not provide HUMAN subject scope or tenant. Exchange/admission failure returns the endpoint's stable dependency failure; Gateway does not fabricate an empty access summary, scope default, tenant value or broad BUSINESS grant.
 
 ## 8. Front-end Integration
 
@@ -135,6 +148,7 @@ Current state:
 - `GET /auth/session/access-summary` is already the dedicated access-summary endpoint.
 - The downstream source is `permission-service`.
 - Both tenant-scope and system-scope accounts are supported.
+- Account selection and both HTTP response schemas remain unchanged. Scope-aware OBO requires no proto, JWT-claim, role, permission-catalog, database or front-end change.
 
 ## 10. Current Deferred Work
 
@@ -147,3 +161,10 @@ Current state:
 Downstream design reference:
 
 - [permission-service access summary](../permission-service/access-summary.md)
+
+## 12. Acceptance
+
+- A selected SYSTEM account keeps `tenantId = null`; access summary resolves the current `SYSTEM_INSTANCE` role/action set and session context returns `scopeLevel = SYSTEM` with tenant absent/null.
+- A selected TENANT account keeps its exact tenant through access summary and navigation OBO; existing tenant role/action resolution is unchanged.
+- Blank/wildcard tenant, SYSTEM-with-tenant, TENANT-without-tenant, missing session, wrong audience/Code/workload/actor, expired subject or Permission/audit mismatch fails before a downstream result is composed.
+- The full SYSTEM journey covers account selection, `GET /auth/session/access-summary`, and `GET /auth/session/context`; success of account selection alone is not acceptance.
