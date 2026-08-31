@@ -1,14 +1,16 @@
 # Public Business Card Public Boundary
 
 featureKey: public-business-card-public-boundary
-truthCommit: 0c8adcaf382c09fb56d9790b44a02de783a63ea8
-baseSha: 0c8adcaf382c09fb56d9790b44a02de783a63ea8
+truthCommit: ddd1d4864552e591c94408615b9fac9d418228a3
+baseSha: b589b41880fdaed84e4b35d3383f7a0d1e325739
 integrationBranch: codex/public-business-card-public-boundary
 worktreeKey: 2af8
 pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
-state: DESIGN_GAP_BLOCKED
+state: RUNTIME_VALIDATING
+implementationCandidateAncestor: 3c3e9cd7337de1197045e8ffe3b12a11a5af0616
+review: pending same Runtime Owner, then independent Feature RI
 
 ## Objective
 
@@ -18,9 +20,9 @@ Close the anonymous `/public/business-cards/:businessCardId` page as one determi
 
 ### PBC-1 Public result boundary
 
-state: DESIGN_GAP_BLOCKED
-candidate: 8b4435c2051557de6a36f76acb39c3b26e8bb2cf
-review: pending-after-design-resume
+state: RUNTIME_VALIDATING
+candidate: 0e77938afd73ea1efa3819c77e230a7ecd78115d
+review: pending-runtime
 
 - Scope: tenant-web core route and public BusinessCard view/API; the exact Gateway → Public Entry and Public Entry → frozen foundation target entries in the versioned local execution-token registry; focused route/view/API/trust tests.
 - Protected scope: authenticated admin routes, generic authenticated 404 behavior, public-entry domain result vocabulary, wildcard or unrelated audience admission, permission policy semantics, and unrelated tenant-web pages.
@@ -30,7 +32,7 @@ review: pending-after-design-resume
 ### PBC-2 Task-owned published-card fixture
 
 state: CANDIDATE_READY
-candidate: 8b4435c2051557de6a36f76acb39c3b26e8bb2cf
+candidate: 0e77938afd73ea1efa3819c77e230a7ecd78115d
 review: pending-feature-candidate
 
 - Scope: public-entry-service idempotent seed entrypoint, isolated fixture identifiers/data, and one task-owned Permission SYSTEM role/binding granting the exact Gateway machine principal only `public-entry.business-card.read`; focused seed replay/isolation tests.
@@ -47,9 +49,17 @@ review: pending-feature-candidate
 - Replay the task-owned seed twice and prove deterministic rows plus Public Entry database isolation.
 - Freeze one candidate, obtain independent Feature RI, then open a Draft PR without merging.
 
-## Current design gap
+## Design resolution
 
-- Exact runtime evidence at product candidate `8b4435c2051557de6a36f76acb39c3b26e8bb2cf` proves Gateway admission, Auth machine-source bootstrap, Permission ingress decision, and Public Entry handler execution are healthy; NOT_FOUND, DISABLED, and UNAVAILABLE pass, while AVAILABLE alone degrades to controlled UNAVAILABLE during upstream owner-fact hydration.
-- The missing stable truth is the target-owned minimum Public Entry public-render collaboration across HR, Identity, and TenantOrg: exact INTERNAL resolver names and projections, Code ownership, SYSTEM MACHINE target declarations, workload issuance tuples, tenant-selector rules, rollout compatibility, validation, and rollback.
-- Existing `hr.employee.get_by_id`, `identity.account.list`, `identity.account.self.read`, `tenant_org.tenant.get_by_id`, and `tenant_org.org_unit.list_tree` BUSINESS Codes remain protected and must not be widened to SYSTEM or granted through a task role to close this gap.
-- Only PBC-1 is paused. Preserve this FL, branch, worktree, product candidate, task-owned databases, fixture, runtime evidence, and Runtime Owner binding. Resume the same lane only after the exact global design truth merges; then update from latest `origin/main`, revalidate the affected downstream path, freeze the final candidate, and create the independent Feature RI.
+- Exact design truth merged at `ddd1d4864552e591c94408615b9fac9d418228a3` and freezes three dedicated INTERNAL owner resolvers: HR `ResolvePublicBusinessCardEmployee`, Identity `ResolvePublicBusinessCardIdentity`, and TenantOrg `ResolvePublicBusinessCardOrganization`.
+- Candidate `0e77938afd73ea1efa3819c77e230a7ecd78115d` implements the three WORKLOAD_POLICY-only SYSTEM Codes, exact Public Entry workload issuance tuples, tenantless MACHINE calls, target-owned selector/resource checks, and a request-private aggregate with at most one read per owner per operation.
+- Public Entry no longer uses the five protected BUSINESS reads in anonymous readiness/render/vCard composition. Existing BUSINESS methods remain unchanged for their existing consumers, and TenantOrg explicitly rejects the removed Public Entry BUSINESS exceptions.
+- Required owner or trust failure remains generic `PUBLIC_CARD_UNAVAILABLE`; optional contact or website loss omits only the corresponding public field/action.
+
+## Candidate verification
+
+- Proto lint, generation, and breaking against latest `origin/main` pass.
+- TypeScript builds pass for Common, Auth, Permission, HR, Identity, TenantOrg, and Public Entry.
+- Affected suites pass: Common 292/292; HR L1/L2/L3 74/74; Identity L1/L2 184/184; TenantOrg L1/L2/L3 93/93; Public Entry 58/58; Permission L1/L2/L3 407/407; Auth 431/431.
+- Workload-policy profile and tests pass; database lifecycle 16/16 and trusted-runtime inventory 10/10 pass; task-scoped HR, Identity, TenantOrg, and Permission L2 databases pass 67/67 tests.
+- Next gate is same Runtime Owner revalidation of AVAILABLE, NOT_FOUND, DISABLED, UNAVAILABLE, exact owner-call counts, negative workload/audience/Code/cnf/selector cases, and browser refresh behavior. Independent Feature RI opens only after that runtime gate passes.
