@@ -8,7 +8,7 @@ worktreeKey: 917a
 pullRequest: https://github.com/imkgsam/oes/pull/55
 mergeSha: pending
 cleanup: HOLD
-state: CANDIDATE_READY
+state: ACCEPTED
 
 ## Objective
 
@@ -20,9 +20,9 @@ SYSTEM session stays tenantless while TENANT preserves one exact tenant.
 
 ### scope-aware-human-obo
 
-state: CANDIDATE_READY
+state: ACCEPTED
 candidate: b12769942e87098cf71a758ddccc2206aa8f5ed0
-review: local-ri post-PR48 moving-main bounded rebind pending
+review: local-ri ACCEPTED exact 58e72653ec79efc78e89172ccb67641269e107f4; findings none
 
 - Scope: Auth HUMAN OBO subject verifier and signing gate; OBO audit subject-scope attribution;
   Common certificate-bound cache subject-scope separation; focused SYSTEM/TENANT/negative tests.
