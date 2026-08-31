@@ -8,8 +8,8 @@ pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
 state: CANDIDATE_READY
-implementationCandidateAncestor: 06b5341825128e5aa27aaed4a16f7c47dc5310b3
-review: round-3 findings remediated; exact candidate pending same independent Feature RI
+implementationCandidateAncestor: d71bb01d3229f54570b6b88ce4e1d18dc15e9abd
+review: round-4 finding remediated; exact candidate pending same independent Feature RI
 
 ## Status
 
@@ -47,7 +47,7 @@ Implement the merged command-contract v8 follow-on cutover without replacing the
 
 ## Current verification
 
-- `static-risk`: PASS; prepared build passed, unit matrix passed with 8 packages / 449 suites / 2033 tests, collaboration runtime passed 153/153, and all contract/risk checks passed. Product/build evidence is reusable because the remediation changes only collaboration-runtime trust binding and tests.
+- `static-risk`: PASS; prepared build passed, unit matrix passed with 8 packages / 449 suites / 2033 tests, collaboration runtime passed 154/154, and all contract/risk checks passed. Product/build evidence is reusable because the remediation changes only collaboration-runtime trust binding and tests.
 - `l2-runtime`: PASS; 18 packages / 59 suites / 185 tests, database rollback passed, and task-owned container/volume/network residue is zero.
 - Local-main scenario: PASS; a profile-trusted owner/transition/nonce/realpath/ref/SHA-bound confirmation authorized one exact ff-only update, while a sibling FL worktree retained its original branch and HEAD; stale transition, cross-transition nonce replay, forged confirmation, root/remote/SHA drift, and symlink alias fail closed.
 - CLI/fault smoke: PASS; unproven terminal delivery fails closed, an immutable profile-trusted CI observation proves the exact completed failed run/job/SHA relation, the identical recovery returns its existing monotonic receipt, and stale-transition, unrelated-job, or run-alias observations fail closed.
@@ -61,3 +61,4 @@ Implement the merged command-contract v8 follow-on cutover without replacing the
 - CI recovery no longer accepts caller-supplied run/job/failure facts; it reopens a profile-read-only live-CI observation, validates run/job/SHA/failure association, and binds the monotonic receipt to owner, transition, observation, and globally unique job identity.
 - The installed read-only profile now seals owner and transition; effective-profile report readback must match both before local-main or CI trust context can be created.
 - Local-main now atomically creates an owner/nonce `CLAIMED` checkpoint before the first Git command; `EEXIST` is reopened and transition-validated, closing the concurrent stale-checkpoint TOCTOU window.
+- Claim publication now fsyncs complete bytes to a unique temporary file before an atomic no-replace hard link; orphan temporary files do not block progress, and an exact complete `CLAIMED` checkpoint resumes idempotently.
