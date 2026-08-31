@@ -37,7 +37,8 @@ vi.mock('ant-design-vue', () => ({
   QRCode: defineComponent({
     name: 'AQrCode',
     props: ['bordered', 'size', 'value'],
-    template: '<div data-testid="public-card-qr" :data-bordered="String(bordered)" :data-size="size">{{ value }}</div>'
+    template:
+      '<div data-testid="public-card-qr" :data-bordered="String(bordered)" :data-size="size">{{ value }}</div>'
   }),
   Skeleton: {
     name: 'ASkeleton',
@@ -112,7 +113,7 @@ describe('public BusinessCard page', () => {
             displayOrder: 10
           },
           {
-            actionUrl: 'https://app.oes.local/public/business-cards/card_001.vcf',
+            actionUrl: '/public-entry/public/business-cards/card_001.vcf',
             contactActionType: 'SAVE_VCARD',
             displayOrder: 20
           },
@@ -146,7 +147,9 @@ describe('public BusinessCard page', () => {
     expect(wrapper.find('.public-card__portrait--photo-background').attributes('style')).toContain(
       'https://cdn.example.com/alex.jpg'
     )
-    expect(businessCardPublicSource).not.toContain('.public-card__portrait--photo-background::before')
+    expect(businessCardPublicSource).not.toContain(
+      '.public-card__portrait--photo-background::before'
+    )
     expect(businessCardPublicSource).not.toContain('margin-top: -38px;')
     expect(businessCardPublicSource).not.toContain('clip-path: polygon(0 38px')
     expect(businessCardPublicSource).toContain('margin-top: -16px;')
@@ -159,7 +162,9 @@ describe('public BusinessCard page', () => {
     expect(wrapper.find('.public-card > .public-card__qr-shell').exists()).toBe(true)
     expect(wrapper.find('.public-card__content-grid').exists()).toBe(true)
     expect(wrapper.find('.public-card__identity .public-card__role').exists()).toBe(true)
-    expect(wrapper.find('.public-card__content-grid > .public-card__contact-list').exists()).toBe(true)
+    expect(wrapper.find('.public-card__content-grid > .public-card__contact-list').exists()).toBe(
+      true
+    )
     expect(wrapper.find('.public-card__content-grid .public-card__contact-row')).toBeTruthy()
     expect(wrapper.find('.public-card__ornament').exists()).toBe(false)
     expect(wrapper.find('.public-card__name-grid').exists()).toBe(false)
@@ -167,7 +172,9 @@ describe('public BusinessCard page', () => {
     expect(businessCardPublicSource).toContain('position: absolute;')
     expect(businessCardPublicSource).toContain('right: 18px;')
     expect(businessCardPublicSource).toContain('top: 18px;')
-    expect(businessCardPublicSource).toContain('grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);')
+    expect(businessCardPublicSource).toContain(
+      'grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);'
+    )
     expect(businessCardPublicSource).toContain('max-width: 500px;')
     expect(businessCardPublicSource).toContain('font-size: 24px;')
     expect(businessCardPublicSource).toContain('max-width: 100%;')
@@ -178,7 +185,9 @@ describe('public BusinessCard page', () => {
     expect(businessCardPublicSource).toContain('white-space: nowrap;')
     expect(wrapper.find('.public-card__eyebrow').exists()).toBe(false)
     expect(businessCardPublicSource).not.toContain('Business Card')
-    expect(wrapper.find('.public-card__portrait img[src="https://cdn.example.com/alex.jpg"]').exists()).toBe(false)
+    expect(
+      wrapper.find('.public-card__portrait img[src="https://cdn.example.com/alex.jpg"]').exists()
+    ).toBe(false)
     expect(wrapper.html()).not.toContain('account-avatar.example.com')
     expect(wrapper.text()).toContain('alex.chen@example.com')
     expect(wrapper.text()).toContain('保存通讯录')
@@ -188,9 +197,13 @@ describe('public BusinessCard page', () => {
     expect(wrapper.text()).not.toContain('保存通讯录后，可快速找到联系方式。')
     expect(wrapper.find('[data-testid="public-card-qr"]').attributes('data-bordered')).toBe('false')
     expect(wrapper.find('[data-testid="public-card-qr"]').attributes('data-size')).toBe('72')
-    expect(wrapper.find('[data-testid="public-card-qr"]').text()).toContain('https://go.oes.local/c/ABC1234')
+    expect(wrapper.find('[data-testid="public-card-qr"]').text()).toContain(
+      'https://go.oes.local/c/ABC1234'
+    )
     expect(wrapper.find('a[href="mailto:alex.chen@example.com"]').exists()).toBe(true)
-    expect(wrapper.find('a[href="https://app.oes.local/public/business-cards/card_001.vcf"]').exists()).toBe(true)
+    expect(
+      wrapper.find('a[href="/public-entry/public/business-cards/card_001.vcf"]').exists()
+    ).toBe(true)
     expect(wrapper.find('a[href="https://www.oes.example"]').exists()).toBe(true)
     expect(wrapper.findAll('.public-card__contact-row')).toHaveLength(3)
   })
@@ -225,10 +238,14 @@ describe('public BusinessCard page', () => {
     const wrapper = mount(view.default, { attachTo: document.body })
     await flushPromises()
 
-    expect(wrapper.find('a[href="/public-entry/public/business-cards/card_001.vcf"]').exists()).toBe(false)
+    expect(
+      wrapper.find('a[href="/public-entry/public/business-cards/card_001.vcf"]').exists()
+    ).toBe(false)
     expect(wrapper.find('.public-card__photo--placeholder').exists()).toBe(true)
     expect(wrapper.find('.public-card__photo--placeholder').text()).toBe('A')
     expect(wrapper.html()).not.toContain('account-avatar.example.com')
-    expect(wrapper.findAll('.public-card__contact-row').some((row) => row.text().includes('保存通讯录'))).toBe(false)
+    expect(
+      wrapper.findAll('.public-card__contact-row').some((row) => row.text().includes('保存通讯录'))
+    ).toBe(false)
   })
 })

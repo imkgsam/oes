@@ -53,12 +53,14 @@ function buildController() {
         department: 'Enterprise Sales',
         contactValues: [
           {
+            contactActionType: 'CALL_PHONE' as const,
             targetRefType: 'CONTACT_ASSET' as const,
             targetRefId: 'phone_001',
             contactAssetKind: 'WORK_PHONE' as const,
             displayValue: '+1 555 0101',
             actionUrl: 'tel:+15550101',
-            available: true
+            available: true,
+            includeInVCardAllowed: true
           }
         ],
         status: 'ACTIVE' as const
@@ -74,12 +76,14 @@ function buildController() {
     {
       resolvePublicSafeValues: jest.fn(async () => [
         {
+          contactActionType: 'CALL_PHONE' as const,
           targetRefType: 'CONTACT_ASSET' as const,
           targetRefId: 'phone_001',
           contactAssetKind: 'WORK_PHONE' as const,
           displayValue: '+1 555 0101',
           actionUrl: 'tel:+15550101',
-          available: true
+          available: true,
+          includeInVCardAllowed: true
         }
       ])
     },

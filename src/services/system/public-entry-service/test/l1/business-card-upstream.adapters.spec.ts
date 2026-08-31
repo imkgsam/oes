@@ -57,7 +57,8 @@ describe('BusinessCard dedicated owner-fact gRPC adapters', () => {
               publicValueSummary: {
                 type: 'WORK_EMAIL',
                 displayValue: 'alex@example.com',
-                actionUri: 'mailto:alex@example.com'
+                actionUri: 'mailto:alex@example.com',
+                includeInVCardAllowed: true
               }
             }
           ]
@@ -98,12 +99,14 @@ describe('BusinessCard dedicated owner-fact gRPC adapters', () => {
       officialPhotoUrl: 'https://hr.example/official.jpg',
       contactValues: [
         {
+          contactActionType: 'SEND_EMAIL',
           targetRefType: 'CONTACT_ASSET',
           targetRefId: 'email_001',
           contactAssetKind: 'WORK_EMAIL',
           displayValue: 'alex@example.com',
           actionUrl: 'mailto:alex@example.com',
-          available: true
+          available: true,
+          includeInVCardAllowed: true
         }
       ],
       status: 'ACTIVE'
@@ -135,13 +138,15 @@ describe('BusinessCard dedicated owner-fact gRPC adapters', () => {
           employeeId: 'emp_001',
           targets: [
             {
+              contactActionType: 'SEND_EMAIL',
               targetRefType: 'CONTACT_ASSET',
               targetRefId: 'email_001',
               renderable: true,
               publicValueSummary: {
                 type: 'WORK_EMAIL',
                 displayValue: 'alex@example.com',
-                actionUri: 'mailto:alex@example.com'
+                actionUri: 'mailto:alex@example.com',
+                includeInVCardAllowed: false
               }
             },
             { targetRefType: 'CONTACT_ASSET', targetRefId: 'hidden', renderable: false }
@@ -164,7 +169,54 @@ describe('BusinessCard dedicated owner-fact gRPC adapters', () => {
           }
         ]
       })
-    ).resolves.toHaveLength(1)
+    ).resolves.toEqual([
+      expect.objectContaining({
+        contactActionType: 'SEND_EMAIL',
+        includeInVCardAllowed: false
+      })
+    ])
+  })
+
+  it('drops mismatched Identity action/value projections instead of retyping them', async () => {
+    const identityQuery = {
+      resolvePublicBusinessCardIdentity: jest.fn(() =>
+        of({
+          available: true,
+          tenantId: 'tenant_001',
+          employeeId: 'emp_001',
+          targets: [
+            {
+              contactActionType: 'SEND_EMAIL',
+              targetRefType: 'CONTACT_ASSET',
+              targetRefId: 'email_001',
+              renderable: true,
+              publicValueSummary: {
+                type: 'WORK_PHONE',
+                displayValue: '+1 555 0101',
+                actionUri: 'tel:+15550101',
+                includeInVCardAllowed: true
+              }
+            }
+          ]
+        })
+      )
+    }
+    const adapter = new BusinessCardContactAssetGrpcAdapter(buildGrpcClient(identityQuery) as any)
+    adapter.onModuleInit()
+
+    await expect(
+      adapter.resolvePublicSafeValues({
+        tenantId: 'tenant_001',
+        employeeId: 'emp_001',
+        actionRefs: [
+          {
+            contactActionType: 'SEND_EMAIL',
+            targetRefType: 'CONTACT_ASSET',
+            targetRefId: 'email_001'
+          }
+        ]
+      })
+    ).resolves.toEqual([])
   })
 
   it('maps the exact TenantOrg company and optional department projection', async () => {

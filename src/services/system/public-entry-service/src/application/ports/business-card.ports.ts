@@ -28,6 +28,7 @@ export type BusinessCardCompanyDisplaySummary = {
 }
 
 export type ContactActionPublicSafeValue = {
+  contactActionType: ContactActionType
   targetRefType: ContactActionTargetRefType
   targetRefId?: string | null
   contactAssetKind?:
@@ -41,6 +42,7 @@ export type ContactActionPublicSafeValue = {
   displayValue?: string | null
   actionUrl?: string | null
   available: boolean
+  includeInVCardAllowed: boolean
 }
 
 export type ContactActionResolveRef = {

@@ -239,18 +239,67 @@ function toPublicSafeContactValue(
   target: ResolvedContactActionTarget
 ): ContactActionPublicSafeValue | null {
   const summary = target.publicValueSummary
-  if (!summary?.type || !summary.actionUri || !summary.displayValue) {
+  const contactActionType = normalizeContactActionType(target.contactActionType)
+  const contactAssetKind = normalizeContactAssetKind(summary?.type)
+  if (
+    !contactActionType ||
+    !summary?.type ||
+    !summary.actionUri ||
+    !summary.displayValue ||
+    !isContactValueCompatible(contactActionType, contactAssetKind, summary.actionUri)
+  ) {
     return null
   }
 
   return {
+    contactActionType,
     targetRefType: normalizeTargetRefType(target.targetRefType),
     targetRefId: normalizeOptional(target.targetRefId) ?? null,
-    contactAssetKind: normalizeContactAssetKind(summary.type),
+    contactAssetKind,
     displayValue: summary.displayValue,
     actionUrl: summary.actionUri,
-    available: true
+    available: true,
+    includeInVCardAllowed: Boolean(summary.includeInVCardAllowed)
   }
+}
+
+// normalizeContactActionType rejects owner responses outside the configured contact-action contract.
+function normalizeContactActionType(
+  value?: string | null
+): ContactActionResolveRef['contactActionType'] | undefined {
+  if (
+    value === 'CALL_PHONE' ||
+    value === 'SEND_EMAIL' ||
+    value === 'ADD_WECHAT' ||
+    value === 'OPEN_WHATSAPP'
+  ) {
+    return value
+  }
+  return undefined
+}
+
+// isContactValueCompatible fail-closes mismatched owner action, value kind, and URI projections.
+function isContactValueCompatible(
+  contactActionType: ContactActionResolveRef['contactActionType'],
+  contactAssetKind: NonNullable<ContactActionPublicSafeValue['contactAssetKind']>,
+  actionUrl: string
+): boolean {
+  if (contactActionType === 'CALL_PHONE') {
+    return contactAssetKind === 'WORK_PHONE' && actionUrl.startsWith('tel:')
+  }
+  if (contactActionType === 'SEND_EMAIL') {
+    return contactAssetKind === 'WORK_EMAIL' && actionUrl.startsWith('mailto:')
+  }
+  if (contactActionType === 'ADD_WECHAT') {
+    return (
+      (contactAssetKind === 'WECHAT' || contactAssetKind === 'EXTERNAL_COMMUNICATION_ACCOUNT') &&
+      actionUrl.startsWith('weixin:')
+    )
+  }
+  return (
+    (contactAssetKind === 'WHATSAPP' || contactAssetKind === 'WORK_PHONE') &&
+    actionUrl.startsWith('https://wa.me/')
+  )
 }
 
 // normalizeTargetRefType keeps transport strings inside the BusinessCard target ref union.
@@ -262,7 +311,7 @@ function normalizeTargetRefType(value?: string | null): ContactActionResolveRef[
 
 // normalizeContactAssetKind keeps identity Contact Asset types inside the BusinessCard public value union.
 function normalizeContactAssetKind(
-  value: string
+  value?: string | null
 ): NonNullable<ContactActionPublicSafeValue['contactAssetKind']> {
   if (
     value === 'WORK_PHONE' ||

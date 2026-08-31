@@ -70,6 +70,16 @@ type PublicBusinessCardOwnerFacts = {
   contactValues: ContactActionPublicSafeValue[]
 }
 
+type ResolvedPublicContactAction = {
+  action: PublicContactAction
+  includeInVCard: boolean
+}
+
+type PublicBusinessCardComposition = {
+  result: PublicRenderResult
+  vCardContactActionIndexes: ReadonlySet<number>
+}
+
 // BusinessCardApplicationService coordinates card config, upstream facts, ShortLink consumption, authorization, and audit.
 export class BusinessCardApplicationService {
   constructor(
@@ -379,7 +389,7 @@ export class BusinessCardApplicationService {
 
   async renderPublicCard(input: PublicCardInput): Promise<PublicRenderResult> {
     const card = await this.repository.getById(input.tenantId, input.businessCardId)
-    return this.renderPublicCardFromRecord(card, input.traceId)
+    return (await this.composePublicCardFromRecord(card, input.traceId)).result
   }
 
   async renderPublicCardById(input: {
@@ -387,63 +397,82 @@ export class BusinessCardApplicationService {
     traceId?: string
   }): Promise<PublicRenderResult> {
     const card = await this.repository.findById(input.businessCardId)
-    return this.renderPublicCardFromRecord(card, input.traceId)
+    return (await this.composePublicCardFromRecord(card, input.traceId)).result
   }
 
-  private async renderPublicCardFromRecord(
+  // composePublicCardFromRecord keeps vCard eligibility request-private while returning the unchanged public view.
+  private async composePublicCardFromRecord(
     card: BusinessCardRecord | null,
     traceId?: string
-  ): Promise<PublicRenderResult> {
-    if (!card) return { state: 'PUBLIC_CARD_NOT_FOUND', view: null }
+  ): Promise<PublicBusinessCardComposition> {
+    if (!card) {
+      return {
+        result: { state: 'PUBLIC_CARD_NOT_FOUND', view: null },
+        vCardContactActionIndexes: new Set()
+      }
+    }
     const liveCard = await this.withLivePublicEntryRef(card)
     const readiness = await this.evaluateReadiness(liveCard, traceId)
-    if (!readiness.ready || !readiness.ownerFacts)
-      return { state: 'PUBLIC_CARD_UNAVAILABLE', view: null }
-    const { employee, company, contactValues } = readiness.ownerFacts
-    const contactActions = this.resolvePublicContactActions(liveCard, company, contactValues)
-    return {
-      state: 'AVAILABLE',
-      view: {
-        businessCardId: liveCard.id,
-        publicUrl: liveCard.publicEntryRef?.publicUrl ?? null,
-        templateKey: liveCard.templateKey,
-        person: {
-          displayName: employee.displayName ?? '',
-          englishName: employee.englishName ?? null,
-          title: liveCard.visibilityConfig.showTitle ? (employee.title ?? null) : null,
-          department: liveCard.visibilityConfig.showDepartment
-            ? (company.departmentDisplayName ?? employee.department ?? null)
-            : null,
-          officialPhotoUrl: liveCard.visibilityConfig.showOfficialPhoto
-            ? (employee.officialPhotoUrl ?? null)
-            : null
-        },
-        company: {
-          companyDisplayName: liveCard.visibilityConfig.showCompany
-            ? (company.companyDisplayName ?? '')
-            : '',
-          websiteUrl: company.websiteUrl ?? null,
-          logoUrl: company.logoUrl ?? null
-        },
-        contactActions
+    if (!readiness.ready || !readiness.ownerFacts) {
+      return {
+        result: { state: 'PUBLIC_CARD_UNAVAILABLE', view: null },
+        vCardContactActionIndexes: new Set()
       }
+    }
+    const { employee, company, contactValues } = readiness.ownerFacts
+    const resolvedContactActions = this.resolvePublicContactActions(
+      liveCard,
+      company,
+      contactValues
+    )
+    return {
+      result: {
+        state: 'AVAILABLE',
+        view: {
+          businessCardId: liveCard.id,
+          publicUrl: liveCard.publicEntryRef?.publicUrl ?? null,
+          templateKey: liveCard.templateKey,
+          person: {
+            displayName: employee.displayName ?? '',
+            englishName: employee.englishName ?? null,
+            title: liveCard.visibilityConfig.showTitle ? (employee.title ?? null) : null,
+            department: liveCard.visibilityConfig.showDepartment
+              ? (company.departmentDisplayName ?? employee.department ?? null)
+              : null,
+            officialPhotoUrl: liveCard.visibilityConfig.showOfficialPhoto
+              ? (employee.officialPhotoUrl ?? null)
+              : null
+          },
+          company: {
+            companyDisplayName: liveCard.visibilityConfig.showCompany
+              ? (company.companyDisplayName ?? '')
+              : '',
+            websiteUrl: company.websiteUrl ?? null,
+            logoUrl: company.logoUrl ?? null
+          },
+          contactActions: resolvedContactActions.map(({ action }) => action)
+        }
+      },
+      vCardContactActionIndexes: new Set(
+        resolvedContactActions.flatMap((resolved, index) =>
+          resolved.includeInVCard ? [index] : []
+        )
+      )
     }
   }
 
   async generateVCard(input: PublicCardInput | { businessCardId: string; traceId?: string }) {
-    const rendered =
+    const card =
       'tenantId' in input
-        ? await this.renderPublicCard(input)
-        : await this.renderPublicCardById({
-            businessCardId: input.businessCardId,
-            traceId: input.traceId
-          })
-    if (rendered.state !== 'AVAILABLE') {
+        ? await this.repository.getById(input.tenantId, input.businessCardId)
+        : await this.repository.findById(input.businessCardId)
+    const composition = await this.composePublicCardFromRecord(card, input.traceId)
+    if (composition.result.state !== 'AVAILABLE') {
       return { contentType: 'text/vcard', body: '' }
     }
     return {
       contentType: 'text/vcard',
-      body: toVCard(rendered.view)
+      body: toVCard(composition.result.view, composition.vCardContactActionIndexes)
     }
   }
 
@@ -610,13 +639,16 @@ export class BusinessCardApplicationService {
     const enabledConfigs = card.contactActionConfigs
       .filter((config) => config.enabled && config.visibility === 'PUBLIC')
       .sort((a, b) => a.displayOrder - b.displayOrder)
-    return enabledConfigs.flatMap<PublicContactAction>((config) => {
+    return enabledConfigs.flatMap<ResolvedPublicContactAction>((config) => {
       if (config.contactActionType === 'SAVE_VCARD') {
         return [
           {
-            contactActionType: config.contactActionType,
-            displayOrder: config.displayOrder,
-            actionUrl: this.toPublicBusinessCardVCardUrl(card.id)
+            action: {
+              contactActionType: config.contactActionType,
+              displayOrder: config.displayOrder,
+              actionUrl: this.toPublicBusinessCardVCardUrl(card.id)
+            },
+            includeInVCard: false
           }
         ]
       }
@@ -624,10 +656,13 @@ export class BusinessCardApplicationService {
         if (!company.websiteUrl?.trim()) return []
         return [
           {
-            contactActionType: config.contactActionType,
-            displayOrder: config.displayOrder,
-            displayValue: formatPublicUrlDisplayValue(company.websiteUrl),
-            actionUrl: company.websiteUrl
+            action: {
+              contactActionType: config.contactActionType,
+              displayOrder: config.displayOrder,
+              displayValue: formatPublicUrlDisplayValue(company.websiteUrl),
+              actionUrl: company.websiteUrl
+            },
+            includeInVCard: false
           }
         ]
       }
@@ -635,10 +670,13 @@ export class BusinessCardApplicationService {
       if (!value?.available) return []
       return [
         {
-          contactActionType: config.contactActionType,
-          displayOrder: config.displayOrder,
-          displayValue: value.displayValue ?? null,
-          actionUrl: value.actionUrl ?? null
+          action: {
+            contactActionType: config.contactActionType,
+            displayOrder: config.displayOrder,
+            displayValue: value.displayValue ?? null,
+            actionUrl: value.actionUrl ?? null
+          },
+          includeInVCard: config.includeInVCard && value.includeInVCardAllowed
         }
       ]
     })
@@ -651,7 +689,7 @@ export class BusinessCardApplicationService {
   }
 
   private toPublicBusinessCardVCardUrl(businessCardId: string): string {
-    return `${this.toPublicBusinessCardUrl(businessCardId)}.vcf`
+    return `/public-entry/public/business-cards/${encodeURIComponent(businessCardId)}.vcf`
   }
 
   private async audit(
@@ -748,7 +786,9 @@ function findResolvedValue(
 ): ContactActionPublicSafeValue | undefined {
   return values.find(
     (value) =>
-      value.targetRefType === config.targetRefType && value.targetRefId === config.targetRefId
+      value.contactActionType === config.contactActionType &&
+      value.targetRefType === config.targetRefType &&
+      value.targetRefId === config.targetRefId
   )
 }
 
@@ -765,7 +805,10 @@ function formatPublicUrlDisplayValue(value: string): string {
 }
 
 // toVCard renders the public view into a conservative vCard 3.0 payload.
-function toVCard(view: PublicBusinessCardView): string {
+function toVCard(
+  view: PublicBusinessCardView,
+  vCardContactActionIndexes: ReadonlySet<number>
+): string {
   const lines = ['BEGIN:VCARD', 'VERSION:3.0', `FN:${escapeVCard(view.person.displayName)}`]
   if (view.person.title) lines.push(`TITLE:${escapeVCard(view.person.title)}`)
   if (view.person.department)
@@ -774,7 +817,8 @@ function toVCard(view: PublicBusinessCardView): string {
     )
   else if (view.company.companyDisplayName)
     lines.push(`ORG:${escapeVCard(view.company.companyDisplayName)}`)
-  for (const action of view.contactActions) {
+  for (const [index, action] of view.contactActions.entries()) {
+    if (!vCardContactActionIndexes.has(index)) continue
     if (action.contactActionType === 'CALL_PHONE' && action.displayValue) {
       lines.push(`TEL;TYPE=WORK:${escapeVCard(action.displayValue)}`)
     }

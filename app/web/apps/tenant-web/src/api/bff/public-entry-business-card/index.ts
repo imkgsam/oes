@@ -143,7 +143,9 @@ export function listBusinessCardsApi(
   tenantId: string,
   query?: { employeeId?: string; page?: number; pageSize?: number }
 ) {
-  return requestClient.get<PublicEntryBusinessCardApi.ListResult>(basePath(tenantId), { params: query })
+  return requestClient.get<PublicEntryBusinessCardApi.ListResult>(basePath(tenantId), {
+    params: query
+  })
 }
 
 // getBusinessCardDetailApi loads one BusinessCard detail and readiness diagnostics.
@@ -209,17 +211,21 @@ export function getOwnBusinessCardPreviewApi(tenantId: string) {
 export function renderPublicBusinessCardApi(businessCardId: string) {
   return fetch(`/public-entry/public/business-cards/${businessCardId}`, {
     headers: { Accept: 'application/json' }
-  }).then(async (response) => {
-    const contentType = response.headers.get('content-type') ?? ''
-    if (!contentType.includes('application/json')) {
-      return { state: 'PUBLIC_CARD_UNAVAILABLE' as const }
-    }
-    return normalizePublicRenderResponse(await response.json())
-  }).catch(() => ({ state: 'PUBLIC_CARD_UNAVAILABLE' as const }))
+  })
+    .then(async (response) => {
+      const contentType = response.headers.get('content-type') ?? ''
+      if (!contentType.includes('application/json')) {
+        return { state: 'PUBLIC_CARD_UNAVAILABLE' as const }
+      }
+      return normalizePublicRenderResponse(await response.json())
+    })
+    .catch(() => ({ state: 'PUBLIC_CARD_UNAVAILABLE' as const }))
 }
 
 // normalizePublicRenderResponse accepts both direct service payloads and gateway response envelopes.
-function normalizePublicRenderResponse(payload: unknown): PublicEntryBusinessCardApi.PublicRenderResult {
+function normalizePublicRenderResponse(
+  payload: unknown
+): PublicEntryBusinessCardApi.PublicRenderResult {
   const envelope = payload as PublicEntryBusinessCardApi.PublicRenderEnvelope
   const result = envelope.data ?? (payload as PublicEntryBusinessCardApi.PublicRenderResult)
   if (result?.state === 'PUBLIC_CARD_NOT_FOUND' || result?.state === 'PUBLIC_CARD_UNAVAILABLE') {
@@ -239,7 +245,8 @@ function normalizePublicView(value: unknown): PublicEntryBusinessCardApi.PublicV
   const templateKey = requiredString(value.templateKey)
   const displayName = requiredString(value.person.displayName)
   const companyDisplayName = stringValue(value.company.companyDisplayName)
-  if (!businessCardId || !templateKey || !displayName || companyDisplayName === undefined) return undefined
+  if (!businessCardId || !templateKey || !displayName || companyDisplayName === undefined)
+    return undefined
 
   return {
     businessCardId,
@@ -257,26 +264,36 @@ function normalizePublicView(value: unknown): PublicEntryBusinessCardApi.PublicV
       ...optionalStringField('websiteUrl', value.company.websiteUrl)
     },
     contactActions: Array.isArray(value.contactActions)
-      ? value.contactActions.flatMap((action) => normalizePublicAction(action))
+      ? value.contactActions.flatMap((action) => normalizePublicAction(action, businessCardId))
       : [],
     ...optionalStringField('publicUrl', value.publicUrl)
   }
 }
 
 // normalizePublicAction admits only supported action types and display fields from the public contract.
-function normalizePublicAction(value: unknown): PublicEntryBusinessCardApi.PublicView['contactActions'] {
+function normalizePublicAction(
+  value: unknown,
+  businessCardId: string
+): PublicEntryBusinessCardApi.PublicView['contactActions'] {
   if (!isRecord(value)) return []
   const contactActionType = value.contactActionType
   const displayOrder = value.displayOrder
-  if (!PUBLIC_ACTION_TYPES.has(contactActionType as PublicEntryBusinessCardApi.ActionType)
-    || typeof displayOrder !== 'number'
-    || !Number.isFinite(displayOrder)) return []
-  return [{
-    contactActionType: contactActionType as PublicEntryBusinessCardApi.ActionType,
-    displayOrder,
-    ...optionalStringField('displayValue', value.displayValue),
-    ...optionalStringField('actionUrl', value.actionUrl)
-  }]
+  if (
+    !PUBLIC_ACTION_TYPES.has(contactActionType as PublicEntryBusinessCardApi.ActionType) ||
+    typeof displayOrder !== 'number' ||
+    !Number.isFinite(displayOrder)
+  )
+    return []
+  return [
+    {
+      contactActionType: contactActionType as PublicEntryBusinessCardApi.ActionType,
+      displayOrder,
+      ...optionalStringField('displayValue', value.displayValue),
+      ...(contactActionType === 'SAVE_VCARD'
+        ? { actionUrl: resolveBusinessCardVCardUrl(businessCardId) }
+        : optionalStringField('actionUrl', value.actionUrl))
+    }
+  ]
 }
 
 const PUBLIC_ACTION_TYPES = new Set<PublicEntryBusinessCardApi.ActionType>([
@@ -300,11 +317,14 @@ function stringValue(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined
 }
 
-function optionalStringField<Key extends string>(key: Key, value: unknown): Partial<Record<Key, string>> {
-  return typeof value === 'string' && value.trim() ? { [key]: value } as Record<Key, string> : {}
+function optionalStringField<Key extends string>(
+  key: Key,
+  value: unknown
+): Partial<Record<Key, string>> {
+  return typeof value === 'string' && value.trim() ? ({ [key]: value } as Record<Key, string>) : {}
 }
 
 // resolveBusinessCardVCardUrl returns the anonymous vCard download path.
 export function resolveBusinessCardVCardUrl(businessCardId: string) {
-  return `/public-entry/public/business-cards/${businessCardId}.vcf`
+  return `/public-entry/public/business-cards/${encodeURIComponent(businessCardId)}.vcf`
 }
