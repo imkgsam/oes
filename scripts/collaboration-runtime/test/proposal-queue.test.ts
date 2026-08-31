@@ -1,12 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { sha256 } from '../src/canonical.ts'
+import { canonicalJson, objectFingerprint, sha256 } from '../src/canonical.ts'
 import {
   deriveProposalQueue,
   proposalQueueView,
   type ProposalEnvelope,
   type ProposalHistoryEvent,
-  type ProposalReceiptKind
+  type ProposalReceiptKind,
+  type ProposalTerminalDelivery,
+  type ProposalTerminalResult
 } from '../src/proposal-queue.ts'
 
 /** Builds one immutable Proposal fixture with exact source and return bindings. */
@@ -44,6 +46,53 @@ function receipt(
   }
 }
 
+/** Builds the typed result and exact delivery proof required before TERMINAL can release UD. */
+function terminalProof(envelope: ProposalEnvelope, terminalStatus: string, payload: unknown) {
+  const result: ProposalTerminalResult = {
+    schemaVersion: 1,
+    kind: 'OES_UD_PROPOSAL_TERMINAL_RESULT',
+    resultFingerprint: '',
+    proposalId: envelope.proposalId,
+    proposalFingerprint: envelope.proposalFingerprint,
+    returnTaskId: envelope.returnTaskId,
+    terminalStatus,
+    payload,
+    payloadFingerprint: sha256(canonicalJson(payload))
+  }
+  result.resultFingerprint = objectFingerprint(
+    result as unknown as Record<string, unknown>,
+    'resultFingerprint'
+  )
+  const delivery: ProposalTerminalDelivery = {
+    schemaVersion: 1,
+    kind: 'OES_UD_PROPOSAL_TERMINAL_DELIVERY',
+    deliveryFingerprint: '',
+    proposalId: envelope.proposalId,
+    proposalFingerprint: envelope.proposalFingerprint,
+    returnTaskId: envelope.returnTaskId,
+    terminalStatus,
+    resultFingerprint: result.resultFingerprint,
+    payloadFingerprint: result.payloadFingerprint,
+    outcome: 'DELIVERED'
+  }
+  delivery.deliveryFingerprint = objectFingerprint(
+    delivery as unknown as Record<string, unknown>,
+    'deliveryFingerprint'
+  )
+  return {
+    result,
+    delivery,
+    events: [
+      { schemaVersion: 1, kind: 'PROPOSAL_TERMINAL_RESULT', result },
+      { schemaVersion: 1, kind: 'PROPOSAL_TERMINAL_DELIVERY', delivery }
+    ] as ProposalHistoryEvent[],
+    terminal: receipt(envelope, 'TERMINAL', {
+      terminalStatus,
+      terminalResultDeliveryKey: delivery.deliveryFingerprint
+    })
+  }
+}
+
 test('strict FIFO holds the UD critical section until terminal exact return', () => {
   const first = proposal('proposal-a')
   const second = proposal('proposal-b')
@@ -70,14 +119,15 @@ test('strict FIFO holds the UD critical section until terminal exact return', ()
     /PROPOSAL_RECEIPT_BINDING_MISMATCH/
   )
 
-  const terminal = receipt(first, 'TERMINAL', {
-    terminalStatus: 'CANONICAL_MERGED_MAIN_CI_PASSED',
-    terminalResultDeliveryKey: `${first.returnTaskId}:${first.proposalId}:terminal`
+  const proof = terminalProof(first, 'CANONICAL_MERGED_MAIN_CI_PASSED', {
+    canonicalSha: 'a'.repeat(40)
   })
   const queue = deriveProposalQueue([
     ...processing,
-    terminal,
-    terminal,
+    ...proof.events,
+    proof.terminal,
+    ...proof.events,
+    proof.terminal,
     receipt(second, 'UD_ADMITTED')
   ])
   assert.deepEqual(
@@ -86,6 +136,68 @@ test('strict FIFO holds the UD critical section until terminal exact return', ()
       { proposalId: first.proposalId, state: 'TERMINAL' },
       { proposalId: second.proposalId, state: 'ADMITTED' }
     ]
+  )
+})
+
+test('TERMINAL requires an exact typed result and delivery proof and replays only exact bytes', () => {
+  const envelope = proposal('proposal-terminal')
+  const active: ProposalHistoryEvent[] = [
+    { schemaVersion: 1, kind: 'PROPOSAL_TRANSPORT', envelope },
+    receipt(envelope, 'UD_ADMITTED'),
+    receipt(envelope, 'PROCESSING')
+  ]
+  const proof = terminalProof(envelope, 'DESIGN_REJECTED', { reason: 'contract mismatch' })
+
+  assert.throws(
+    () => deriveProposalQueue([...active, proof.terminal]),
+    /PROPOSAL_TERMINAL_EXACT_RETURN_UNPROVEN/
+  )
+
+  const payloadDrift = structuredClone(proof.result)
+  payloadDrift.payload = { reason: 'changed after fingerprint' }
+  assert.throws(
+    () =>
+      deriveProposalQueue([
+        ...active,
+        { schemaVersion: 1, kind: 'PROPOSAL_TERMINAL_RESULT', result: payloadDrift }
+      ]),
+    /PROPOSAL_TERMINAL_RESULT_PAYLOAD_DRIFT/
+  )
+
+  const wrongTarget = structuredClone(proof.delivery)
+  wrongTarget.returnTaskId = '/root/fl/wrong'
+  wrongTarget.deliveryFingerprint = objectFingerprint(
+    wrongTarget as unknown as Record<string, unknown>,
+    'deliveryFingerprint'
+  )
+  assert.throws(
+    () =>
+      deriveProposalQueue([
+        ...active,
+        { schemaVersion: 1, kind: 'PROPOSAL_TERMINAL_RESULT', result: proof.result },
+        { schemaVersion: 1, kind: 'PROPOSAL_TERMINAL_DELIVERY', delivery: wrongTarget }
+      ]),
+    /PROPOSAL_TERMINAL_DELIVERY_BINDING_MISMATCH/
+  )
+
+  const forgedKey = receipt(envelope, 'TERMINAL', {
+    terminalStatus: proof.result.terminalStatus,
+    terminalResultDeliveryKey: 'f'.repeat(64)
+  })
+  assert.throws(
+    () => deriveProposalQueue([...active, ...proof.events, forgedKey]),
+    /PROPOSAL_TERMINAL_EXACT_RETURN_UNPROVEN/
+  )
+
+  assert.equal(
+    deriveProposalQueue([
+      ...active,
+      ...proof.events,
+      ...proof.events,
+      proof.terminal,
+      proof.terminal
+    ])[0]?.state,
+    'TERMINAL'
   )
 })
 

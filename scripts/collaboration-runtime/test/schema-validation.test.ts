@@ -97,7 +97,37 @@ test('Proposal history and local-main bindings have executable closed schemas', 
     branch: 'main',
     expectedRemoteUrl: 'https://github.com/example/oes.git',
     expectedRemoteMainSha: 'b'.repeat(40),
-    humanConfirmationFingerprint: 'c'.repeat(64)
+    humanConfirmationFingerprint: 'c'.repeat(64),
+    confirmation: {
+      path: '/trusted/local-main-confirmation.json',
+      sha256: 'd'.repeat(64),
+      fingerprint: 'c'.repeat(64)
+    }
+  })
+  validateJsonSchema(schema('local-main-sync-confirmation.schema.json'), {
+    schemaVersion: 1,
+    kind: 'OES_LOCAL_MAIN_SYNC_CONFIRMATION',
+    confirmationFingerprint: 'c'.repeat(64),
+    status: 'ISSUED',
+    ownerTaskId: '/root/fl',
+    transitionId: 'local-main:1',
+    action: 'sync',
+    repositoryRoot: '/fixture/oes',
+    remote: 'origin',
+    branch: 'main',
+    expectedRemoteUrl: 'https://github.com/example/oes.git',
+    expectedRemoteMainSha: 'b'.repeat(40),
+    singleUseNonce: 'e'.repeat(64)
+  })
+  validateJsonSchema(schema('ci-rerun-receipt.schema.json'), {
+    schemaVersion: 1,
+    kind: 'OES_CI_FAILED_JOB_RERUN_RECEIPT',
+    receiptFingerprint: 'a'.repeat(64),
+    idempotencyKey: 'b'.repeat(64),
+    candidateSha: 'c'.repeat(40),
+    workflowRunId: 'workflow-run-42',
+    failedJobId: 'failed-job-7',
+    action: 'RERUN_FAILED_JOB_ONCE'
   })
 })
 

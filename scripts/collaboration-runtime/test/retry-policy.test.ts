@@ -1,6 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { classifyExternalFailure, decideCiRecovery, retryTransient } from '../src/retry-policy.ts'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import {
+  CiRecoveryController,
+  FileCiRecoveryReceiptStore,
+  classifyExternalFailure,
+  retryTransient
+} from '../src/retry-policy.ts'
 
 test('transient reads use bounded exponential backoff with jitter', async () => {
   let attempts = 0
@@ -51,30 +59,44 @@ test('permission failure stops immediately and transient exhaustion is bounded',
 
 test('CI recovery reruns only one infrastructure-failed job on the unchanged SHA', () => {
   const sha = 'a'.repeat(40)
-  assert.deepEqual(
-    decideCiRecovery({
-      candidateSha: sha,
-      observedSha: sha,
-      failureKind: 'infrastructure',
-      failedJobReruns: 0
-    }),
-    { action: 'RERUN_FAILED_JOB_ONCE', reason: 'SAME_SHA_INFRASTRUCTURE_FAILURE' }
+  const root = mkdtempSync(join(tmpdir(), 'oes-ci-recovery-'))
+  const input = {
+    candidateSha: sha,
+    observedSha: sha,
+    failureKind: 'infrastructure' as const,
+    workflowRunId: 'workflow-run-42',
+    failedJobId: 'failed-job-7'
+  }
+  const first = new CiRecoveryController(new FileCiRecoveryReceiptStore(root)).decide(input)
+  assert.equal(first.action, 'RERUN_FAILED_JOB_ONCE')
+  assert.equal(first.reason, 'SAME_SHA_INFRASTRUCTURE_FAILURE')
+  assert.ok(first.rerunReceipt)
+
+  const replay = new CiRecoveryController(new FileCiRecoveryReceiptStore(root)).decide(input)
+  assert.equal(replay.action, 'REPLAY_EXISTING_RERUN_RECEIPT')
+  assert.equal(replay.reason, 'SAME_FAILURE_RERUN_ALREADY_RECORDED')
+  assert.deepEqual(replay.rerunReceipt, first.rerunReceipt)
+
+  const controller = new CiRecoveryController(
+    new FileCiRecoveryReceiptStore(mkdtempSync(join(tmpdir(), 'oes-ci-other-')))
   )
   assert.equal(
-    decideCiRecovery({
+    controller.decide({
       candidateSha: sha,
       observedSha: sha,
       failureKind: 'assertion',
-      failedJobReruns: 0
+      workflowRunId: 'workflow-run-42',
+      failedJobId: 'failed-job-7'
     }).action,
     'RETURN_TO_OWNER'
   )
   assert.equal(
-    decideCiRecovery({
+    controller.decide({
       candidateSha: sha,
       observedSha: 'b'.repeat(40),
       failureKind: 'infrastructure',
-      failedJobReruns: 0
+      workflowRunId: 'workflow-run-42',
+      failedJobId: 'failed-job-7'
     }).action,
     'PRESERVE_BLOCKER'
   )

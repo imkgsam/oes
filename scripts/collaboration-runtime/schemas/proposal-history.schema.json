@@ -27,7 +27,14 @@
       "required": ["schemaVersion", "kind"],
       "properties": {
         "schemaVersion": { "const": 1 },
-        "kind": { "enum": ["PROPOSAL_TRANSPORT", "PROPOSAL_RECEIPT"] },
+        "kind": {
+          "enum": [
+            "PROPOSAL_TRANSPORT",
+            "PROPOSAL_RECEIPT",
+            "PROPOSAL_TERMINAL_RESULT",
+            "PROPOSAL_TERMINAL_DELIVERY"
+          ]
+        },
         "envelope": {
           "type": "object",
           "additionalProperties": false,
@@ -76,7 +83,9 @@
         },
         "terminalStatus": { "type": ["string", "null"] },
         "terminalResultDeliveryKey": { "type": ["string", "null"] },
-        "safeBoundary": { "type": "boolean" }
+        "safeBoundary": { "type": "boolean" },
+        "result": { "$ref": "#/$defs/terminalResult" },
+        "delivery": { "$ref": "#/$defs/terminalDelivery" }
       },
       "allOf": [
         {
@@ -97,8 +106,70 @@
               "safeBoundary"
             ]
           }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "PROPOSAL_TERMINAL_RESULT" } } },
+          "then": { "required": ["result"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "PROPOSAL_TERMINAL_DELIVERY" } } },
+          "then": { "required": ["delivery"] }
         }
       ]
+    },
+    "terminalResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "kind",
+        "resultFingerprint",
+        "proposalId",
+        "proposalFingerprint",
+        "returnTaskId",
+        "terminalStatus",
+        "payload",
+        "payloadFingerprint"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "kind": { "const": "OES_UD_PROPOSAL_TERMINAL_RESULT" },
+        "resultFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "proposalId": { "type": "string", "minLength": 1 },
+        "proposalFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "returnTaskId": { "type": "string", "minLength": 1 },
+        "terminalStatus": { "type": "string", "minLength": 1 },
+        "payload": {},
+        "payloadFingerprint": { "$ref": "#/$defs/fingerprint" }
+      }
+    },
+    "terminalDelivery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "kind",
+        "deliveryFingerprint",
+        "proposalId",
+        "proposalFingerprint",
+        "returnTaskId",
+        "terminalStatus",
+        "resultFingerprint",
+        "payloadFingerprint",
+        "outcome"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "kind": { "const": "OES_UD_PROPOSAL_TERMINAL_DELIVERY" },
+        "deliveryFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "proposalId": { "type": "string", "minLength": 1 },
+        "proposalFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "returnTaskId": { "type": "string", "minLength": 1 },
+        "terminalStatus": { "type": "string", "minLength": 1 },
+        "resultFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "payloadFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "outcome": { "const": "DELIVERED" }
+      }
     }
   }
 }

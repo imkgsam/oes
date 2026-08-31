@@ -14,7 +14,8 @@
     "branch",
     "expectedRemoteUrl",
     "expectedRemoteMainSha",
-    "humanConfirmationFingerprint"
+    "humanConfirmationFingerprint",
+    "confirmation"
   ],
   "properties": {
     "schemaVersion": { "const": 1 },
@@ -26,16 +27,36 @@
     "branch": { "const": "main" },
     "expectedRemoteUrl": { "type": "string", "minLength": 1 },
     "expectedRemoteMainSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
-    "humanConfirmationFingerprint": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" }
+    "humanConfirmationFingerprint": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+    "confirmation": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["path", "sha256", "fingerprint"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^/" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    }
   },
   "allOf": [
     {
       "if": { "properties": { "action": { "const": "sync" } } },
-      "then": { "properties": { "humanConfirmationFingerprint": { "type": "string" } } }
+      "then": {
+        "properties": {
+          "humanConfirmationFingerprint": { "type": "string" },
+          "confirmation": { "type": "object" }
+        }
+      }
     },
     {
       "if": { "properties": { "action": { "const": "inspect" } } },
-      "then": { "properties": { "humanConfirmationFingerprint": { "type": "null" } } }
+      "then": {
+        "properties": {
+          "humanConfirmationFingerprint": { "type": "null" },
+          "confirmation": { "type": "null" }
+        }
+      }
     }
   ]
 }

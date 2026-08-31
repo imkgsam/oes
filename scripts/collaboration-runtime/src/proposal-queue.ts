@@ -1,4 +1,4 @@
-import { canonicalJson } from './canonical.ts'
+import { canonicalJson, objectFingerprint, sha256 } from './canonical.ts'
 import { fail } from './errors.ts'
 
 export const PROPOSAL_RECEIPTS = [
@@ -41,7 +41,48 @@ export interface ProposalReceiptEvent {
   safeBoundary: boolean
 }
 
-export type ProposalHistoryEvent = ProposalTransportEvent | ProposalReceiptEvent
+export interface ProposalTerminalResult {
+  schemaVersion: 1
+  kind: 'OES_UD_PROPOSAL_TERMINAL_RESULT'
+  resultFingerprint: string
+  proposalId: string
+  proposalFingerprint: string
+  returnTaskId: string
+  terminalStatus: string
+  payload: unknown
+  payloadFingerprint: string
+}
+
+export interface ProposalTerminalResultEvent {
+  schemaVersion: 1
+  kind: 'PROPOSAL_TERMINAL_RESULT'
+  result: ProposalTerminalResult
+}
+
+export interface ProposalTerminalDelivery {
+  schemaVersion: 1
+  kind: 'OES_UD_PROPOSAL_TERMINAL_DELIVERY'
+  deliveryFingerprint: string
+  proposalId: string
+  proposalFingerprint: string
+  returnTaskId: string
+  terminalStatus: string
+  resultFingerprint: string
+  payloadFingerprint: string
+  outcome: 'DELIVERED'
+}
+
+export interface ProposalTerminalDeliveryEvent {
+  schemaVersion: 1
+  kind: 'PROPOSAL_TERMINAL_DELIVERY'
+  delivery: ProposalTerminalDelivery
+}
+
+export type ProposalHistoryEvent =
+  | ProposalTransportEvent
+  | ProposalReceiptEvent
+  | ProposalTerminalResultEvent
+  | ProposalTerminalDeliveryEvent
 export type ProposalQueueState =
   | 'DELIVERED'
   | 'ADMITTED'
@@ -109,6 +150,8 @@ function validateEnvelope(envelope: ProposalEnvelope): void {
 export function deriveProposalQueue(history: ProposalHistoryEvent[]): ProposalQueueItem[] {
   if (!Array.isArray(history)) fail('PROPOSAL_HISTORY_ARRAY_REQUIRED', typeof history)
   const proposals = new Map<string, MutableProposal>()
+  const terminalResults = new Map<string, ProposalTerminalResult>()
+  const terminalDeliveries = new Map<string, ProposalTerminalDelivery>()
   const ordered: MutableProposal[] = []
   for (const event of history) {
     if (!event || typeof event !== 'object') fail('PROPOSAL_HISTORY_EVENT_INVALID', String(event))
@@ -146,6 +189,69 @@ export function deriveProposalQueue(history: ProposalHistoryEvent[]): ProposalQu
       }
       proposals.set(item.proposalId, item)
       ordered.push(item)
+      continue
+    }
+
+    if (event.kind === 'PROPOSAL_TERMINAL_RESULT') {
+      const result = event.result
+      if (
+        !result ||
+        result.schemaVersion !== 1 ||
+        result.kind !== 'OES_UD_PROPOSAL_TERMINAL_RESULT'
+      )
+        fail('PROPOSAL_TERMINAL_RESULT_KIND_INVALID', String(result?.proposalId))
+      const item = proposals.get(result.proposalId)
+      if (!item) fail('PROPOSAL_TERMINAL_RESULT_WITHOUT_TRANSPORT', result.proposalId)
+      if (
+        result.proposalFingerprint !== item.envelope.proposalFingerprint ||
+        result.returnTaskId !== item.returnTaskId ||
+        typeof result.terminalStatus !== 'string' ||
+        !result.terminalStatus.trim()
+      )
+        fail('PROPOSAL_TERMINAL_RESULT_BINDING_MISMATCH', result.proposalId)
+      if (sha256(canonicalJson(result.payload)) !== result.payloadFingerprint)
+        fail('PROPOSAL_TERMINAL_RESULT_PAYLOAD_DRIFT', result.proposalId)
+      if (
+        objectFingerprint(result as unknown as Record<string, unknown>, 'resultFingerprint') !==
+        result.resultFingerprint
+      )
+        fail('PROPOSAL_TERMINAL_RESULT_FINGERPRINT_MISMATCH', result.proposalId)
+      const existing = terminalResults.get(result.proposalId)
+      if (existing && canonicalJson(existing) !== canonicalJson(result))
+        fail('PROPOSAL_TERMINAL_RESULT_REPLAY_MISMATCH', result.proposalId)
+      terminalResults.set(result.proposalId, structuredClone(result))
+      continue
+    }
+
+    if (event.kind === 'PROPOSAL_TERMINAL_DELIVERY') {
+      const delivery = event.delivery
+      if (
+        !delivery ||
+        delivery.schemaVersion !== 1 ||
+        delivery.kind !== 'OES_UD_PROPOSAL_TERMINAL_DELIVERY' ||
+        delivery.outcome !== 'DELIVERED'
+      )
+        fail('PROPOSAL_TERMINAL_DELIVERY_KIND_INVALID', String(delivery?.proposalId))
+      const item = proposals.get(delivery.proposalId)
+      const result = terminalResults.get(delivery.proposalId)
+      if (!item || !result) fail('PROPOSAL_TERMINAL_DELIVERY_WITHOUT_RESULT', delivery.proposalId)
+      if (
+        delivery.proposalFingerprint !== item.envelope.proposalFingerprint ||
+        delivery.returnTaskId !== item.returnTaskId ||
+        delivery.terminalStatus !== result.terminalStatus ||
+        delivery.resultFingerprint !== result.resultFingerprint ||
+        delivery.payloadFingerprint !== result.payloadFingerprint
+      )
+        fail('PROPOSAL_TERMINAL_DELIVERY_BINDING_MISMATCH', delivery.proposalId)
+      if (
+        objectFingerprint(delivery as unknown as Record<string, unknown>, 'deliveryFingerprint') !==
+        delivery.deliveryFingerprint
+      )
+        fail('PROPOSAL_TERMINAL_DELIVERY_FINGERPRINT_MISMATCH', delivery.proposalId)
+      const existing = terminalDeliveries.get(delivery.proposalId)
+      if (existing && canonicalJson(existing) !== canonicalJson(delivery))
+        fail('PROPOSAL_TERMINAL_DELIVERY_REPLAY_MISMATCH', delivery.proposalId)
+      terminalDeliveries.set(delivery.proposalId, structuredClone(delivery))
       continue
     }
 
@@ -225,6 +331,17 @@ export function deriveProposalQueue(history: ProposalHistoryEvent[]): ProposalQu
         !event.terminalStatus.trim() ||
         typeof event.terminalResultDeliveryKey !== 'string' ||
         !event.terminalResultDeliveryKey.trim()
+      )
+        fail('PROPOSAL_TERMINAL_EXACT_RETURN_UNPROVEN', item.proposalId)
+      const result = terminalResults.get(item.proposalId)
+      const delivery = terminalDeliveries.get(item.proposalId)
+      if (
+        !result ||
+        !delivery ||
+        result.terminalStatus !== event.terminalStatus ||
+        delivery.terminalStatus !== event.terminalStatus ||
+        delivery.deliveryFingerprint !== event.terminalResultDeliveryKey ||
+        delivery.returnTaskId !== item.returnTaskId
       )
         fail('PROPOSAL_TERMINAL_EXACT_RETURN_UNPROVEN', item.proposalId)
       item.state = 'TERMINAL'

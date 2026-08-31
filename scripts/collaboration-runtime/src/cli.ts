@@ -25,7 +25,11 @@ import {
 } from './profile-preflight.ts'
 import { validateJsonSchema } from './schema-validation.ts'
 import { RemoteDriver } from './remote-driver.ts'
-import { decideCiRecovery, type CiRecoveryInput } from './retry-policy.ts'
+import {
+  CiRecoveryController,
+  FileCiRecoveryReceiptStore,
+  type CiRecoveryInput
+} from './retry-policy.ts'
 import type {
   CleanupDiffEntry,
   CleanupResourceDecision,
@@ -126,13 +130,28 @@ async function main(args: string[]): Promise<void> {
     return
   }
   if (command === 'ci-recovery-decision') {
-    emit(decideCiRecovery(readJson<CiRecoveryInput>(flag(args, '--input'))))
+    const profileReport = verifyEffectiveProfileReport(
+      readJson<EffectiveProfileReport>(flag(args, '--profile-report'))
+    )
+    const trust = loadRemoteTrustRootsFromProfileReport(profileReport)
+    emit(
+      new CiRecoveryController(new FileCiRecoveryReceiptStore(trust.admissionRoot)).decide(
+        readJson<CiRecoveryInput>(flag(args, '--input'))
+      )
+    )
     return
   }
   if (command === 'local-main') {
     const binding = readJson<LocalMainSyncBinding>(flag(args, '--binding'))
     const controller = new LocalMainController(new SpawnCommandRunner())
-    emit(binding.action === 'inspect' ? controller.inspect(binding) : controller.sync(binding))
+    if (binding.action === 'inspect') emit(controller.inspect(binding))
+    else {
+      const profileReport = verifyEffectiveProfileReport(
+        readJson<EffectiveProfileReport>(flag(args, '--profile-report'))
+      )
+      const trust = loadRemoteTrustRootsFromProfileReport(profileReport)
+      emit(controller.sync(binding, trust))
+    }
     return
   }
   if (command === 'cleanup-plan') {
