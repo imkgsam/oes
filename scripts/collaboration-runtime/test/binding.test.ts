@@ -55,9 +55,7 @@ function stableOwnerResourceFixture(): {
     ownerGitDirectory: `${ownerClone}/.git`,
     ownerRef: 'refs/heads/codex/feature/runtime',
     artifactRoot,
-    taskTempRoot: `/private/tmp/${stableOwnerTaskTempLeaf(
-      '11111111-1111-4111-8111-111111111111'
-    )}`,
+    taskTempRoot: `/private/tmp/${stableOwnerTaskTempLeaf('11111111-1111-4111-8111-111111111111')}`,
     featurePacket: 'docs/plans/features/runtime.md',
     featurePacketCheckpointPath: `${artifactRoot}/feature-packet.md`,
     currentEvidenceManifestPath: `${artifactRoot}/current-evidence-manifest.json`,
@@ -517,6 +515,7 @@ test('protected child cleanup assignment is exact and derives the current profil
     profilePath: '/installed/profile.toml',
     profileSha256: 'a'.repeat(64),
     ownerTaskId,
+    profileTransitionId: rootAuthorization.transitionId,
     profileExpectedState: 'DELIVERY_ACTIVE'
   }
   assert.equal(
@@ -588,6 +587,7 @@ test('fixed protected cleanup CAS rejects stale and invalidated Stage cards', ()
     profilePath: '/installed/profile.toml',
     profileSha256: 'a'.repeat(64),
     ownerTaskId: root.stageOwnerTaskId,
+    profileTransitionId: root.transitionId,
     profileExpectedState: 'DELIVERY_ACTIVE'
   }
   assert.equal(

@@ -85,6 +85,7 @@ Expected flow:
 
 - BFF reads current `accountId` and `tenantId` from the authenticated JWT/session context.
 - BFF sends `scope_level = SYSTEM` for system-scope accounts and `scope_level = TENANT` for tenant accounts.
+- BFF obtains a Permission-audience HUMAN OBO ExecutionToken with exact INTERNAL Code `permission.internal.account_access_summary.resolve`. A SYSTEM session produces a tenantless HUMAN subject Token; a TENANT session preserves the same exact tenant.
 - BFF calls `PermissionAccessSummaryService.GetAccountAccessSummary`.
 - BFF returns role summaries and action codes to the front end.
 
@@ -92,9 +93,11 @@ Navigation flow:
 
 - `GET /auth/session/context` calls `PermissionAccessSummaryService.ResolveAccountNavigation`.
 - BFF passes the selected account context plus the current terminal, currently `WEB`.
+- BFF obtains a separate Permission-audience HUMAN OBO ExecutionToken with exact INTERNAL Code `permission.internal.account_navigation.resolve`; this exchange uses the same session-derived SYSTEM/TENANT subject pair.
 - `permission-service` resolves role-driven `visible_entries` and `default_entry` from `NavigationEntry`, `RoleNavigationVisibility`, and `RoleLandingPolicy`.
 - BFF preserves the existing session-context response shape: `navigation.visibleEntries` and `navigation.defaultEntry`.
 - If managed navigation is not yet seeded or returns an incomplete result, BFF may temporarily fall back to the previous scope-based defaults during rollout.
+- That presentation fallback is considered only after successful OBO admission and navigation resolution; an ExecutionToken exchange, scope/tenant validation or target admission failure remains an endpoint failure and never selects a SYSTEM/TENANT default.
 
 ## 5. Authorization Boundary
 
@@ -109,11 +112,11 @@ It should not require:
 Expected controls:
 
 - Internal service call boundary.
-- Authenticated operator context propagated by Gateway / BFF.
-- Request `account_id`, `tenant_id`, and `scope_level` must match or be derived from the current authenticated session context at the BFF boundary.
-- `scope_level = SYSTEM` must use system role instances and does not require `tenant_id`.
+- Permission-audience, certificate-bound HUMAN OBO ExecutionToken propagated through the trusted private carrier; the direct actor is the registered tenantless SYSTEM MACHINE Gateway workload.
+- Request `account_id`, `tenant_id`, and `scope_level` must be derived from the current authenticated session context at the BFF boundary and must match the subject scope / tenant derived from the verified ExecutionToken.
+- `scope_level = SYSTEM` must use system role instances and must omit `tenant_id`.
 - `scope_level = TENANT` must use tenant role instances and requires `tenant_id`.
-- Future implementation may add service-side self-context validation if the operator context carries enough account / tenant facts.
+- The signed wire contract contains optional `tenant_id` but no `scope_level` claim: tenant absence derives SYSTEM and one exact non-wildcard tenant derives TENANT. Request fields do not create authority, Permission workload policy does not supply subject scope, and SYSTEM receives no tenant wildcard.
 
 ## 6. Response Semantics
 
@@ -199,7 +202,15 @@ Current state:
 - `auth-bff` already uses this RPC behind `GET /auth/session/access-summary`.
 - `auth-bff` uses `ResolveAccountNavigation` behind `GET /auth/session/context` for runtime navigation summary composition.
 - Both tenant-scope and system-scope accounts are supported.
+- Both calls retain their existing proto request/response and INTERNAL Code. Scope-aware HUMAN OBO changes only Auth subject verification/signing semantics; this contract adds no proto field, role, action code, BUSINESS grant or fallback route.
 
 ## 11. Deferred Work
 
 - Decide whether short TTL caching is needed after usage patterns are known.
+
+## 12. Acceptance
+
+- SYSTEM session: `scope_level=SYSTEM`, omitted `tenant_id`, verified tenantless HUMAN OBO subject, `SYSTEM_INSTANCE` roles and deterministic action codes.
+- TENANT session: `scope_level=TENANT`, exact matching `tenant_id`, verified TENANT HUMAN OBO subject and same-tenant `TENANT_INSTANCE` roles.
+- Blank/wildcard/mismatched tenant, mismatched scope, wrong audience/Code/workload/actor or missing session fails before summary/navigation resolution.
+- The SYSTEM full-page journey returns the existing `system.admin` role and its effective action-code set from Permission truth; the design does not add or widen a role/grant to produce that result.

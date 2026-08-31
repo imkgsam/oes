@@ -16,7 +16,7 @@ migrationState: SERVICE_MIGRATION_IMPLEMENTED_VERIFIED_21_OF_21
 一次可信内部调用同时需要：
 
 1. **mTLS workload identity**：证明当前直连调用方及目标服务；
-2. **Auth 签发的短期 ExecutionToken**：证明本次执行主体、适用的 subject tenant、audience、actor 与获准 Code；
+2. **Auth 签发的短期 ExecutionToken**：证明本次执行主体、适用的 subject scope / tenant、audience、actor 与获准 Code；
 3. **target-owned method declaration**：目标服务声明 RPC 的 mode、principal、terminal、Code、workload allowlist，以及是否为 dedicated SYSTEM tenant-target interface，并在本地 fail closed。
 
 下列内容没有 authority：
@@ -51,6 +51,7 @@ act?, delegation_id?, authz_version?
 
 - `aud` 只对应一个目标服务；不存在项目级通用 audience。
 - `scope` 只包含 canonical Permission Code 子集，不建立第二套 scope 词表。
+- HUMAN subject scope 不增加独立 `scope_level` claim：规范化且非 wildcard 的 `tenant_id` 存在时表示 `TENANT`，`tenant_id` 完全缺席时表示 `SYSTEM`；空值、空白值、wildcard 或 scope / tenant 组合矛盾全部拒绝。
 - `cnf` 绑定当前调用 workload 的证书或等价 proof-of-possession。
 - HUMAN session Token 的 `session_terminal` 来自 Auth session truth；MACHINE Token 不伪造 terminal。
 - `act` 只表达当前 direct actor，不递归嵌套整条 actor chain；完整链路通过相邻 Token `jti` 审计关联。
@@ -75,7 +76,7 @@ act?, delegation_id?, authz_version?
 
 - 必须声明 exact workload allowlist、principal/actor shape、audience 与 INTERNAL Code。
 - 网络位置或“来自内部服务”不是准入条件。
-- HUMAN_OBO 必须保持原 HUMAN subject，并以当前 SYSTEM MACHINE workload 作为 direct actor。
+- HUMAN_OBO 必须保持原 HUMAN subject scope / tenant，并以当前 tenantless SYSTEM MACHINE workload 作为 direct actor。TENANT subject 保持精确 `tenant_id`；SYSTEM subject 保持 `tenant_id` 缺席，不获得 tenant wildcard。
 
 未声明、重复声明、未知 mode、错误 Code、错误 workload 或缺少 trusted runtime 均拒绝启动或拒绝请求。
 
@@ -91,7 +92,8 @@ canonical HTTP path target 在 Gateway request 内保持 private verified value�
 
 服务收到有效 HUMAN Token 后，只把当前跳 Token 的不可序列化 private handle 交给 Auth STS。Auth 验证 subject、当前 exchanger workload、Identity binding 与 Permission decision，再签发下游 audience Token：
 
-- `sub` 与 tenant 仍属于原 HUMAN；
+- `sub`、subject scope 与适用 tenant 仍属于原 HUMAN；
+- signed `tenant_id` 的存在性是 subject scope 的唯一 wire encoding：存在且精确表示 `TENANT`，完全缺席表示 `SYSTEM`，不引入 `scope_level` claim；
 - `act` 是当前 SYSTEM MACHINE workload；
 - 下游只接收面向自己的 Token；
 - 更深一跳使用上一跳新 Token，不回传或长期保存 Gateway 原 Token。
@@ -102,6 +104,8 @@ Machine Principal 生命周期、workload binding 与固定 SYSTEM inventory pro
 
 Auth 在 HUMAN 建立前取得登录事实，或在 session 建立/续期时复核 owner lifecycle，使用同一 direct MACHINE root 为 target-owned Auth-only INTERNAL Code 换取目标 Token。这些方法的 authority 来自 exact Auth workload -> audience -> INTERNAL Code workload policy，不来自固定 Machine Principal 的 BUSINESS `PrincipalRoleBinding`。目标方仅返回最小 Account/Employee/Tenant lifecycle 投影，并使用 request selector 重新验证 owner 关系；selector 仍是查询输入，不是 tenant 或 principal authority。
 
+固定 SYSTEM public aggregator 读取 tenant-scoped owner facts 时复用同一机制，但必须是 separately named dedicated INTERNAL methods/Codes。Public Entry public-card collaboration 使用 exact Public Entry workload -> HR/Identity/TenantOrg audience -> corresponding public-card INTERNAL Code policy；Public Entry subject 保持 tenantless，owner 从 request selector 重新验证 target range 与资源归属。该机制不把 owner 的 TENANT BUSINESS Code 授予 SYSTEM，也不允许 service-name/wildcard/fallback。具体语义以 [Public Business Card owner-fact resolution](../collaborations/public-business-card-owner-facts.md) 为准。
+
 ### DELEGATED
 
 DELEGATED runtime 仅在 DelegationGrant/ActionGrant、ToolContract、risk class、confirmation、idempotency 与 target-side consumption 全部满足对应 ADR/contract 时开放。trusted gRPC 基线本身不授予 AI mutation 权限。
@@ -109,6 +113,7 @@ DELEGATED runtime 仅在 DelegationGrant/ActionGrant、ToolContract、risk class
 ## 7. Tenant, Trace And Audit
 
 - subject tenant/org 来自 verified ExecutionToken 与目标服务规则。SYSTEM subject 不因 request target 获得 tenant。
+- HUMAN OBO 的 subject scope 只从已验证 Token 的 `tenant_id` 存在性派生，并与 Auth session truth 及目标方法声明一致；caller、Permission decision 或 request selector 不能补写或重解释该 scope。
 - tenant business selector 来自 target-owned request contract，不属于 transport identity。TENANT selector 必须等于 Token subject tenant；SYSTEM selector 只在 dedicated SYSTEM tenant-target method/interface 内按平台 range 获准。
 - trace/request correlation 来自可信 transport context；payload 同名字段不覆盖它。
 - management command 使用 verified principal/workload、subject scope/tenant、重新授权后的 target tenant 与 trace 生成 owner-local audit。
@@ -121,6 +126,7 @@ DELEGATED runtime 仅在 DelegationGrant/ActionGrant、ToolContract、risk class
 
 - Token 缺失、过期、签名失败、audience/`cnf`/Code 不匹配；
 - workload、principal、actor、terminal 或 tenant 不符合声明；
+- HUMAN subject 的 `tenant_id` 为空白/wildcard、TENANT 缺少精确 tenant、SYSTEM 携带 tenant，或 OBO signing / verification 对同一 scope / tenant pair 解释不一致；
 - Auth、Identity、Permission、certificate 或 owner resolver 不可用；
 - body/metadata 试图注入或覆盖可信上下文；
 - SYSTEM tenant selector 缺少 dedicated method declaration、exact workload/Code 或不在平台 target range；

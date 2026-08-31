@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/local-main-sync-confirmation-v1.json",
+  "title": "OES Local Main Sync Confirmation V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "confirmationFingerprint",
+    "status",
+    "ownerTaskId",
+    "transitionId",
+    "action",
+    "repositoryRoot",
+    "remote",
+    "branch",
+    "expectedRemoteUrl",
+    "expectedRemoteMainSha",
+    "singleUseNonce"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "OES_LOCAL_MAIN_SYNC_CONFIRMATION" },
+    "confirmationFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "status": { "const": "ISSUED" },
+    "ownerTaskId": { "type": "string", "minLength": 1 },
+    "transitionId": { "type": "string", "minLength": 1 },
+    "action": { "const": "sync" },
+    "repositoryRoot": { "type": "string", "pattern": "^/" },
+    "remote": { "const": "origin" },
+    "branch": { "const": "main" },
+    "expectedRemoteUrl": { "type": "string", "minLength": 1 },
+    "expectedRemoteMainSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "singleUseNonce": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}
