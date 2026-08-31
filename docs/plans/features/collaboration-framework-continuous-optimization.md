@@ -8,8 +8,8 @@ pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
 state: CANDIDATE_READY
-implementationCandidateAncestor: cbbbbd044932d444e5e5d6fe510a48a9d551009c
-review: round-2 findings remediated; exact candidate pending same independent Feature RI
+implementationCandidateAncestor: 06b5341825128e5aa27aaed4a16f7c47dc5310b3
+review: round-3 findings remediated; exact candidate pending same independent Feature RI
 
 ## Status
 
@@ -59,3 +59,5 @@ Implement the merged command-contract v8 follow-on cutover without replacing the
 - local-main sync reopens a profile-read-only Human confirmation bound to exact realpath project root, remote URL, remote-main SHA, action, owner, transition, and nonce, with monotonic response-loss recovery.
 - The profile report now carries its exact transition into runtime trust; local-main binding, confirmation, and checkpoint must all match it, and the nonce identity prevents cross-transition reuse.
 - CI recovery no longer accepts caller-supplied run/job/failure facts; it reopens a profile-read-only live-CI observation, validates run/job/SHA/failure association, and binds the monotonic receipt to owner, transition, observation, and globally unique job identity.
+- The installed read-only profile now seals owner and transition; effective-profile report readback must match both before local-main or CI trust context can be created.
+- Local-main now atomically creates an owner/nonce `CLAIMED` checkpoint before the first Git command; `EEXIST` is reopened and transition-validated, closing the concurrent stale-checkpoint TOCTOU window.
