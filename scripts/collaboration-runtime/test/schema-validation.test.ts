@@ -97,6 +97,9 @@ test('Proposal history and local-main bindings have executable closed schemas', 
     branch: 'main',
     expectedRemoteUrl: 'https://github.com/example/oes.git',
     expectedRemoteMainSha: 'b'.repeat(40),
+    ownerTaskId: '/root/fl',
+    transitionId: 'local-main:1',
+    singleUseNonce: 'e'.repeat(64),
     humanConfirmationFingerprint: 'c'.repeat(64),
     confirmation: {
       path: '/trusted/local-main-confirmation.json',
@@ -124,10 +127,36 @@ test('Proposal history and local-main bindings have executable closed schemas', 
     kind: 'OES_CI_FAILED_JOB_RERUN_RECEIPT',
     receiptFingerprint: 'a'.repeat(64),
     idempotencyKey: 'b'.repeat(64),
+    ownerTaskId: '/root/fl',
+    transitionId: 'ci:1',
+    observationFingerprint: 'd'.repeat(64),
     candidateSha: 'c'.repeat(40),
     workflowRunId: 'workflow-run-42',
     failedJobId: 'failed-job-7',
     action: 'RERUN_FAILED_JOB_ONCE'
+  })
+  validateJsonSchema(schema('ci-failure-observation.schema.json'), {
+    schemaVersion: 1,
+    kind: 'OES_CI_FAILED_JOB_OBSERVATION',
+    observationFingerprint: 'd'.repeat(64),
+    status: 'VERIFIED',
+    ownerTaskId: '/root/fl',
+    transitionId: 'ci:1',
+    candidateSha: 'c'.repeat(40),
+    workflowRun: {
+      id: 'workflow-run-42',
+      headSha: 'c'.repeat(40),
+      status: 'completed',
+      conclusion: 'failure'
+    },
+    failedJob: {
+      id: 'failed-job-7',
+      workflowRunId: 'workflow-run-42',
+      headSha: 'c'.repeat(40),
+      status: 'completed',
+      conclusion: 'failure',
+      failureKind: 'infrastructure'
+    }
   })
 })
 

@@ -373,6 +373,7 @@ export function loadRemoteTrustRootsFromProfileReport(
     profilePath: report.profile.path,
     profileSha256: report.profile.sha256,
     ownerTaskId: report.ownerTaskId,
+    profileTransitionId: report.transitionId,
     profileExpectedState: report.expectedState,
     resourceTopologyVersion: installedTopology.resourceTopologyVersion,
     ownerResourceBinding: installedTopology.ownerResourceBinding

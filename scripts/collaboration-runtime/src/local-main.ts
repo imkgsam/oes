@@ -39,6 +39,9 @@ export interface LocalMainSyncBinding {
   branch: 'main'
   expectedRemoteUrl: string
   expectedRemoteMainSha: string
+  ownerTaskId: string | null
+  transitionId: string | null
+  singleUseNonce: string | null
   humanConfirmationFingerprint: string | null
   confirmation: TrustedAuthorizationReference | null
 }
@@ -88,6 +91,8 @@ interface LocalMainSyncCheckpoint {
   kind: 'OES_LOCAL_MAIN_SYNC_CHECKPOINT'
   checkpointFingerprint: string
   confirmationFingerprint: string
+  ownerTaskId: string
+  transitionId: string
   singleUseNonce: string
   stage: 'STARTED' | 'COMPLETED'
   before: LocalMainObservation
@@ -114,6 +119,16 @@ export function validateLocalMainBinding(binding: LocalMainSyncBinding): LocalMa
     fail('LOCAL_MAIN_REMOTE_SHA_INVALID', String(binding.expectedRemoteMainSha))
   if (
     binding.action === 'sync' &&
+    (typeof binding.ownerTaskId !== 'string' ||
+      !binding.ownerTaskId.trim() ||
+      typeof binding.transitionId !== 'string' ||
+      !binding.transitionId.trim() ||
+      !/^[0-9a-f]{64}$/u.test(binding.singleUseNonce ?? '') ||
+      !/^[0-9a-f]{64}$/u.test(binding.humanConfirmationFingerprint ?? ''))
+  )
+    fail('LOCAL_MAIN_EXACT_TRANSITION_BINDING_REQUIRED', binding.repositoryRoot)
+  if (
+    binding.action === 'sync' &&
     !/^[0-9a-f]{64}$/u.test(binding.humanConfirmationFingerprint ?? '')
   )
     fail('LOCAL_MAIN_HUMAN_CONFIRMATION_REQUIRED', binding.repositoryRoot)
@@ -127,7 +142,11 @@ export function validateLocalMainBinding(binding: LocalMainSyncBinding): LocalMa
     fail('LOCAL_MAIN_TRUSTED_CONFIRMATION_REQUIRED', binding.repositoryRoot)
   if (
     binding.action === 'inspect' &&
-    (binding.humanConfirmationFingerprint !== null || binding.confirmation !== null)
+    (binding.ownerTaskId !== null ||
+      binding.transitionId !== null ||
+      binding.singleUseNonce !== null ||
+      binding.humanConfirmationFingerprint !== null ||
+      binding.confirmation !== null)
   )
     fail('LOCAL_MAIN_INSPECTION_MUST_BE_READ_ONLY', binding.repositoryRoot)
   const expected = objectFingerprint(
@@ -197,9 +216,13 @@ function loadTrustedLocalMainConfirmation(
     !confirmation.transitionId.trim() ||
     !/^[0-9a-f]{64}$/u.test(confirmation.singleUseNonce) ||
     !/^[0-9a-f]{64}$/u.test(confirmation.confirmationFingerprint) ||
-    confirmation.ownerTaskId !== trust.ownerTaskId
+    confirmation.ownerTaskId !== trust.ownerTaskId ||
+    confirmation.transitionId !== trust.profileTransitionId ||
+    confirmation.ownerTaskId !== binding.ownerTaskId ||
+    confirmation.transitionId !== binding.transitionId ||
+    confirmation.singleUseNonce !== binding.singleUseNonce
   )
-    fail('LOCAL_MAIN_CONFIRMATION_OWNER_INVALID', reference.path)
+    fail('LOCAL_MAIN_CONFIRMATION_TRANSITION_INVALID', reference.path)
   if (
     reference.fingerprint !== confirmation.confirmationFingerprint ||
     binding.humanConfirmationFingerprint !== confirmation.confirmationFingerprint ||
@@ -231,6 +254,8 @@ function validateLocalMainCheckpoint(
     checkpoint.kind !== 'OES_LOCAL_MAIN_SYNC_CHECKPOINT' ||
     !['STARTED', 'COMPLETED'].includes(checkpoint.stage) ||
     checkpoint.confirmationFingerprint !== confirmation.confirmationFingerprint ||
+    checkpoint.ownerTaskId !== confirmation.ownerTaskId ||
+    checkpoint.transitionId !== confirmation.transitionId ||
     checkpoint.singleUseNonce !== confirmation.singleUseNonce ||
     (checkpoint.stage === 'COMPLETED') !== (checkpoint.after !== null)
   )
@@ -294,20 +319,29 @@ export class LocalMainController {
     const binding = validateLocalMainBinding(bindingInput)
     if (binding.action !== 'sync') fail('LOCAL_MAIN_SYNC_ACTION_REQUIRED', binding.repositoryRoot)
     const confirmation = loadTrustedLocalMainConfirmation(binding, trust)
+    const checkpointRoot = join(trust.admissionRoot, 'local-main-sync')
+    mkdirSync(checkpointRoot, { recursive: true })
+    const checkpointIdentity = sha256(
+      canonicalJson({
+        ownerTaskId: confirmation.ownerTaskId,
+        singleUseNonce: confirmation.singleUseNonce
+      })
+    )
+    const checkpointPath = join(checkpointRoot, `${checkpointIdentity}.json`)
+    const existingCheckpoint = existsSync(checkpointPath)
+      ? validateLocalMainCheckpoint(
+          JSON.parse(readFileSync(checkpointPath, 'utf8')) as LocalMainSyncCheckpoint,
+          confirmation
+        )
+      : null
     const before = this.observe(binding.repositoryRoot)
     const beforeDecision = evaluateLocalMainObservation(
       before,
       binding.expectedRemoteMainSha,
       binding.expectedRemoteUrl
     )
-    const checkpointRoot = join(trust.admissionRoot, 'local-main-sync')
-    mkdirSync(checkpointRoot, { recursive: true })
-    const checkpointPath = join(checkpointRoot, `${confirmation.confirmationFingerprint}.json`)
-    if (existsSync(checkpointPath)) {
-      const checkpoint = validateLocalMainCheckpoint(
-        JSON.parse(readFileSync(checkpointPath, 'utf8')) as LocalMainSyncCheckpoint,
-        confirmation
-      )
+    if (existingCheckpoint) {
+      const checkpoint = existingCheckpoint
       if (checkpoint.stage === 'COMPLETED') {
         if (
           beforeDecision.status !== 'ALREADY_SYNCED' ||
@@ -386,6 +420,8 @@ export class LocalMainController {
       kind: 'OES_LOCAL_MAIN_SYNC_CHECKPOINT',
       checkpointFingerprint: '',
       confirmationFingerprint: confirmation.confirmationFingerprint,
+      ownerTaskId: confirmation.ownerTaskId,
+      transitionId: confirmation.transitionId,
       singleUseNonce: confirmation.singleUseNonce,
       stage,
       before: structuredClone(before),

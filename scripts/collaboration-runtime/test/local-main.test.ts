@@ -45,7 +45,8 @@ function confirmationFixture(
   trust: RemoteTrustRoots,
   repositoryRoot: string,
   expectedRemoteUrl: string,
-  expectedRemoteMainSha: string
+  expectedRemoteMainSha: string,
+  overrides: { transitionId?: string; singleUseNonce?: string; label?: string } = {}
 ): { confirmation: LocalMainSyncConfirmation; reference: TrustedAuthorizationReference } {
   const confirmation: LocalMainSyncConfirmation = {
     schemaVersion: 1,
@@ -53,20 +54,20 @@ function confirmationFixture(
     confirmationFingerprint: '',
     status: 'ISSUED',
     ownerTaskId: trust.ownerTaskId,
-    transitionId: 'local-main-sync:1',
+    transitionId: overrides.transitionId ?? trust.profileTransitionId,
     action: 'sync',
     repositoryRoot: realpathSync(repositoryRoot),
     remote: 'origin',
     branch: 'main',
     expectedRemoteUrl,
     expectedRemoteMainSha,
-    singleUseNonce: 'd'.repeat(64)
+    singleUseNonce: overrides.singleUseNonce ?? 'd'.repeat(64)
   }
   confirmation.confirmationFingerprint = objectFingerprint(
     confirmation as unknown as Record<string, unknown>,
     'confirmationFingerprint'
   )
-  const path = join(trust.authorizationRoot, 'local-main-confirmation.json')
+  const path = join(trust.authorizationRoot, `${overrides.label ?? 'local-main-confirmation'}.json`)
   writeFileSync(path, `${canonicalJson(confirmation)}\n`)
   return {
     confirmation,
@@ -90,6 +91,7 @@ function trustFixture(root: string): RemoteTrustRoots {
     profilePath: join(root, 'profile.toml'),
     profileSha256: 'a'.repeat(64),
     ownerTaskId: '/root/fl/local-main',
+    profileTransitionId: 'local-main-sync:1',
     profileExpectedState: 'DELIVERY_ACTIVE'
   }
 }
@@ -163,6 +165,9 @@ test('confirmed ff-only sync updates only designated main and preserves another 
     branch: 'main',
     expectedRemoteUrl: git(project, 'remote', 'get-url', 'origin'),
     expectedRemoteMainSha: remoteMainSha,
+    ownerTaskId: null,
+    transitionId: null,
+    singleUseNonce: null,
     humanConfirmationFingerprint: null,
     confirmation: null
   })
@@ -178,6 +183,9 @@ test('confirmed ff-only sync updates only designated main and preserves another 
   const sync = seal({
     ...inspect,
     action: 'sync',
+    ownerTaskId: proof.confirmation.ownerTaskId,
+    transitionId: proof.confirmation.transitionId,
+    singleUseNonce: proof.confirmation.singleUseNonce,
     humanConfirmationFingerprint: proof.confirmation.confirmationFingerprint,
     confirmation: proof.reference
   })
@@ -191,6 +199,31 @@ test('confirmed ff-only sync updates only designated main and preserves another 
   const replay = controller.sync(sync, trust)
   assert.equal(replay.status, 'SYNCED')
   assert.equal(replay.after.localMainSha, remoteMainSha)
+
+  const reboundTrust = { ...trust, profileTransitionId: 'local-main-sync:2' }
+  const rebound = confirmationFixture(
+    reboundTrust,
+    project,
+    inspect.expectedRemoteUrl,
+    inspect.expectedRemoteMainSha,
+    { label: 'local-main-confirmation-rebound' }
+  )
+  assert.throws(
+    () =>
+      controller.sync(
+        seal({
+          ...inspect,
+          action: 'sync',
+          ownerTaskId: rebound.confirmation.ownerTaskId,
+          transitionId: rebound.confirmation.transitionId,
+          singleUseNonce: rebound.confirmation.singleUseNonce,
+          humanConfirmationFingerprint: rebound.confirmation.confirmationFingerprint,
+          confirmation: rebound.reference
+        }),
+        reboundTrust
+      ),
+    /LOCAL_MAIN_CHECKPOINT_INVALID/
+  )
 })
 
 test('caller-minted or drifted local-main confirmation fails before any Git command', () => {
@@ -218,6 +251,9 @@ test('caller-minted or drifted local-main confirmation fails before any Git comm
     branch: 'main' as const,
     expectedRemoteUrl: remoteUrl,
     expectedRemoteMainSha: sha,
+    ownerTaskId: proof.confirmation.ownerTaskId,
+    transitionId: proof.confirmation.transitionId,
+    singleUseNonce: proof.confirmation.singleUseNonce,
     humanConfirmationFingerprint: proof.confirmation.confirmationFingerprint,
     confirmation: proof.reference
   }
@@ -243,6 +279,27 @@ test('caller-minted or drifted local-main confirmation fails before any Git comm
     assert.throws(() => new LocalMainController(runner).sync(seal(changed), trust))
     assert.deepEqual(runner.calls, [])
   }
+
+  const stale = confirmationFixture(trust, project, remoteUrl, sha, {
+    transitionId: 'local-main-sync:stale',
+    label: 'local-main-confirmation-stale'
+  })
+  const staleRunner = new RecordingRunner()
+  assert.throws(
+    () =>
+      new LocalMainController(staleRunner).sync(
+        seal({
+          ...base,
+          transitionId: stale.confirmation.transitionId,
+          singleUseNonce: stale.confirmation.singleUseNonce,
+          humanConfirmationFingerprint: stale.confirmation.confirmationFingerprint,
+          confirmation: stale.reference
+        }),
+        trust
+      ),
+    /LOCAL_MAIN_CONFIRMATION_TRANSITION_INVALID/
+  )
+  assert.deepEqual(staleRunner.calls, [])
 
   const alias = join(root, 'project-alias')
   symlinkSync(project, alias)

@@ -135,7 +135,7 @@ async function main(args: string[]): Promise<void> {
     )
     const trust = loadRemoteTrustRootsFromProfileReport(profileReport)
     emit(
-      new CiRecoveryController(new FileCiRecoveryReceiptStore(trust.admissionRoot)).decide(
+      new CiRecoveryController(new FileCiRecoveryReceiptStore(trust.admissionRoot), trust).decide(
         readJson<CiRecoveryInput>(flag(args, '--input'))
       )
     )
