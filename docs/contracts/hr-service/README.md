@@ -52,4 +52,4 @@
 - 角色 / 权限 owner 能力
 ## Trusted gRPC foundation-group admission
 
-The baseline 15 methods remain BUSINESS with the exact six current HR Codes; additive `ResolveAuthLoginEmployee` is the sixteenth INTERNAL method with `hr.internal.auth_login_employee.resolve`. Audience and caller rules are frozen by [hr-service.md](../../architecture/services/hr-service.md#11-trusted-grpc-16-rpc-contractfrozen). Ten body tenant fields are reserved; `ResolveActiveEmployeeByCode.tenant_id=1` remains a resource selector for its compatible BUSINESS contract, while Auth pre-HUMAN login uses only the dedicated INTERNAL resolver.
+The baseline 15 methods remain BUSINESS with the exact six current HR Codes; additive `ResolveAuthLoginEmployee` and `ResolvePublicBusinessCardEmployee` are the sixteenth and seventeenth INTERNAL methods with separate exact Auth/Public Entry Codes. Audience and caller rules are frozen by [hr-service.md](../../architecture/services/hr-service.md#11-trusted-grpc-17-rpc-contractfrozen). Ten body tenant fields are reserved; existing BUSINESS selectors remain compatible, while Auth login and Public Entry public-card reads use only their dedicated INTERNAL resolver.

@@ -14,6 +14,7 @@
 - 按 `tenantId + employeeCode` 精确解析 active employee 与当前 active employment
 - 查询当前 active employment
 - 查询员工任职摘要供 BFF、审批或业务服务消费
+- 为 Public Entry 返回公开名片所需的最小 active employee/employment projection
 
 ## 2. 查询 contract 规则
 
@@ -147,7 +148,19 @@
 
 Existing `ResolveActiveEmployeeByCode` remains a BUSINESS RPC for its existing declared consumers. Auth pre-HUMAN login uses only `ResolveAuthLoginEmployee`; the fixed Auth Machine Principal receives no `hr.employee.get_by_id` grant for this purpose.
 
-## 5. 主要错误语义
+## 5. `ResolvePublicBusinessCardEmployee`
+
+该 additive RPC 只服务 Public Entry 的公开名片 request-time composition：
+
+- admission：exact registered `public-entry-service` workload、`aud=urn:oes:service:hr-service`、tenantless SYSTEM MACHINE principal、current certificate `cnf` 与 INTERNAL Code `hr.internal.public_business_card_employee.resolve`；Code 只可分配给 `WORKLOAD_POLICY`。
+- request：`tenant_id=1`, `employee_id=2`。两个值都来自 Public Entry service-owned BusinessCard record；`tenant_id` 只是 dedicated SYSTEM tenant-target owner lookup selector。
+- owner decision：HR 必须验证 employee 存在且属于 selector tenant、`Employee.lifecycleStatus=ACTIVE`，并存在唯一 current active employment；employment 必须属于同 employee/tenant。
+- response：`available=1`, `employee_id=2`, `lifecycle_status=3`, `active_employment_id=4`, optional `org_unit_id=5`, optional `position_name=6`, optional `official_photo_url=7`, safe `reason_code=8`。它不返回 employee code、tenant party、任职历史、account/contact、role/grant 或其他 HR profile。
+- failure：missing/inactive/ambiguous employee or employment、tenant/owner mismatch、trust/policy/dependency failure 返回 `available=false` 与 safe reason；不泄露其他 tenant fact。
+
+Public Entry 使用本 resolver 取代匿名/readiness 链路中的 `GetEmployeeById` 与 `GetActiveEmployment`。Existing BUSINESS methods 保持既有 HUMAN/HUMAN_OBO consumers，不成为 public-card fallback，固定 Public Entry principal 不获得 `hr.employee.get_by_id` grant。
+
+## 6. 主要错误语义
 
 - validation failure
   - 请求关键字段缺失
@@ -163,7 +176,7 @@ Existing `ResolveActiveEmployeeByCode` remains a BUSINESS RPC for its existing d
   - `GetEmployeeById`、`GetActiveEmployment`、`ListEmployments` 当前没有请求级或 metadata 级 tenant context，runtime 不承诺在这些 RPC 内识别 tenant mismatch
   - 若未来需要在这些 RPC 内强制 tenant mismatch 语义，应先扩展 proto / runtime 以携带 tenant context，并补充对应测试
 
-## 6. 调用方建议
+## 7. 调用方建议
 
 - 不要把 HR 查询结果反向写回 `identity-service` 作为第二真相。
 - BFF 若需要展示账号与员工合成摘要，应在上层做聚合，不应让 `hr-service` 变成账号服务。

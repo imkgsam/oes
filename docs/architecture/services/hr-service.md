@@ -206,13 +206,14 @@ HR minimum 第一阶段允许在员工 onboarding 中可选触发账号接入与
 - 不在 minimum 第一阶段支持多条当前 active employment、兼任组织、借调、future-dated 自动生效、复杂任职区间治理
 - 在当前阶段不默认承接完整 payroll、attendance、performance、recruiting、position management 或 reporting line governance
 
-## 11. Trusted gRPC 16-RPC contract（FROZEN）
+## 11. Trusted gRPC 17-RPC contract（FROZEN）
 
-The baseline 15 HR RPCs remain `BUSINESS`, and additive `ResolveAuthLoginEmployee` is the sixteenth `INTERNAL` RPC; audience is `urn:oes:service:hr-service`. Direct Gateway calls use `HUMAN / WEB`. Identity/TenantOrg collaboration calls use the verified subject as `HUMAN_OBO`. Anonymous Public Entry employee-card reads retain their named SYSTEM MACHINE contract. Auth pre-HUMAN employee lookup uses only `ResolveAuthLoginEmployee` with the exact Auth workload and `hr.internal.auth_login_employee.resolve`; no Cron/worker wildcard is admitted.
+The baseline 15 HR RPCs remain `BUSINESS`; additive `ResolveAuthLoginEmployee` and `ResolvePublicBusinessCardEmployee` are the sixteenth and seventeenth `INTERNAL` RPCs. Audience is `urn:oes:service:hr-service`. Direct Gateway calls use `HUMAN / WEB`. Identity/TenantOrg collaboration calls use the verified subject as `HUMAN_OBO`. Auth pre-HUMAN employee lookup uses only its Auth resolver. Anonymous Public Entry reads use only the dedicated public-card resolver. No Cron/worker, generic service-name caller or workload wildcard is admitted.
 
 | Code | RPCs |
 | --- | --- |
 | `hr.internal.auth_login_employee.resolve` | `ResolveAuthLoginEmployee` |
+| `hr.internal.public_business_card_employee.resolve` | `ResolvePublicBusinessCardEmployee` |
 | `hr.employee.list` | `ListEmployees` |
 | `hr.employee.get_by_id` | `GetEmployeeById`, `GetEmployeeByTenantPartyId`, `ResolveActiveEmployeeByCode`, `GetActiveEmployment`, `ListEmployments`, `GetLatestOnboardingAccess` |
 | `hr.employee.create` | `CreateEmployee`, `CreateEmployeeOnboarding`, `UpdateEmployeeOfficialPhoto`, `RemoveEmployeeOfficialPhoto` |
@@ -220,6 +221,10 @@ The baseline 15 HR RPCs remain `BUSINESS`, and additive `ResolveAuthLoginEmploye
 | `hr.employment.end` | `EndEmployment` |
 | `hr.employment.change_primary` | `ChangePrimaryEmployment` |
 
-Ten legacy request `tenant_id=1` fields are removed/reserved: `ChangePrimaryEmployment`, `CompleteEmployeeAccess`, `CreateEmployeeOnboarding`, `CreateEmployee`, `CreateEmployment`, `GetEmployeeByTenantPartyId`, `GetLatestOnboardingAccess`, `ListEmployees`, `RemoveEmployeeOfficialPhoto`, `UpdateEmployeeOfficialPhoto`. `ResolveActiveEmployeeByCode.tenant_id=1` remains a resource selector for its compatible BUSINESS contract. Auth login instead supplies the verified terminal/device tenant to `ResolveAuthLoginEmployee.tenant_id`; both fields are lookup selectors and never admission authority. All existing response projections and HR business identifiers remain unchanged.
+Ten legacy request `tenant_id=1` fields are removed/reserved: `ChangePrimaryEmployment`, `CompleteEmployeeAccess`, `CreateEmployeeOnboarding`, `CreateEmployee`, `CreateEmployment`, `GetEmployeeByTenantPartyId`, `GetLatestOnboardingAccess`, `ListEmployees`, `RemoveEmployeeOfficialPhoto`, `UpdateEmployeeOfficialPhoto`. `ResolveActiveEmployeeByCode.tenant_id=1` remains a resource selector for its compatible BUSINESS contract. Auth login supplies the verified terminal/device tenant to `ResolveAuthLoginEmployee.tenant_id`; Public Entry supplies its card-owned tenant to `ResolvePublicBusinessCardEmployee.tenant_id`. All are lookup selectors and never admission authority. All existing response projections and HR business identifiers remain unchanged.
 
 `ResolveAuthLoginEmployee(tenant_id, employee_code)` is Auth-only and returns only `employee_id` plus `active_employment_id` when the employee and current employment are active in the selected tenant. The request tenant and employee code are lookup selectors, never execution authority. Missing, inactive, tenant-mismatched or ambiguous facts return the stable unavailable/empty result consumed by Auth; the generic `ResolveActiveEmployeeByCode` BUSINESS method remains compatible for existing non-login consumers.
+
+`ResolvePublicBusinessCardEmployee(tenant_id, employee_id)` is Public Entry-only and returns only the minimal employee/current-employment projection required for public-card readiness and display: employee/lifecycle, active employment, optional position, optional org reference and optional official photo URL. `tenant_id` is an owner lookup selector under the dedicated SYSTEM tenant-target declaration; HR must prove employee and employment belong to that tenant and are active. Missing, inactive, ambiguous or mismatched facts return a safe unavailable decision. Public Entry receives no `hr.employee.get_by_id` BUSINESS grant or fallback. The cross-service flow is frozen in [Public Business Card owner-fact resolution](../collaborations/public-business-card-owner-facts.md).
+
+`ResolvePublicBusinessCardEmployee` implementation status is `DESIGN_FROZEN_PENDING_IMPLEMENTATION`.
