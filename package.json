@@ -130,6 +130,7 @@
     "generated:all": "pnpm proto:gen && pnpm prisma:generate:all",
     "workspace:check": "node scripts/local/reproducible-build-check.mjs",
     "build:backend": "pnpm generated:all && pnpm exec tsc -b tsconfig.json",
+    "build:prepared": "pnpm workspace:check && pnpm exec tsc -b tsconfig.json && pnpm build:site-runtime",
     "build:site-runtime": "pnpm --filter @oes/site-runtime-kit build && pnpm --filter @oes/external-site-template-runtime build && pnpm --filter @oes/meilong-ceramics-site-runtime build && pnpm --filter @oes/external-site-template-storefront build && pnpm --filter @oes/meilong-ceramics-site-storefront build",
     "build": "pnpm workspace:check && pnpm build:backend && pnpm build:site-runtime",
     "test:reproducible-build": "node --test scripts/local/worktree-env.spec.mjs scripts/local/reproducible-build-check.spec.mjs",

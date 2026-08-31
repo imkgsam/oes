@@ -119,6 +119,7 @@ export function authorizeRemoteBinding(binding: RemoteDriverBinding): RemoteDriv
     profilePath: '/fixture/installed-profile.toml',
     profileSha256: 'a'.repeat(64),
     ownerTaskId: binding.owner.taskId,
+    profileTransitionId: binding.transitionId,
     profileExpectedState: 'DELIVERY_ACTIVE'
   })
   return binding

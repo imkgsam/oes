@@ -158,7 +158,19 @@
 
 Generic `GetTenantById` remains a BUSINESS projection for its existing HUMAN/HUMAN_OBO and other declared consumers. The fixed Auth Machine Principal receives no `tenant_org.tenant.get_by_id` grant for login/session safety.
 
-## 6. 主要错误与返回约束
+## 6. `ResolvePublicBusinessCardOrganization`
+
+该 additive RPC 只服务 Public Entry 的公开名片 request-time composition：
+
+- admission：exact registered `public-entry-service` workload、`aud=urn:oes:service:tenant-org-service`、tenantless SYSTEM MACHINE principal、current certificate `cnf` 与 INTERNAL Code `tenant_org.internal.public_business_card_organization.resolve`；Code 只可分配给 `WORKLOAD_POLICY`。
+- request：`tenant_id=1`, optional `org_unit_id=2`。Tenant 来自 Public Entry service-owned BusinessCard record；org reference 只来自 HR public-card employee projection。两者都是 owner lookup selector。
+- owner decision：selected tenant 必须存在且 `ACTIVE`；当 `org_unit_id` 非空时，该 org 必须存在、active 且属于 selected tenant。空 org selector 表示名片没有 department projection，不是错误。
+- response：`available=1`, `tenant_id=2`, `company_display_name=3`, optional `website_url=4`, optional `org_unit_id=5`, optional `org_unit_display_name=6`, safe `reason_code=7`。它不返回 tenant code、root org、org tree/path/ancestors/descendants、party、onboarding、role 或 grant。
+- failure：tenant missing/inactive、supplied org missing/inactive/cross-tenant、trust/policy/dependency failure 返回 `available=false` 与 safe reason，不泄露其他 tenant/org fact。
+
+Public Entry 使用本 resolver 取代 public-card 链路中的 `GetTenantById` 与 `GetOrgReferenceSummary`。Existing BUSINESS methods 保持既有 consumers，不成为 fallback；固定 Public Entry principal 不获得 `tenant_org.tenant.get_by_id` 或 `tenant_org.org_unit.list_tree` grant。
+
+## 7. 主要错误与返回约束
 
 - 输入参数非法时：
   - 返回统一 validation failure
@@ -167,7 +179,7 @@ Generic `GetTenantById` remains a BUSINESS projection for its existing HUMAN/HUM
 - 调用方不应依赖内部异常结构推断 tenant 或 org 语义
 - query 侧暴露 `organization_tenant_party_id` 不代表调用方获得了对该 party 的业务使用权；是否继续消费该主体，仍由各自业务 contract 与授权链路决定
 
-## 7. 第一阶段明确不做
+## 8. 第一阶段明确不做
 
 - 不提供 account-org membership 查询
 - 不提供 employee / employment 查询；HR 查询语义以 [hr-service.md](../../architecture/services/hr-service.md) 为准

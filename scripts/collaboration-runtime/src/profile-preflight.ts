@@ -71,6 +71,37 @@ export interface SystemProbeOptions {
   pnpm?: string
 }
 
+interface InstalledProfileIdentity {
+  ownerTaskId: string
+  transitionId: string
+}
+
+/** Reads the issuer-sealed owner and transition from the installed profile bytes. */
+function readInstalledProfileIdentity(profilePath: string): InstalledProfileIdentity {
+  const profile = readFileSync(profilePath, 'utf8')
+  let section = ''
+  const values = new Map<string, string>()
+  for (const rawLine of profile.split(/\r?\n/u)) {
+    const line = rawLine.trim()
+    if (!line || line.startsWith('#')) continue
+    const sectionMatch = /^\[([^\]]+)\]$/u.exec(line)
+    if (sectionMatch) {
+      section = sectionMatch[1]
+      continue
+    }
+    if (section !== 'collaboration_runtime') continue
+    const assignment = /^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*("(?:[^"\\]|\\.)*")$/u.exec(line)
+    if (!assignment || !['owner_task_id', 'transition_id'].includes(assignment[1])) continue
+    if (values.has(assignment[1])) fail('PROFILE_IDENTITY_FIELD_DUPLICATE', assignment[1])
+    values.set(assignment[1], JSON.parse(assignment[2]) as string)
+  }
+  const ownerTaskId = values.get('owner_task_id') ?? ''
+  const transitionId = values.get('transition_id') ?? ''
+  if (!ownerTaskId.trim() || !transitionId.trim())
+    fail('PROFILE_OWNER_TRANSITION_REQUIRED', profilePath)
+  return { ownerTaskId, transitionId }
+}
+
 /** Routes a capability failure without converting an existing authorization into a new gate. */
 export function classifyCapabilityIssue(issue: CapabilityIssue): CapabilityFailureRoute {
   if (!issue.capabilityDeclared) return 'PERMISSION_EXPANSION_REQUIRED'
@@ -204,6 +235,15 @@ export function verifyEffectiveProfileReport(
   const report = validateProfileReportEnvelope(input)
   if (sha256(readFileSync(report.profile.path)) !== report.profile.sha256)
     fail('PROFILE_BYTES_SHA_MISMATCH', report.profile.path)
+  const installedIdentity = readInstalledProfileIdentity(report.profile.path)
+  if (
+    report.ownerTaskId !== installedIdentity.ownerTaskId ||
+    report.transitionId !== installedIdentity.transitionId
+  )
+    fail(
+      'PROFILE_OWNER_TRANSITION_READBACK_MISMATCH',
+      `${report.ownerTaskId}:${report.transitionId}`
+    )
   const installedTopology = readInstalledProfileResourceTopology(report.profile.path)
   if (report.resourceTopology === undefined) {
     if (installedTopology.resourceTopologyVersion !== 'pre-cutover-v1')
@@ -356,6 +396,7 @@ export function loadRemoteTrustRootsFromProfileReport(
   }
   const authorizationRoot = collaboration.get('trusted_authorization_root') ?? ''
   const admissionRoot = collaboration.get('serial_admission_root') ?? ''
+  const installedIdentity = readInstalledProfileIdentity(report.profile.path)
   if (!isAbsolute(authorizationRoot) || !isAbsolute(admissionRoot))
     fail('INSTALLED_RUNTIME_TRUST_ROOT_INVALID', report.profile.path)
   if (
@@ -372,7 +413,8 @@ export function loadRemoteTrustRootsFromProfileReport(
     admissionRoot,
     profilePath: report.profile.path,
     profileSha256: report.profile.sha256,
-    ownerTaskId: report.ownerTaskId,
+    ownerTaskId: installedIdentity.ownerTaskId,
+    profileTransitionId: installedIdentity.transitionId,
     profileExpectedState: report.expectedState,
     resourceTopologyVersion: installedTopology.resourceTopologyVersion,
     ownerResourceBinding: installedTopology.ownerResourceBinding

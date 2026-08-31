@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/ci-failure-observation-v1.json",
+  "title": "OES CI Failed Job Observation V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "observationFingerprint",
+    "status",
+    "ownerTaskId",
+    "transitionId",
+    "candidateSha",
+    "workflowRun",
+    "failedJob"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "OES_CI_FAILED_JOB_OBSERVATION" },
+    "observationFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "status": { "const": "VERIFIED" },
+    "ownerTaskId": { "type": "string", "minLength": 1 },
+    "transitionId": { "type": "string", "minLength": 1 },
+    "candidateSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "workflowRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "headSha", "status", "conclusion"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "headSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "status": { "const": "completed" },
+        "conclusion": { "const": "failure" }
+      }
+    },
+    "failedJob": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "workflowRunId", "headSha", "status", "conclusion", "failureKind"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "workflowRunId": { "type": "string", "minLength": 1 },
+        "headSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "status": { "const": "completed" },
+        "conclusion": { "const": "failure" },
+        "failureKind": {
+          "enum": ["infrastructure", "build", "type", "contract", "assertion"]
+        }
+      }
+    }
+  }
+}
