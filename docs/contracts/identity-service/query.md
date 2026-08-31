@@ -223,10 +223,10 @@ Contact Asset query shapes 只描述调用方可消费的黑盒字段，不暴�
 
 ### 4.2 `ResolveContactActionTargets`
 
-- 作用：为 BusinessCard Phase 1 public render / vCard 组装解析 Contact Action 的 Contact Asset 引用，返回 public-safe value summary。
+- 作用：为已单独声明的 BusinessCard management/readiness 或 legacy BUSINESS compatibility consumer 解析 Contact Action 的 Contact Asset 引用，返回 public-safe value summary；Public Business Card 公开渲染使用 §4.3 的 dedicated resolver。
 - 调用方：
-  - BusinessCard public render / Public Entry 内部 resolver
   - BusinessCard 管理端 readiness diagnostics
+  - 已声明的 legacy BUSINESS compatibility consumer
 - 请求关键字段：
 
 ```json
@@ -246,7 +246,7 @@ Contact Asset query shapes 只描述调用方可消费的黑盒字段，不暴�
 
 输入语义：
 
-- `tenantId` 必须来自 BusinessCard / Public Entry 已解析的受控上下文，不来自匿名访问者任意输入。
+- `tenantId` 必须来自已声明的 management/compatibility caller 受控上下文，不来自匿名访问者任意输入。
 - `accountId` 是 Contact Asset Phase 1 primary owner 限定口径。
 - `employeeId` 可作为当前员工分配对象或 HR lifecycle 协同校验输入；它不是 Contact Asset owner。
 - `targetRefs[]` 来自 BusinessCard `contactActionConfigs`，包含 `contactActionType / targetRefType / targetRefId`。
@@ -311,7 +311,19 @@ Contact Asset query shapes 只描述调用方可消费的黑盒字段，不暴�
 - 本接口不做匿名访问授权；它只在内部服务上下文中解析 public-safe contact value。
 - 本接口不得返回个人登录标识、认证 credential、OTP、MFA、OAuth token、外部通信 token、内部审计字段或不可公开联系方式字段。
 
-### 4.3 `ListAccountContactAssets`
+### 4.3 `ResolvePublicBusinessCardIdentity`
+
+该 additive RPC 是 Public Entry-only 的 public-card identity/contact resolver：
+
+- admission：exact registered `public-entry-service` workload、`aud=urn:oes:service:identity-service`、tenantless SYSTEM MACHINE principal、current certificate `cnf` 与 INTERNAL Code `identity.internal.public_business_card_identity.resolve`；Code 只可分配给 `WORKLOAD_POLICY`。
+- request：`tenant_id=1`, `employee_id=2`, `repeated ContactActionTargetRef target_refs=3`。Tenant/employee 来自 Public Entry service-owned BusinessCard record；refs 来自该 card 的 Contact Action config。它们是 owner lookup inputs，不建立 tenant/account authority。
+- owner decision：Identity 验证唯一 active EmployeeBinding、enabled TENANT account、account/binding/employee 与 selector tenant 一致；再按现有 public-safe Contact Asset rules 独立解析每个 ref。
+- response：`available=1`, `tenant_id=2`, `employee_id=3`, `account_id=4`, `display_name=5`, `repeated ResolvedContactActionTarget targets=6`, safe `reason_code=7`。`ContactActionTargetRef` 与 `ResolvedContactActionTarget` 复用 §4.1-§4.2 的既有 action/ref compatibility 与 `ContactAssetPublicValueSummary` public-safe shape；response 中每个 target 必须保持对应 request action/ref，不得重排成无法归因的裸值。
+- failure：binding/account missing、disabled、ambiguous、tenant mismatch 或 trust/policy/dependency failure 返回 `available=false`，且不返回 display/contact value；单个 target missing/inactive/type mismatch 只返回 `renderable=false` 与 safe hidden reason，不使 required identity projection 整体失败。
+
+Public Entry 使用本 resolver 取代 public-card 链路中的 `ResolveEmployeeLoginAccount`、`GetEmployeeBindingByAccountId`、`GetAccountById` 与 generic `ResolveContactActionTargets`。这些 BUSINESS methods 保持既有 consumers，不成为 fallback；固定 Public Entry principal 不获得 `identity.account.list` 或 `identity.account.self.read` grant。
+
+### 4.4 `ListAccountContactAssets`
 
 - 作用：按账号工作上下文列出 Contact Asset 摘要，用于员工资料页、管理员资产治理页或 BusinessCard 配置候选项。
 - 请求关键字段：
@@ -331,9 +343,9 @@ Contact Asset query shapes 只描述调用方可消费的黑盒字段，不暴�
   - 不返回 login method、credential、OTP、MFA 或外部 OAuth / channel token。
   - 不替代 BusinessCard 展示配置；调用方只能把结果作为候选引用。
 
-### 4.4 Legacy narrow work asset queries
+### 4.5 Legacy narrow work asset queries
 
-以下接口是历史 work email / work phone 窄口径查询。Phase 1 BusinessCard 新链路优先使用 `ResolveContactActionTargets`；管理端或兼容页面如需列出资产，应逐步迁移到统一 Contact Asset list contract。
+以下接口是历史 work email / work phone 窄口径查询。Phase 1 Public Business Card 公开链路只使用 dedicated `ResolvePublicBusinessCardIdentity`；`ResolveContactActionTargets` 只服务已单独声明的 BUSINESS/management compatibility consumer。管理端或兼容页面如需列出资产，应逐步迁移到统一 Contact Asset list contract。
 
 ### `ListAccountWorkEmailAssets`
 
