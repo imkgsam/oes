@@ -124,12 +124,14 @@ type ObservedCallState = {
   }>
   checkedPermissions: string[]
   revokedSessionIds: Set<string>
+  tenantOrgGetTenantByIdCalls: number
 }
 
 const observedState: ObservedCallState = {
   resolvedTerminalAccessRequests: [],
   checkedPermissions: [],
-  revokedSessionIds: new Set<string>()
+  revokedSessionIds: new Set<string>(),
+  tenantOrgGetTenantByIdCalls: 0
 }
 
 const allowedPermissions = new Set<string>()
@@ -1132,6 +1134,7 @@ class TestPartyGrpcController {
 class TestTenantOrgGrpcController {
   @GrpcMethod('TenantOrgQueryService', 'GetTenantById')
   getTenantById(request: { tenantId?: string }) {
+    observedState.tenantOrgGetTenantByIdCalls += 1
     return {
       tenant: {
         id: request.tenantId ?? '',
@@ -1566,6 +1569,7 @@ describe('AuthBff gateway integration', () => {
     observedState.checkedPermissions = []
     observedState.resolvedTerminalAccessRequests = []
     observedState.revokedSessionIds.clear()
+    observedState.tenantOrgGetTenantByIdCalls = 0
     allowedPermissions.clear()
   })
 
@@ -1879,8 +1883,7 @@ describe('AuthBff gateway integration', () => {
         scopeLevel: 'TENANT'
       },
       tenant: {
-        tenantId: 'tenant-1',
-        name: 'Meilong Ceramics'
+        tenantId: 'tenant-1'
       },
       org: null,
       navigation: {
@@ -1896,6 +1899,7 @@ describe('AuthBff gateway integration', () => {
       terminal: 'WEB',
       allowedTerminals: []
     })
+    expect(observedState.tenantOrgGetTenantByIdCalls).toBe(0)
   })
 
   it('routes access-summary queries through auth-bff into permission-service summaries', async () => {
