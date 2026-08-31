@@ -10,7 +10,7 @@ mergeSha: pending
 cleanup: HOLD
 state: CANDIDATE_READY
 implementationCandidateAncestor: 3c3e9cd7337de1197045e8ffe3b12a11a5af0616
-review: same Runtime Owner PASS on f7277c52f842d18b7cd1504755ee8a06e925b740; independent Feature RI round 1 REJECT findings remediated; closure review pending
+review: same Runtime Owner PASS on f7277c52f842d18b7cd1504755ee8a06e925b740; same independent Feature RI PASS on 8eb6443dda3a9950c20380b2e7e4e6c6c3887c54
 
 ## Objective
 
@@ -22,7 +22,7 @@ Close the anonymous `/public/business-cards/:businessCardId` page as one determi
 
 state: CANDIDATE_READY
 candidate: f7277c52f842d18b7cd1504755ee8a06e925b740
-review: same Runtime Owner PASS; independent Feature RI round 1 REJECT findings remediated; closure review pending
+review: same Runtime Owner PASS; same independent Feature RI PASS on 8eb6443dda3a9950c20380b2e7e4e6c6c3887c54
 
 - Scope: tenant-web core route and public BusinessCard view/API; the exact Gateway → Public Entry and Public Entry → frozen foundation target entries in the versioned local execution-token registry; focused route/view/API/trust tests.
 - Protected scope: authenticated admin routes, generic authenticated 404 behavior, public-entry domain result vocabulary, wildcard or unrelated audience admission, permission policy semantics, and unrelated tenant-web pages.
@@ -33,7 +33,7 @@ review: same Runtime Owner PASS; independent Feature RI round 1 REJECT findings 
 
 state: CANDIDATE_READY
 candidate: f7277c52f842d18b7cd1504755ee8a06e925b740
-review: same Runtime Owner PASS; independent Feature RI round 1 REJECT findings remediated; closure review pending
+review: same Runtime Owner PASS; same independent Feature RI PASS on 8eb6443dda3a9950c20380b2e7e4e6c6c3887c54
 
 - Scope: public-entry-service idempotent seed entrypoint, isolated fixture identifiers/data, and one task-owned Permission SYSTEM role/binding granting the exact Gateway machine principal only `public-entry.business-card.read`; focused seed replay/isolation tests.
 - Protected scope: shared or production data, non-task databases, employee/contact/tenant master-data ownership, credentials, existing foundation roles/bindings, wildcard audiences, and every Permission Code other than exact public BusinessCard read.
@@ -69,4 +69,5 @@ review: same Runtime Owner PASS; independent Feature RI round 1 REJECT findings 
 - Replacement Runtime Owner PASS binds all seven backend listeners and Tenant Web to the exact candidate worktree. AVAILABLE, NOT_FOUND, DISABLED, and UNAVAILABLE pass through live API plus Chrome direct navigation and refresh with zero console errors. The API emits exactly one real same-origin `SAVE_VCARD` href; Chrome direct and refresh downloads complete from that exact href, and unchanged HTTP replay returns 200 `text/vcard` with attachment disposition.
 - The five-case live export matrix proves card inclusion false excludes, Identity allowance false excludes, both true includes, hidden excludes, and unavailable owner excludes; two immediate complete reruns pass after one retained post-restart synthetic-mutation transient. Anonymous JSON contains neither private flag, temporary mutations are restored, and seed readback remains `3/3/3/0` with Permission `1/1/1`.
 - Exact owner-call composition and trusted-execution negatives remain valid for byte-identical Common, Auth, HR, Identity, and TenantOrg trees; Public Entry's affected trusted-execution negatives were rerun 5/5 PASS. The earlier Gateway replacement rollback reproduced `render=200`, suffix `500`, alias `200`, and recovery verified `render=200`, suffix `200`, alias `200`.
-- The `f7277c52` rollback reproduced the baseline external `SAVE_VCARD` href; recovery restored the same-origin BFF href and a 200 vCard download. Evidence manifest verifies 228/228 files with zero secret findings, and PAGE-010 remains PASS. Next gate is closure review by the same independent Feature RI task; remote publication opens only after that review passes.
+- The `f7277c52` rollback reproduced the baseline external `SAVE_VCARD` href; recovery restored the same-origin BFF href and a 200 vCard download. Evidence manifest verifies 228/228 files with zero secret findings, and PAGE-010 remains PASS.
+- The same independent Feature RI task reviewed exact clean head `8eb6443dda3a9950c20380b2e7e4e6c6c3887c54`, reran Public Entry 19/19 and Tenant Web 6/6 tests, independently verified all 228 evidence hashes, closed both prior High findings, found no new blocking risk, and returned PASS. The feature is ready for one Draft PR; merge and cleanup remain Human-owned and on HOLD.
