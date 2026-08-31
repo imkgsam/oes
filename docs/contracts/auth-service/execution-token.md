@@ -29,7 +29,7 @@ STS 只接受平台已经验证的输入：
 - 多跳时的 current signed ExecutionToken subject credential；其 exact audience 必须标识当前 verified exchanging workload service。
 - DELEGATED 的 active human session / principal、delegation grant 与 agent/tool upper bound。
 - Permission Service 返回的 principal grant / policy decision 与 workload INTERNAL issuance decision。
-- 可信 tenant / org、target audience、精确 requested Permission Code 集、request / trace correlation。
+- 可信 subject scope / tenant / org、target audience、精确 requested Permission Code 集、request / trace correlation。
 
 Common 只在 mTLS-protected exchange channel 的 transport-private scope 携带 HUMAN/OBO/API Key/DELEGATED opaque credential，不把 bearer 放入 `TrustedExecutionContext`、application/domain input、日志或审计。metadata 是 credential carrier，不是 authority；MACHINE root 不携带 bearer，而由 Auth 组合 current verified transport facts、typed exact selector 与 Identity owner decision 建立 principal。调用方不能通过 request body、ordinary metadata、legacy signed operator context 或 selector 自报或覆盖 subject、principal type、tenant、operator、workload identity、delegation upper bound、permission grant 或 `cnf`。
 
@@ -39,15 +39,22 @@ For HUMAN, OBO, API Key and DELEGATED exchange, the exact bearer carrier on `Exc
 
 For MACHINE root, `authorization` must be absent and the request must contain exactly one typed `machine_execution_selector`. Auth combines its three non-authoritative references with the current `VerifiedWorkloadIdentity.spiffeId` and calls `IdentityQueryService.ResolveMachinePrincipalForAuth` through the exact Auth mTLS policy; that resolver rejects Authorization metadata and requires no Identity-audience ExecutionToken. Auth derives MACHINE `sub`, scope and any tenant/org only from the live owner decision, then obtains the applicable Permission decision. Selector, mTLS or deployment configuration alone grants nothing. This route is used only when no inbound HUMAN subject Token exists; bearer plus selector, missing selector, ambiguous binding or stale version is rejected before Permission or signing.
 
-For synchronous HUMAN OBO, Common sends exactly one current-hop subject credential through `authorization`: the Auth-issued ExecutionToken whose exact `aud` is the verified MES/WMS/Procurement/SRM exchanger itself. Auth verifies issuer/signature/time/security state, `principal_type=HUMAN`, non-empty `tenant_id`, session attribution, exact self-audience and current exchanger mTLS/SPIFFE/leaf. Auth resolves the stable actor by immutable verified-SPIFFE/self-audience registry selectors and validates the referenced Identity-owned SYSTEM Machine Principal/binding through existing `ResolveMachinePrincipalForAuth`; no new Identity RPC or caller-selected actor is introduced.
+For synchronous HUMAN OBO, Common sends exactly one current-hop subject credential through `authorization`: the Auth-issued ExecutionToken whose exact `aud` identifies the verified exchanger itself. Auth verifies issuer/signature/time/security state, `principal_type=HUMAN`, session attribution, exact self-audience and current exchanger mTLS/SPIFFE/leaf. It derives subject scope only from the signed tenant shape: one exact non-empty non-wildcard `tenant_id` means `TENANT`, while the claim being completely absent means `SYSTEM`. Blank/wildcard values, a pair inconsistent with the active Auth session, or caller-supplied `scopeLevel` / `tenantId` rejects before Permission or signing. Auth resolves the stable actor by immutable verified-SPIFFE/self-audience registry selectors and validates the referenced Identity-owned tenantless SYSTEM Machine Principal/binding through existing `ResolveMachinePrincipalForAuth`; no new Identity RPC or caller-selected actor is introduced.
 
 The immutable registry extends each existing workload policy with one optional deployment-owned `humanObo` block containing exact `selfAudience`, `actorMachinePrincipalId`, `actorBindingId`, canonical positive-decimal `actorBindingVersion`, and a non-empty unique `targetAudiences` subset of that policy's existing `audiences`. Workload SPIFFE records and OBO `selfAudience` values are each globally unique; audiences are canonical service URNs with no wildcard. Duplicate/ambiguous selectors, unknown or malformed fields, empty/duplicate targets, a target outside the existing audience set, or two records claiming one self audience rejects Auth startup.
 
 At exchange time, verified SPIFFE, subject-token audience, requested target and the registry record must match exactly. Auth sends only the registry-owned principal/binding/version selector plus verified SPIFFE to existing `ResolveMachinePrincipalForAuth` and requires an active matching `SYSTEM MACHINE`, identical binding/version/SPIFFE and no tenant. A stale or mismatched owner decision, missing OBO policy, Identity outage, or actor data supplied through request/body/ordinary metadata rejects before Permission or signing. The registry selects; Identity remains actor owner; Permission still decides only workload -> target -> INTERNAL Code.
 
-The resulting Item Master Token preserves the subject Token's `sub`, `principal_type=HUMAN`, `tenant_id`, applicable org/session and security version. Its `act` identifies the current SYSTEM MACHINE actor, while `client_id` and `cnf` bind the direct exchanger workload/current leaf; its `exp` is no later than the subject Token expiry. Permission separately allows the exact exchanger workload -> Item Master audience -> INTERNAL Code and neither receives nor supplies tenant authority. Auth persists subject `jti` -> target `jti`, subject, actor, tenant, workload, target audience, Permission decision reference and trace before returning the Token. Missing/invalid subject, wrong audience/workload/certificate, actor mismatch, expiry, denied Permission or audit failure rejects the complete exchange. Background work without a HUMAN subject Token has no fallback in this profile.
+The resulting target Token preserves the subject Token's `sub`, `principal_type=HUMAN`, derived subject scope, applicable tenant/org/session and security version. A TENANT subject keeps the same exact `tenant_id`; a SYSTEM subject keeps the claim absent. Its `act` identifies the current tenantless SYSTEM MACHINE actor, while `client_id` and `cnf` bind the direct exchanger workload/current leaf; its `exp` is no later than the subject Token expiry. Permission separately allows the exact exchanger workload -> target audience -> INTERNAL Code and neither receives nor supplies HUMAN subject scope / tenant authority. Auth persists subject `jti` -> target `jti`, subject, actor, subject scope / tenant, workload, target audience, Permission decision reference and trace before returning the Token. Missing/invalid subject, wrong scope / tenant pair, wrong audience/workload/certificate, actor mismatch, expiry, denied Permission or audit failure rejects the complete exchange. Background work without a HUMAN subject Token has no fallback in this profile.
 
-The frozen target shape for `MES -> Item Master` is:
+The signed subject-scope encoding is fixed and does not add a `scope_level` claim:
+
+| HUMAN subject | `tenant_id` in subject and target Token | Derived scope |
+| --- | --- | --- |
+| platform account/session | absent | `SYSTEM` |
+| tenant account/session | one exact non-wildcard value, preserved unchanged | `TENANT` |
+
+The following is the TENANT target shape for `MES -> Item Master`:
 
 ```json
 {
@@ -66,9 +73,21 @@ The frozen target shape for `MES -> Item Master` is:
 }
 ```
 
+A SYSTEM HUMAN OBO target Token uses the same shape except that `tenant_id` is absent. `scope` remains the space-delimited Permission Code set in both cases; it never carries `SYSTEM` / `TENANT` scope level.
+
 `act` is exactly one direct-actor object, not a caller-supplied or recursively nested chain. On every exchange Auth replaces prior-hop `act` with the current verified exchanger actor and preserves the complete chain only through durable subject-`jti` -> target-`jti` audit links.
 
 ## 3. ExchangeExecutionToken
+
+### Scope-aware HUMAN OBO invariant and transition
+
+The HUMAN OBO subject verifier and the exchange signing gate consume one typed `subjectScope + optionalTenantId` pair and enforce the same truth table. A verifier may not hardcode HUMAN OBO to `TENANT`; a signer may not require tenant presence for every HUMAN OBO. SYSTEM succeeds only with `subjectScope=SYSTEM` and tenant absent; TENANT succeeds only with `subjectScope=TENANT` and one exact non-wildcard tenant. Any other pair fails before Permission lookup or signer invocation.
+
+This is a contract clarification over the existing signed wire shape. It adds no JWT claim, proto field, role, Permission Code, workload grant, tenant wildcard, schema or caller fallback. Gateway and target services continue using the existing private bearer carrier, target audience, `act`, `scope`, `tenant_id?`, session claims and method declarations.
+
+Runtime adoption updates Auth subject verification, signing admission, audit attribution and focused tests in one candidate. Updating only the verifier leaves the signing gate inconsistent and is not a valid rollout. During mixed Auth replica deployment, an older replica may still reject a SYSTEM HUMAN OBO exchange; traffic remains fail closed and the SYSTEM journey is considered available only after every serving Auth replica uses this invariant. TENANT OBO remains wire-compatible throughout.
+
+Rollback restores the previous Auth candidate; no database, proto or target-service rollback is required. Tokens already issued under this invariant use the existing wire profile and remain locally verifiable until their five-minute maximum expiry plus the allowed 60-second clock skew, unless an existing emergency selector rejects them earlier. Rollback introduces no alternate tenant value or dual authority.
 
 ### Runtime host and protected signing binding
 
@@ -108,11 +127,11 @@ Workload identity is the default backend credential. If a PKCS#11 backend requir
 
 `ResolvePrincipalAuthorization` is not a bootstrap method. Auth calls it with its exact mTLS identity plus a certificate-bound `aud=permission-service` ExecutionToken containing the exact INTERNAL Code `permission.internal.principal_authorization.resolve`; that Code is obtainable only through the workload issuance policy above. The resolver accepts typed HUMAN / MACHINE / DELEGATED identity, trusted scope / tenant / org, one target audience, canonical non-empty BUSINESS Codes and applicable session/delegation/tool references. It accepts no role/admin assertion, target RPC id, resource facts or domain state, and SELF_SERVICE does not use it. Both decisions use whole-request semantics: any unknown, wrong-kind, denied, partial or binding mismatch rejects the exchange and the signing port is not called.
 
-The Token cache and issuance unit is the exact tuple of verified principal/type, tenant/org, target audience, canonical granted Code set, session/delegation/security version, applicable `session_terminal`, current actor workload and current workload certificate thumbprint. HUMAN OBO additionally binds a non-reversible subject-token fingerprint/reference; cache hit still requires the same current request-scoped handle, different subject `jti` values cannot share a target Token, and cache expiry is capped by subject expiry. One valid cached Token may be used for multiple RPCs in that audience when each target method's local declaration accepts the Token mode, terminal constraint and Code set. There is no per-RPC Token or Auth-owned RPC authorization registry. A changed tuple produces a separate exchange/cache entry; ordinary target RPCs continue local validation with no Auth/Permission call.
+The Token cache and issuance unit is the exact tuple of verified principal/type, derived subject scope, optional exact tenant/org, target audience, canonical granted Code set, session/delegation/security version, applicable `session_terminal`, current actor workload and current workload certificate thumbprint. HUMAN OBO additionally binds a non-reversible subject-token fingerprint/reference; cache hit still requires the same current request-scoped handle, SYSTEM and TENANT entries cannot alias, different tenants or subject `jti` values cannot share a target Token, and cache expiry is capped by subject expiry. One valid cached Token may be used for multiple RPCs in that audience when each target method's local declaration accepts the Token mode, terminal constraint and Code set. There is no per-RPC Token or Auth-owned RPC authorization registry. A changed tuple produces a separate exchange/cache entry; ordinary target RPCs continue local validation with no Auth/Permission call.
 
 SELF_SERVICE is the only mode that consumes an empty Code set. Auth still requires a verified HUMAN source credential; DELEGATED remains subject to the target method's explicit `allowDelegated`, and MACHINE has no implicit self-service authority. BUSINESS and INTERNAL requests are non-empty. The target server derives self targets from trusted `sub`, validates current method mode/principal compatibility and `all/any` Codes, and applies tenant/resource/domain rules. A Token with an empty set cannot invoke BUSINESS/INTERNAL; a non-empty BUSINESS/INTERNAL Token does not bypass SELF_SERVICE subject derivation or method mode checks.
 
-Successful and denied exchange audit records route kind, applicable source-credential reference or MACHINE selector/Identity decision reference, verified principal/type/workload, tenant/org, audience, canonical requested/granted Codes, Permission decision reference, `authzVersion`, session/delegation reference, certificate thumbprint, `kid`/`jti`, result/reason and trace correlation. A HUMAN OBO success additionally records subject `jti` -> target `jti` and actor attribution; Auth must await durable append before returning the target Token. It excludes bearer values, API Key material, private key material and recoverable credentials.
+Successful and denied exchange audit records route kind, applicable source-credential reference or MACHINE selector/Identity decision reference, verified principal/type/workload, derived subject scope, optional tenant/org, audience, canonical requested/granted Codes, Permission decision reference, `authzVersion`, session/delegation reference, certificate thumbprint, `kid`/`jti`, result/reason and trace correlation. A HUMAN OBO success additionally records subject `jti` -> target `jti`, subject scope / optional tenant and actor attribution; Auth must await durable append before returning the target Token. It excludes bearer values, API Key material, private key material and recoverable credentials.
 
 ### Request semantics
 
@@ -125,6 +144,8 @@ Successful and denied exchange audit records route kind, applicable source-crede
 
 The additive proto shape keeps `target_audience = 1` and `requested_permission_codes = 2`, and adds `MachineExecutionSelector machine_execution_selector = 3`; the nested fields are `principal_id = 1`, `binding_id = 2`, and `binding_version = 3`. No target RPC, tenant, subject-token, actor, SPIFFE, certificate or caller-supplied mode field is added. The proto comment/contract test must permit an empty repeated field only for SELF_SERVICE semantics. Existing verified source/subject credentials remain carried only by `authorization`; MACHINE root uses selector-only admission and introduces no second bearer carrier.
 
+HUMAN OBO therefore has no `scopeLevel` or `tenantId` request field. Auth derives the typed scope / optional tenant from the verified subject credential and rejects any caller-local copy before the exchange application service. The target Token only preserves the existing optional signed `tenant_id` shape.
+
 这里的 `tenant` 禁止项同时包括 tenant business target：不得为 Gateway tenant-target binding 新增 Exchange target tenant field。Gateway 可把规范化 target 作为目标 RPC 自己拥有的 explicit business selector field 传播；该 selector 不是 credential 或 trusted transport context。目标服务分别验证 target-audience Token identity、exact workload、Permission Code 与 method declaration，再重新授权 selector 并用 selector 加 resource id 复核 tenant ownership。TENANT 要求 Token tenant 与 selector 相等；SYSTEM Token 保持 tenantless，只有 dedicated SYSTEM tenant-target method/interface 与平台 range 可允许 selector。request selector 不能覆盖 Token subject，Token subject 也不能替代 selector。
 
 对于多跳 exchange，STS 保持可信 `sub`、principal type、tenant、org、session / delegation attribution 与 request correlation，但把 `client_id`、`aud` 和 `cnf` 绑定到申请当前下一跳的直接 workload。
@@ -134,7 +155,7 @@ The additive proto shape keeps `target_audience = 1` and `requested_permission_c
 - HUMAN / BUSINESS：Permission Service 必须独立确认 requested Codes 是该 principal 在当前 scope / tenant / policy 下的有效子集。
 - MACHINE / BUSINESS：Auth 必须先完成 current workload/certificate verification 与 exact selector 的 Identity principal/binding live resolution；Permission Service 再独立确认 requested Codes 是该 active Machine Principal grant 的有效子集。
 - DELEGATED / BUSINESS：Permission decision 必须独立计算 HUMAN grant、delegation grant、agent/tool upper bound 与 target policy 的交集。
-- INTERNAL：Permission decision 必须确认 requested Codes 是 `kind=INTERNAL`，且当前 verified actor workload → target audience issuance policy 明确允许；INTERNAL Code 不从 HUMAN / MACHINE role 继承。HUMAN OBO 保持 HUMAN subject，并在目标 Token 中记录 SYSTEM MACHINE actor；纯 MACHINE root 仅在目标契约显式允许时使用 Machine Principal subject。
+- INTERNAL：Permission decision 必须确认 requested Codes 是 `kind=INTERNAL`，且当前 verified actor workload → target audience issuance policy 明确允许；INTERNAL Code 不从 HUMAN / MACHINE role 继承。HUMAN OBO 保持 derived HUMAN subject scope / optional tenant，并在目标 Token 中记录 tenantless SYSTEM MACHINE actor；Permission 不提供 subject scope / tenant。纯 MACHINE root 仅在目标契约显式允许时使用 Machine Principal subject。
 - SELF_SERVICE：STS 不把 body target 编入身份。目标服务从已验证 principal 派生 target，并按 RPC declaration 决定是否允许 DELEGATED。
 
 请求任何未获准 Code 时整体拒绝，不静默扩大，也不以“尽可能签发部分集合”掩盖调用方配置错误。调用方如需要更小集合，应显式重试更小请求。
@@ -180,6 +201,8 @@ The issuer publishes authorization-server metadata and a HTTPS `jwks_uri`. Resou
 | `session_terminal`            | HUMAN session                     | Auth 从与 `session_id` 相同的 active session truth 签入的稳定 terminal，例如 `WEB`、`BROWSER_EXTENSION` 或 `PDA`；调用方不能提交。 |
 | `authz_version`               | conditional                       | principal / session / credential 最低安全版本。                                      |
 
+For HUMAN Tokens, `tenant_id` presence is the signed scope encoding: one exact non-wildcard value means `TENANT`, and complete absence means `SYSTEM`. Empty, blank or wildcard values are invalid. `scope` remains Permission Codes, and no `scope_level` JWT claim is defined by this contract. Auth and every target verifier must derive the same typed pair before applying method-level authorization.
+
 Token TTL maximum is 5 minutes. Implementations may shorten it by risk but callers cannot request arbitrary lifetime. The allowed algorithm, issuer and registry are fixed by this contract; callers cannot select them.
 
 ## 5. Local Validation Contract
@@ -191,7 +214,7 @@ Token TTL maximum is 5 minutes. Implementations may shorten it by risk but calle
 3. exact target audience。
 4. `client_id` 与 mTLS `VerifiedWorkloadIdentity` 一致。
 5. `cnf.x5t#S256` 与当前 mTLS channel client leaf certificate thumbprint 一致。
-6. subject tenant / org 与 RPC mode、resource ownership 一致；存在 target-owned tenant selector 时，TENANT 必须与 Token tenant 相等，SYSTEM 必须由 dedicated method declaration、exact workload/Code 与平台 target range 明确允许。
+6. subject scope / tenant / org 与 RPC mode、resource ownership 一致；HUMAN `tenant_id` 存在时派生 TENANT、缺席时派生 SYSTEM，空白/wildcard 拒绝。存在 target-owned tenant selector 时，TENANT 必须与 Token tenant 相等，SYSTEM 必须由 dedicated method declaration、exact workload/Code 与平台 target range 明确允许。
 7. required Permission Code 的 `all / any` 规则。
 8. principal type、delegation 与 SELF / BUSINESS / INTERNAL mode 兼容。
 9. RPC 声明了 session-terminal 约束时，`session_terminal` 必须存在并精确匹配；MACHINE 或另一 terminal 不能满足该声明。
@@ -340,7 +363,7 @@ transport status 映射由 Gateway / common error boundary 统一处理；不得
 19. Missing, malformed, expired, revoked or wrong-profile HUMAN/OBO/API Key/DELEGATED source credential; legacy signed operator context; and raw subject/tenant/role metadata all fail before Permission lookup or signing.
 20. Multi-hop exchange rejects a subject ExecutionToken whose exact `aud` does not identify the verified exchanging workload service, and the new Token binds the exchanger's own SPIFFE ID/certificate rather than copying the prior hop `client_id`/`cnf`.
 21. Permission timeout/unavailability, decision-reference mismatch, stale/denied `authzVersion`, tenant mismatch and workload/audience mismatch fail closed and never invoke the signing port.
-22. Two target RPCs with the same principal/tenant/audience/Code/delegation/security/`cnf` tuple reuse one cached Token; changing any tuple member produces a separate cache miss/exchange. No per-RPC Token is introduced.
+22. Two target RPCs with the same principal/subject-scope/optional-tenant/audience/Code/delegation/security/`cnf` tuple reuse one cached Token; changing any tuple member produces a separate cache miss/exchange. No per-RPC Token is introduced.
 23. Successful and denied issuance audits contain decision/workload/principal/audience/Code/version/trace evidence and contain no bearer, API Key secret, private key or recoverable credential.
 24. `ResolveWorkloadIssuance` succeeds without an ExecutionToken only for the exact Auth mTLS identity and exact method; another valid workload certificate, spoofed header, wildcard or attempt to reuse the bootstrap rule on another Permission RPC fails.
 25. Auth obtains `permission.internal.principal_authorization.resolve` only after an all-granted workload issuance decision, then calls `ResolvePrincipalAuthorization` with both matching mTLS and Permission-audience ExecutionToken.
@@ -351,8 +374,8 @@ transport status 映射由 Gateway / common error boundary 统一处理；不得
 30. `ResolveMachinePrincipalForAuth` accepts only exact Auth mTLS for that exact method, rejects Authorization metadata and validates the original workload SPIFFE plus selector against live Identity truth; another caller/method, wildcard, external Integration resolver or header identity fails.
 31. A HUMAN source credential signs `session_terminal` only from the same active Auth session as `session_id`; a caller-supplied terminal, a missing terminal on a session-bound Token, or a resource-method terminal mismatch fails closed.
 32. Token cache entries for different `session_terminal` values cannot alias, and Browser Activity acceptance proves `WEB` and `BROWSER_EXTENSION` Tokens cannot invoke each other's declared RPC group.
-33. HUMAN OBO accepts only the current service-audience inbound ET from the private request scope, preserves HUMAN `sub`/tenant/session, records the exact SYSTEM MACHINE actor, binds the next-hop workload certificate and caps target expiry by subject expiry.
-34. Missing, invalid, expired or wrong-audience subject Token; actor spoofing; wrong workload/certificate; direct HUMAN without the required actor; MACHINE root on an OBO-only method; body tenant injection; and an invalid or unbounded `act` chain all fail closed.
+33. HUMAN OBO accepts only the current service-audience inbound ET from the private request scope, derives SYSTEM from absent `tenant_id` or TENANT from one exact non-wildcard value, preserves HUMAN `sub`/scope/tenant/session, records the exact tenantless SYSTEM MACHINE actor, binds the next-hop workload certificate and caps target expiry by subject expiry.
+34. Missing, invalid, expired or wrong-audience subject Token; blank/wildcard/session-mismatched tenant; actor spoofing; wrong workload/certificate; direct HUMAN without the required actor; MACHINE root on an OBO-only method; body scope/tenant injection; and an invalid or unbounded `act` chain all fail closed before Permission/signing.
 35. A deeper synchronous hop uses the Token addressed to the current service as its subject credential; it neither retains the original Gateway Token nor adds a second bearer header.
 36. Auth startup rejects duplicate SPIFFE/self-audience OBO policy, malformed or non-canonical selector/version, wildcard/duplicate targets and an OBO target outside the existing workload audience set.
 37. OBO exchange rejects missing policy, wrong self/target audience, stale or mismatched Identity principal/binding/version/SPIFFE, non-SYSTEM or tenant-bearing actor, and any caller-supplied actor before Permission/signing.
@@ -362,3 +385,8 @@ transport status 映射由 Gateway / common error boundary 统一处理；不得
 41. One shared runner with two tenant bot selectors receives distinct tenant-bound MACHINE Tokens; disabling one principal/binding rejects only that selector and leaves the other bot runnable.
 42. Mixed-version rollout supports old caller drain for at most the former 15-minute credential lifetime, proves shadow/parity before cutover, stops new issue before removal, and preserves a tested pre-removal rollback.
 43. An external/body/prompt-supplied selector is never forwarded to STS; the bot/job owner resolves it from trusted tenant-bound job state. A shared-runner compromise is contained to that SPIFFE's declared binding set, and high-risk isolation uses a dedicated workload SPIFFE.
+44. A tenantless HUMAN subject from an active SYSTEM session verifies as `SYSTEM`, reaches the existing workload issuance decision and signer, and produces a target Token with `tenant_id` absent; no synthetic tenant or wildcard is introduced.
+45. A HUMAN subject from an active TENANT session verifies as `TENANT` and preserves the same exact `tenant_id`; changing or removing that value rejects before signer invocation.
+46. Subject verification and signing admission use the same scope / tenant truth table in focused tests; verifier-only or signer-only compatibility behavior is rejected.
+47. Proto lint, generation and breaking checks prove zero wire-schema change: no `scope_level`, target tenant or alternate bearer field is added.
+48. SYSTEM and TENANT HUMAN OBO audit/cache tests prove explicit subject scope / optional tenant separation, exact actor attribution, decision-reference binding, durable audit-before-return and bearer exclusion.

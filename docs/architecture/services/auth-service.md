@@ -186,6 +186,7 @@ ExecutionToken 是 service-to-service 的短期执行凭据，不是用户登录
 
 - 只有 `auth-service` / STS 可以签发 ExecutionToken；业务服务不得共享签名私钥或自行重签。
 - Token 只面向一个 target service audience，以 `cnf` 绑定申请工作负载的已验证 mTLS identity，并直接在 `scope` 携带获准 Permission Code 子集。
+- HUMAN subject 的 scope / tenant 使用一个规范化 pair：`TENANT` 必须携带精确、非空且非 wildcard 的 `tenant_id`，`SYSTEM` 必须完全省略 `tenant_id`。ExecutionToken 不增加 `scope_level` claim，`scope` 继续只表示 Permission Code；Auth verifier 与 signer 必须对同一 pair 使用相同规则。
 - 对由 active HUMAN session 建立的 ExecutionToken，Auth 必须从自身 session truth 派生并签入 `session_terminal`；调用方、Gateway request、ordinary metadata 或业务 DTO 不能提交或覆盖该值。`session_terminal` 与 `session_id` 同时存在并绑定同一 active session，MACHINE Token 不携带该 claim。
 - STS 对 HUMAN、MACHINE、DELEGATED 分别验证可信 session / principal、Permission grant、delegation upper bound 与 workload issuance policy；调用方不能提交可提升授权的 subject facts。
 - 默认 TTL 约 5 分钟，不签发 refresh token。精确上下限、claim 与错误语义以 [execution-token.md](../../contracts/auth-service/execution-token.md) 为准。
@@ -246,9 +247,9 @@ Auth records the security decision, trigger source, selector kind/reference, mon
 - Auth 最后签发最长五分钟且 `cnf` 绑定当前 leaf 的 target-audience ExecutionToken。证书轮换只需用新 leaf 重新 exchange；Machine Principal/binding disable 或 stale selector 阻止新 exchange，既有 Token 由 TTL 与既有 `PRINCIPAL` / `MINIMUM_AUTHZ_VERSION` emergency selector 收敛。
 - 任何 principal、scope、tenant、SPIFFE、binding/version、leaf、owner/Permission dependency 或 audit mismatch 都在 signing 前 fail closed。审计记录 route、selector reference、Identity/Permission decision、workload/leaf、result/reason 与 trace，不记录 bearer。
 
-同步 HUMAN 多跳使用通用 OBO，不改变 Machine Principal owner 语义。MES、WMS、Procurement 与 SRM 为 Item Master INTERNAL Code 换票时，唯一 subject credential 是当前已验证、由 Auth 签发且 `aud` 精确等于 exchanger 自身 audience 的 HUMAN ExecutionToken。Auth 必须重新验证 issuer/signature/time/security state、HUMAN subject、tenant/session、当前 exchanger mTLS/SPIFFE/leaf 与 immutable workload registry；request/body、ordinary metadata、caller-local `tenantId` 或 Machine selector 都不能提供或覆盖 subject/tenant authority。
+同步 HUMAN 多跳使用通用 OBO，不改变 Machine Principal owner 语义。唯一 subject credential 是当前已验证、由 Auth 签发且 `aud` 精确等于 exchanger 自身 audience 的 HUMAN ExecutionToken。Auth 必须重新验证 issuer/signature/time/security state、HUMAN subject、scope / tenant pair、session、当前 exchanger mTLS/SPIFFE/leaf 与 immutable workload registry；request/body、ordinary metadata、caller-local `scopeLevel` / `tenantId` 或 Machine selector 都不能提供或覆盖 subject scope / tenant authority。
 
-Auth 签发的目标 Token 保持原 HUMAN `sub`、`principal_type=HUMAN`、tenant/org/session attribution，`act` 写入当前 exchanger 的 SYSTEM MACHINE actor，`client_id`、target `aud` 与 `cnf` 绑定当前直接 workload 和 leaf certificate。目标 Token `exp` 不得晚于 subject Token `exp`。INTERNAL issuance 同时要求 Permission 对 exact exchanger workload→target audience→INTERNAL Code 的独立 allowed decision；Permission 不接收或提供 subject tenant。Auth 在返回 Token 前持久化 subject `jti` -> target `jti`、subject、actor、tenant、audience、Permission decision reference 与 trace correlation；审计或任一依赖失败时不返回 Token，且不记录 bearer。无可信入站 HUMAN Token 的后台任务不获得 body/local fallback，留待独立设计。
+Auth 签发的目标 Token 保持原 HUMAN `sub`、`principal_type=HUMAN`、subject scope / tenant、org/session attribution：TENANT 保持同一精确 `tenant_id`，SYSTEM 保持 `tenant_id` 缺席；`act` 写入当前 exchanger 的 tenantless SYSTEM MACHINE actor，`client_id`、target `aud` 与 `cnf` 绑定当前直接 workload 和 leaf certificate。目标 Token `exp` 不得晚于 subject Token `exp`。INTERNAL issuance 同时要求 Permission 对 exact exchanger workload→target audience→INTERNAL Code 的独立 allowed decision；Permission 不接收、提供或重解释 HUMAN subject scope / tenant。Auth 在返回 Token 前持久化 subject `jti` -> target `jti`、subject、actor、subject scope / tenant、audience、Permission decision reference 与 trace correlation；审计或任一依赖失败时不返回 Token，且不记录 bearer。无可信入站 HUMAN Token 的后台任务不获得 body/local fallback，留待独立设计。
 
 OBO actor selector 不由 caller 或 Token request 提交，而是在既有 deployment-owned `AUTH_EXECUTION_WORKLOAD_POLICIES` 每个 workload record 中使用可选 `humanObo` block 冻结：
 
@@ -271,6 +272,15 @@ interface WorkloadIssuancePolicy {
 一个 exact SPIFFE ID 只能有一个 workload record；所有 OBO-enabled record 的 `selfAudience` 也必须唯一且为 canonical service audience。`targetAudiences` 必须非空、去重、无 wildcard，并且是同一 record `audiences` 的子集；principal/binding selector 必须为 trim 后非空 stable reference，`actorBindingVersion` 必须是 canonical positive decimal。重复、歧义、未知字段、错误格式或交叉 record 冲突使 Auth 启动 fail closed。
 
 HUMAN OBO exchange 必须同时满足：subject ET `aud` 精确等于 record 的 `selfAudience`；requested target 同时存在于 `audiences` 与 `humanObo.targetAudiences`；verified exchanger SPIFFE 精确命中该唯一 record；Auth 使用 registry 中的 actor principal/binding/version 与当前 SPIFFE 调用既有 `ResolveMachinePrincipalForAuth`。Identity decision 必须回显同一 active principal、binding、version、SPIFFE、`principal_type=MACHINE`、`scope=SYSTEM` 且 tenant 为空。stale version、selector mismatch、Identity unavailable 或 caller/body/metadata 尝试提供 actor 均在 Permission lookup/signing 前失败。该 block 是部署 selector，不取代 Identity owner truth，也不新增 Identity RPC 或 Permission input。
+
+Auth 对 HUMAN OBO 的 subject verifier 与 signing gate 使用同一 truth table：
+
+| Verified HUMAN subject | Signed `tenant_id` | Derived subject scope | Target Token |
+| --- | --- | --- | --- |
+| platform account/session | absent | `SYSTEM` | preserve absence |
+| tenant account/session | one exact non-wildcard value | `TENANT` | preserve the same value |
+
+空值、空白值、wildcard、与 active session 不一致的 tenant，或 caller 尝试补交 `scopeLevel` / `tenantId`，均在 Permission lookup 与 signer invocation 前拒绝。verifier 不把 tenantless HUMAN 固定为 `TENANT`，signing gate 也不把 tenant presence 作为所有 HUMAN OBO 的前置条件；两者都先验证上述 pair，再把明确的 typed scope / optional tenant 交给后续 exchange。SYSTEM OBO 仍不获得 tenant selector authority或 tenant BUSINESS grant。
 
 精确 provision 与 migration 边界冻结为：
 

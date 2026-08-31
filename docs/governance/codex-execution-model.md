@@ -240,13 +240,33 @@ Human对exact Preview的一次确认授权：
 
 merge、`NEW_DESIGN` delivery activation和cleanup分别确认。技术binding由机器在task-local evidence中生成和验证；Human不复述。Preview的语义、文件范围或protected scope变化时必须重新展示完整Preview。
 
-### 7.2 UD审核与Design PR
+### 7.2 Proposal transport、FIFO与receipt
+
+Human确认Preview后，source owner立即把immutable Proposal发送到exact UD；sender不等待UD空闲，transport acceptance后不poll。transport acceptance只证明消息进入exact UD task，不等于admission；平台不能证明pending position时只回执`已投递，等待 UD 确认入队`，禁止推测或编造位置。
+
+每个Proposal必须绑定immutable `proposalId`、`proposalFingerprint`、source task与exact return task。exact UD只以自身task的原生消息历史和收发receipt作为队列事实，按transport arrival严格FIFO、一次admit一个Proposal、不抢占active Proposal；不得把这些receipt复制成global scheduler、task registry、heartbeat、watchdog、pull inbox、queue database或历史账本。
+
+- 相同`proposalId + proposalFingerprint`是idempotent duplicate，只重放已有receipt或terminal result；
+- 内容变化必须使用新Proposal ID和fingerprint、重新获得Human确认，并在FIFO尾部supersede旧的尚未开始revision；
+- cancellation可终止尚未admit的Proposal；active Proposal只在下一个无remote mutation悬空的safe boundary停止并保留当前证据；
+- source task接收自己Proposal的`TRANSPORT_ACCEPTED | UD_ADMITTED | PROCESSING | SUPERSEDED | TERMINAL` receipt；terminal completion只有在typed result送达exact return task后成立；
+- terminal return按`proposalId + terminalStatus`至少一次投递且幂等，ack丢失只重放同一result，不产生重复业务动作。
+
+Human可从任一可见OES project task请求`查看 UD 队列`。该只读视图按exact UD task history/receipt即时派生，只显示Proposal ID、简短scope、source role、可证明的顺序和`已投递 | 已入队 | 处理中 | 已取代 | 已取消 | 已终结`；exact UD可见完整队列，其他role task只接收on-demand summary，bounded IT/helper默认不接收完整队列。
+
+### 7.3 UD critical section与恢复
+
+exact UD从admission、审核、integration candidate、Design PR与PR CI，经过Human merge等待、merge、main CI、canonical verification，直到exact return保持一个single-flight critical section。active Proposal等待Human或CI时仍占有该section，UD不admit下一项，也不把多个Proposal异步挂起给callback owner；同一active Proposal内部可用bounded polling和backoff等待CI。
+
+每次external mutation都使用read-before-write、immutable exact binding、read-after-write和既有最小monotonic checkpoint。App/host重启或响应丢失后恢复same Proposal，对照checkpoint与GitHub live truth，只执行缺失动作；checkpoint陈旧时以GitHub live truth为准，但任何不匹配的owner、candidate、PR或scope仍fail closed。
+
+### 7.4 UD审核与Design PR
 
 UD验证Human confirmation、source owner、latest canonical base、exact changed paths和Proposal内容。语义不完整时返回同一Design Owner修订；接受后由exact UD创建integration candidate、Draft Design PR并等待required CI。
 
 Design Owner、请求来源、父task或host helper不得先写远端再让UD复核。host transport只能机械执行UD在mutation前签发的一次性精确动作，结果必须返回UD read-after-write。
 
-### 7.3 Post-merge routing
+### 7.5 Post-merge routing
 
 - `NEW_DESIGN`：main CI通过后UD主动建议`Direct | 单Feature | Delivery Stage | 暂不执行`；
 - `EXISTING_DELIVERY_DESIGN_GAP`：自动返回exact原SL/FL，更新latest main后恢复affected lane，不发activation card；
@@ -254,6 +274,8 @@ Design Owner、请求来源、父task或host helper不得先写远端再让UD复
 - canonical editorial：通知exact source Direct owner，不触发delivery。
 
 UD不把implementation发给Design Owner的祖先、最初请求task或其他generic callback。
+
+exact return完成后，完成remote merge的owner才可按10.4只读检查designated project-root `main`是否可同步；该检查和可选同步不延迟原owner恢复，也不改变任何FL worktree。
 
 ## 8. Delivery
 
@@ -330,6 +352,19 @@ main前进本身不使授权失效。无关变化自动集成并复用证据；�
 
 每个owner最多维护一个current Packet/status、一个current candidate verification、一个final PR/main verification，以及恢复必需的最小manifest/bundle。Git、task history或最终记录能够重建的中间事实不另建长期receipt、ledger或重复manifest。
 
+### 9.4 CI拓扑
+
+required aggregate context保持唯一`Baseline Checks`，且不缩减现有validation surface。workflow把完整gate拆为两个独立、fail-closed且可并行的job：
+
+1. `static-risk`：frozen lockfile安装、Proto lint/generation/breaking、build、non-empty inventory、declared design-gap检查，以及全部unit、contract和runtime-risk tests；同一job内generation/build只执行一次并复用结果；
+2. `l2-runtime`：使用独立task-owned Postgres/NATS环境，执行migration与全部L2 tests，并以`always()`无条件验证和清理container、volume、network及lifecycle residue。
+
+`Baseline Checks`只聚合这两个job，任一缺失、取消或失败都失败。PR candidate和最终Merge Commit分别运行完整优化后CI；main CI不得复用PR evidence。两个job之间不共享可写database/runtime资源，优化只消除重复工作，不降低隔离、断言或清理。
+
+### 9.5 Collaboration runtime最小不变量
+
+collaboration-runtime变更的fast automatic set至少覆盖：FIFO与exact return binding、duplicate与superseded idempotency、remote truth恢复决策、latest-main revalidation、本地main同步确认guard。真实PR/CI/merge interruption等昂贵场景只在collaboration-framework变更和对应Feature RI执行，不加入每个无关产品change；Human real-use继续作为usability acceptance。
+
 ## 10. Git、PR与main
 
 本节只约束`REPOSITORY_DELIVERY`。`HOST_LOCAL_OPERATION`不得创建remote branch、PR或main mutation；若需要任何repository写入，必须先按3.2重新路由。
@@ -348,15 +383,23 @@ main前进本身不使授权失效。无关变化自动集成并复用证据；�
 
 ### 10.2 Remote driver
 
-远端mutation使用repository-owned、versioned、tested、idempotent driver。publish、pre-merge、merge和verify-main是可恢复的机器内部阶段，不形成额外Human gate。Human只看到`等待合并`、一张merge卡和最终`已完成/阻塞`。
+远端mutation使用repository-owned、versioned、tested、idempotent driver。publish、pre-merge、merge和verify-main是可恢复的机器内部阶段，不形成额外Human gate。每次mutation前后读取exact remote truth并写最小monotonic checkpoint；响应丢失或恢复时先对照GitHub live truth，远端已满足postcondition则复用成功，否则只补执行缺失动作。Human只看到`等待合并`、一张merge卡和最终`已完成/阻塞`。
 
 ### 10.3 PR和merge
 
 每个FL在完整candidate和Feature RI通过后才push并创建Draft PR。有parent SL时，Stage Review通过且candidate已整合latest main后进入merge-ready。
 
-Human确认exact PR后，driver在mutation边界重新读取base/head/checks/reviews和latest main；匹配后只执行一次Merge Commit。merge后验证：`origin/main`等于merge SHA、merge具有exact两个parents、accepted candidate为merge祖先、required main workflow成功、protected resources保持不变。
+Human确认exact PR后，driver在mutation边界重新读取base/head/checks/reviews和latest remote `main`。main未变化且base/head/checks/reviews匹配时只执行一次Merge Commit；main已前进时，必须先通过GitHub merge queue或等价prospective merge result在latest main上验证exact candidate，并要求完整`Baseline Checks`成功后再Merge Commit。
+
+main前进但candidate content和confirmed scope均未变化时，原Human merge confirmation继续有效；candidate SHA、content或scope任一变化时旧卡失效并显示refreshed merge card。merge后验证：`origin/main`等于merge SHA、merge具有exact两个parents、accepted candidate为merge祖先、required main workflow成功、protected resources保持不变。
 
 多FL按latest-main串行admission；上游merge后，下游只运行drift/affected matrix，不自动重做完整Feature RI。
+
+### 10.4 Local main convergence
+
+remote `main`始终是canonical truth；任何merge、main CI或exact return都不得隐式修改共享project checkout。exact return后，完成remote merge的owner只读检查designated project-root：当前branch是`main`、worktree clean、不处于merge/rebase/cherry-pick/bisect等Git operation、local `main`不领先也不diverge，并且对fresh `origin/main`存在exact `ff-only`路径。条件不满足时保留现场、不显示同步卡。
+
+条件满足时才显示14.6的独立Human选择。Human确认后在mutation boundary重新读取全部preconditions，只允许`git fetch origin main`加`git merge --ff-only origin/main`或语义等价的exact update，再read-after-write验证HEAD、`refs/heads/main`、clean state和remote equality。禁止reset、stash、rebase、force checkout、process termination、background retry或automatic sync；Human选择defer后不保留后台任务，未来显式同步意图重新检查。任何既有或新FL worktree保持原branch/HEAD不变；新repository FL仍从latest `origin/main`启动。
 
 ## 11. Cleanup
 
@@ -385,13 +428,17 @@ host操作本身属于已确认work scope，不伪装成Git cleanup。post-check
 统一使用以下规则：
 
 1. 权限、网络、App/host重启、CI等待中断和scratch丢失优先恢复same owner；
-2. 一个FL失败只暂停该lane；
-3. duplicate message或driver retry读取已有结果，不重复mutation；
-4. ordinary conflict只由artifact owner解决；
-5. exact owner不可恢复时才显示一次Human recovery card；
-6. unknown、dirty、SHA不匹配或owner仍活动的资源保持原状；
-7. replacement必须在旧owner终止并验证后创建，禁止双owner；
-8. cleanup partial failure只重试失败项。
+2. network timeout、rate limit或GitHub transient failure最多执行三次idempotent retry，使用exponential backoff与jitter；
+3. CI infrastructure failure只允许在same SHA重跑failed job一次；build、type、contract或assertion failure不blind rerun，由same owner修复后运行affected/full required gate；
+4. permission或credential failure立即返回一个可执行blocker，不循环尝试；
+5. lost PR/merge response先读取remote truth，已成功则复用，否则只retry缺失动作；
+6. 一个FL失败只暂停该lane；
+7. duplicate message或driver retry读取已有结果，不重复mutation；
+8. ordinary conflict只由artifact owner解决；
+9. exact owner不可恢复时才显示一次Human recovery card；
+10. unknown、dirty、SHA不匹配或owner仍活动的资源保持原状；
+11. replacement必须在旧owner终止并验证后创建，禁止双owner；
+12. cleanup partial failure只重试失败项。
 
 ## 13. Runtime cutover与in-flight兼容
 
@@ -417,11 +464,17 @@ canonical merge后按以下顺序恢复：
 
 本角色定义可先进入canonical truth，但当前Collaboration Runtime Cutover达到terminal并完成所需验证前，Planner保持未启用：不创建Planner task、不建立定时触发、不迁移现有task，也不改变当前SL/FL/RI。cutover完成后，Human通过既有任务确认卡一次性确认创建一个可见、project-associated的`[Planner] OES Portfolio Planning` task；可选定时安排与该task绑定，不创建第二个Planner或新的协同状态机。
 
+### 13.3 Continuous Optimization cutover
+
+7.2、7.3、9.4、9.5、10.2至10.4、12、14.2.1与14.6的新增runtime行为和命令形式，只约束follow-on collaboration-framework implementation candidate完成Merge Commit、main CI和canonical verification之后获得Human确认的新Proposal与新remote/local-sync动作；该implementation merge是本轮continuous optimization的exact cutover point。
+
+cutover前已active或已确认的Proposal、owner、PR、checkpoint与frozen binding继续按原规则到terminal/cleanup，不迁移、不backfill queue receipt、不重写历史。required context名称`Baseline Checks`在CI内部拓扑切换前后保持不变；workflow cutover失败时保留旧完整gate，禁止以部分新job替代。
+
 ## 14. Human命令契约
 
-本节是Human意图、确认、merge与cleanup的唯一自然语言契约，版本为`OES-COLLAB-COMMANDS/v7`。
+本节是Human意图、确认、merge、local-main sync与cleanup的唯一自然语言契约，版本为`OES-COLLAB-COMMANDS/v8`。
 
-<!-- BEGIN OES_COLLAB_COMMANDS_V7 -->
+<!-- BEGIN OES_COLLAB_COMMANDS_V8 -->
 
 ### 14.1 状态
 
@@ -469,6 +522,10 @@ Design首次写入前展示完整只读Preview。确认卡：
 ```
 
 选项1授权到`DESIGN_PR_READY`；Design PR merge、NEW_DESIGN delivery activation和cleanup分别确认。technical binding由task内部维护，Human无需复述。
+
+#### 14.2.1 UD队列查看
+
+Human说`查看 UD 队列`时直接返回只读派生视图，不显示确认卡、不创建资源。只列可证明的Proposal ID、简短scope、source role、顺序和state；不能证明pending position时显示`已投递，等待 UD 确认入队`，不编造编号。
 
 ### 14.3 UD post-merge
 
@@ -525,7 +582,20 @@ PR与required CI已准备完成。
 
 每张merge卡只绑定一个exact PR/head。main变化时机器自动刷新并只在语义或scope失效时换卡。
 
-### 14.6 Cleanup
+### 14.6 Local main sync
+
+只有10.4全部eligibility checks通过时显示：
+
+```text
+远端main已验证，本地项目main可以安全快进。
+1. 立即以ff-only同步本地main（建议）
+2. 暂不同步
+3. 查看检查结果
+```
+
+选项1只授权当前卡绑定的designated project-root和exact remote main；执行前重新验证，任何dirty、diverged、branch或Git-operation变化都保留现场并停止。选项2结束本次同步意图，不创建background retry。
+
+### 14.7 Cleanup
 
 Standalone owner：
 
@@ -545,7 +615,7 @@ Stage：
 3. 查看清单
 ```
 
-### 14.7 Recovery
+### 14.8 Recovery
 
 same-owner自动恢复失败且replacement确实必要时：
 
@@ -559,11 +629,11 @@ same-owner自动恢复失败且replacement确实必要时：
 
 旧owner终止并验证前不得创建replacement。任务不可见但same-id可修复时自动原地修复，不显示replacement卡。
 
-### 14.8 编号与失效
+### 14.9 编号与失效
 
 只有一张latest有效待确认卡时，单独`1`、`2`等按该卡执行。新的Human条件、scope变化、执行、取消或绑定失效使旧卡失效并展示刷新卡。相同动作重试复用已有结果。
 
-<!-- END OES_COLLAB_COMMANDS_V7 -->
+<!-- END OES_COLLAB_COMMANDS_V8 -->
 
 ## 15. 完成标准
 
