@@ -383,10 +383,11 @@ Phase 1 does not do:
 - [employee-digital-business-card.md](../../plans/features/employee-digital-business-card.md)
 - [scan-identity-design.md](../../plans/designs/scan-identity-design.md)
 - [permission-service.md](./permission-service.md)
+- [Public Business Card owner-fact resolution](../collaborations/public-business-card-owner-facts.md)
 
 ## 13. Trusted gRPC Migration Boundary
 
-本轮只迁移当前 `public_entry.proto` 的 23 个 RPC，不新增 Public Entry 业务能力、Permission Code、数据库对象或跨服务能力。稳定信任边界如下：
+Public Entry inbound 继续固定为当前 `public_entry.proto` 的 23 个 RPC，不新增 Public Entry RPC、业务 Permission Code 或数据库对象；Public Business Card outbound owner-fact collaboration 另以三个 target-owned additive INTERNAL resolver 冻结。稳定信任边界如下：
 
 - 19 个后台管理 RPC 是 `BUSINESS / HUMAN / WEB`，由 `api-gateway` 代表已经验证的网页登录会话调用；每个方法只接受 [Public Entry contracts](../../contracts/public-entry-service/README.md) §3 冻结的一个准确现有 Code。
 - `GetOwnBusinessCardPreview` 是 `SELF_SERVICE / HUMAN / WEB`，Code 为空、拒绝 DELEGATED；tenant/account/employee/card 只能从验证后的 HUMAN subject 与受控 Identity binding 派生，request 不得选择另一个 account、employee 或 card。
@@ -394,5 +395,8 @@ Phase 1 does not do:
 - 三个公开 RPC 只允许准确 Gateway workload；SYSTEM 不是 tenant wildcard。ShortLink/BusinessCard owner 从服务自有记录解析 tenant，并继续执行 status、expiry、readiness、employee activity、public-safe projection 与 generic error 规则；caller-supplied tenant 没有 authority。
 - 23 个 RPC 均拒绝错误 audience、`cnf`、principal、terminal、Code 与 legacy body/header/signed-operator authority。后台 HUMAN、SELF_SERVICE HUMAN 与公开 Gateway MACHINE Token 不得交叉调用。
 - `ChangeShortLinkStatus` 使用 target-status-to-Code 绑定：`ACTIVE -> public-entry.short-link.update`、`DISABLED -> public-entry.short-link.disable`、`ARCHIVED -> public-entry.short-link.archive`；未知状态或 Code mismatch 在 mutation 前拒绝。
-- 当前 Public Entry 向 HR、Identity、Permission、TenantOrg 的 legacy outbound 调用不在本轮迁移中扩张或重设计；其目标服务按全仓顺序独立 cutover。BusinessCard 入口不再重复调用 Permission 做同一 BUSINESS Code 判定，但保留服务内 tenant/resource/domain/audit owner 检查。
+- Public Business Card request-time composition 只使用三个 target-owned INTERNAL resolver：HR `ResolvePublicBusinessCardEmployee` / `hr.internal.public_business_card_employee.resolve`、Identity `ResolvePublicBusinessCardIdentity` / `identity.internal.public_business_card_identity.resolve`、TenantOrg `ResolvePublicBusinessCardOrganization` / `tenant_org.internal.public_business_card_organization.resolve`。Public Entry 保持 tenantless SYSTEM MACHINE direct root；card-derived `tenant_id` 只作 target owner lookup selector，不建立 execution tenant 或 wildcard。
+- Permission 只通过 exact Public Entry workload -> target audience -> INTERNAL Code issuance policy 准入，不查询或建立 Public Entry 的 tenant role、`PrincipalRoleBinding` 或 BUSINESS grant。Public Entry public-card 链路不得再申请 `hr.employee.get_by_id`、`identity.account.list`、`identity.account.self.read`、`tenant_org.tenant.get_by_id` 或 `tenant_org.org_unit.list_tree`，也不得以这些既有 BUSINESS methods 作为 fallback。
+- 三个 owner projection 在单次 readiness/render/vCard operation 内组成 request-private aggregate，不持久化为 Public Entry owner truth。Required/optional、公开错误、provisioning 与完整协同流程以 [Public Business Card owner-fact resolution](../collaborations/public-business-card-owner-facts.md) 为准；匿名 `PublicBusinessCardView`、resolver、vCard 与 VisitEvent 语义保持不变。
+- 本 outbound collaboration 状态为 `DESIGN_FROZEN_PENDING_IMPLEMENTATION`；设计合并后仍由原 delivery owner 实现和复验，当前 runtime 不使用临时 BUSINESS grant。
 - 具体 23-RPC matrix 与 request field reservation 以 [Public Entry contracts](../../contracts/public-entry-service/README.md) §3 为准。

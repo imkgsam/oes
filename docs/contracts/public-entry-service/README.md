@@ -13,7 +13,7 @@ Phase 1 contracts:
 
 ## 3. Trusted gRPC 23-RPC Contract
 
-本次 cutover 只改变当前 23 个 RPC 的内部信任来源，不增加业务能力或 Permission Code。所有 RPC 的 audience 固定为 `urn:oes:service:public-entry-service`：
+Public Entry inbound cutover 固定当前 23 个 RPC，不增加 Public Entry RPC、业务能力或 Public Entry-owned Permission Code。三个 outbound public-card target-owned INTERNAL Codes 由各 owner contract 另行冻结，不计入本 23-RPC matrix。所有 inbound RPC 的 audience 固定为 `urn:oes:service:public-entry-service`：
 
 | RPC | Mode / principal | Exact existing Code |
 | --- | --- | --- |
@@ -87,7 +87,8 @@ Proto implementation must delete and reserve the following exact request fields/
 ### 3.3 Scope preservation
 
 - 当前 23 个 RPC 的业务规则、public generic error、readiness、VisitEvent、audit、idempotency、persistence 与 response shape 不变。
-- 本次不修改 HR、Identity、Permission、TenantOrg target contracts/runtime；Public Entry outbound edges 在各 target service 自己 cutover 时按依赖顺序迁移。
+- Public Entry outbound public-card edges 使用三个 separately named target-owned INTERNAL resolver/Code；exact request-time composition、tenant selector、Permission issuance、provisioning 与 failure contract 以 [Public Business Card owner-fact resolution](../../architecture/collaborations/public-business-card-owner-facts.md) 为准。
+- Public Entry 不申请或 fallback 到 `hr.employee.get_by_id`、`identity.account.list`、`identity.account.self.read`、`tenant_org.tenant.get_by_id` 或 `tenant_org.org_unit.list_tree`。这不改变对应 BUSINESS method 的既有 HUMAN/HUMAN_OBO consumers。
 - `business-card-live-smoke.ts` 不再作为无 Token raw gRPC production-like caller。管理/self flow 应经已认证 Gateway HTTP fixture，三个公开 flow 经匿名 Gateway HTTP；controller/security focused tests 覆盖无 HTTP surface 的内部断言。
 Contract boundary:
 
