@@ -2,13 +2,13 @@
 
 featureKey: system-human-obo-session-hydration
 truthCommit: a912abb73e64f8065044f5a278d02439c473d171
-baseSha: bdbe73970f452716ba4b2026592b9657ea445436
+baseSha: 5f712519b05fb53ae577dfe36fa5277e1e690ea1
 integrationBranch: codex/system-human-obo-session-hydration
 worktreeKey: 917a
 pullRequest: https://github.com/imkgsam/oes/pull/55
 mergeSha: pending
 cleanup: HOLD
-state: ACCEPTED
+state: CANDIDATE_READY
 
 ## Objective
 
@@ -20,9 +20,9 @@ SYSTEM session stays tenantless while TENANT preserves one exact tenant.
 
 ### scope-aware-human-obo
 
-state: ACCEPTED
+state: CANDIDATE_READY
 candidate: b12769942e87098cf71a758ddccc2206aa8f5ed0
-review: local-ri ACCEPTED exact f6ca1604a4b0c5388657c1bbba647330f88edf01; findings none
+review: local-ri post-PR48 moving-main bounded rebind pending
 
 - Scope: Auth HUMAN OBO subject verifier and signing gate; OBO audit subject-scope attribution;
   Common certificate-bound cache subject-scope separation; focused SYSTEM/TENANT/negative tests.
