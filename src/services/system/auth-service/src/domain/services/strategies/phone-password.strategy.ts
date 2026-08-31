@@ -1,10 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { PhonePasswordLoginRequestDto } from '@oes/common/dtos'
-import { ExceptionFactory } from '@oes/common/exceptions'
 import { LoginMethodEnum, LoginMethodType, REPO } from '../../../common/constants'
-import { AUTH_INVALID_CREDENTIALS } from '../../../common/constants/exception-enums'
 import { HASHING_SERVICE } from '../../../common/constants/injection-tokens'
-import { AuthStrategyPort } from '../../ports/auth-strategy.port'
+import { AuthStrategyPort, CredentialAuthenticationResult } from '../../ports/auth-strategy.port'
 import { HashingPort } from '../../ports/hashing.port'
 import { ILoginMethodRepository } from '../../repositories/loginmethod.repository'
 import { AuthIdentifierNormalizer } from '../auth-identifier-normalizer'
@@ -22,7 +20,7 @@ export class PhonePasswordStrategy implements AuthStrategyPort<PhonePasswordLogi
     return LoginMethodEnum.PhonePassword
   }
 
-  async authenticate(dto: PhonePasswordLoginRequestDto): Promise<string> {
+  async authenticate(dto: PhonePasswordLoginRequestDto): Promise<CredentialAuthenticationResult> {
     const normalizedPhone = AuthIdentifierNormalizer.normalize(LoginMethodType.PHONE, dto.phone)
     const loginMethod = await this.loginMethodRepo.findValidOneByTypeAndIdentifier(
       LoginMethodType.PHONE,
@@ -30,19 +28,19 @@ export class PhonePasswordStrategy implements AuthStrategyPort<PhonePasswordLogi
     )
 
     if (!loginMethod) {
-      throw ExceptionFactory.domain(AUTH_INVALID_CREDENTIALS)
+      return { authenticated: false }
     }
 
     const passwordCredential = loginMethod.getPasswordCredential()
     if (!passwordCredential) {
-      throw ExceptionFactory.domain(AUTH_INVALID_CREDENTIALS)
+      return { authenticated: false, auditUserId: loginMethod.userId }
     }
 
     const valid = await this.passwordHasher.compare(dto.password, passwordCredential.getSecret())
     if (!valid) {
-      throw ExceptionFactory.domain(AUTH_INVALID_CREDENTIALS)
+      return { authenticated: false, auditUserId: loginMethod.userId }
     }
 
-    return loginMethod.userId
+    return { authenticated: true, userId: loginMethod.userId }
   }
 }
