@@ -8,8 +8,8 @@ pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
 state: CANDIDATE_READY
-implementationCandidateAncestor: 4597e2e1b54c4ff51960ff9a9b01fc13701acef5
-review: round-1 findings remediated; exact candidate pending same independent Feature RI
+implementationCandidateAncestor: cbbbbd044932d444e5e5d6fe510a48a9d551009c
+review: round-2 findings remediated; exact candidate pending same independent Feature RI
 
 ## Status
 
@@ -47,13 +47,15 @@ Implement the merged command-contract v8 follow-on cutover without replacing the
 
 ## Current verification
 
-- `static-risk`: PASS; prepared build passed, unit matrix passed with 8 packages / 449 suites / 2033 tests, collaboration runtime passed 152/152, and all contract/risk checks passed.
+- `static-risk`: PASS; prepared build passed, unit matrix passed with 8 packages / 449 suites / 2033 tests, collaboration runtime passed 153/153, and all contract/risk checks passed. Product/build evidence is reusable because the remediation changes only collaboration-runtime trust binding and tests.
 - `l2-runtime`: PASS; 18 packages / 59 suites / 185 tests, database rollback passed, and task-owned container/volume/network residue is zero.
-- Local-main scenario: PASS; a profile-trusted, realpath/ref/SHA-bound confirmation authorized one exact ff-only update, while a sibling FL worktree retained its original branch and HEAD; forged confirmation, root/remote/SHA drift, and symlink alias failed before Git.
-- CLI/fault smoke: PASS; unproven terminal delivery fails closed, the same workflow-run/job/SHA CI recovery returns its existing monotonic receipt on the second call, and an ineligible local checkout returns `PRESERVE_NO_CARD` without changing HEAD, branch, or status.
+- Local-main scenario: PASS; a profile-trusted owner/transition/nonce/realpath/ref/SHA-bound confirmation authorized one exact ff-only update, while a sibling FL worktree retained its original branch and HEAD; stale transition, cross-transition nonce replay, forged confirmation, root/remote/SHA drift, and symlink alias fail closed.
+- CLI/fault smoke: PASS; unproven terminal delivery fails closed, an immutable profile-trusted CI observation proves the exact completed failed run/job/SHA relation, the identical recovery returns its existing monotonic receipt, and stale-transition, unrelated-job, or run-alias observations fail closed.
 
 ## Feature RI remediation
 
 - Terminal UD release now requires a typed result, payload hash, exact return-task delivery proof, and byte-identical replay.
-- same-SHA CI infrastructure recovery writes one workflow-run/job/SHA receipt before returning rerun authorization; duplicate invocation replays that receipt.
+- same-SHA CI infrastructure recovery writes one owner/job/SHA receipt before returning rerun authorization; duplicate invocation replays that receipt.
 - local-main sync reopens a profile-read-only Human confirmation bound to exact realpath project root, remote URL, remote-main SHA, action, owner, transition, and nonce, with monotonic response-loss recovery.
+- The profile report now carries its exact transition into runtime trust; local-main binding, confirmation, and checkpoint must all match it, and the nonce identity prevents cross-transition reuse.
+- CI recovery no longer accepts caller-supplied run/job/failure facts; it reopens a profile-read-only live-CI observation, validates run/job/SHA/failure association, and binds the monotonic receipt to owner, transition, observation, and globally unique job identity.
