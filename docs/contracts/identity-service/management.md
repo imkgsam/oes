@@ -137,7 +137,7 @@ Contact Asset management 是管理员或受控 self-service 对账号工作上�
 响应约束：
 
 - 返回管理摘要，不返回敏感 credential、外部 OAuth token、内部审计正文或不可公开备注。
-- 调用方如需 BusinessCard public render 值，应通过 query contract 的 `ResolveContactActionTargets` 解析。
+- Public Business Card 公开渲染必须通过 query contract 的 Public Entry-only `ResolvePublicBusinessCardIdentity` 解析；generic `ResolveContactActionTargets` 只保留给已单独声明的 BUSINESS/management compatibility consumer，不作为公开名片 fallback。
 
 ### 4.2 Self-service profile boundary
 

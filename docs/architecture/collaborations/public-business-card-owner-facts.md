@@ -49,8 +49,8 @@ HR、Identity 与 TenantOrg 继续拥有各自业务真相。Public Entry 只拥
 
 1. 匿名访问者没有 HUMAN Token。Gateway 使用既有 exact SYSTEM MACHINE contract 调用 Public Entry 的公开 RPC。
 2. Public Entry 先按 `business_card_id` 或 service-owned ShortLink target 读取自己的 BusinessCard，取得 exact `tenant_id` 与 `employee_id`；Contact Action refs 也只来自该卡配置。
-3. Public Entry 以固定 tenantless SYSTEM MACHINE direct root 分别申请三个 target-audience ExecutionToken。每个 Token 只携带该 target 的一个 INTERNAL Code，省略 `tenant_id`，不伪造 HUMAN、TENANT 或 terminal。
-4. Permission 通过现有 `ResolveWorkloadIssuance` 判定 exact Public Entry workload SPIFFE -> target audience -> INTERNAL Code。三个 Code 均为 `WORKLOAD_POLICY`-only、SYSTEM、non-external，不读取或创建 `PrincipalRoleBinding`、tenant role 或 BUSINESS grant。
+3. Public Entry 以固定 tenantless SYSTEM MACHINE direct source credential 分别向 Auth 交换三个 target-audience ExecutionToken。每个 Token 只携带该 target 的一个 INTERNAL Code，省略 `tenant_id`，不伪造 HUMAN、TENANT 或 terminal。
+4. Public Entry 不直接调用 Permission。每次 target-token exchange 都由 Auth 在既有 exact transport bootstrap 下调用 Permission `ResolveWorkloadIssuance`，判定 original Public Entry workload SPIFFE -> target audience -> INTERNAL Code；只允许按既有 exact tuple 缓存。三个 Code 均为 `WORKLOAD_POLICY`-only、SYSTEM、non-external，不读取或创建 visitor/BUSINESS permission、`PrincipalRoleBinding`、tenant role 或 BUSINESS grant。
 5. target method declaration 独立校验 principal/binding、workload、audience、`cnf` 与 Code。Request `tenant_id` 只是 dedicated SYSTEM tenant-target resolver 的 owner lookup selector；它不建立 execution tenant、operator authority 或 tenant wildcard。
 6. 每个 owner 必须从自身 store 复核 selector 与 resource owner 关系。Public Entry 的比较不替代 target owner 检查；任一 request/body/header 也不能覆盖 verified execution context。
 
@@ -80,7 +80,8 @@ Identity 的 public-card resolver 对每个 Contact Action ref 独立返回 rend
 Public Entry 可以在 owner-local diagnostics/audit 中记录安全 reason category 与 trace，但匿名响应保持现有 shape 与状态语义：
 
 - required owner fact、trust 或 dependency failure -> generic `PUBLIC_CARD_UNAVAILABLE` / resolver `UNAVAILABLE`；
-- card missing 或 service-owned tenant mismatch -> existing `PUBLIC_CARD_NOT_FOUND` / resolver `NOT_FOUND`；
+- opaque `business_card_id` 在 Public Entry store 不存在 -> existing `PUBLIC_CARD_NOT_FOUND` / resolver `NOT_FOUND`；
+- card 已存在，但任何 supplied/derived employee/account/org selector 或 tenant relation mismatch -> generic `PUBLIC_CARD_UNAVAILABLE` / resolver `UNAVAILABLE`；
 - optional contact/website unavailable -> omit field/action；
 - available aggregate -> existing `PublicBusinessCardView` / resolver `REDIRECT`。
 

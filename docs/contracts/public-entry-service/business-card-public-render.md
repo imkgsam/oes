@@ -25,7 +25,7 @@ Rules:
 - ShortLink does not render BusinessCard content.
 - `redirectUrl` must be anonymous accessible.
 - `redirectUrl` must not include internal tenant id, employee identity, contact values or sensitive fields.
-- Anonymous public render and vCard download do not call permission-service.
+- Anonymous visitor 不触发 visitor/BUSINESS Permission lookup，Public Entry 也不直接调用 permission-service。Public Entry 为每个 owner resolver 向 Auth 交换 target INTERNAL Token；Auth 在既有 exact transport bootstrap 下调用 Permission `ResolveWorkloadIssuance`，只判断 original Public Entry workload -> target audience -> literal INTERNAL Code。
 - Public accessibility is controlled by ShortLink status / expiresAt / resolver plus BusinessCard readiness, card status, employee active status and public-safe render rules.
 - Public Entry 在服务端按 [Public Business Card owner-fact resolution](../../architecture/collaborations/public-business-card-owner-facts.md) 读取三个 target-owned public-safe projections 并组装单一 response；匿名 browser 不直接调用 HR、Identity 或 TenantOrg。
 - Final path is implementation detail for BusinessCard public render contract; examples use `/public/business-cards/{businessCardId}`.
@@ -79,8 +79,8 @@ NOT_FOUND
 Result rules:
 
 - `REDIRECT`: card can publicly render; `redirectUrl` required; `resultTarget = business-card:web`.
-- `UNAVAILABLE`: card exists but should not be public; no `redirectUrl`; `resultTarget = business-card:unavailable`.
-- `NOT_FOUND`: card missing or tenant mismatch; no `redirectUrl`; `resultTarget = business-card:not-found`.
+- `UNAVAILABLE`: card exists but should not be public, or any supplied/derived owner selector or tenant relation mismatches; no `redirectUrl`; `resultTarget = business-card:unavailable`.
+- `NOT_FOUND`: opaque BusinessCard id is absent from Public Entry store; no `redirectUrl`; `resultTarget = business-card:not-found`.
 
 `REDIRECT` requires:
 
@@ -97,6 +97,8 @@ Result rules:
 
 - card disabled / not public.
 - employee offboarded.
+- `businessCardId` exists but does not belong to the ShortLink-derived `tenantId`.
+- any supplied/derived employee/account/org selector or tenant relation mismatch.
 - readiness check failed.
 - required upstream data temporarily unavailable.
 - template unavailable.
@@ -105,8 +107,6 @@ Result rules:
 `NOT_FOUND` covers:
 
 - `businessCardId` does not exist.
-- `businessCardId` does not belong to `tenantId`.
-- tenant mismatch, to avoid cross-tenant existence disclosure.
 
 VisitEvent mapping is owned by ShortLink:
 
@@ -261,8 +261,8 @@ Rules:
 | employee offboarded | generic unavailable |
 | required display data unavailable | generic unavailable |
 | template unavailable | generic unavailable |
-| card missing | generic unavailable |
-| tenant mismatch | generic unavailable |
+| opaque `businessCardId` absent from Public Entry store | generic `PUBLIC_CARD_NOT_FOUND` / resolver `NOT_FOUND` |
+| existing card with any supplied/derived owner selector or tenant relation mismatch | generic `PUBLIC_CARD_UNAVAILABLE` / resolver `UNAVAILABLE` |
 | optional Contact Asset unavailable | hide action |
 | vCard cannot include optional contact | omit optional contact |
 | owner resolver trust/dependency or required owner fact unavailable | generic unavailable |
@@ -281,9 +281,9 @@ Public Entry loads its BusinessCard first, then composes the exact owner project
 | --- | --- | --- | --- |
 | HR | `ResolvePublicBusinessCardEmployee` | active employee + unique current active employment | position, org reference, official photo URL |
 | Identity | `ResolvePublicBusinessCardIdentity` | enabled same-tenant account/binding + nonblank display name | per-ref public-safe contact target |
-| TenantOrg | `ResolvePublicBusinessCardOrganization` | active tenant + nonblank company display name | website, department display when an org ref exists |
+| TenantOrg | `ResolvePublicBusinessCardOrganization` | active tenant + nonblank company display name; when a non-empty org ref exists, it must resolve active and same-tenant | website; absent org ref omits department display |
 
-Public Entry uses a tenantless SYSTEM MACHINE direct root and exact workload -> audience -> INTERNAL Code issuance for each resolver. Card-derived `tenant_id` is only a target owner lookup selector. The resolver contracts do not grant tenant authority, and Public Entry receives no tenant role or existing BUSINESS read grant.
+Public Entry uses a tenantless SYSTEM MACHINE direct root and asks Auth for exact workload -> audience -> INTERNAL Code issuance for each resolver. Public Entry does not call Permission directly; Auth consumes Permission `ResolveWorkloadIssuance`. Card-derived `tenant_id` is only a target owner lookup selector. The resolver contracts do not grant tenant authority, and Public Entry receives no tenant role or existing BUSINESS read grant.
 
 Required resolver unavailable, inactive owner fact, malformed relation or tenant mismatch keeps the existing generic unavailable behavior. Missing optional position/photo/website/contact, or an absent org reference, only omits that field/action. A non-empty org reference that TenantOrg proves missing, inactive or cross-tenant is an owner-integrity failure and therefore generic unavailable.
 
