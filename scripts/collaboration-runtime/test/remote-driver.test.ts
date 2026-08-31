@@ -108,6 +108,24 @@ test('remote mutation success followed by process loss resumes from truth withou
   assert.equal(remote.mutationCount, 1)
 })
 
+test('transient mutation response loss rereads remote truth before any retry', async () => {
+  const binding = remoteBinding()
+  class LostResponseRemote extends FakeRemote {
+    override async mutate(current: RemoteDriverBinding): Promise<RemoteReceipt> {
+      await super.mutate(current)
+      throw new Error('HTTP 503 response lost after remote success')
+    }
+  }
+  const remote = new LostResponseRemote(binding)
+  const result = await new RemoteDriver(remote, remoteTrust(binding), {
+    retryTiming: { random: () => 0, sleep: async () => undefined }
+  }).run(binding)
+  assert.equal(result.status, 'REMOTE_VERIFIED')
+  assert.equal(result.receipt.recoveredFromRemoteTruth, true)
+  assert.equal(result.receipt.mutationPerformed, false)
+  assert.equal(remote.mutationCount, 1)
+})
+
 test('verification pending resumes only verification and preserves the mutation receipt', async () => {
   const binding = remoteBinding()
   const remote = new FakeRemote(binding)

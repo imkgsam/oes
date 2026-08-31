@@ -13,11 +13,11 @@ permissions:
   contents: read
 
 jobs:
-  baseline:
-    name: Baseline Checks
+  static-risk:
+    name: Static and Risk Checks
     runs-on: ubuntu-latest
     env:
-      OES_CI_TASK_KEY: ci_${{ github.run_id }}_${{ github.run_attempt }}
+      OES_CI_TASK_KEY: ci_${{ github.run_id }}_${{ github.run_attempt }}_static
 
     steps:
       - name: Checkout
@@ -45,9 +45,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Prepare task-owned environment
-        run: |
-          pnpm env:ensure -- --task-key="${OES_CI_TASK_KEY}"
+      - name: Prepare task-owned tooling environment
+        run: pnpm env:ensure -- --task-key="${OES_CI_TASK_KEY}"
 
       - name: Resolve immutable proto comparison base
         env:
@@ -62,14 +61,14 @@ jobs:
       - name: Lint proto contracts
         run: pnpm proto:lint
 
-      - name: Generate proto TypeScript
-        run: pnpm proto:gen
+      - name: Generate code once for build and risk tests
+        run: pnpm generated:all
 
       - name: Check proto compatibility
         run: pnpm proto:breaking
 
-      - name: Build Common, Gateway, 21 services, and Site Runtime
-        run: pnpm build
+      - name: Build Common, Gateway, 21 services, and Site Runtime from prepared code
+        run: pnpm build:prepared
 
       - name: Check non-empty test inventory
         run: pnpm test:matrix:check
@@ -79,6 +78,38 @@ jobs:
 
       - name: Run high-risk unit and contract tests
         run: pnpm test:risk
+
+  l2-runtime:
+    name: L2 Runtime Checks
+    runs-on: ubuntu-latest
+    env:
+      OES_CI_TASK_KEY: ci_${{ github.run_id }}_${{ github.run_attempt }}_l2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Set up Buf
+        uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+          github_token: ${{ github.token }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Run isolated task-owned L2 tests
         run: pnpm test:l2
@@ -94,3 +125,20 @@ jobs:
           test -z "$(docker volume ls -q --filter "label=oes.local.owner=${OES_CI_TASK_KEY}")"
           test -z "$(docker network ls -q --filter "label=oes.local.owner=${OES_CI_TASK_KEY}")"
           printf 'CI_TASK_RESIDUE=0 owner=%s\n' "${OES_CI_TASK_KEY}"
+
+  baseline:
+    name: Baseline Checks
+    if: ${{ always() }}
+    needs: [static-risk, l2-runtime]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Aggregate complete fail-closed gate
+        env:
+          STATIC_RISK_RESULT: ${{ needs.static-risk.result }}
+          L2_RUNTIME_RESULT: ${{ needs.l2-runtime.result }}
+        run: |
+          test "${STATIC_RISK_RESULT}" = "success"
+          test "${L2_RUNTIME_RESULT}" = "success"
+          printf 'BASELINE_CHECKS=PASS static-risk=%s l2-runtime=%s\n' \
+            "${STATIC_RISK_RESULT}" "${L2_RUNTIME_RESULT}"

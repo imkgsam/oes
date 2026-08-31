@@ -128,6 +128,8 @@ The runtime placement is fixed to the existing `PermissionCheckService` proto, `
 
 Auth 登录/会话安全的 Identity、HR 与 TenantOrg owner-fact reads 是 INTERNAL consumption：Permission 通过 `ResolveWorkloadIssuance` 只验证 exact Auth workload -> exact target audience -> exact Code，不查询或要求固定 Auth Machine Principal 的 `PrincipalRoleBinding`。对应 Code 为 `identity.internal.auth_login_account.resolve`、`hr.internal.auth_login_employee.resolve`、`tenant_org.internal.auth_session_tenant_lifecycle.resolve`，均为 SYSTEM / `WORKLOAD_POLICY`-only / non-external。这不影响同一 Machine Principal 在执行真实 BUSINESS 动作时仍需要 current active role/grant。
 
+Public Business Card 的 HR、Identity 与 TenantOrg owner-fact reads 也是独立 INTERNAL consumption：只有 exact Public Entry workload 可通过 `ResolveWorkloadIssuance` 分别申请 `hr.internal.public_business_card_employee.resolve`、`identity.internal.public_business_card_identity.resolve`、`tenant_org.internal.public_business_card_organization.resolve` 到各自 literal target audience。三个 Code 均为 SYSTEM / `WORKLOAD_POLICY`-only / non-external，不查询或建立固定 Public Entry Machine Principal 的 `PrincipalRoleBinding`、tenant role 或 BUSINESS grant；request `tenant_id` 由 target owner 作为 dedicated SYSTEM tenant-target selector 重新验证。现有 `hr.employee.get_by_id`、`identity.account.list`、`identity.account.self.read`、`tenant_org.tenant.get_by_id` 与 `tenant_org.org_unit.list_tree` 不进入 Public Entry issuance 或 fallback。
+
 Gateway HTTP `RequirePermissions` 保留。它与目标 gRPC BUSINESS authorization 是两道边界，共用 Permission Code 与可信 tenant，不以任一方替代另一方。
 
 ## 6. Machine And Integration Rules
@@ -180,3 +182,4 @@ Gateway HTTP `RequirePermissions` 保留。它与目标 gRPC BUSINESS authorizat
 20. A successful or denied issuance decision binds principal/workload, scope, tenant/org, audience, exact Code set, decision reference and `authzVersion`, and its audit contains no source credential or Token plaintext.
 21. MACHINE BUSINESS decision only consumes the active principal/scope/tenant owner result produced after Auth transport verification and Identity binding resolution; Permission never parses the selector, resolves SPIFFE identity or substitutes external API-key/hardcoded root mapping.
 22. Auth login/session INTERNAL issuance succeeds only for the exact registered Auth workload, exact target audience and one target-owned login Code; it neither reads nor creates a `PrincipalRoleBinding`, while the target resolver still rejects wrong workload/audience/Code/`cnf`, inactive owner facts and selector-owner mismatch.
+23. Public Business Card INTERNAL issuance succeeds only for the exact registered Public Entry workload and one corresponding target-owned public-card Code; wrong workload/audience/Code/`cnf`, wildcard policy, selector-owner mismatch or missing provisioning fails closed without consulting a BUSINESS grant.
