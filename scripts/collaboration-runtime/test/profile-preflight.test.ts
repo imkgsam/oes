@@ -82,11 +82,25 @@ function telemetry(root: string): string {
   return path
 }
 
+/** Renders the immutable owner/transition identity fields used by profile-report readback. */
+function profileIdentity(ownerTaskId: string, transitionId: string, prefix: string[] = []): string {
+  return [
+    ...prefix,
+    '[collaboration_runtime]',
+    `owner_task_id = ${JSON.stringify(ownerTaskId)}`,
+    `transition_id = ${JSON.stringify(transitionId)}`,
+    ''
+  ].join('\n')
+}
+
 test('actual probe adapter records and verifies every delivery capability with zero normal prompts', async () => {
   const root = mkdtempSync(join(tmpdir(), 'oes-profile-test-'))
   const telemetryPath = telemetry(root)
   const profilePath = join(root, 'profile.toml')
-  writeFileSync(profilePath, 'approval_policy="on-request"\n')
+  writeFileSync(
+    profilePath,
+    profileIdentity('/root/fl', 'handoff:1', ['approval_policy="on-request"'])
+  )
   const report = await runEffectiveProfilePreflight(
     {
       ownerTaskId: '/root/fl',
@@ -105,13 +119,22 @@ test('actual probe adapter records and verifies every delivery capability with z
   )
   assert.equal(report.observations.length, 8)
   assert.equal(verifyEffectiveProfileReport(report).telemetry.normalPermissionPromptCount, 0)
+  for (const changed of [
+    { ...report, ownerTaskId: '/root/fl/rebound' },
+    { ...report, transitionId: 'handoff:stale' }
+  ])
+    assert.throws(
+      () => verifyEffectiveProfileReport(changed),
+      /PROFILE_OWNER_TRANSITION_READBACK_MISMATCH/
+    )
 })
 
 test('profile verification reopens evidence, profile bytes, and telemetry', async () => {
   const root = mkdtempSync(join(tmpdir(), 'oes-profile-reopen-test-'))
   const telemetryPath = telemetry(root)
   const profilePath = join(root, 'profile.toml')
-  writeFileSync(profilePath, 'profile=true\n')
+  const profile = profileIdentity('/root/fl', 'handoff:2', ['profile=true'])
+  writeFileSync(profilePath, profile)
   const report = await runEffectiveProfilePreflight(
     {
       ownerTaskId: '/root/fl',
@@ -122,7 +145,7 @@ test('profile verification reopens evidence, profile bytes, and telemetry', asyn
         name: 'oes-profile',
         permission: 'oes-owner',
         path: profilePath,
-        sha256: sha256(Buffer.from('profile=true\n'))
+        sha256: sha256(profile)
       },
       resultPath: join(root, 'report.json')
     },
@@ -290,6 +313,8 @@ test('caller-writable profile reports cannot select remote trust roots', async (
   const profilePath = join(root, 'installed-profile.toml')
   const profile = [
     '[collaboration_runtime]',
+    'owner_task_id = "/root/fl"',
+    'transition_id = "delivery:1"',
     `trusted_authorization_root = ${JSON.stringify(authorizationRoot)}`,
     `serial_admission_root = ${JSON.stringify(admissionRoot)}`,
     '[permissions.owner.filesystem]',
@@ -314,6 +339,14 @@ test('caller-writable profile reports cannot select remote trust roots', async (
     },
     new PassingProbe(root, telemetryPath)
   )
+  for (const changed of [
+    { ...report, ownerTaskId: '/root/fl/rebound' },
+    { ...report, transitionId: 'delivery:stale' }
+  ])
+    assert.throws(
+      () => loadRemoteTrustRootsFromProfileReport(changed),
+      /PROFILE_OWNER_TRANSITION_READBACK_MISMATCH/
+    )
   process.env.OES_REMOTE_AUTHORIZATION_ROOT = join(root, 'caller-selected')
   try {
     assert.throws(
