@@ -4,6 +4,7 @@ import { SerialAdmissionLock } from './admission.ts'
 import { loadRemoteBinding, validateRemoteBinding } from './binding.ts'
 import { objectFingerprint, readJson, writeJsonAtomic } from './canonical.ts'
 import { fail } from './errors.ts'
+import { retryTransient, type RetryTiming } from './retry-policy.ts'
 import type {
   RemoteAction,
   RemoteDriverBinding,
@@ -30,6 +31,7 @@ export interface RemoteAdapter {
 export interface RemoteDriverHooks {
   afterRemoteMutation?: (receipt: RemoteReceipt) => Promise<void> | void
   afterVerifiedCheckpoint?: () => Promise<void> | void
+  retryTiming?: Partial<RetryTiming>
 }
 
 /** Determines whether remote truth already proves the bound mutation occurred. */
@@ -180,19 +182,22 @@ export class RemoteDriver {
       if (existsSync(binding.resultPath)) return readVerifiedResult(binding)
       const receipt = checkpoint.receipt
       if (!receipt) fail('REMOTE_RECEIPT_ABSENT', binding.action)
-      const truth = await this.adapter.readTruth(binding)
+      const truth = await this.readTruth(binding)
       if (MUTATING_ACTIONS.has(binding.action) && !remoteMutationSatisfied(binding, truth))
         fail('REMOTE_TRUTH_DRIFT_AFTER_MUTATION', binding.action)
-      const verification = await this.adapter.verify(binding, truth, receipt)
+      const verification = await retryTransient(
+        () => this.adapter.verify(binding, truth, receipt),
+        this.hooks.retryTiming
+      )
       if (!verification.passed)
         fail('TERMINAL_CHECKPOINT_REMOTE_VERIFICATION_FAILED', binding.action)
       return writeVerifiedResult(binding, receipt, verification, truth)
     }
 
-    let truth = await this.adapter.readTruth(binding)
+    let truth = await this.readTruth(binding)
     if (!checkpoint) {
-      await this.adapter.preflight(binding, truth)
-      truth = await this.adapter.readTruth(binding)
+      await retryTransient(() => this.adapter.preflight(binding, truth), this.hooks.retryTiming)
+      truth = await this.readTruth(binding)
       checkpoint = store.advance('REMOTE_PREFLIGHT_VERIFIED', truth, null)
     }
 
@@ -202,13 +207,24 @@ export class RemoteDriver {
       if (mutating) {
         const alreadySatisfied = remoteMutationSatisfied(binding, truth)
         if (!alreadySatisfied) {
-          const mutationReceipt = await this.adapter.mutate(binding, truth)
+          const mutationReceipt = await retryTransient(async () => {
+            const currentTruth = await this.readTruth(binding)
+            if (remoteMutationSatisfied(binding, currentTruth))
+              return receiptFromTruth(binding, currentTruth, false, true)
+            return this.adapter.mutate(binding, currentTruth)
+          }, this.hooks.retryTiming)
           receipt = mutationReceipt
           await this.hooks.afterRemoteMutation?.(receipt)
-          truth = await this.adapter.readTruth(binding)
+          truth = await this.readTruth(binding)
           if (!remoteMutationSatisfied(binding, truth))
             fail('REMOTE_MUTATION_NOT_OBSERVED', binding.action)
-          receipt = receiptFromTruth(binding, truth, true, false, mutationReceipt)
+          receipt = receiptFromTruth(
+            binding,
+            truth,
+            mutationReceipt.mutationPerformed,
+            mutationReceipt.recoveredFromRemoteTruth,
+            mutationReceipt
+          )
         } else receipt = receiptFromTruth(binding, truth, false, true)
       } else receipt = receiptFromTruth(binding, truth, false, false)
       checkpoint = store.advance('REMOTE_MUTATION_RECORDED', truth, receipt)
@@ -220,8 +236,11 @@ export class RemoteDriver {
     if (checkpoint.stage === 'REMOTE_MUTATION_RECORDED')
       checkpoint = store.advance('REMOTE_VERIFICATION_PENDING', truth, receipt)
 
-    truth = await this.adapter.readTruth(binding)
-    const verification = await this.adapter.verify(binding, truth, receipt)
+    truth = await this.readTruth(binding)
+    const verification = await retryTransient(
+      () => this.adapter.verify(binding, truth, receipt),
+      this.hooks.retryTiming
+    )
     if (!verification.passed) {
       const pending: RemoteDriverResult = {
         schemaVersion: 1,
@@ -244,6 +263,11 @@ export class RemoteDriver {
     checkpoint = store.advance('REMOTE_VERIFIED', truth, receipt)
     await this.hooks.afterVerifiedCheckpoint?.()
     return writeVerifiedResult(binding, receipt, verification, truth)
+  }
+
+  /** Reads remote truth with the bounded transient policy used at every recovery boundary. */
+  private readTruth(binding: RemoteDriverBinding): Promise<RemoteTruth> {
+    return retryTransient(() => this.adapter.readTruth(binding), this.hooks.retryTiming)
   }
 }
 
