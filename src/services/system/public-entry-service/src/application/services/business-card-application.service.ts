@@ -64,6 +64,12 @@ type PublicCardInput = {
   traceId?: string
 }
 
+type PublicBusinessCardOwnerFacts = {
+  employee: BusinessCardEmployeeSummary
+  company: BusinessCardCompanyDisplaySummary
+  contactValues: ContactActionPublicSafeValue[]
+}
+
 // BusinessCardApplicationService coordinates card config, upstream facts, ShortLink consumption, authorization, and audit.
 export class BusinessCardApplicationService {
   constructor(
@@ -75,8 +81,14 @@ export class BusinessCardApplicationService {
     private readonly authorizationPort: BusinessCardAuthorizationPort
   ) {}
 
-  async ensurePrimaryCard(input: EnsurePrimaryCardInput): Promise<{ businessCard: BusinessCardSummary }> {
-    await this.requirePermission(input.tenantId, BUSINESS_CARD_PERMISSION_CODES.MANAGE, input.operatorContext)
+  async ensurePrimaryCard(
+    input: EnsurePrimaryCardInput
+  ): Promise<{ businessCard: BusinessCardSummary }> {
+    await this.requirePermission(
+      input.tenantId,
+      BUSINESS_CARD_PERMISSION_CODES.MANAGE,
+      input.operatorContext
+    )
     const tenantId = requireNonBlank(input.tenantId, 'tenantId')
     const employeeId = requireNonBlank(input.employeeId, 'employeeId')
     const existing = await this.repository.findPrimaryByEmployee(tenantId, employeeId)
@@ -97,7 +109,13 @@ export class BusinessCardApplicationService {
       updatedBy: input.operatorContext.operatorAccountId,
       updatedAt: now
     })
-    await this.audit(created, 'CREATE', undefined, serializeBusinessCard(created), input.operatorContext)
+    await this.audit(
+      created,
+      'CREATE',
+      undefined,
+      serializeBusinessCard(created),
+      input.operatorContext
+    )
     return { businessCard: serializeBusinessCard(created) }
   }
 
@@ -142,7 +160,9 @@ export class BusinessCardApplicationService {
     return { businessCard: serializeBusinessCard(liveCard), readiness }
   }
 
-  async updateCardConfig(input: BusinessCardIdInput & { templateKey?: string; visibilityConfig?: VisibilityConfig }) {
+  async updateCardConfig(
+    input: BusinessCardIdInput & { templateKey?: string; visibilityConfig?: VisibilityConfig }
+  ) {
     const current = await this.requireCardWithResourcePermission(
       input,
       BUSINESS_CARD_PERMISSION_CODES.MANAGE
@@ -150,11 +170,19 @@ export class BusinessCardApplicationService {
     const updated = await this.repository.update({
       ...current,
       templateKey: input.templateKey?.trim() || current.templateKey,
-      visibilityConfig: input.visibilityConfig ? normalizeVisibility(input.visibilityConfig) : current.visibilityConfig,
+      visibilityConfig: input.visibilityConfig
+        ? normalizeVisibility(input.visibilityConfig)
+        : current.visibilityConfig,
       updatedBy: input.operatorContext.operatorAccountId,
       updatedAt: new Date()
     })
-    await this.audit(current, 'UPDATE_CONFIG', serializeBusinessCard(current), serializeBusinessCard(updated), input.operatorContext)
+    await this.audit(
+      current,
+      'UPDATE_CONFIG',
+      serializeBusinessCard(current),
+      serializeBusinessCard(updated),
+      input.operatorContext
+    )
     return { businessCard: serializeBusinessCard(updated) }
   }
 
@@ -173,7 +201,13 @@ export class BusinessCardApplicationService {
       updatedBy: input.operatorContext.operatorAccountId,
       updatedAt: new Date()
     })
-    await this.audit(current, 'UPDATE_CONTACT_ACTIONS', serializeBusinessCard(current), serializeBusinessCard(updated), input.operatorContext)
+    await this.audit(
+      current,
+      'UPDATE_CONTACT_ACTIONS',
+      serializeBusinessCard(current),
+      serializeBusinessCard(updated),
+      input.operatorContext
+    )
     return { businessCard: serializeBusinessCard(updated) }
   }
 
@@ -183,23 +217,29 @@ export class BusinessCardApplicationService {
       BUSINESS_CARD_PERMISSION_CODES.PUBLIC_ENTRY_MANAGE
     )
     const existing = current.publicEntryRef
-      ? await this.shortLinkService.getShortLink({
-          tenantId: input.tenantId,
-          shortLinkId: current.publicEntryRef.publicEntryId
-        }).catch(() => null)
+      ? await this.shortLinkService
+          .getShortLink({
+            tenantId: input.tenantId,
+            shortLinkId: current.publicEntryRef.publicEntryId
+          })
+          .catch(() => null)
       : null
-    const shortLink = existing?.shortLink ?? (await this.shortLinkService.createShortLink({
-      tenantId: current.tenantId,
-      displayName: `Business card ${current.employeeId}`,
-      target: {
-        targetKind: 'INTERNAL_REF',
-        targetType: 'BUSINESS_CARD',
-        targetResourceId: current.id
-      },
-      entryPurpose: 'BUSINESS_CARD',
-      sourcePlacement: 'EMPLOYEE_MAIN_CARD',
-      operatorContext: input.operatorContext
-    })).shortLink
+    const shortLink =
+      existing?.shortLink ??
+      (
+        await this.shortLinkService.createShortLink({
+          tenantId: current.tenantId,
+          displayName: `Business card ${current.employeeId}`,
+          target: {
+            targetKind: 'INTERNAL_REF',
+            targetType: 'BUSINESS_CARD',
+            targetResourceId: current.id
+          },
+          entryPurpose: 'BUSINESS_CARD',
+          sourcePlacement: 'EMPLOYEE_MAIN_CARD',
+          operatorContext: input.operatorContext
+        })
+      ).shortLink
     const publicEntryRef: PublicEntryRef = {
       publicEntryId: shortLink.id,
       shortCode: shortLink.shortCode,
@@ -214,7 +254,13 @@ export class BusinessCardApplicationService {
       updatedBy: input.operatorContext.operatorAccountId,
       updatedAt: new Date()
     })
-    await this.audit(current, 'BIND_PUBLIC_ENTRY', serializeBusinessCard(current), serializeBusinessCard(updated), input.operatorContext)
+    await this.audit(
+      current,
+      'BIND_PUBLIC_ENTRY',
+      serializeBusinessCard(current),
+      serializeBusinessCard(updated),
+      input.operatorContext
+    )
     return { publicEntryRef: serializePublicEntryRef(publicEntryRef) }
   }
 
@@ -235,7 +281,13 @@ export class BusinessCardApplicationService {
       updatedBy: input.operatorContext.operatorAccountId,
       updatedAt: new Date()
     })
-    await this.audit(current, 'ENABLE', { status: current.status }, { status: updated.status }, input.operatorContext)
+    await this.audit(
+      current,
+      'ENABLE',
+      { status: current.status },
+      { status: updated.status },
+      input.operatorContext
+    )
     return { businessCardId: updated.id, previousStatus: current.status, status: updated.status }
   }
 
@@ -250,7 +302,13 @@ export class BusinessCardApplicationService {
       updatedBy: input.operatorContext.operatorAccountId,
       updatedAt: new Date()
     })
-    await this.audit(current, 'DISABLE', { status: current.status }, { status: updated.status }, input.operatorContext)
+    await this.audit(
+      current,
+      'DISABLE',
+      { status: current.status },
+      { status: updated.status },
+      input.operatorContext
+    )
     return { businessCardId: updated.id, previousStatus: current.status, status: updated.status }
   }
 
@@ -259,7 +317,8 @@ export class BusinessCardApplicationService {
       input,
       BUSINESS_CARD_PERMISSION_CODES.READ
     )
-    return this.evaluateReadiness(card, input.operatorContext.traceId)
+    const result = await this.evaluateReadiness(card, input.operatorContext.traceId)
+    return { ready: result.ready, reasons: result.reasons }
   }
 
   async getMainPublicEntrySummary(input: BusinessCardIdInput) {
@@ -268,7 +327,11 @@ export class BusinessCardApplicationService {
       BUSINESS_CARD_PERMISSION_CODES.READ
     )
     const liveCard = await this.withLivePublicEntryRef(card)
-    return { publicEntryRef: liveCard.publicEntryRef ? serializePublicEntryRef(liveCard.publicEntryRef) : null }
+    return {
+      publicEntryRef: liveCard.publicEntryRef
+        ? serializePublicEntryRef(liveCard.publicEntryRef)
+        : null
+    }
   }
 
   async getVisitSummary(input: BusinessCardIdInput & { from?: string; to?: string }) {
@@ -319,7 +382,10 @@ export class BusinessCardApplicationService {
     return this.renderPublicCardFromRecord(card, input.traceId)
   }
 
-  async renderPublicCardById(input: { businessCardId: string; traceId?: string }): Promise<PublicRenderResult> {
+  async renderPublicCardById(input: {
+    businessCardId: string
+    traceId?: string
+  }): Promise<PublicRenderResult> {
     const card = await this.repository.findById(input.businessCardId)
     return this.renderPublicCardFromRecord(card, input.traceId)
   }
@@ -331,10 +397,10 @@ export class BusinessCardApplicationService {
     if (!card) return { state: 'PUBLIC_CARD_NOT_FOUND', view: null }
     const liveCard = await this.withLivePublicEntryRef(card)
     const readiness = await this.evaluateReadiness(liveCard, traceId)
-    if (!readiness.ready) return { state: 'PUBLIC_CARD_UNAVAILABLE', view: null }
-    const employee = await this.requireEmployee(liveCard, traceId)
-    const company = await this.requireCompany(liveCard.tenantId, traceId)
-    const contactActions = await this.resolvePublicContactActions(liveCard, company, traceId)
+    if (!readiness.ready || !readiness.ownerFacts)
+      return { state: 'PUBLIC_CARD_UNAVAILABLE', view: null }
+    const { employee, company, contactValues } = readiness.ownerFacts
+    const contactActions = this.resolvePublicContactActions(liveCard, company, contactValues)
     return {
       state: 'AVAILABLE',
       view: {
@@ -344,15 +410,17 @@ export class BusinessCardApplicationService {
         person: {
           displayName: employee.displayName ?? '',
           englishName: employee.englishName ?? null,
-          title: liveCard.visibilityConfig.showTitle ? employee.title ?? null : null,
-          department: liveCard.visibilityConfig.showDepartment ? employee.department ?? null : null,
+          title: liveCard.visibilityConfig.showTitle ? (employee.title ?? null) : null,
+          department: liveCard.visibilityConfig.showDepartment
+            ? (company.departmentDisplayName ?? employee.department ?? null)
+            : null,
           officialPhotoUrl: liveCard.visibilityConfig.showOfficialPhoto
-            ? employee.officialPhotoUrl ?? null
+            ? (employee.officialPhotoUrl ?? null)
             : null
         },
         company: {
           companyDisplayName: liveCard.visibilityConfig.showCompany
-            ? company.companyDisplayName ?? ''
+            ? (company.companyDisplayName ?? '')
             : '',
           websiteUrl: company.websiteUrl ?? null,
           logoUrl: company.logoUrl ?? null
@@ -363,12 +431,13 @@ export class BusinessCardApplicationService {
   }
 
   async generateVCard(input: PublicCardInput | { businessCardId: string; traceId?: string }) {
-    const rendered = 'tenantId' in input
-      ? await this.renderPublicCard(input)
-      : await this.renderPublicCardById({
-          businessCardId: input.businessCardId,
-          traceId: input.traceId
-        })
+    const rendered =
+      'tenantId' in input
+        ? await this.renderPublicCard(input)
+        : await this.renderPublicCardById({
+            businessCardId: input.businessCardId,
+            traceId: input.traceId
+          })
     if (rendered.state !== 'AVAILABLE') {
       return { contentType: 'text/vcard', body: '' }
     }
@@ -404,10 +473,12 @@ export class BusinessCardApplicationService {
   // withLivePublicEntryRef overlays the current ShortLink lifecycle onto BusinessCard's stored entry reference.
   private async withLivePublicEntryRef<T extends BusinessCardRecord | null>(card: T): Promise<T> {
     if (!card?.publicEntryRef) return card
-    const result = await this.shortLinkService.getShortLink({
-      tenantId: card.tenantId,
-      shortLinkId: card.publicEntryRef.publicEntryId
-    }).catch(() => null)
+    const result = await this.shortLinkService
+      .getShortLink({
+        tenantId: card.tenantId,
+        shortLinkId: card.publicEntryRef.publicEntryId
+      })
+      .catch(() => null)
     const shortLink = result?.shortLink
     if (!shortLink) {
       return { ...card, publicEntryRef: null } as T
@@ -472,7 +543,11 @@ export class BusinessCardApplicationService {
     card: BusinessCardRecord,
     traceId?: string,
     options?: { ignoreCurrentStatus?: boolean }
-  ) {
+  ): Promise<{
+    ready: boolean
+    reasons: ReadinessReason[]
+    ownerFacts?: PublicBusinessCardOwnerFacts
+  }> {
     const liveCard = await this.withLivePublicEntryRef(card)
     const reasons: ReadinessReason[] = []
     if (!options?.ignoreCurrentStatus && liveCard.status !== 'ACTIVE') reasons.push('CARD_DISABLED')
@@ -485,6 +560,18 @@ export class BusinessCardApplicationService {
     const employee = await this.employeePort.getEmployeeSummary({
       tenantId: liveCard.tenantId,
       employeeId: liveCard.employeeId,
+      actionRefs: liveCard.contactActionConfigs
+        .filter(
+          (config) =>
+            config.enabled &&
+            config.visibility === 'PUBLIC' &&
+            config.targetRefType === 'CONTACT_ASSET'
+        )
+        .map((config) => ({
+          contactActionType: config.contactActionType,
+          targetRefType: config.targetRefType,
+          targetRefId: config.targetRefId
+        })),
       traceId
     })
     if (!employee) {
@@ -493,52 +580,36 @@ export class BusinessCardApplicationService {
       if (employee.status !== 'ACTIVE') reasons.push('EMPLOYEE_NOT_ACTIVE')
       if (!employee.displayName?.trim()) reasons.push('DISPLAY_NAME_MISSING')
     }
-    const company = await this.tenantProfilePort.getCompanyDisplaySummary({
-      tenantId: liveCard.tenantId,
-      traceId
-    })
+    const company = employee
+      ? await this.tenantProfilePort.getCompanyDisplaySummary({
+          tenantId: liveCard.tenantId,
+          orgUnitId: employee.orgUnitId,
+          traceId
+        })
+      : null
     if (!company?.companyDisplayName?.trim()) reasons.push('COMPANY_DISPLAY_MISSING')
     return {
       ready: reasons.length === 0,
-      reasons: reasons.length === 0 ? (['READY'] as ReadinessReason[]) : reasons
+      reasons: reasons.length === 0 ? (['READY'] as ReadinessReason[]) : reasons,
+      ownerFacts:
+        reasons.length === 0 && employee && company
+          ? {
+              employee,
+              company,
+              contactValues: employee.contactValues ?? []
+            }
+          : undefined
     }
   }
 
-  private async requireEmployee(card: BusinessCardRecord, traceId?: string) {
-    const employee = await this.employeePort.getEmployeeSummary({
-      tenantId: card.tenantId,
-      employeeId: card.employeeId,
-      traceId
-    })
-    if (!employee) throw new Error('Employee not found')
-    return employee
-  }
-
-  private async requireCompany(tenantId: string, traceId?: string) {
-    const company = await this.tenantProfilePort.getCompanyDisplaySummary({ tenantId, traceId })
-    if (!company?.companyDisplayName) throw new Error('Company display missing')
-    return company
-  }
-
-  private async resolvePublicContactActions(
+  private resolvePublicContactActions(
     card: BusinessCardRecord,
     company: BusinessCardCompanyDisplaySummary,
-    traceId?: string
+    resolvedValues: ContactActionPublicSafeValue[]
   ) {
     const enabledConfigs = card.contactActionConfigs
       .filter((config) => config.enabled && config.visibility === 'PUBLIC')
       .sort((a, b) => a.displayOrder - b.displayOrder)
-    const refs = enabledConfigs.filter((config) => config.targetRefType === 'CONTACT_ASSET')
-    const resolvedValues = await this.contactAssetPort.resolvePublicSafeValues({
-      tenantId: card.tenantId,
-      employeeId: card.employeeId,
-      actionRefs: refs.map((config) => ({
-        contactActionType: config.contactActionType,
-        targetRefType: config.targetRefType,
-        targetRefId: config.targetRefId
-      })),
-      traceId
-    })
     return enabledConfigs.flatMap<PublicContactAction>((config) => {
       if (config.contactActionType === 'SAVE_VCARD') {
         return [
@@ -697,8 +768,12 @@ function formatPublicUrlDisplayValue(value: string): string {
 function toVCard(view: PublicBusinessCardView): string {
   const lines = ['BEGIN:VCARD', 'VERSION:3.0', `FN:${escapeVCard(view.person.displayName)}`]
   if (view.person.title) lines.push(`TITLE:${escapeVCard(view.person.title)}`)
-  if (view.person.department) lines.push(`ORG:${escapeVCard(view.company.companyDisplayName)};${escapeVCard(view.person.department)}`)
-  else if (view.company.companyDisplayName) lines.push(`ORG:${escapeVCard(view.company.companyDisplayName)}`)
+  if (view.person.department)
+    lines.push(
+      `ORG:${escapeVCard(view.company.companyDisplayName)};${escapeVCard(view.person.department)}`
+    )
+  else if (view.company.companyDisplayName)
+    lines.push(`ORG:${escapeVCard(view.company.companyDisplayName)}`)
   for (const action of view.contactActions) {
     if (action.contactActionType === 'CALL_PHONE' && action.displayValue) {
       lines.push(`TEL;TYPE=WORK:${escapeVCard(action.displayValue)}`)
@@ -713,5 +788,9 @@ function toVCard(view: PublicBusinessCardView): string {
 
 // escapeVCard prevents separators and line breaks from corrupting the vCard payload.
 function escapeVCard(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;')
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/\n/g, '\\n')
+    .replace(/,/g, '\\,')
+    .replace(/;/g, '\\;')
 }

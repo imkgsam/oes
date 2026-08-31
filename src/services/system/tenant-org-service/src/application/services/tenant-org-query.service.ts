@@ -5,7 +5,7 @@ import {
   TENANT_REPOSITORY,
   TenantRepository
 } from '../../domain/repositories'
-import { OrgUnitStatus } from '../../domain/value-objects'
+import { OrgUnitStatus, TenantStatus } from '../../domain/value-objects'
 
 /** TenantOrgQueryService provides read-only tenant, org tree, hierarchy, and org reference lookups. */
 @Injectable()
@@ -19,6 +19,44 @@ export class TenantOrgQueryService {
 
   async getTenantById(tenantId: string) {
     return this.tenantRepository.findById(requireNonBlank(tenantId, 'tenantId'))
+  }
+
+  /** Resolves the minimum TenantOrg-owned company and optional department projection. */
+  async resolvePublicBusinessCardOrganization(input: {
+    tenantId: string
+    orgUnitId?: string | null
+  }) {
+    const tenantId = requireNonBlank(input.tenantId, 'tenantId')
+    const tenant = await this.tenantRepository.findById(tenantId)
+    if (
+      !tenant ||
+      tenant.id !== tenantId ||
+      tenant.status !== TenantStatus.ACTIVE ||
+      !tenant.name.trim()
+    ) {
+      return { available: false as const, reasonCode: 'TENANT_UNAVAILABLE' }
+    }
+    const orgUnitId = input.orgUnitId?.trim() || null
+    const orgUnit = orgUnitId ? await this.orgUnitRepository.findById(tenantId, orgUnitId) : null
+    if (
+      orgUnitId &&
+      (!orgUnit ||
+        orgUnit.id !== orgUnitId ||
+        orgUnit.tenantId !== tenantId ||
+        orgUnit.status !== OrgUnitStatus.ACTIVE ||
+        !orgUnit.name.trim())
+    ) {
+      return { available: false as const, reasonCode: 'ORG_UNIT_UNAVAILABLE' }
+    }
+    return {
+      available: true as const,
+      tenantId,
+      companyDisplayName: tenant.name.trim(),
+      websiteUrl: tenant.websiteUrl?.trim() || null,
+      orgUnitId: orgUnit?.id ?? null,
+      orgUnitDisplayName: orgUnit?.name.trim() || null,
+      reasonCode: ''
+    }
   }
 
   async listTenants(input: {

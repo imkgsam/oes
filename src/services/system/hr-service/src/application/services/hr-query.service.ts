@@ -30,11 +30,45 @@ export class HrQueryService {
   ) {}
 
   async getEmployeeById(employeeId: string) {
-    const employee = await this.employeeRepository.findById(requireNonBlank(employeeId, 'employeeId'))
+    const employee = await this.employeeRepository.findById(
+      requireNonBlank(employeeId, 'employeeId')
+    )
     if (!employee) {
       throw new NotFoundException(`Employee ${employeeId} not found`)
     }
     return this.withDisplayEmployeeCode(employee)
+  }
+
+  /** Resolves the minimum HR-owned projection for one Public Entry card selector. */
+  async resolvePublicBusinessCardEmployee(input: { tenantId: string; employeeId: string }) {
+    const tenantId = requireNonBlank(input.tenantId, 'tenantId')
+    const employeeId = requireNonBlank(input.employeeId, 'employeeId')
+    const employee = await this.employeeRepository.findById(employeeId)
+    if (!employee || employee.tenantId !== tenantId) {
+      return { available: false as const, reasonCode: 'EMPLOYEE_UNAVAILABLE' }
+    }
+    if (employee.lifecycleStatus !== EmployeeLifecycleStatus.ACTIVE) {
+      return { available: false as const, reasonCode: 'EMPLOYEE_INACTIVE' }
+    }
+    const employment = await this.employmentRepository.findActiveByEmployeeId(tenantId, employeeId)
+    if (
+      !employment ||
+      employment.tenantId !== tenantId ||
+      employment.employeeId !== employeeId ||
+      employment.status !== EmploymentStatus.ACTIVE
+    ) {
+      return { available: false as const, reasonCode: 'EMPLOYMENT_UNAVAILABLE' }
+    }
+    return {
+      available: true as const,
+      reasonCode: '',
+      employeeId: employee.id,
+      lifecycleStatus: employee.lifecycleStatus,
+      activeEmploymentId: employment.id,
+      orgUnitId: employment.orgUnitId || null,
+      positionName: employment.positionName?.trim() || null,
+      officialPhotoUrl: employee.officialPhotoUrl?.trim() || null
+    }
   }
 
   async getEmployeeByTenantPartyId(input: { tenantId: string; tenantPartyId: string }) {
@@ -51,7 +85,9 @@ export class HrQueryService {
   /** resolveActiveEmployeeByCode returns HR-only active employee and employment facts for login orchestration. */
   async resolveActiveEmployeeByCode(input: { tenantId: string; employeeCode: string }) {
     const tenantId = requireNonBlank(input.tenantId, 'tenantId')
-    const parsedEmployeeCode = parseEmployeeCodeStrict(requireNonBlank(input.employeeCode, 'employeeCode'))
+    const parsedEmployeeCode = parseEmployeeCodeStrict(
+      requireNonBlank(input.employeeCode, 'employeeCode')
+    )
     const tenantCodePrefix = await this.tenantOrgReferencePort.getTenantEmployeeCodePrefix(tenantId)
     if (parsedEmployeeCode.tenantCodePrefix !== tenantCodePrefix) {
       throw new NotFoundException(`Employee ${parsedEmployeeCode.employeeCode} not found`)
@@ -75,7 +111,10 @@ export class HrQueryService {
       throw new NotFoundException(`Active employment for employee ${employee.id} not found`)
     }
 
-    return { employee: this.withDisplayEmployeeCodeSync(employee, tenantCodePrefix), activeEmployment }
+    return {
+      employee: this.withDisplayEmployeeCodeSync(employee, tenantCodePrefix),
+      activeEmployment
+    }
   }
 
   async listEmployees(input: {
@@ -96,7 +135,9 @@ export class HrQueryService {
     const tenantCodePrefix = await this.tenantOrgReferencePort.getTenantEmployeeCodePrefix(tenantId)
     return {
       ...result,
-      items: result.items.map((employee) => this.withDisplayEmployeeCodeSync(employee, tenantCodePrefix))
+      items: result.items.map((employee) =>
+        this.withDisplayEmployeeCodeSync(employee, tenantCodePrefix)
+      )
     }
   }
 
@@ -125,13 +166,20 @@ export class HrQueryService {
   }
 
   /** withDisplayEmployeeCode composes the public barcode from tenant prefix and HR-owned suffix. */
-  private async withDisplayEmployeeCode<T extends { employeeCode: string; tenantId: string }>(employee: T): Promise<T> {
-    const tenantCodePrefix = await this.tenantOrgReferencePort.getTenantEmployeeCodePrefix(employee.tenantId)
+  private async withDisplayEmployeeCode<T extends { employeeCode: string; tenantId: string }>(
+    employee: T
+  ): Promise<T> {
+    const tenantCodePrefix = await this.tenantOrgReferencePort.getTenantEmployeeCodePrefix(
+      employee.tenantId
+    )
     return this.withDisplayEmployeeCodeSync(employee, tenantCodePrefix)
   }
 
   /** withDisplayEmployeeCodeSync composes display codes when the tenant prefix is already loaded. */
-  private withDisplayEmployeeCodeSync<T extends { employeeCode: string }>(employee: T, tenantCodePrefix: string): T {
+  private withDisplayEmployeeCodeSync<T extends { employeeCode: string }>(
+    employee: T,
+    tenantCodePrefix: string
+  ): T {
     return {
       ...employee,
       employeeCode: formatEmployeeCodeFromSuffix(tenantCodePrefix, employee.employeeCode)

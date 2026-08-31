@@ -63,8 +63,18 @@ export class PublicEntryFoundationTrustedGrpcExecutionProducer {
     return this.produce(target, 'INTERNAL', [code])
   }
 
+  /** Produces the fixed tenantless Public Entry MACHINE root even inside an admitted HUMAN request. */
+  forInternalMachineCall(target: Target, code: string): Promise<Metadata> {
+    return this.produce(target, 'INTERNAL', [code], true)
+  }
+
   /** Selects execution source from guard-owned request scope and never from request DTO values. */
-  private async produce(target: Target, mode: Mode, codes: readonly string[]): Promise<Metadata> {
+  private async produce(
+    target: Target,
+    mode: Mode,
+    codes: readonly string[],
+    forceMachineRoot = false
+  ): Promise<Metadata> {
     const profile = requirePublicEntryFoundationTarget(target)
     const correlation = inboundExecutionTokenCredentialScope.requireCorrelation()
     let inbound:
@@ -75,7 +85,7 @@ export class PublicEntryFoundationTrustedGrpcExecutionProducer {
     } catch {
       inbound = undefined
     }
-    const isHuman = inbound?.principalType === 'HUMAN'
+    const isHuman = !forceMachineRoot && inbound?.principalType === 'HUMAN'
     const root = isHuman
       ? createTrustedExecutionContext({
           subject: inbound.subject,
