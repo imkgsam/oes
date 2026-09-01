@@ -33,7 +33,7 @@ describe('permission service seed source', () => {
     const seed = buildPermissionServiceSeed()
 
     expect(validatePermissionServiceSeed(seed)).toEqual([])
-    expect(seed.permissionCodes).toHaveLength(292)
+    expect(seed.permissionCodes).toHaveLength(295)
     expect(Object.values(TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES)).toEqual([
       ...EXPECTED_TERMINAL_DEVICE_PERMISSION_CODES
     ])
@@ -110,7 +110,7 @@ describe('permission service seed source', () => {
 
   it('renders a stable dry-run summary for audit output', () => {
     expect(renderPermissionServiceSeedDryRunSummary(buildPermissionServiceSeed())).toEqual({
-      permissionCodeCount: 292,
+      permissionCodeCount: 295,
       deprecatedPermissionCodeCount: 31,
       roleCount: 9,
       rolePermissionCount: 223,

@@ -38,3 +38,13 @@ export interface ResolvedContactActionTargetView {
 export interface ResolveContactActionTargetsView {
   targets: ResolvedContactActionTargetView[]
 }
+
+export interface PublicBusinessCardIdentityView {
+  available: boolean
+  tenantId: string | null
+  employeeId: string | null
+  accountId: string | null
+  displayName: string | null
+  targets: ResolvedContactActionTargetView[]
+  reasonCode: string
+}

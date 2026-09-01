@@ -3,7 +3,6 @@ import { ClientGrpc } from '@nestjs/microservices'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
   EmployeeLifecycleStatus,
-  EmploymentStatus,
   HR_QUERY_SERVICE_NAME,
   HrQueryServiceClient
 } from '@oes/common/generated/hr_service'
@@ -37,13 +36,12 @@ export const PUBLIC_ENTRY_TENANT_ORG_GRPC_CLIENT = Symbol('PUBLIC_ENTRY_TENANT_O
 export class BusinessCardEmployeeGrpcAdapter implements BusinessCardEmployeePort, OnModuleInit {
   private hrQueryService!: HrQueryServiceClient
   private identityQueryService!: IdentityQueryServiceClient
-  private tenantOrgQueryService!: TenantOrgQueryServiceClient
   private readonly trusted = new PublicEntryFoundationTrustedGrpcExecutionProducer()
 
   constructor(
     @Inject(PUBLIC_ENTRY_HR_GRPC_CLIENT) private readonly hrClient: ClientGrpc,
     @Inject(PUBLIC_ENTRY_IDENTITY_GRPC_CLIENT) private readonly identityClient: ClientGrpc,
-    @Inject(PUBLIC_ENTRY_TENANT_ORG_GRPC_CLIENT) private readonly tenantOrgClient: ClientGrpc
+    @Inject(PUBLIC_ENTRY_TENANT_ORG_GRPC_CLIENT) _tenantOrgClient: ClientGrpc
   ) {}
 
   onModuleInit(): void {
@@ -51,59 +49,80 @@ export class BusinessCardEmployeeGrpcAdapter implements BusinessCardEmployeePort
     this.identityQueryService = this.identityClient.getService<IdentityQueryServiceClient>(
       IDENTITY_QUERY_SERVICE_NAME
     )
-    this.tenantOrgQueryService = this.tenantOrgClient.getService<TenantOrgQueryServiceClient>(
-      TENANT_ORG_QUERY_SERVICE_NAME
-    )
   }
 
   async getEmployeeSummary(input: {
     tenantId: string
     employeeId: string
+    actionRefs?: ContactActionResolveRef[]
     traceId?: string
   }): Promise<BusinessCardEmployeeSummary | null> {
     try {
-      const employeeResponse = await safeGrpcCall(
-        this.hrQueryService.getEmployeeById(
-          { employeeId: input.employeeId },
-          await this.trusted.forBusinessCall('hr-service', ['hr.employee.get_by_id'])
+      const refs = input.actionRefs ?? []
+      const [employee, identity] = await Promise.all([
+        safeGrpcCall(
+          this.hrQueryService.resolvePublicBusinessCardEmployee(
+            { tenantId: input.tenantId, employeeId: input.employeeId },
+            await this.trusted.forInternalMachineCall(
+              'hr-service',
+              'hr.internal.public_business_card_employee.resolve'
+            )
+          ),
+          {
+            caller: SERVICE_NAMES.PUBLIC_ENTRY,
+            method: 'HrQueryService.resolvePublicBusinessCardEmployee'
+          }
         ),
-        {
-          caller: SERVICE_NAMES.PUBLIC_ENTRY,
-          method: 'HrQueryService.getEmployeeById'
-        }
-      )
-      const employee = employeeResponse.employee
-      if (!employee?.id || employee.tenantId !== input.tenantId) return null
-
-      const [account, employment] = await Promise.all([
-        this.resolveEmployeeAccount(input),
-        this.resolveActiveEmployment(input.employeeId, input.traceId)
+        safeGrpcCall(
+          this.identityQueryService.resolvePublicBusinessCardIdentity(
+            {
+              tenantId: input.tenantId,
+              employeeId: input.employeeId,
+              targetRefs: refs.map((ref) => ({
+                contactActionType: ref.contactActionType,
+                targetRefType: ref.targetRefType,
+                targetRefId: ref.targetRefId ?? ''
+              }))
+            },
+            await this.trusted.forInternalMachineCall(
+              'identity-service',
+              'identity.internal.public_business_card_identity.resolve'
+            )
+          ),
+          {
+            caller: SERVICE_NAMES.PUBLIC_ENTRY,
+            method: 'IdentityQueryService.resolvePublicBusinessCardIdentity'
+          }
+        )
       ])
-      if (account && account.tenantId !== input.tenantId) return null
-      if (account && account.accountEnabled === false) return null
-      const accountProfile = account?.accountId
-        ? await this.resolveAccountProfile(account.accountId, input.traceId)
-        : null
-      if (accountProfile && accountProfile.tenantId !== input.tenantId) return null
-      if (accountProfile && !accountProfile.isEnabled) return null
-
-      const department = employment?.orgUnitId
-        ? await this.resolveOrgName(input.tenantId, employment.orgUnitId, input.traceId)
-        : null
+      if (
+        !employee.available ||
+        employee.employeeId !== input.employeeId ||
+        employee.lifecycleStatus !== EmployeeLifecycleStatus.EMPLOYEE_LIFECYCLE_STATUS_ACTIVE ||
+        !identity.available ||
+        identity.tenantId !== input.tenantId ||
+        identity.employeeId !== input.employeeId ||
+        !identity.accountId?.trim() ||
+        !identity.displayName?.trim()
+      ) {
+        return null
+      }
 
       return {
         tenantId: input.tenantId,
-        employeeId: employee.id,
-        accountId: normalizeOptional(account?.accountId) ?? null,
-        displayName:
-          normalizeOptional(accountProfile?.displayName) ??
-          normalizeOptional(account?.displayName) ??
-          null,
+        employeeId: employee.employeeId,
+        accountId: identity.accountId,
+        displayName: identity.displayName.trim(),
         englishName: null,
-        title: normalizeOptional(employment?.positionName) ?? null,
-        department,
+        title: normalizeOptional(employee.positionName) ?? null,
+        department: null,
+        orgUnitId: normalizeOptional(employee.orgUnitId) ?? null,
         officialPhotoUrl: normalizeOptional(employee.officialPhotoUrl) ?? null,
-        status: mapEmployeeStatus(employee.lifecycleStatus)
+        contactValues: (identity.targets ?? [])
+          .filter((target) => target.renderable && target.publicValueSummary)
+          .map((target) => toPublicSafeContactValue(target))
+          .filter((value): value is ContactActionPublicSafeValue => Boolean(value)),
+        status: 'ACTIVE'
       }
     } catch {
       return null
@@ -151,98 +170,6 @@ export class BusinessCardEmployeeGrpcAdapter implements BusinessCardEmployeePort
       return null
     }
   }
-
-  private async resolveEmployeeAccount(input: {
-    tenantId: string
-    employeeId: string
-    traceId?: string
-  }) {
-    try {
-      const response = await safeGrpcCall(
-        this.identityQueryService.resolveEmployeeLoginAccount(
-          {
-            tenantId: input.tenantId,
-            employeeId: input.employeeId
-          },
-          await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])
-        ),
-        {
-          caller: SERVICE_NAMES.PUBLIC_ENTRY,
-          method: 'IdentityQueryService.resolveEmployeeLoginAccount'
-        }
-      )
-      return response.account ?? null
-    } catch {
-      return null
-    }
-  }
-
-  private async resolveAccountProfile(accountId: string, traceId?: string) {
-    try {
-      const response = await safeGrpcCall(
-        this.identityQueryService.getAccountById(
-          { accountId },
-          await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])
-        ),
-        {
-          caller: SERVICE_NAMES.PUBLIC_ENTRY,
-          method: 'IdentityQueryService.getAccountById'
-        }
-      )
-      return response.account ?? null
-    } catch {
-      return null
-    }
-  }
-
-  private async resolveActiveEmployment(employeeId: string, traceId?: string) {
-    try {
-      const response = await safeGrpcCall(
-        this.hrQueryService.getActiveEmployment(
-          { employeeId },
-          await this.trusted.forBusinessCall('hr-service', ['hr.employee.get_by_id'])
-        ),
-        {
-          caller: SERVICE_NAMES.PUBLIC_ENTRY,
-          method: 'HrQueryService.getActiveEmployment'
-        }
-      )
-      const employment = response.employment
-      if (
-        !employment?.employeeId ||
-        employment.status !== EmploymentStatus.EMPLOYMENT_STATUS_ACTIVE
-      ) {
-        return null
-      }
-      return employment
-    } catch {
-      return null
-    }
-  }
-
-  private async resolveOrgName(
-    tenantId: string,
-    orgUnitId: string,
-    traceId?: string
-  ): Promise<string | null> {
-    try {
-      const response = await safeGrpcCall(
-        this.tenantOrgQueryService.getOrgReferenceSummary(
-          { tenantId, orgUnitId },
-          await this.trusted.forBusinessCall('tenant-org-service', [
-            'tenant_org.org_unit.list_tree'
-          ])
-        ),
-        {
-          caller: SERVICE_NAMES.PUBLIC_ENTRY,
-          method: 'TenantOrgQueryService.getOrgReferenceSummary'
-        }
-      )
-      return normalizeOptional(response.orgUnit?.name) ?? null
-    } catch {
-      return null
-    }
-  }
 }
 
 // BusinessCardContactAssetGrpcAdapter resolves existing identity Contact Asset refs into public-safe action values.
@@ -270,33 +197,10 @@ export class BusinessCardContactAssetGrpcAdapter
     traceId?: string
   }): Promise<ContactActionPublicSafeValue[]> {
     try {
-      const account = await safeGrpcCall(
-        this.identityQueryService.resolveEmployeeLoginAccount(
-          {
-            tenantId: input.tenantId,
-            employeeId: input.employeeId
-          },
-          await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])
-        ),
-        {
-          caller: SERVICE_NAMES.PUBLIC_ENTRY,
-          method: 'IdentityQueryService.resolveEmployeeLoginAccount'
-        }
-      )
-      const accountId = normalizeOptional(account.account?.accountId)
-      if (
-        !accountId ||
-        account.account?.tenantId !== input.tenantId ||
-        account.account?.accountEnabled === false
-      ) {
-        return []
-      }
-
       const response = await safeGrpcCall(
-        this.identityQueryService.resolveContactActionTargets(
+        this.identityQueryService.resolvePublicBusinessCardIdentity(
           {
             tenantId: input.tenantId,
-            accountId,
             employeeId: input.employeeId,
             targetRefs: input.actionRefs.map((ref) => ({
               contactActionType: ref.contactActionType,
@@ -304,14 +208,22 @@ export class BusinessCardContactAssetGrpcAdapter
               targetRefId: ref.targetRefId ?? ''
             }))
           },
-          await this.trusted.forBusinessCall('identity-service', ['identity.account.self.read'])
+          await this.trusted.forInternalMachineCall(
+            'identity-service',
+            'identity.internal.public_business_card_identity.resolve'
+          )
         ),
         {
           caller: SERVICE_NAMES.PUBLIC_ENTRY,
-          method: 'IdentityQueryService.resolveContactActionTargets'
+          method: 'IdentityQueryService.resolvePublicBusinessCardIdentity'
         }
       )
-
+      if (
+        !response.available ||
+        response.tenantId !== input.tenantId ||
+        response.employeeId !== input.employeeId
+      )
+        return []
       return (response.targets ?? [])
         .filter((target) => target.renderable && target.publicValueSummary)
         .map((target) => toPublicSafeContactValue(target))
@@ -327,18 +239,67 @@ function toPublicSafeContactValue(
   target: ResolvedContactActionTarget
 ): ContactActionPublicSafeValue | null {
   const summary = target.publicValueSummary
-  if (!summary?.type || !summary.actionUri || !summary.displayValue) {
+  const contactActionType = normalizeContactActionType(target.contactActionType)
+  const contactAssetKind = normalizeContactAssetKind(summary?.type)
+  if (
+    !contactActionType ||
+    !summary?.type ||
+    !summary.actionUri ||
+    !summary.displayValue ||
+    !isContactValueCompatible(contactActionType, contactAssetKind, summary.actionUri)
+  ) {
     return null
   }
 
   return {
+    contactActionType,
     targetRefType: normalizeTargetRefType(target.targetRefType),
     targetRefId: normalizeOptional(target.targetRefId) ?? null,
-    contactAssetKind: normalizeContactAssetKind(summary.type),
+    contactAssetKind,
     displayValue: summary.displayValue,
     actionUrl: summary.actionUri,
-    available: true
+    available: true,
+    includeInVCardAllowed: Boolean(summary.includeInVCardAllowed)
   }
+}
+
+// normalizeContactActionType rejects owner responses outside the configured contact-action contract.
+function normalizeContactActionType(
+  value?: string | null
+): ContactActionResolveRef['contactActionType'] | undefined {
+  if (
+    value === 'CALL_PHONE' ||
+    value === 'SEND_EMAIL' ||
+    value === 'ADD_WECHAT' ||
+    value === 'OPEN_WHATSAPP'
+  ) {
+    return value
+  }
+  return undefined
+}
+
+// isContactValueCompatible fail-closes mismatched owner action, value kind, and URI projections.
+function isContactValueCompatible(
+  contactActionType: ContactActionResolveRef['contactActionType'],
+  contactAssetKind: NonNullable<ContactActionPublicSafeValue['contactAssetKind']>,
+  actionUrl: string
+): boolean {
+  if (contactActionType === 'CALL_PHONE') {
+    return contactAssetKind === 'WORK_PHONE' && actionUrl.startsWith('tel:')
+  }
+  if (contactActionType === 'SEND_EMAIL') {
+    return contactAssetKind === 'WORK_EMAIL' && actionUrl.startsWith('mailto:')
+  }
+  if (contactActionType === 'ADD_WECHAT') {
+    return (
+      (contactAssetKind === 'WECHAT' || contactAssetKind === 'EXTERNAL_COMMUNICATION_ACCOUNT') &&
+      actionUrl.startsWith('weixin:')
+    )
+  }
+  return (
+    (contactAssetKind === 'WHATSAPP' || contactAssetKind === 'WORK_PHONE') &&
+    actionUrl.startsWith('https://wa.me/')
+  )
 }
 
 // normalizeTargetRefType keeps transport strings inside the BusinessCard target ref union.
@@ -350,7 +311,7 @@ function normalizeTargetRefType(value?: string | null): ContactActionResolveRef[
 
 // normalizeContactAssetKind keeps identity Contact Asset types inside the BusinessCard public value union.
 function normalizeContactAssetKind(
-  value: string
+  value?: string | null
 ): NonNullable<ContactActionPublicSafeValue['contactAssetKind']> {
   if (
     value === 'WORK_PHONE' ||
@@ -384,40 +345,36 @@ export class BusinessCardTenantProfileGrpcAdapter
 
   async getCompanyDisplaySummary(input: {
     tenantId: string
+    orgUnitId?: string | null
     traceId?: string
   }): Promise<BusinessCardCompanyDisplaySummary | null> {
     try {
       const response = await safeGrpcCall(
-        this.tenantOrgQueryService.getTenantById(
-          { tenantId: input.tenantId },
-          await this.trusted.forBusinessCall('tenant-org-service', ['tenant_org.tenant.get_by_id'])
+        this.tenantOrgQueryService.resolvePublicBusinessCardOrganization(
+          { tenantId: input.tenantId, orgUnitId: input.orgUnitId ?? '' },
+          await this.trusted.forInternalMachineCall(
+            'tenant-org-service',
+            'tenant_org.internal.public_business_card_organization.resolve'
+          )
         ),
         {
           caller: SERVICE_NAMES.PUBLIC_ENTRY,
-          method: 'TenantOrgQueryService.getTenantById'
+          method: 'TenantOrgQueryService.resolvePublicBusinessCardOrganization'
         }
       )
-      const tenant = response.tenant
-      if (!tenant?.id || tenant.id !== input.tenantId) return null
+      if (!response.available || response.tenantId !== input.tenantId) return null
+      if (input.orgUnitId?.trim() && response.orgUnitId !== input.orgUnitId) return null
       return {
-        tenantId: tenant.id,
-        companyDisplayName: normalizeOptional(tenant.name) ?? null,
-        websiteUrl: normalizeOptional(tenant.websiteUrl) ?? null,
+        tenantId: response.tenantId,
+        companyDisplayName: normalizeOptional(response.companyDisplayName) ?? null,
+        websiteUrl: normalizeOptional(response.websiteUrl) ?? null,
+        departmentDisplayName: normalizeOptional(response.orgUnitDisplayName) ?? null,
         logoUrl: null
       }
     } catch {
       return null
     }
   }
-}
-
-// mapEmployeeStatus converts HR lifecycle status into the BusinessCard public readiness status.
-function mapEmployeeStatus(
-  status?: EmployeeLifecycleStatus
-): BusinessCardEmployeeSummary['status'] {
-  if (status === EmployeeLifecycleStatus.EMPLOYEE_LIFECYCLE_STATUS_ACTIVE) return 'ACTIVE'
-  if (status === EmployeeLifecycleStatus.EMPLOYEE_LIFECYCLE_STATUS_OFFBOARDED) return 'OFFBOARDED'
-  return 'INACTIVE'
 }
 
 // normalizeOptional trims transport strings and maps empty values to undefined.

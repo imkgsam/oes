@@ -159,17 +159,6 @@ export class PublicEntryBusinessCardController {
   }
 
   @Public()
-  @Get('public-entry/public/business-cards/:businessCardId')
-  @Header('Cache-Control', 'no-store')
-  @ApiOperation({ summary: 'Render one anonymous public BusinessCard view' })
-  async renderPublicCard(
-    @Param('businessCardId') businessCardId: string,
-    @DownstreamSource() source: DownstreamRequestSource
-  ) {
-    return this.service.renderPublicCard(businessCardId, source)
-  }
-
-  @Public()
   @Get([
     'public-entry/public/business-cards/:businessCardId.vcf',
     'public-entry/public/business-cards/:businessCardId/vcard.vcf'
@@ -185,7 +174,21 @@ export class PublicEntryBusinessCardController {
     return response
       .status(200)
       .setHeader('Content-Type', vcard.contentType || 'text/vcard')
-      .setHeader('Content-Disposition', `attachment; filename="business-card-${businessCardId}.vcf"`)
+      .setHeader(
+        'Content-Disposition',
+        `attachment; filename="business-card-${businessCardId}.vcf"`
+      )
       .send(vcard.body ?? '')
+  }
+
+  @Public()
+  @Get('public-entry/public/business-cards/:businessCardId')
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({ summary: 'Render one anonymous public BusinessCard view' })
+  async renderPublicCard(
+    @Param('businessCardId') businessCardId: string,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.service.renderPublicCard(businessCardId, source)
   }
 }

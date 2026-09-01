@@ -74,6 +74,7 @@
     "backend:db:sync": "pnpm db:migrate",
     "backend:foundation:sync": "pnpm --filter permission-service seed:apply -- --apply",
     "seed:system-admin": "node scripts/local/seed-system-admin.mjs",
+    "seed:public-business-card-acceptance": "node scripts/local/public-business-card-acceptance-seed.mjs",
     "seed:collaboration-task-p1": "pnpm --filter collaboration-service seed:p1",
     "collaboration-task:smoke": "node scripts/local/collaboration-task-p1-smoke.mjs",
     "reset:sysadmin": "node scripts/local/reset-to-system-admin.mjs --apply",

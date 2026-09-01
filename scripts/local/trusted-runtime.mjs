@@ -286,6 +286,7 @@ async function runtimePolicyEnvironment() {
   const gatewayHumanOboTargetAudiences = [
     'urn:oes:service:identity-service',
     'urn:oes:service:permission-service',
+    'urn:oes:service:public-entry-service',
     'urn:oes:service:collaboration-service',
     'urn:oes:service:tenant-org-service'
   ]
@@ -311,6 +312,27 @@ async function runtimePolicyEnvironment() {
     actorBindingId: collaborationSelector.machineWorkloadBindingId,
     actorBindingVersion: collaborationSelector.machineWorkloadBindingVersion,
     targetAudiences: ['urn:oes:service:identity-service', 'urn:oes:service:permission-service']
+  }
+  const publicEntrySelector = selectorProfile.selectors.find(
+    (entry) => entry.inventoryEntryKey === 'public-entry-service'
+  )
+  if (!publicEntrySelector) throw new Error('TRUSTED_RUNTIME_SELECTOR_MISSING_PUBLIC_ENTRY')
+  const publicEntry = auth.find(
+    (entry) => entry.spiffeId === 'spiffe://local.oes.internal/ns/oes/sa/public-entry-service'
+  )
+  if (!publicEntry) throw new Error('TRUSTED_RUNTIME_AUTH_POLICY_MISSING_PUBLIC_ENTRY')
+  const publicEntryHumanOboTargetAudiences = [
+    'urn:oes:service:hr-service',
+    'urn:oes:service:identity-service',
+    'urn:oes:service:permission-service',
+    'urn:oes:service:tenant-org-service'
+  ]
+  publicEntry.humanObo = {
+    selfAudience: 'urn:oes:service:public-entry-service',
+    actorMachinePrincipalId: publicEntrySelector.machinePrincipalId,
+    actorBindingId: publicEntrySelector.machineWorkloadBindingId,
+    actorBindingVersion: publicEntrySelector.machineWorkloadBindingVersion,
+    targetAudiences: publicEntryHumanOboTargetAudiences
   }
   return {
     AUTH_EXECUTION_WORKLOAD_POLICIES: JSON.stringify(auth),

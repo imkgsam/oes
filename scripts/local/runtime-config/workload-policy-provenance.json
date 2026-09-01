@@ -31,6 +31,30 @@
       "source": "docs/architecture/services/permission-service.md#auth-login-session-owner-fact-resolution",
       "selectorEntry": "auth-service",
       "selectorVersion": "2"
+    },
+    {
+      "workload": "public-entry-service",
+      "audience": "urn:oes:service:hr-service",
+      "code": "hr.internal.public_business_card_employee.resolve",
+      "source": "docs/architecture/collaborations/public-business-card-owner-facts.md#exact-owner-resolvers",
+      "selectorEntry": "public-entry-service",
+      "selectorVersion": "1"
+    },
+    {
+      "workload": "public-entry-service",
+      "audience": "urn:oes:service:identity-service",
+      "code": "identity.internal.public_business_card_identity.resolve",
+      "source": "docs/architecture/collaborations/public-business-card-owner-facts.md#exact-owner-resolvers",
+      "selectorEntry": "public-entry-service",
+      "selectorVersion": "1"
+    },
+    {
+      "workload": "public-entry-service",
+      "audience": "urn:oes:service:tenant-org-service",
+      "code": "tenant_org.internal.public_business_card_organization.resolve",
+      "source": "docs/architecture/collaborations/public-business-card-owner-facts.md#exact-owner-resolvers",
+      "selectorEntry": "public-entry-service",
+      "selectorVersion": "1"
     }
   ]
 }
