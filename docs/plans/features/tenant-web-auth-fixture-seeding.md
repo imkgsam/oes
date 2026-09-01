@@ -8,7 +8,7 @@ worktreeKey: 9d4f
 pullRequest: none (local follow-up candidate)
 priorMergeSha: cad78c03508ed046f0053e16d05ab08a301e9dc4
 cleanup: HOLD
-state: REVIEWING
+state: ACCEPTED
 
 ## Objective
 
@@ -31,7 +31,7 @@ The first five groups remain explicit design gaps because current navigation fou
 
 ### task-bound-seed-orchestration
 
-state: REVIEWING
+state: ACCEPTED
 candidate: 82e7d050a318f2804101128aafba373a74aee5f1
 review: same feature-ri `01a052d7-1611-7001-8e91-e6d6e70b2fb5`
 
@@ -56,6 +56,7 @@ review: same feature-ri `01a052d7-1611-7001-8e91-e6d6e70b2fb5`
 - Post-main repeat/drift/recovery proof: repeat seed plus verify both passed; a task-local lifecycle snapshot-only count drift made verify fail closed with `VERIFY_SEED_SNAPSHOT_MISMATCH`; the first official seed then failed closed with `SEED_NOT_IDEMPOTENT` and cleared the stale snapshot; the second official seed plus verify restored `SEEDED`/`VERIFIED` with all 21 databases passing. No business table was directly modified for drift injection.
 - Post-main focused verification: all 70 Node tests and all 25 tenant-web Vitest tests pass on the merged tree, including the live Docker port-remap and verification-state regressions.
 - Feature RI finding closure: verification now records `VERIFYING` before checks and `VERIFY_FAILED` on every failure instead of preserving an earlier `VERIFIED` phase. A live port refresh is persisted immediately before migrate/seed/verify work, so later failure retains the current mapping. Combined stale-port plus snapshot-only drift proved `POSTGRES_PORT_REFRESH`, nonzero verify, `VERIFY_FAILED`, and the live port in one run; the official two-seed recovery and final 21-database verify then passed.
+- Feature RI accepted exact candidate `82e7d050a318f2804101128aafba373a74aee5f1` after independently confirming both finding closures, the 70/70 Node and 25/25 tenant-web results, candidate/archive tree identity, and exact rollback-to-base tree identity.
 
 ## Feature acceptance
 
