@@ -17,16 +17,6 @@ describe('SessionContextUseCase', () => {
         }
       })
     }
-    const tenantOrgAdapter = {
-      getTenantById: jest.fn().mockResolvedValue({
-        tenant: {
-          id: 'tenant-1',
-          code: 'meilong',
-          name: 'Meilong Ceramics',
-          isActive: true
-        }
-      })
-    }
     const sessionAccessSummaryUseCase = {
       execute: jest.fn().mockResolvedValue({
         roles: [{ roleId: 'role-1', code: 'tenant.admin', name: '租户管理员' }],
@@ -41,7 +31,6 @@ describe('SessionContextUseCase', () => {
     const useCase = new SessionContextUseCase(
       identityAdapter as any,
       sessionAccessSummaryUseCase as any,
-      tenantOrgAdapter as any,
       { resolveAssetPublicUrl: jest.fn() } as any
     )
     const result = await useCase.execute({
@@ -61,10 +50,6 @@ describe('SessionContextUseCase', () => {
       'account-1',
       expect.objectContaining({ requestId: 'req-1', traceId: 'trace-1' })
     )
-    expect(tenantOrgAdapter.getTenantById).toHaveBeenCalledWith(
-      'tenant-1',
-      expect.objectContaining({ requestId: 'req-1', traceId: 'trace-1' })
-    )
     expect(result).toEqual({
       operator: {
         userId: 'user-1',
@@ -78,8 +63,7 @@ describe('SessionContextUseCase', () => {
         scopeLevel: 'TENANT'
       },
       tenant: {
-        tenantId: 'tenant-1',
-        name: 'Meilong Ceramics'
+        tenantId: 'tenant-1'
       },
       org: null,
       navigation: {
@@ -98,6 +82,45 @@ describe('SessionContextUseCase', () => {
     })
   })
 
+  it('rejects shell hydration when the Identity account tenant differs from the Auth-validated session', async () => {
+    const identityAdapter = {
+      getAccountById: jest.fn().mockResolvedValue({
+        account: {
+          id: 'account-1',
+          tenantId: 'tenant-other',
+          displayName: 'Unexpected Tenant Account',
+          scopeLevel: 'TENANT'
+        }
+      })
+    }
+    const sessionAccessSummaryUseCase = {
+      resolveNavigation: jest.fn()
+    }
+    const assetAdapter = {
+      resolveAssetPublicUrl: jest.fn()
+    }
+    const useCase = new SessionContextUseCase(
+      identityAdapter as any,
+      sessionAccessSummaryUseCase as any,
+      assetAdapter as any
+    )
+
+    await expect(
+      useCase.execute({
+        user: {
+          sub: 'user-1',
+          aid: 'account-1',
+          tid: 'tenant-1',
+          scopeLevel: 'TENANT',
+          terminal: 'WEB'
+        }
+      } as any)
+    ).rejects.toBeInstanceOf(UnauthorizedException)
+
+    expect(sessionAccessSummaryUseCase.resolveNavigation).not.toHaveBeenCalled()
+    expect(assetAdapter.resolveAssetPublicUrl).not.toHaveBeenCalled()
+  })
+
   it('builds a system platform context without tenant lookup', async () => {
     const identityAdapter = {
       getAccountById: jest.fn().mockResolvedValue({
@@ -111,7 +134,6 @@ describe('SessionContextUseCase', () => {
         }
       })
     }
-    const tenantOrgAdapter = { getTenantById: jest.fn() }
     const sessionAccessSummaryUseCase = {
       execute: jest.fn().mockResolvedValue({
         roles: [{ roleId: 'role-system', code: 'sys_admin', name: '系统管理员' }],
@@ -126,7 +148,6 @@ describe('SessionContextUseCase', () => {
     const useCase = new SessionContextUseCase(
       identityAdapter as any,
       sessionAccessSummaryUseCase as any,
-      tenantOrgAdapter as any,
       { resolveAssetPublicUrl: jest.fn() } as any
     )
     const result = await useCase.execute({
@@ -137,7 +158,6 @@ describe('SessionContextUseCase', () => {
       }
     } as any)
 
-    expect(tenantOrgAdapter.getTenantById).not.toHaveBeenCalled()
     expect(result).toEqual(
       expect.objectContaining({
         operator: {
@@ -177,7 +197,6 @@ describe('SessionContextUseCase', () => {
         }
       })
     }
-    const tenantOrgAdapter = { getTenantById: jest.fn() }
     const sessionAccessSummaryUseCase = {
       execute: jest.fn().mockResolvedValue({
         roles: [{ roleId: 'role-system', code: 'system.admin', name: '系统管理员' }],
@@ -199,7 +218,6 @@ describe('SessionContextUseCase', () => {
     const useCase = new SessionContextUseCase(
       identityAdapter as any,
       sessionAccessSummaryUseCase as any,
-      tenantOrgAdapter as any,
       assetAdapter as any
     )
 
@@ -238,16 +256,6 @@ describe('SessionContextUseCase', () => {
         }
       })
     }
-    const tenantOrgAdapter = {
-      getTenantById: jest.fn().mockResolvedValue({
-        tenant: {
-          id: 'tenant-1',
-          code: 'tenant-1',
-          name: 'Tenant A',
-          isActive: true
-        }
-      })
-    }
     const sessionAccessSummaryUseCase = {
       execute: jest.fn().mockResolvedValue({
         roles: [{ roleId: 'role-user', code: 'regular_user', name: '普通用户' }],
@@ -262,7 +270,6 @@ describe('SessionContextUseCase', () => {
     const useCase = new SessionContextUseCase(
       identityAdapter as any,
       sessionAccessSummaryUseCase as any,
-      tenantOrgAdapter as any,
       { resolveAssetPublicUrl: jest.fn() } as any
     )
 
@@ -290,16 +297,6 @@ describe('SessionContextUseCase', () => {
         }
       })
     }
-    const tenantOrgAdapter = {
-      getTenantById: jest.fn().mockResolvedValue({
-        tenant: {
-          id: 'tenant-1',
-          code: 'tenant-1',
-          name: 'Tenant A',
-          isActive: true
-        }
-      })
-    }
     const sessionAccessSummaryUseCase = {
       execute: jest.fn().mockResolvedValue({
         roles: [{ roleId: 'role-user', code: 'regular_user', name: '普通用户' }],
@@ -315,7 +312,6 @@ describe('SessionContextUseCase', () => {
     const useCase = new SessionContextUseCase(
       identityAdapter as any,
       sessionAccessSummaryUseCase as any,
-      tenantOrgAdapter as any,
       { resolveAssetPublicUrl: jest.fn() } as any
     )
 
@@ -345,14 +341,6 @@ describe('SessionContextUseCase', () => {
         }
       })
     }
-    const tenantOrgAdapter = {
-      getTenantById: jest.fn().mockResolvedValue({
-        tenant: {
-          id: 'tenant-1',
-          name: 'Tenant A'
-        }
-      })
-    }
     const sessionAccessSummaryUseCase = {
       resolveNavigation: jest.fn().mockResolvedValue({
         defaultEntry: 'pda.home',
@@ -362,8 +350,7 @@ describe('SessionContextUseCase', () => {
 
     const useCase = new SessionContextUseCase(
       identityAdapter as any,
-      sessionAccessSummaryUseCase as any,
-      tenantOrgAdapter as any
+      sessionAccessSummaryUseCase as any
     )
 
     const result = await useCase.execute({
@@ -383,7 +370,6 @@ describe('SessionContextUseCase', () => {
       'PDA'
     )
     expect(identityAdapter.getAccountById).not.toHaveBeenCalled()
-    expect(tenantOrgAdapter.getTenantById).not.toHaveBeenCalled()
     expect(result.terminal).toBe('PDA')
     expect(result.allowedTerminals).toEqual(['PDA'])
     expect(result.navigation.defaultEntry).toBe('pda.home')
@@ -402,14 +388,6 @@ describe('SessionContextUseCase', () => {
         }
       })
     }
-    const tenantOrgAdapter = {
-      getTenantById: jest.fn().mockResolvedValue({
-        tenant: {
-          id: 'tenant-1',
-          name: 'Tenant A'
-        }
-      })
-    }
     const sessionAccessSummaryUseCase = {
       resolveNavigation: jest.fn().mockResolvedValue({
         defaultEntry: '',
@@ -420,8 +398,7 @@ describe('SessionContextUseCase', () => {
 
     const useCase = new SessionContextUseCase(
       identityAdapter as any,
-      sessionAccessSummaryUseCase as any,
-      tenantOrgAdapter as any
+      sessionAccessSummaryUseCase as any
     )
 
     const result = await useCase.execute({
@@ -455,16 +432,6 @@ describe('SessionContextUseCase', () => {
         }
       })
     }
-    const tenantOrgAdapter = {
-      getTenantById: jest.fn().mockResolvedValue({
-        tenant: {
-          id: 'tenant-1',
-          code: 'tenant-1',
-          name: 'Tenant A',
-          isActive: true
-        }
-      })
-    }
     const sessionAccessSummaryUseCase = {
       execute: jest.fn().mockResolvedValue({
         roles: [{ roleId: 'role-admin', code: 'tenant.admin', name: '租户管理员' }],
@@ -475,8 +442,7 @@ describe('SessionContextUseCase', () => {
 
     const useCase = new SessionContextUseCase(
       identityAdapter as any,
-      sessionAccessSummaryUseCase as any,
-      tenantOrgAdapter as any
+      sessionAccessSummaryUseCase as any
     )
 
     await expect(
@@ -504,7 +470,6 @@ describe('SessionContextUseCase', () => {
         }
       })
     }
-    const tenantOrgAdapter = { getTenantById: jest.fn() }
     const sessionAccessSummaryUseCase = {
       execute: jest.fn().mockResolvedValue({
         roles: [{ roleId: 'role-permission', code: 'system.admin', name: '系统管理员' }],
@@ -518,8 +483,7 @@ describe('SessionContextUseCase', () => {
 
     const useCase = new SessionContextUseCase(
       identityAdapter as any,
-      sessionAccessSummaryUseCase as any,
-      tenantOrgAdapter as any
+      sessionAccessSummaryUseCase as any
     )
 
     const result = await useCase.execute({
@@ -546,7 +510,6 @@ describe('SessionContextUseCase', () => {
         }
       })
     }
-    const tenantOrgAdapter = { getTenantById: jest.fn() }
     const sessionAccessSummaryUseCase = {
       execute: jest.fn().mockResolvedValue({
         roles: [{ roleId: 'role-system-admin', code: 'system.admin', name: '系统管理员' }],
@@ -560,8 +523,7 @@ describe('SessionContextUseCase', () => {
 
     const useCase = new SessionContextUseCase(
       identityAdapter as any,
-      sessionAccessSummaryUseCase as any,
-      tenantOrgAdapter as any
+      sessionAccessSummaryUseCase as any
     )
 
     const result = await useCase.execute({
@@ -592,16 +554,6 @@ describe('SessionContextUseCase', () => {
         }
       })
     }
-    const tenantOrgAdapter = {
-      getTenantById: jest.fn().mockResolvedValue({
-        tenant: {
-          id: 'tenant-1',
-          code: 'tenant-1',
-          name: 'Tenant A',
-          isActive: true
-        }
-      })
-    }
     const sessionAccessSummaryUseCase = {
       execute: jest.fn().mockResolvedValue({
         roles: [{ roleId: 'role-tenant-admin', code: 'tenant.admin', name: '租户管理员' }],
@@ -615,8 +567,7 @@ describe('SessionContextUseCase', () => {
 
     const useCase = new SessionContextUseCase(
       identityAdapter as any,
-      sessionAccessSummaryUseCase as any,
-      tenantOrgAdapter as any
+      sessionAccessSummaryUseCase as any
     )
 
     const result = await useCase.execute({
@@ -643,16 +594,6 @@ describe('SessionContextUseCase', () => {
         }
       })
     }
-    const tenantOrgAdapter = {
-      getTenantById: jest.fn().mockResolvedValue({
-        tenant: {
-          id: 'tenant-1',
-          code: 'tenant-1',
-          name: 'Tenant A',
-          isActive: true
-        }
-      })
-    }
     const sessionAccessSummaryUseCase = {
       execute: jest.fn().mockResolvedValue({
         roles: [{ roleId: 'role-tenant-admin', code: 'tenant.admin', name: '租户管理员' }],
@@ -671,8 +612,7 @@ describe('SessionContextUseCase', () => {
 
     const useCase = new SessionContextUseCase(
       identityAdapter as any,
-      sessionAccessSummaryUseCase as any,
-      tenantOrgAdapter as any
+      sessionAccessSummaryUseCase as any
     )
 
     const result = await useCase.execute({
@@ -704,16 +644,6 @@ describe('SessionContextUseCase', () => {
         }
       })
     }
-    const tenantOrgAdapter = {
-      getTenantById: jest.fn().mockResolvedValue({
-        tenant: {
-          id: 'tenant-1',
-          code: 'tenant-1',
-          name: 'Tenant A',
-          isActive: true
-        }
-      })
-    }
     const sessionAccessSummaryUseCase = {
       execute: jest.fn().mockResolvedValue({
         roles: [{ roleId: 'role-tenant-admin', code: 'tenant.admin', name: '租户管理员' }],
@@ -727,8 +657,7 @@ describe('SessionContextUseCase', () => {
 
     const useCase = new SessionContextUseCase(
       identityAdapter as any,
-      sessionAccessSummaryUseCase as any,
-      tenantOrgAdapter as any
+      sessionAccessSummaryUseCase as any
     )
 
     const result = await useCase.execute({
@@ -746,7 +675,7 @@ describe('SessionContextUseCase', () => {
   })
 
   it('rejects session-context requests that do not carry a selected account', async () => {
-    const useCase = new SessionContextUseCase({} as any, {} as any, {} as any)
+    const useCase = new SessionContextUseCase({} as any, {} as any)
 
     await expect(
       useCase.execute({

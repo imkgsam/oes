@@ -33,6 +33,21 @@ describe('TenantSessionAccessService', () => {
     ).rejects.toThrow('Tenant is not active for authentication')
   })
 
+  it('fails closed when the tenant lifecycle owner projection is unavailable', async () => {
+    const tenantLifecyclePort = {
+      getTenantStatus: jest.fn().mockRejectedValue(new Error('tenant-org unavailable'))
+    }
+    const service = new TenantSessionAccessService(tenantLifecyclePort as any)
+
+    await expect(
+      service.assertSessionCanContinue({
+        sessionId: 'session-1',
+        tenantId: 'tenant-1',
+        scopeLevel: 'TENANT'
+      })
+    ).rejects.toThrow('tenant-org unavailable')
+  })
+
   it('does not ask tenant-org for SYSTEM scope access', async () => {
     const tenantLifecyclePort = {
       getTenantStatus: jest.fn()

@@ -46,11 +46,15 @@ export class PrismaAuthAuditRepository implements AuthAuditRepository {
     sourceTokenId: string
     targetTokenId: string
     subject: string
+    subjectScope: 'SYSTEM' | 'TENANT'
     tenantId?: string
     actor: unknown
     workload: string
     audience: string
     decisionReference: string
+    requestId: string
+    traceId: string
+    spanId: string
   }): Promise<void> {
     await this.append(
       new AuthAuditEvent(
@@ -61,14 +65,16 @@ export class PrismaAuthAuditRepository implements AuthAuditRepository {
         'SUCCEEDED',
         { operatorId: input.subject, operatorType: 'HUMAN' },
         { tenantId: input.tenantId, orgId: undefined },
-        { traceId: input.targetTokenId, spanId: null },
+        { traceId: input.traceId, spanId: input.spanId },
         { resourceType: 'execution_token', resourceId: input.targetTokenId },
         {
           sourceTokenId: input.sourceTokenId,
+          subjectScope: input.subjectScope,
           actor: input.actor,
           workload: input.workload,
           audience: input.audience,
-          decisionReference: input.decisionReference
+          decisionReference: input.decisionReference,
+          requestId: input.requestId
         }
       )
     )

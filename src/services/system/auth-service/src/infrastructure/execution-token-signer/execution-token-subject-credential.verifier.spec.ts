@@ -7,6 +7,10 @@ const WORKLOAD = {
   certificateThumbprint: 'A'.repeat(43)
 }
 const TARGET = 'urn:oes:service:item-master-service'
+const CORRELATION = Object.freeze({
+  requestId: 'request-1',
+  traceparent: '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01'
+})
 
 /** Builds one real Auth-signed, MES-audience HUMAN subject ET and its frozen OBO dependencies. */
 function fixture(overrides: Record<string, unknown> = {}, identityOverrides = {}) {
@@ -57,6 +61,9 @@ function fixture(overrides: Record<string, unknown> = {}, identityOverrides = {}
       aud: 'urn:oes:service:mes-service',
       sub: 'account-1',
       principal_type: 'HUMAN',
+      client_id: WORKLOAD.spiffeId,
+      cnf: { 'x5t#S256': WORKLOAD.certificateThumbprint },
+      scope: 'mes.production.read',
       tenant_id: 'tenant-1',
       session_id: 'session-1',
       session_terminal: 'WEB',
@@ -84,17 +91,57 @@ function fixture(overrides: Record<string, unknown> = {}, identityOverrides = {}
   }
 }
 
+/** Verifies one fixture token with the required trusted request/trace correlation by default. */
+function verifySubject(
+  current: ReturnType<typeof fixture>,
+  token = current.token,
+  correlation: typeof CORRELATION | undefined = CORRELATION
+) {
+  return current.verifier.verify(token, WORKLOAD, TARGET, correlation)
+}
+
 describe('ExecutionTokenSubjectCredentialVerifier', () => {
+  it('derives SYSTEM from an absent tenant claim and preserves the tenantless subject', async () => {
+    const current = fixture({ tenant_id: undefined })
+    const result = await current.verifier.verify(current.token, WORKLOAD, TARGET, {
+      requestId: 'request-system-1',
+      traceparent: '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01'
+    })
+
+    expect(current.identity.resolveMachinePrincipalForAuth).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: 'request-system-1',
+        traceparent: '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01'
+      })
+    )
+    expect(result).toMatchObject({
+      subject: 'account-1',
+      principalType: 'HUMAN',
+      scopeLevel: 'SYSTEM',
+      sessionId: 'session-1',
+      sessionTerminal: 'WEB',
+      sourceTokenId: 'subject-jti',
+      sourceExpiresAt: 400,
+      requestId: 'request-system-1',
+      traceId: '4bf92f3577b34da6a3ce929d0e0e4736',
+      spanId: '00f067aa0ba902b7',
+      actor: { sub: 'machine-mes', principal_type: 'MACHINE', scope_level: 'SYSTEM' }
+    })
+    expect(result).not.toHaveProperty('tenantId')
+  })
+
   it('preserves HUMAN tenant/session and resolves the exact tenantless SYSTEM actor', async () => {
     const current = fixture()
-    const result = await current.verifier.verify(current.token, WORKLOAD, TARGET)
+    const result = await verifySubject(current)
 
-    expect(current.identity.resolveMachinePrincipalForAuth).toHaveBeenCalledWith({
-      machinePrincipalId: 'machine-mes',
-      bindingId: 'binding-mes',
-      bindingVersion: BigInt(1),
-      workloadSpiffeId: WORKLOAD.spiffeId
-    })
+    expect(current.identity.resolveMachinePrincipalForAuth).toHaveBeenCalledWith(
+      expect.objectContaining({
+        machinePrincipalId: 'machine-mes',
+        bindingId: 'binding-mes',
+        bindingVersion: BigInt(1),
+        workloadSpiffeId: WORKLOAD.spiffeId
+      })
+    )
     expect(result).toMatchObject({
       subject: 'account-1',
       principalType: 'HUMAN',
@@ -116,9 +163,20 @@ describe('ExecutionTokenSubjectCredentialVerifier', () => {
     ['overlong lifetime', { iat: 100, nbf: 100, exp: 401 }],
     ['MACHINE subject', { principal_type: 'MACHINE' }],
     ['missing subject', { sub: undefined }],
+    ['missing client', { client_id: undefined }],
+    ['malformed client', { client_id: 'other-service' }],
+    ['missing certificate binding', { cnf: undefined }],
+    ['malformed certificate binding', { cnf: { 'x5t#S256': 'not-a-thumbprint' } }],
+    [
+      'extended certificate binding',
+      { cnf: { 'x5t#S256': WORKLOAD.certificateThumbprint, caller: 'spoofed' } }
+    ],
+    ['scope-level value in JWT scope', { scope: 'SYSTEM' }],
+    ['non-canonical Permission scope', { scope: 'mes.write mes.read' }],
+    ['duplicate Permission scope', { scope: 'mes.read mes.read' }],
+    ['explicit scope_level claim', { scope_level: 'SYSTEM' }],
     ['blank tenant', { tenant_id: '' }],
     ['wildcard tenant', { tenant_id: '*' }],
-    ['missing tenant', { tenant_id: undefined }],
     ['blank session', { session_id: '' }],
     ['missing session', { session_id: undefined }],
     ['invalid terminal', { session_terminal: 'web' }],
@@ -141,17 +199,29 @@ describe('ExecutionTokenSubjectCredentialVerifier', () => {
     ]
   ])('rejects a %s subject before Identity actor resolution', async (_label, claims) => {
     const current = fixture(claims)
-    await expect(current.verifier.verify(current.token, WORKLOAD, TARGET)).rejects.toThrow(
-      'SUBJECT_INVALID'
-    )
+    await expect(verifySubject(current)).rejects.toThrow('SUBJECT_INVALID')
     expect(current.identity.resolveMachinePrincipalForAuth).not.toHaveBeenCalled()
+  })
+
+  it('preserves a locally verified prior-hop binding while the registry binds the current exchanger actor', async () => {
+    const current = fixture({
+      client_id: 'spiffe://oes/api-gateway',
+      cnf: { 'x5t#S256': 'B'.repeat(43) }
+    })
+
+    await expect(verifySubject(current)).resolves.toMatchObject({
+      subject: 'account-1',
+      sourceAudience: 'urn:oes:service:mes-service',
+      actor: { sub: 'machine-mes', principal_type: 'MACHINE', scope_level: 'SYSTEM' }
+    })
+    expect(current.identity.resolveMachinePrincipalForAuth).toHaveBeenCalledWith(
+      expect.objectContaining({ workloadSpiffeId: WORKLOAD.spiffeId })
+    )
   })
 
   it('rejects a wrong current-service audience before Identity actor resolution', async () => {
     const current = fixture({ aud: 'urn:oes:service:wms-service' })
-    await expect(current.verifier.verify(current.token, WORKLOAD, TARGET)).rejects.toThrow(
-      'not permitted'
-    )
+    await expect(verifySubject(current)).rejects.toThrow('not permitted')
     expect(current.identity.resolveMachinePrincipalForAuth).not.toHaveBeenCalled()
   })
 
@@ -164,9 +234,7 @@ describe('ExecutionTokenSubjectCredentialVerifier', () => {
     ['disabled actor', { allowed: false }]
   ])('rejects a %s Identity decision', async (_label, decision) => {
     const current = fixture({}, decision)
-    await expect(current.verifier.verify(current.token, WORKLOAD, TARGET)).rejects.toThrow(
-      'ACTOR_INVALID'
-    )
+    await expect(verifySubject(current)).rejects.toThrow('ACTOR_INVALID')
   })
 
   it('propagates Identity outage and never returns execution facts', async () => {
@@ -174,20 +242,22 @@ describe('ExecutionTokenSubjectCredentialVerifier', () => {
     current.identity.resolveMachinePrincipalForAuth.mockRejectedValueOnce(
       new Error('identity unavailable') as never
     )
-    await expect(current.verifier.verify(current.token, WORKLOAD, TARGET)).rejects.toThrow(
-      'identity unavailable'
-    )
+    await expect(verifySubject(current)).rejects.toThrow('identity unavailable')
   })
 
   it('rejects malformed and wrongly signed subjects before actor resolution', async () => {
     const current = fixture()
-    await expect(current.verifier.verify('bad', WORKLOAD, TARGET)).rejects.toThrow(
-      'SUBJECT_INVALID'
-    )
+    await expect(verifySubject(current, 'bad')).rejects.toThrow('SUBJECT_INVALID')
     const tampered = `${current.token.slice(0, -2)}aa`
-    await expect(current.verifier.verify(tampered, WORKLOAD, TARGET)).rejects.toThrow(
-      'SUBJECT_INVALID'
-    )
+    await expect(verifySubject(current, tampered)).rejects.toThrow('SUBJECT_INVALID')
+    expect(current.identity.resolveMachinePrincipalForAuth).not.toHaveBeenCalled()
+  })
+
+  it('rejects missing correlation before Identity actor resolution', async () => {
+    const current = fixture()
+    await expect(
+      current.verifier.verify(current.token, WORKLOAD, TARGET, undefined)
+    ).rejects.toThrow('CORRELATION_REQUIRED')
     expect(current.identity.resolveMachinePrincipalForAuth).not.toHaveBeenCalled()
   })
 })

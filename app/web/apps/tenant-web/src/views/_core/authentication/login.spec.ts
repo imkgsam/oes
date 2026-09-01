@@ -35,6 +35,12 @@ vi.mock('vue-router', () => ({
 vi.mock('@vben/common-ui', () => ({
   AuthenticationLogin: defineComponent({
     name: 'AuthenticationLogin',
+    props: {
+      formSchema: {
+        type: Array,
+        default: () => []
+      }
+    },
     emits: ['forgetPassword', 'submit'],
     setup(_, { expose }) {
       expose({
@@ -152,6 +158,19 @@ describe('password login recovery navigation', () => {
     })
   })
 
+  it('submits phone password login without changing the existing store contract', async () => {
+    routeState.query = { mode: 'phone' }
+    const view = await import('./login.vue')
+    const wrapper = mount(view.default)
+
+    await wrapper.get('.submit-phone').trigger('click')
+
+    expect(authPhonePasswordLoginMock).toHaveBeenCalledWith({
+      password: 'imkgsam6593',
+      phoneNumber: '+8613800138000'
+    })
+  })
+
   it('passes the email identifier to the forget password page', async () => {
     const view = await import('./login.vue')
     const wrapper = mount(view.default)
@@ -249,5 +268,17 @@ describe('password login recovery navigation', () => {
         identifier: '+8613800138000'
       }
     })
+  })
+
+  it('keeps the custom phone component out of Vue reactive schema proxies', async () => {
+    routeState.query = { mode: 'phone' }
+    const view = await import('./login.vue')
+    const wrapper = mount(view.default)
+    const schema = wrapper
+      .findComponent({ name: 'AuthenticationLogin' })
+      .props('formSchema') as Array<any>
+    const phoneField = schema.find((field) => field.fieldName === 'phoneNumber')
+
+    expect(phoneField?.component?.__v_skip).toBe(true)
   })
 })
