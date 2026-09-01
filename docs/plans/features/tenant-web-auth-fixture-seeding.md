@@ -1,14 +1,14 @@
 # Tenant Web Auth Fixture Seeding
 
 featureKey: tenant-web-auth-fixture-seeding
-truthCommit: dbe4af9bcb359b120271ff54f31d324294f48856
-baseSha: dbe4af9bcb359b120271ff54f31d324294f48856
+truthCommit: 1fc961d7e320bf57b69a2879b4b4e57b5a150c95
+baseSha: 1fc961d7e320bf57b69a2879b4b4e57b5a150c95
 integrationBranch: codex/tenant-web-auth-fixture-seed
 worktreeKey: 9d4f
 pullRequest: none (local follow-up candidate)
 priorMergeSha: cad78c03508ed046f0053e16d05ab08a301e9dc4
 cleanup: HOLD
-state: ACCEPTED
+state: REVIEWING
 
 ## Objective
 
@@ -31,14 +31,14 @@ The first five groups remain explicit design gaps because current navigation fou
 
 ### task-bound-seed-orchestration
 
-state: ACCEPTED
-candidate: 82e7d050a318f2804101128aafba373a74aee5f1
+state: REVIEWING
+candidate: b5629347d2230868b89e87f8d236a4cdceee3785
 review: same feature-ri `01a052d7-1611-7001-8e91-e6d6e70b2fb5`
 
 - Scope: local database lifecycle orchestration; seven exact task database bindings; dedicated recovery-grant, MFA-required/scenario, first-login setup, bounded PolicyInstance preview, Item Master detail/create dependency, and MES navigation fixtures; credential-redacted output; focused tooling and real-page verification.
 - Protected scope: production or shared databases, legacy Docker projects, non-task-owned containers/volumes/networks, committed credentials, service business contracts, and unrelated seeders.
 - Dependencies: existing task-owned environment bootstrap, lifecycle ownership checks, official tenant-web and Permission foundation fixtures, and the seven service-owned Prisma schemas used by the seeder.
-- Moving-main revalidation: the same owner merged exact `main@dbe4af9b` into prior feature commit `9a6dfdb7` as local merge commit `fed8f66b` (parents in that order), then reran lifecycle and focused verification on the merged tree. No rebase, remote mutation, or owner replacement occurred.
+- Moving-main revalidation: after the earlier accepted receipt `c0f17b2c`, the same owner merged exact `main@1fc961d7` as local append-only merge candidate `b5629347` (parents `c0f17b2c` then `1fc961d7`). All 14 product paths remain byte-identical to accepted candidate `82e7d050`, and the Packet at the merge remains byte-identical to accepted receipt `c0f17b2c`. No rebase, remote mutation, or owner replacement occurred.
 - Acceptance: fresh/repeat/drift/failure/recovery/rollback proofs; exact fixture inventory; PAGE-003/004/006/021/044/047/051/052 and PAGE-073..075 real-page results; first five navigation groups reported as DESIGN_GAP rather than broadened; no credential material in output; Public Card and prior Auth behavior preserved.
 
 ## Current findings and evidence
@@ -57,6 +57,10 @@ review: same feature-ri `01a052d7-1611-7001-8e91-e6d6e70b2fb5`
 - Post-main focused verification: all 70 Node tests and all 25 tenant-web Vitest tests pass on the merged tree, including the live Docker port-remap and verification-state regressions.
 - Feature RI finding closure: verification now records `VERIFYING` before checks and `VERIFY_FAILED` on every failure instead of preserving an earlier `VERIFIED` phase. A live port refresh is persisted immediately before migrate/seed/verify work, so later failure retains the current mapping. Combined stale-port plus snapshot-only drift proved `POSTGRES_PORT_REFRESH`, nonzero verify, `VERIFY_FAILED`, and the live port in one run; the official two-seed recovery and final 21-database verify then passed.
 - Feature RI accepted exact candidate `82e7d050a318f2804101128aafba373a74aee5f1` after independently confirming both finding closures, the 70/70 Node and 25/25 tenant-web results, candidate/archive tree identity, and exact rollback-to-base tree identity.
+- Latest-main focused verification: exact append-only merge candidate `b5629347` passes all 70 Node tests and 51 tenant-web Vitest tests across Auth, Policy preview, Item Model Create, and latest-main Role Management coverage.
+- Latest-main lifecycle verification: initial rollback read back zero task containers, volumes, networks, and state; fresh `up`/`health`/21-database migration, fresh seed, repeat seed, and verify all passed on live PostgreSQL port `59336`.
+- Latest-main remap/drift/failure recovery: an injected stale state port `51229` plus snapshot-only factor count `3` produced `POSTGRES_PORT_REFRESH before=51229 after=59336`, nonzero verify, persisted live port, and exact `VERIFY_FAILED`. The first official seed then produced the expected `SEED_NOT_IDEMPOTENT`, `SEED_FAILED`, and null snapshot; the second seed plus 21-database verify restored factor count `4` and `VERIFIED`. Final rollback again read back zero task containers, volumes, networks, and state.
+- Same Feature RI `01a052d7-1611-7001-8e91-e6d6e70b2fb5` is being rebound to exact latest-main candidate `b5629347d2230868b89e87f8d236a4cdceee3785`; remote publication and execution-profile preparation remain out of scope while the governing design is under review.
 
 ## Feature acceptance
 
