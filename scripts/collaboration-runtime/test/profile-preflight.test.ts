@@ -17,9 +17,11 @@ import {
   credentialReferenceKeys,
   defaultDeliveryCapabilities,
   effectivePermissionSandboxFingerprint,
+  finalizeEffectiveProfilePreflight,
   loadRemoteTrustRootsFromProfileReport,
   planProfileRepair,
   readApprovalTelemetry,
+  runEffectiveProfileProbePhase,
   runEffectiveProfilePreflight,
   SystemPreflightProbeAdapter,
   verifyEffectiveProfileReport,
@@ -687,6 +689,56 @@ test('system adapter consumes issuer-owned telemetry and detects a late approval
   await assert.rejects(
     callerAdapter.approvalTelemetry(expectation),
     /ARTIFACT_PATH_OUTSIDE_BOUND_ROOT/
+  )
+})
+
+test('two-phase preflight finalizes only after the completed target turn is issuer-sealed', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'oes-profile-two-phase-test-'))
+  const rendered = renderedProfile(root, '/root/fl', 'handoff:two-phase', 'NEVER_USER')
+  const issuerSnapshot = trustedTelemetry(rendered, 'NEVER_USER')
+  const request = {
+    ownerTaskId: '/root/fl',
+    transitionId: 'handoff:two-phase',
+    approvalMode: 'NEVER_USER' as const,
+    launchReceipt: rendered.launchReceipt,
+    expectedState: 'HANDOFF_PENDING' as const,
+    declaredCapabilities: ['filesystemWrite', 'approvalTelemetry'] as CapabilityName[],
+    profile: {
+      name: 'oes-profile',
+      permission: 'oes-owner',
+      path: rendered.installedProfile.path,
+      sha256: rendered.installedProfile.sha256
+    },
+    resultPath: join(root, 'profile-report.json')
+  }
+  const draftPath = join(root, 'probe-draft.json')
+  const draft = await runEffectiveProfileProbePhase(
+    request,
+    new PassingProbe(root, issuerSnapshot),
+    draftPath
+  )
+  assert.deepEqual(
+    draft.observations.map(({ name }) => name),
+    ['filesystemWrite']
+  )
+
+  const report = await finalizeEffectiveProfilePreflight(
+    request,
+    new PassingProbe(root, issuerSnapshot),
+    draftPath
+  )
+  assert.deepEqual(
+    report.observations.map(({ name }) => name),
+    ['filesystemWrite', 'approvalTelemetry']
+  )
+  assert.equal(report.telemetry.eventSource, issuerSnapshot)
+
+  const changed = JSON.parse(readFileSync(draftPath, 'utf8')) as Record<string, unknown>
+  changed.transitionId = 'handoff:rebound'
+  writeFileSync(draftPath, `${canonicalJson(changed)}\n`)
+  await assert.rejects(
+    finalizeEffectiveProfilePreflight(request, new PassingProbe(root, issuerSnapshot), draftPath),
+    /PROFILE_PROBE_DRAFT_BINDING_INVALID/
   )
 })
 

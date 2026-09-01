@@ -30,7 +30,11 @@ node --experimental-strip-types scripts/collaboration-runtime/src/cli.ts \
   profile-render --input exact-profile-render.json
 
 node --experimental-strip-types scripts/collaboration-runtime/src/cli.ts \
-  profile-preflight --input exact-profile-preflight.json
+  profile-preflight-probe --input exact-profile-probe.json
+
+# After that target turn completes and its rollout is issuer-sealed:
+node --experimental-strip-types scripts/collaboration-runtime/src/cli.ts \
+  profile-preflight-finalize --input exact-profile-finalize.json
 
 node --experimental-strip-types scripts/collaboration-runtime/src/cli.ts \
   validate-binding --profile-report effective-profile.json --binding binding.json

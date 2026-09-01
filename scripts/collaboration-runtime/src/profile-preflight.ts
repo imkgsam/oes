@@ -14,7 +14,14 @@ import { createServer } from 'node:net'
 import { dirname, isAbsolute, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { DatabaseSync } from 'node:sqlite'
-import { assertPathWithin, canonicalJson, sha256, writeJsonAtomic } from './canonical.ts'
+import {
+  assertPathWithin,
+  canonicalJson,
+  objectFingerprint,
+  readJson,
+  sha256,
+  writeJsonAtomic
+} from './canonical.ts'
 import { validateProfileReportEnvelope } from './binding.ts'
 import { fail } from './errors.ts'
 import {
@@ -73,6 +80,18 @@ export interface PreflightRequest {
   declaredCapabilities: CapabilityName[]
   profile: EffectiveProfileReport['profile']
   resultPath: string
+}
+
+export interface EffectiveProfileProbeDraft {
+  schemaVersion: 1
+  kind: 'OES_EFFECTIVE_PROFILE_PROBE_DRAFT'
+  draftFingerprint: string
+  requestFingerprint: string
+  ownerTaskId: string
+  transitionId: string
+  declaredCapabilities: CapabilityName[]
+  observations: CapabilityObservation[]
+  credentialReference: EffectiveProfileReport['credentialReference']
 }
 
 export interface ApprovalTelemetryExpectation {
@@ -678,11 +697,8 @@ export function loadRemoteTrustRootsFromProfileReport(
   }
 }
 
-/** Executes every declared probe, verifies the complete report, and atomically records it. */
-export async function runEffectiveProfilePreflight(
-  request: PreflightRequest,
-  adapter: PreflightProbeAdapter
-): Promise<EffectiveProfileReport> {
+/** Reopens one launch binding and derives the only accepted telemetry expectation. */
+function prepareProfilePreflight(request: PreflightRequest): ApprovalTelemetryExpectation {
   const receipt = loadProfileLaunchReceipt(request.launchReceipt)
   const runtimeAuthority = readInstalledProfileRuntimeAuthority(request.profile.path)
   if (
@@ -693,13 +709,129 @@ export async function runEffectiveProfilePreflight(
     receipt.installedProfile.sha256 !== request.profile.sha256
   )
     fail('PROFILE_PREFLIGHT_LAUNCH_BINDING_MISMATCH', request.ownerTaskId)
-  const telemetryExpectation = {
+  return {
     approvalMode: request.approvalMode,
     expectedEffectivePermissionSandboxFingerprint:
       receipt.expectedEffectivePermissionSandboxFingerprint,
     expectedActivePermissionProfileId: runtimeAuthority.defaultPermissionProfileId,
     trustedAuthorizationRoot: runtimeAuthority.trustedAuthorizationRoot
   }
+}
+
+/** Reopens and validates one exact completed probe phase before telemetry finalization. */
+function loadEffectiveProfileProbeDraft(
+  draftPath: string,
+  request: PreflightRequest
+): EffectiveProfileProbeDraft {
+  const draft = readJson<EffectiveProfileProbeDraft>(draftPath)
+  const keys = [
+    'schemaVersion',
+    'kind',
+    'draftFingerprint',
+    'requestFingerprint',
+    'ownerTaskId',
+    'transitionId',
+    'declaredCapabilities',
+    'observations',
+    'credentialReference'
+  ]
+  if (
+    !draft ||
+    typeof draft !== 'object' ||
+    canonicalJson(Object.keys(draft).sort()) !== canonicalJson(keys.sort()) ||
+    draft.schemaVersion !== 1 ||
+    draft.kind !== 'OES_EFFECTIVE_PROFILE_PROBE_DRAFT' ||
+    draft.draftFingerprint !==
+      objectFingerprint(draft as unknown as Record<string, unknown>, 'draftFingerprint') ||
+    draft.requestFingerprint !== sha256(canonicalJson(request)) ||
+    draft.ownerTaskId !== request.ownerTaskId ||
+    draft.transitionId !== request.transitionId ||
+    canonicalJson(draft.declaredCapabilities) !== canonicalJson(request.declaredCapabilities)
+  )
+    fail('PROFILE_PROBE_DRAFT_BINDING_INVALID', draftPath)
+  const expected = request.declaredCapabilities.filter((name) => name !== 'approvalTelemetry')
+  if (
+    canonicalJson(draft.observations.map(({ name }) => name)) !== canonicalJson(expected) ||
+    draft.observations.some(({ name }) => name === 'approvalTelemetry')
+  )
+    fail('PROFILE_PROBE_DRAFT_CAPABILITIES_INVALID', draftPath)
+  for (const observation of draft.observations) {
+    verifyObservationEvidence(observation)
+    if (observation.exitCode !== 0 || observation.result !== 'PASS')
+      fail('PROFILE_PROBE_DRAFT_CAPABILITY_FAILED', observation.name)
+  }
+  return draft
+}
+
+/** Executes all non-telemetry capabilities in the target turn and seals a resumable draft. */
+export async function runEffectiveProfileProbePhase(
+  request: PreflightRequest,
+  adapter: PreflightProbeAdapter,
+  draftPath: string
+): Promise<EffectiveProfileProbeDraft> {
+  prepareProfilePreflight(request)
+  const observations: CapabilityObservation[] = []
+  for (const capability of request.declaredCapabilities) {
+    if (capability !== 'approvalTelemetry') observations.push(await adapter.observe(capability))
+  }
+  const draft: EffectiveProfileProbeDraft = {
+    schemaVersion: 1,
+    kind: 'OES_EFFECTIVE_PROFILE_PROBE_DRAFT',
+    draftFingerprint: '',
+    requestFingerprint: sha256(canonicalJson(request)),
+    ownerTaskId: request.ownerTaskId,
+    transitionId: request.transitionId,
+    declaredCapabilities: [...request.declaredCapabilities],
+    observations,
+    credentialReference: await adapter.credentialReference()
+  }
+  draft.draftFingerprint = objectFingerprint(
+    draft as unknown as Record<string, unknown>,
+    'draftFingerprint'
+  )
+  writeJsonAtomic(draftPath, draft)
+  return loadEffectiveProfileProbeDraft(draftPath, request)
+}
+
+/** Finalizes an earlier target-turn probe after the issuer seals that completed turn's telemetry. */
+export async function finalizeEffectiveProfilePreflight(
+  request: PreflightRequest,
+  adapter: PreflightProbeAdapter,
+  draftPath: string
+): Promise<EffectiveProfileReport> {
+  const telemetryExpectation = prepareProfilePreflight(request)
+  const draft = loadEffectiveProfileProbeDraft(draftPath, request)
+  const observations = [...draft.observations]
+  if (request.declaredCapabilities.includes('approvalTelemetry'))
+    observations.push(await adapter.observe('approvalTelemetry', telemetryExpectation))
+  const report: EffectiveProfileReport = {
+    schemaVersion: 2,
+    kind: 'OES_EFFECTIVE_PROFILE_REPORT',
+    ownerTaskId: request.ownerTaskId,
+    transitionId: request.transitionId,
+    expectedState: request.expectedState,
+    declaredCapabilities: [...request.declaredCapabilities],
+    profile: request.profile,
+    observations,
+    credentialReference: draft.credentialReference,
+    telemetry: await adapter.approvalTelemetry(telemetryExpectation),
+    resourceTopology: readInstalledProfileResourceTopology(request.profile.path),
+    approvalMode: request.approvalMode,
+    launchReceipt: request.launchReceipt,
+    effectivePermissionSandboxFingerprint:
+      telemetryExpectation.expectedEffectivePermissionSandboxFingerprint
+  }
+  verifyEffectiveProfileReport(report)
+  writeJsonAtomic(request.resultPath, report)
+  return verifyEffectiveProfileReport(report)
+}
+
+/** Executes every declared probe, verifies the complete report, and atomically records it. */
+export async function runEffectiveProfilePreflight(
+  request: PreflightRequest,
+  adapter: PreflightProbeAdapter
+): Promise<EffectiveProfileReport> {
+  const telemetryExpectation = prepareProfilePreflight(request)
   const observations: CapabilityObservation[] = []
   for (const capability of request.declaredCapabilities)
     observations.push(await adapter.observe(capability, telemetryExpectation))
@@ -717,7 +849,8 @@ export async function runEffectiveProfilePreflight(
     resourceTopology: readInstalledProfileResourceTopology(request.profile.path),
     approvalMode: request.approvalMode,
     launchReceipt: request.launchReceipt,
-    effectivePermissionSandboxFingerprint: receipt.expectedEffectivePermissionSandboxFingerprint
+    effectivePermissionSandboxFingerprint:
+      telemetryExpectation.expectedEffectivePermissionSandboxFingerprint
   }
   verifyEffectiveProfileReport(report)
   writeJsonAtomic(request.resultPath, report)

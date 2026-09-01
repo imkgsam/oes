@@ -18,7 +18,9 @@ import { proposalQueueView, type ProposalHistoryEvent } from './proposal-queue.t
 import { renderOwnerProfileLaunch, type OwnerProfileRenderRequest } from './profile-policy.ts'
 import {
   SystemPreflightProbeAdapter,
+  finalizeEffectiveProfilePreflight,
   loadRemoteTrustRootsFromProfileReport,
+  runEffectiveProfileProbePhase,
   runEffectiveProfilePreflight,
   verifyEffectiveProfileReport,
   type PreflightRequest,
@@ -102,6 +104,36 @@ async function main(args: string[]): Promise<void> {
       await runEffectiveProfilePreflight(
         input.request,
         new SystemPreflightProbeAdapter(input.systemProbe)
+      )
+    )
+    return
+  }
+  if (command === 'profile-preflight-probe') {
+    const input = readJson<{
+      request: PreflightRequest
+      systemProbe: SystemProbeOptions
+      draftPath: string
+    }>(flag(args, '--input'))
+    emit(
+      await runEffectiveProfileProbePhase(
+        input.request,
+        new SystemPreflightProbeAdapter(input.systemProbe),
+        input.draftPath
+      )
+    )
+    return
+  }
+  if (command === 'profile-preflight-finalize') {
+    const input = readJson<{
+      request: PreflightRequest
+      systemProbe: SystemProbeOptions
+      draftPath: string
+    }>(flag(args, '--input'))
+    emit(
+      await finalizeEffectiveProfilePreflight(
+        input.request,
+        new SystemPreflightProbeAdapter(input.systemProbe),
+        input.draftPath
       )
     )
     return
