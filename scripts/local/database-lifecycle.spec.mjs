@@ -27,7 +27,9 @@ import {
   ownerNamedResourceListArgs,
   probeHttpReadiness,
   renderedNamedResources,
-  resourceFingerprint
+  resourceFingerprint,
+  selectDatabaseServices,
+  selectInfraProfile
 } from './database-lifecycle.mjs'
 import {
   validate as validateWorkloadPolicyProfile,
@@ -41,6 +43,29 @@ test('database context binds 21 unique service-owned databases to one task proje
   assert.equal(context.services.length, 21)
   assert.equal(new Set(context.services.map((service) => service.database)).size, 21)
   assert.equal(context.projectName, `oes_${context.taskKey}`)
+})
+
+test('database shard selector preserves inventory order and rejects ambiguous input', () => {
+  const context = loadDatabaseContext(repositoryRoot)
+  const selected = selectDatabaseServices(context.services, ['mes-service', 'identity-service'])
+  assert.deepEqual(selected.map((service) => service.name), ['mes-service', 'identity-service'])
+  assert.throws(
+    () => selectDatabaseServices(context.services, ['identity-service', 'identity-service']),
+    /DATABASE_SERVICE_DUPLICATE/
+  )
+  assert.throws(
+    () => selectDatabaseServices(context.services, ['missing-service']),
+    /DATABASE_SERVICE_UNKNOWN/
+  )
+})
+
+test('L2 infrastructure profile starts only Postgres and NATS dependencies', () => {
+  const profile = selectInfraProfile('l2')
+  assert.deepEqual(profile.longRunningServices, ['postgres', 'nats'])
+  assert.deepEqual(profile.initServices, ['nats-bootstrap'])
+  assert.equal(profile.monitor, false)
+  assert.deepEqual(profile.resources.volume, ['nats_jetstream_data', 'postgres_data'])
+  assert.throws(() => selectInfraProfile('unknown'), /DATABASE_INFRA_PROFILE_INVALID/)
 })
 
 test('generated Compose inputs keep secrets local and map every service to postgres', () => {
