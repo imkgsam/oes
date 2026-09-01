@@ -24,6 +24,8 @@ import {
   type SystemProbeOptions
 } from './profile-preflight.ts'
 import { validateJsonSchema } from './schema-validation.ts'
+import { createTechnicalRevision, planStageMerge } from './stage-merge.ts'
+import { planStageLifecycle } from './stage-lifecycle.ts'
 import { RemoteDriver } from './remote-driver.ts'
 import {
   CiRecoveryController,
@@ -37,7 +39,12 @@ import type {
   DriftAssessmentInput,
   EffectiveProfileReport,
   EvidenceKeyInput,
-  ObservedCleanupResource
+  ObservedCleanupResource,
+  StageArchiveResult,
+  StageLifecycleInventory,
+  StageMergeAuthorization,
+  StageMergeItemResult,
+  StageMergeTechnicalRevision
 } from './types.ts'
 
 /** Returns the value following one required command-line flag. */
@@ -188,6 +195,39 @@ async function main(args: string[]): Promise<void> {
     verifyCleanupOnlyDeletion(authorization, diff)
     verifyChildCleanupResults(authorization, childResults)
     emit({ status: 'STAGE_CLEANUP_VERIFIED', stageKey: authorization.stageKey })
+    return
+  }
+  if (command === 'stage-merge-plan') {
+    const authorization = readJson<StageMergeAuthorization>(flag(args, '--authorization'))
+    const results = readJson<StageMergeItemResult[]>(flag(args, '--results'))
+    emit(planStageMerge(authorization, results))
+    return
+  }
+  if (command === 'stage-merge-revision') {
+    const authorization = readJson<StageMergeAuthorization>(flag(args, '--authorization'))
+    const input = readJson<
+      Omit<
+        StageMergeTechnicalRevision,
+        | 'schemaVersion'
+        | 'kind'
+        | 'revisionFingerprint'
+        | 'stageAuthorizationFingerprint'
+        | 'decision'
+      >
+    >(flag(args, '--input'))
+    const revision = createTechnicalRevision(authorization, input)
+    if (args.includes('--output')) writeJsonAtomic(flag(args, '--output'), revision)
+    emit(revision)
+    return
+  }
+  if (command === 'stage-lifecycle-plan') {
+    const inventory = readJson<StageLifecycleInventory>(flag(args, '--inventory'))
+    const priorResults = args.includes('--prior-results')
+      ? readJson<StageArchiveResult[]>(flag(args, '--prior-results'))
+      : []
+    const plan = planStageLifecycle(inventory, priorResults)
+    if (args.includes('--output')) writeJsonAtomic(flag(args, '--output'), plan)
+    emit(plan)
     return
   }
   fail('CLI_COMMAND_UNKNOWN', command ?? 'NONE')

@@ -1,0 +1,406 @@
+name: CI Optimized Shadow
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('ci-shadow-pr-{0}', github.event.pull_request.number) || format('ci-shadow-{0}-{1}', github.event_name, github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  prepare:
+    name: Optimized Shadow / Prepare
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    env:
+      OES_CI_TASK_KEY: ci_${{ github.run_id }}_${{ github.run_attempt }}_shadow_prepare
+
+    steps:
+      - name: Checkout exact shadow input
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Set up Buf
+        uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+          github_token: ${{ github.token }}
+
+      - name: Install frozen dependencies once at the prepare boundary
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare task-owned tooling environment
+        run: pnpm env:ensure -- --task-key="${OES_CI_TASK_KEY}"
+
+      - name: Resolve immutable proto comparison base
+        env:
+          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          base="${EVENT_BASE_SHA}"
+          if [[ ! "${base}" =~ ^[0-9a-f]{40}$ ]] || [[ "${base}" == "0000000000000000000000000000000000000000" ]]; then
+            base="origin/main"
+          fi
+          printf 'OES_PROTO_BREAKING_BASE=%s\n' "${base}" >> "${GITHUB_ENV}"
+
+      - name: Prepare the complete generated and build surface
+        run: |
+          pnpm proto:lint
+          pnpm generated:all
+          pnpm proto:breaking
+          pnpm build:prepared
+          pnpm test:matrix:check
+
+      - name: Seal content-addressed prepared build and paired evidence
+        env:
+          OES_CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          OES_ACCEPTED_SOURCE_IDENTITY: ${{ github.event.pull_request.head.sha || github.sha }}
+          OES_ACCEPTED_RESULT_IDENTITY: ${{ github.sha }}
+          OES_CACHE_DISPOSITION: UNKNOWN
+        run: |
+          mkdir -p .tmp/ci-shadow
+          node scripts/local/ci-prepared-artifact.mjs stage --root .tmp/ci-shadow/prisma-engine
+          mapfile -t roots < <(find src/common src/services -type d \( -name dist -o -path 'src/common/src/generated' -o -path '*/prisma/generated/prisma' \) -print -prune | LC_ALL=C sort)
+          test "${#roots[@]}" -gt 1
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
+            --exclude='*/prisma/generated/prisma/libquery_engine-*' \
+            -czf .tmp/ci-shadow/prepared-build.tar.gz "${roots[@]}" .tmp/ci-shadow/prisma-engine
+          sha256sum .tmp/ci-shadow/prepared-build.tar.gz > .tmp/ci-shadow/prepared-build.sha256
+          digest="$(cut -d' ' -f1 .tmp/ci-shadow/prepared-build.sha256)"
+          OES_PREPARED_ARTIFACT_DIGEST="${digest}" node scripts/local/ci-performance-evidence.mjs \
+            --mode OPTIMIZED_SHADOW \
+            --output .tmp/ci-shadow/optimized-shadow.json
+
+      - name: Upload immutable prepared build and shadow evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: optimized-shadow-prepare-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .tmp/ci-shadow/prepared-build.tar.gz
+            .tmp/ci-shadow/prepared-build.sha256
+            .tmp/ci-shadow/optimized-shadow.json
+          if-no-files-found: error
+          retention-days: 30
+
+  risk-core:
+    name: Optimized Shadow / Risk Core
+    if: ${{ github.event_name == 'pull_request' }}
+    needs: [prepare]
+    runs-on: ubuntu-latest
+    env:
+      OES_CI_TASK_KEY: ci_${{ github.run_id }}_${{ github.run_attempt }}_shadow_risk
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm env:ensure -- --task-key="${OES_CI_TASK_KEY}"
+      - name: Restore and verify exact prepared build
+        uses: actions/download-artifact@v8
+        with:
+          name: optimized-shadow-prepare-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp/ci-shadow
+      - run: |
+          expected="$(cut -d' ' -f1 .tmp/ci-shadow/prepared-build.sha256)"
+          echo "${expected}  .tmp/ci-shadow/prepared-build.tar.gz" | sha256sum -c -
+          tar -xzf .tmp/ci-shadow/prepared-build.tar.gz
+          node scripts/local/ci-prepared-artifact.mjs restore --root .tmp/ci-shadow/prisma-engine
+      - name: Run non-sharded risk surfaces exactly once
+        run: |
+          pnpm test:tooling
+          pnpm test:design-gap
+          pnpm collaboration-runtime:check
+          node --test scripts/local/foundation-trusted-grpc-atomic-group.spec.mjs
+
+  unit-shards:
+    name: Optimized Shadow / Unit ${{ matrix.shard }}
+    if: ${{ github.event_name == 'pull_request' }}
+    needs: [prepare]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1]
+    env:
+      OES_CI_TASK_KEY: ci_${{ github.run_id }}_${{ github.run_attempt }}_shadow_unit_${{ matrix.shard }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm env:ensure -- --task-key="${OES_CI_TASK_KEY}"
+      - name: Restore and verify exact prepared build
+        uses: actions/download-artifact@v8
+        with:
+          name: optimized-shadow-prepare-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp/ci-shadow
+      - run: |
+          expected="$(cut -d' ' -f1 .tmp/ci-shadow/prepared-build.sha256)"
+          echo "${expected}  .tmp/ci-shadow/prepared-build.tar.gz" | sha256sum -c -
+          tar -xzf .tmp/ci-shadow/prepared-build.tar.gz
+          node scripts/local/ci-prepared-artifact.mjs restore --root .tmp/ci-shadow/prisma-engine
+      - run: pnpm test:unit -- --shard-index ${{ matrix.shard }} --shard-count 2
+
+  l2-shards:
+    name: Optimized Shadow / L2 ${{ matrix.shard }}
+    if: ${{ github.event_name == 'pull_request' }}
+    needs: [prepare]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2]
+    env:
+      OES_CI_TASK_KEY: ci_${{ github.run_id }}_${{ github.run_attempt }}_shadow_l2_${{ matrix.shard }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Restore exact prepared build
+        uses: actions/download-artifact@v8
+        with:
+          name: optimized-shadow-prepare-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp/ci-shadow
+      - name: Verify and extract exact prepared build
+        run: |
+          expected="$(cut -d' ' -f1 .tmp/ci-shadow/prepared-build.sha256)"
+          echo "${expected}  .tmp/ci-shadow/prepared-build.tar.gz" | sha256sum -c -
+          tar -xzf .tmp/ci-shadow/prepared-build.tar.gz
+          node scripts/local/ci-prepared-artifact.mjs restore --root .tmp/ci-shadow/prisma-engine
+      - name: Run one isolated weighted L2 shard
+        run: pnpm test:l2 -- --prepared --shard-index ${{ matrix.shard }} --shard-count 3
+      - name: Verify task-owned runtime cleanup
+        if: ${{ always() }}
+        run: |
+          state=".tmp/oes-database-lifecycle/${OES_CI_TASK_KEY}/state.json"
+          if [[ -f "${state}" ]]; then
+            pnpm db:rollback
+          fi
+          test -z "$(docker ps -aq --filter "label=oes.local.owner=${OES_CI_TASK_KEY}")"
+          test -z "$(docker volume ls -q --filter "label=oes.local.owner=${OES_CI_TASK_KEY}")"
+          test -z "$(docker network ls -q --filter "label=oes.local.owner=${OES_CI_TASK_KEY}")"
+
+  main-equivalence-smoke:
+    name: Optimized Shadow / Main Equivalence and Smoke
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    env:
+      OES_CI_TASK_KEY: ci_${{ github.run_id }}_${{ github.run_attempt }}_shadow_main
+    steps:
+      - name: Checkout exact main input
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+          github_token: ${{ github.token }}
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm env:ensure -- --task-key="${OES_CI_TASK_KEY}"
+      - name: Bind main evidence input
+        run: |
+          printf 'OES_CI_BASE_SHA=%s\n' "$(git rev-parse HEAD^)" >> "${GITHUB_ENV}"
+          printf 'OES_ACCEPTED_SOURCE_IDENTITY=%s\n' "${GITHUB_SHA}" >> "${GITHUB_ENV}"
+          printf 'OES_ACCEPTED_RESULT_IDENTITY=%s\n' "${GITHUB_SHA}" >> "${GITHUB_ENV}"
+      - name: Locate the successful associated PR artifact
+        id: locate
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { owner, repo } = context.repo
+            const { data: pullRequests } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner,
+              repo,
+              commit_sha: context.sha
+            })
+            const pullRequest = pullRequests.find(
+              (item) => item.merged_at && item.merge_commit_sha === context.sha
+            )
+            if (!pullRequest) {
+              core.setOutput('found', 'false')
+              return
+            }
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner,
+              repo,
+              workflow_id: 'ci-optimized-shadow.yml',
+              event: 'pull_request',
+              status: 'completed',
+              head_sha: pullRequest.head.sha,
+              per_page: 50
+            })
+            const runs = data.workflow_runs
+              .filter((run) => run.conclusion === 'success')
+              .sort((left, right) => right.run_number - left.run_number)
+            for (const run of runs) {
+              const { data: artifacts } = await github.rest.actions.listWorkflowRunArtifacts({
+                owner,
+                repo,
+                run_id: run.id,
+                per_page: 100
+              })
+              const name = `optimized-shadow-prepare-${run.id}-${run.run_attempt}`
+              const artifact = artifacts.artifacts.find(
+                (item) => item.name === name && !item.expired
+              )
+              if (artifact) {
+                core.setOutput('found', 'true')
+                core.setOutput('run_id', String(run.id))
+                core.setOutput('artifact_name', name)
+                return
+              }
+            }
+            core.setOutput('found', 'false')
+      - name: Restore associated PR prepared artifact
+        id: restore
+        if: ${{ steps.locate.outputs.found == 'true' }}
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ steps.locate.outputs.artifact_name }}
+          path: .tmp/ci-shadow
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.locate.outputs.run_id }}
+      - name: Prove exact main equivalence and restore build roots
+        id: equivalence
+        if: ${{ steps.locate.outputs.found == 'true' && steps.restore.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          node scripts/local/ci-main-equivalence.mjs \
+            --evidence .tmp/ci-shadow/optimized-shadow.json \
+            --archive .tmp/ci-shadow/prepared-build.tar.gz \
+            --checksum .tmp/ci-shadow/prepared-build.sha256
+          tar -xzf .tmp/ci-shadow/prepared-build.tar.gz
+          node scripts/local/ci-prepared-artifact.mjs restore --root .tmp/ci-shadow/prisma-engine
+          printf 'exact=true\n' >> "${GITHUB_OUTPUT}"
+      - name: Run exact-equivalent fast main smoke
+        if: ${{ steps.equivalence.outputs.exact == 'true' }}
+        run: |
+          pnpm test:matrix:check
+          pnpm test:tooling
+          pnpm collaboration-runtime:static
+          node --test scripts/local/foundation-trusted-grpc-atomic-group.spec.mjs
+      - name: Run fail-closed full fallback when equivalence is absent
+        if: ${{ steps.equivalence.outputs.exact != 'true' }}
+        run: |
+          export OES_PROTO_BREAKING_BASE="${OES_CI_BASE_SHA}"
+          pnpm proto:lint
+          pnpm generated:all
+          pnpm proto:breaking
+          pnpm build:prepared
+          pnpm test:matrix:check
+          pnpm test:design-gap
+          pnpm test:risk
+          pnpm test:l2 -- --prepared
+          mkdir -p .tmp/ci-shadow
+          node scripts/local/ci-prepared-artifact.mjs stage --root .tmp/ci-shadow/prisma-engine
+          mapfile -t roots < <(find src/common src/services -type d \( -name dist -o -path 'src/common/src/generated' -o -path '*/prisma/generated/prisma' \) -print -prune | LC_ALL=C sort)
+          test "${#roots[@]}" -gt 1
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
+            --exclude='*/prisma/generated/prisma/libquery_engine-*' \
+            -czf .tmp/ci-shadow/prepared-build.tar.gz "${roots[@]}" .tmp/ci-shadow/prisma-engine
+          sha256sum .tmp/ci-shadow/prepared-build.tar.gz > .tmp/ci-shadow/prepared-build.sha256
+      - name: Record optimized main observation
+        env:
+          OES_CACHE_DISPOSITION: UNKNOWN
+        run: |
+          digest="$(cut -d' ' -f1 .tmp/ci-shadow/prepared-build.sha256)"
+          OES_PREPARED_ARTIFACT_DIGEST="${digest}" node scripts/local/ci-performance-evidence.mjs \
+            --mode OPTIMIZED_SHADOW \
+            --output .tmp/ci-shadow/optimized-shadow-main.json
+      - name: Upload optimized main evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: optimized-shadow-main-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp/ci-shadow/optimized-shadow-main.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Verify main task-owned runtime cleanup
+        if: ${{ always() }}
+        run: |
+          state=".tmp/oes-database-lifecycle/${OES_CI_TASK_KEY}/state.json"
+          if [[ -f "${state}" ]]; then
+            pnpm db:rollback
+          fi
+          test -z "$(docker ps -aq --filter "label=oes.local.owner=${OES_CI_TASK_KEY}")"
+          test -z "$(docker volume ls -q --filter "label=oes.local.owner=${OES_CI_TASK_KEY}")"
+          test -z "$(docker network ls -q --filter "label=oes.local.owner=${OES_CI_TASK_KEY}")"
+
+  shadow-aggregate:
+    name: Optimized Shadow (non-required)
+    if: ${{ always() }}
+    needs: [prepare, risk-core, unit-shards, l2-shards, main-equivalence-smoke]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Aggregate complete shadow surface fail closed
+        env:
+          PREPARE_RESULT: ${{ needs.prepare.result }}
+          RISK_RESULT: ${{ needs.risk-core.result }}
+          UNIT_RESULT: ${{ needs.unit-shards.result }}
+          L2_RESULT: ${{ needs.l2-shards.result }}
+          MAIN_RESULT: ${{ needs.main-equivalence-smoke.result }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [[ "${EVENT_NAME}" == "pull_request" ]]; then
+            test "${PREPARE_RESULT}" = "success"
+            test "${RISK_RESULT}" = "success"
+            test "${UNIT_RESULT}" = "success"
+            test "${L2_RESULT}" = "success"
+            test "${MAIN_RESULT}" = "skipped"
+          else
+            test "${PREPARE_RESULT}" = "skipped"
+            test "${RISK_RESULT}" = "skipped"
+            test "${UNIT_RESULT}" = "skipped"
+            test "${L2_RESULT}" = "skipped"
+            test "${MAIN_RESULT}" = "success"
+          fi
+          printf 'OPTIMIZED_SHADOW=PASS event=%s prepare=%s risk=%s unit=%s l2=%s main=%s authoritative=false\n' \
+            "${EVENT_NAME}" "${PREPARE_RESULT}" "${RISK_RESULT}" "${UNIT_RESULT}" "${L2_RESULT}" "${MAIN_RESULT}"

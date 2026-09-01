@@ -7,7 +7,8 @@ import {
   ASSIGNED_TEST_SURFACES,
   assertJestResult,
   assertNoTestResidue,
-  discoverSpecs
+  discoverSpecs,
+  selectUnitShard
 } from './test-matrix.mjs'
 
 test('matrix binds all eight assigned non-empty test surfaces', () => {
@@ -75,4 +76,21 @@ test('unit driver rejects a certificate serial leaked into the repository root',
   } finally {
     fs.rmSync(root, { recursive: true, force: true })
   }
+})
+
+test('unit sharding assigns every surface exactly once with deterministic weights', () => {
+  const inventory = [
+    { name: 'alpha', specs: ['1', '2', '3'], typecheck: true },
+    { name: 'beta', specs: ['1', '2'] },
+    { name: 'gamma', specs: ['1'] }
+  ]
+  const shards = [selectUnitShard(inventory, 0, 2), selectUnitShard(inventory, 1, 2)]
+  assert.deepEqual(
+    shards
+      .flatMap((shard) => shard.items)
+      .map((item) => item.name)
+      .sort(),
+    ['alpha', 'beta', 'gamma']
+  )
+  assert.deepEqual(selectUnitShard(inventory, 0, 2), shards[0])
 })

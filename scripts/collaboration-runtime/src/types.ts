@@ -432,3 +432,129 @@ export interface CleanupDiffEntry {
   status: 'A' | 'C' | 'D' | 'M' | 'R' | 'T' | 'U' | 'X' | 'B'
   path: string
 }
+
+export interface StageMergeItem {
+  order: number
+  featureKey: string
+  ownerTaskId: string
+  pullRequestNumber: number
+  integrationBase: string
+  candidateSha: string
+  patchFingerprint: string
+  contentFingerprint: string
+  scopeFingerprint: string
+  riskFingerprint: string
+  requiredChecks: ['Baseline Checks']
+  featureRi: 'PASSED'
+}
+
+export interface StageMergeAuthorization {
+  schemaVersion: 1
+  kind: 'OES_STAGE_MERGE_AUTHORIZATION'
+  authorizationFingerprint: string
+  status: 'ISSUED'
+  expectedState: 'STAGE_MERGE_AUTHORIZED'
+  stateVersion: number
+  stageKey: string
+  stageOwnerTaskId: string
+  transitionId: string
+  confirmationFingerprint: string
+  stageScopeFingerprint: string
+  stageRiskFingerprint: string
+  orderedSetFingerprint: string
+  stageRi: 'PASSED'
+  stopPoint: 'STOP_SAME_STAGE_SUFFIX_ON_FAILURE'
+  items: StageMergeItem[]
+}
+
+export interface StageMergeItemResult {
+  order: number
+  featureKey: string
+  candidateSha: string
+  effectiveHeadSha: string
+  state: 'PENDING' | 'FAILED' | 'MERGED_VERIFIED'
+  acceptedMainSha: string | null
+  mergeSha: string | null
+  failureCode: string | null
+}
+
+export interface StageMergePlan {
+  status: 'ADMIT_NEXT' | 'STOPPED_FAILURE' | 'COMPLETE'
+  healthyPrefix: string[]
+  nextItem: StageMergeItem | null
+  blockedSuffix: string[]
+  failure: StageMergeItemResult | null
+}
+
+export interface StageMergeTechnicalRevision {
+  schemaVersion: 1
+  kind: 'OES_STAGE_MERGE_TECHNICAL_REVISION'
+  revisionFingerprint: string
+  stageAuthorizationFingerprint: string
+  featureKey: string
+  order: number
+  previousBase: string
+  latestMain: string
+  previousHead: string
+  refreshedHead: string
+  patchFingerprint: string
+  contentFingerprint: string
+  scopeFingerprint: string
+  riskFingerprint: string
+  orderedSetFingerprint: string
+  decision: 'TECHNICALLY_EQUIVALENT'
+}
+
+export type StageLifecycleRole =
+  | 'IT'
+  | 'FEATURE_RI'
+  | 'FL'
+  | 'STAGE_DESIGN'
+  | 'STAGE_RI'
+  | 'SL'
+  | 'GLOBAL_UD'
+
+export interface StageLifecycleTask {
+  taskId: string
+  role: StageLifecycleRole
+  ownerTaskId: string | null
+  state: 'TERMINAL' | 'ACTIVE' | 'UNKNOWN'
+}
+
+export interface StageLifecycleInventory {
+  schemaVersion: 1
+  kind: 'OES_STAGE_LIFECYCLE_INVENTORY'
+  inventoryFingerprint: string
+  stageKey: string
+  stageOwnerTaskId: string
+  cleanupIntentDetected: true
+  stageExit: 'PASSED' | 'PENDING' | 'FAILED'
+  resourceCleanup: 'PENDING' | 'VERIFIED' | 'PARTIAL_FAILURE'
+  createdRoster: StageLifecycleTask[]
+  terminalTaskIds: string[]
+}
+
+export interface StageArchiveResult {
+  taskId: string
+  role: StageLifecycleRole
+  state: 'ARCHIVED' | 'FAILED'
+  resultFingerprint: string
+}
+
+export interface StageArchiveDecision {
+  taskId: string
+  role: StageLifecycleRole
+  decision: 'ARCHIVE' | 'SKIP_ARCHIVED' | 'PRESERVE_BLOCKED' | 'EXCLUDE_GLOBAL_UD'
+  reason: string
+}
+
+export interface StageLifecyclePlan {
+  status:
+    | 'WAIT_STAGE_EXIT'
+    | 'WAIT_TERMINAL_ROSTER'
+    | 'WAIT_RESOURCE_CLEANUP'
+    | 'ARCHIVE_READY'
+    | 'ARCHIVE_PARTIAL_FAILURE'
+    | 'COMPLETE'
+  decisions: StageArchiveDecision[]
+}

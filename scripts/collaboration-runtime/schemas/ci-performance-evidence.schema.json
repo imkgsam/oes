@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/ci-performance-evidence-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "workloadFingerprint",
+    "executionFingerprint",
+    "workload",
+    "execution"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "OES_CI_PERFORMANCE_EVIDENCE" },
+    "workloadFingerprint": { "$ref": "#/$defs/sha256" },
+    "executionFingerprint": { "$ref": "#/$defs/sha256" },
+    "workload": { "$ref": "#/$defs/workload" },
+    "execution": { "$ref": "#/$defs/execution" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "stringArray": { "type": "array", "items": { "type": "string" } },
+    "workload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceSha",
+        "sourceTreeSha",
+        "baseSha",
+        "acceptedSourceIdentity",
+        "acceptedResultIdentity",
+        "changedPaths",
+        "riskClass",
+        "stagePullRequests",
+        "commandInventory",
+        "testInventory",
+        "lockfileDigest",
+        "toolchain",
+        "cacheDisposition"
+      ],
+      "properties": {
+        "sourceSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "sourceTreeSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "baseSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "acceptedSourceIdentity": { "type": "string", "minLength": 1 },
+        "acceptedResultIdentity": { "type": "string", "minLength": 1 },
+        "changedPaths": { "$ref": "#/$defs/stringArray" },
+        "riskClass": { "enum": ["STANDARD", "HIGH"] },
+        "stagePullRequests": { "$ref": "#/$defs/stringArray" },
+        "commandInventory": { "$ref": "#/$defs/stringArray" },
+        "testInventory": { "$ref": "#/$defs/stringArray" },
+        "lockfileDigest": { "$ref": "#/$defs/sha256" },
+        "toolchain": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["node", "pnpm", "buf"],
+          "properties": {
+            "node": { "type": "string", "minLength": 1 },
+            "pnpm": { "type": "string", "minLength": 1 },
+            "buf": { "type": "string", "minLength": 1 }
+          }
+        },
+        "cacheDisposition": { "type": "string", "minLength": 1 }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workflowRevision",
+        "eventTopology",
+        "mode",
+        "shardStrategy",
+        "cacheStrategy",
+        "artifactStrategy",
+        "artifactDigest"
+      ],
+      "properties": {
+        "workflowRevision": { "$ref": "#/$defs/sha256" },
+        "eventTopology": { "type": "string", "minLength": 1 },
+        "mode": { "enum": ["LEGACY_CONTROL", "OPTIMIZED_SHADOW", "OPTIMIZED_ACTIVE"] },
+        "shardStrategy": { "type": "string", "minLength": 1 },
+        "cacheStrategy": { "type": "string", "minLength": 1 },
+        "artifactStrategy": { "type": "string", "minLength": 1 },
+        "artifactDigest": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}

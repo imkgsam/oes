@@ -3,7 +3,24 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { discoverL2Packages, selectL2Packages, serviceDatabaseUrl } from './l2-test-runner.mjs'
+import {
+  buildL2JestArguments,
+  discoverL2Packages,
+  L2_JEST_TIMEOUT_MS,
+  selectL2Packages,
+  selectL2Shard,
+  serviceDatabaseUrl
+} from './l2-test-runner.mjs'
+
+test('L2 Jest command uses a bounded integration timeout without changing assertions', () => {
+  const args = buildL2JestArguments(
+    { name: 'one-service', specs: ['test/l2/one.spec.ts'] },
+    '/tmp/one.json'
+  )
+  assert.equal(args[args.indexOf('--testTimeout') + 1], String(L2_JEST_TIMEOUT_MS))
+  assert.equal(args.includes('--runInBand'), true)
+  assert.equal(args.includes('--runTestsByPath'), true)
+})
 
 test('L2 discovery binds exact specs to the closest package and rejects no tests', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'oes-l2-matrix-'))
@@ -53,6 +70,24 @@ test('focused L2 selection preserves inventory order and rejects unknown package
     () => selectL2Packages(inventory, ['missing-service']),
     /L2_PACKAGE_UNKNOWN packages=missing-service/
   )
+})
+
+test('L2 sharding is deterministic, balanced, non-empty, and complete', () => {
+  const inventory = Object.freeze([
+    Object.freeze({ name: 'alpha-service', specs: ['a', 'b', 'c'] }),
+    Object.freeze({ name: 'beta-service', specs: ['a', 'b'] }),
+    Object.freeze({ name: 'gamma-service', specs: ['a'] })
+  ])
+  const left = selectL2Shard(inventory, 0, 2)
+  const right = selectL2Shard(inventory, 1, 2)
+  assert.deepEqual([...left.items, ...right.items].map((item) => item.name).sort(), [
+    'alpha-service',
+    'beta-service',
+    'gamma-service'
+  ])
+  assert.ok(Math.abs(left.weight - right.weight) <= 1)
+  assert.deepEqual(selectL2Shard(inventory, 0, 2), left)
+  assert.throws(() => selectL2Shard(inventory, 0, 4), /CI_SHARD_EMPTY_FORBIDDEN/)
 })
 
 test('local trust bootstrap keeps the OpenSSL CA serial below the task-owned output root', () => {

@@ -6,6 +6,9 @@ import { fileURLToPath } from 'node:url'
 import { loadDatabaseContext } from './database-lifecycle.mjs'
 import { parseEnvironmentFile } from './worktree-env.mjs'
 import { assertJestResult, assertNoTestResidue } from './test-matrix.mjs'
+import { parseShardFlags, selectWeightedShard } from './ci-sharding.mjs'
+
+export const L2_JEST_TIMEOUT_MS = 30_000
 
 /** Discovers every versioned service L2 spec and binds it to its owning package. */
 export function discoverL2Packages(repositoryRoot = defaultRepositoryRoot()) {
@@ -62,9 +65,28 @@ export function selectL2Packages(inventory, requestedNames = []) {
   return Object.freeze(selected)
 }
 
+/** Selects one deterministic, non-empty L2 package shard weighted by exact suite count. */
+export function selectL2Shard(inventory, shardIndex, shardCount) {
+  return selectWeightedShard(
+    inventory,
+    shardIndex,
+    shardCount,
+    (entry) => entry.name,
+    (entry) => entry.specs.length
+  )
+}
+
 /** Runs all L2 specs against exact task-owned Postgres/NATS resources and always rolls them back. */
-export function runL2Matrix(repositoryRoot = defaultRepositoryRoot(), requestedNames = []) {
-  const inventory = selectL2Packages(discoverL2Packages(repositoryRoot), requestedNames)
+export function runL2Matrix(
+  repositoryRoot = defaultRepositoryRoot(),
+  requestedNames = [],
+  shardIndex = null,
+  shardCount = null,
+  prepared = false
+) {
+  const selected = selectL2Packages(discoverL2Packages(repositoryRoot), requestedNames)
+  const inventory =
+    shardIndex === null ? selected : selectL2Shard(selected, shardIndex, shardCount).items
   assertNoTestResidue(repositoryRoot)
   run('pnpm', ['env:ensure'], { cwd: repositoryRoot })
   const context = loadDatabaseContext(repositoryRoot)
@@ -76,12 +98,21 @@ export function runL2Matrix(repositoryRoot = defaultRepositoryRoot(), requestedN
   let totalSuites = 0
   let totalTests = 0
   try {
-    run('pnpm', ['generated:all'], { cwd: repositoryRoot })
-    run('pnpm', ['common:build'], { cwd: repositoryRoot })
-    run('pnpm', ['db:up'], { cwd: repositoryRoot })
+    if (prepared) assertPreparedBuild(repositoryRoot, inventory)
+    else {
+      run('pnpm', ['generated:all'], { cwd: repositoryRoot })
+      run('pnpm', ['common:build'], { cwd: repositoryRoot })
+    }
+    run('pnpm', ['db:up', '--', '--profile', 'l2'], { cwd: repositoryRoot })
     lifecycleStarted = true
     run('pnpm', ['db:health'], { cwd: repositoryRoot })
-    run('pnpm', ['db:migrate'], { cwd: repositoryRoot })
+    run(
+      'pnpm',
+      ['db:migrate', '--', '--services', inventory.map((entry) => entry.name).join(',')],
+      {
+        cwd: repositoryRoot
+      }
+    )
     const trustEnvironment = bootstrapTaskTrust(context, repositoryRoot)
 
     const state = JSON.parse(fs.readFileSync(statePath, 'utf8'))
@@ -97,20 +128,7 @@ export function runL2Matrix(repositoryRoot = defaultRepositoryRoot(), requestedN
       const databaseUrl = serviceDatabaseUrl(context, service, postgresPort)
       const outputFile = path.join(evidenceDirectory, `${safeName(entry.name)}.json`)
       fs.rmSync(outputFile, { force: true })
-      const args = [
-        '--filter',
-        entry.name,
-        'exec',
-        'jest',
-        '--config',
-        'jest.config.js',
-        '--runInBand',
-        '--runTestsByPath',
-        ...entry.specs,
-        '--json',
-        '--outputFile',
-        outputFile
-      ]
+      const args = buildL2JestArguments(entry, outputFile)
       const result = runAllowFailure('pnpm', args, {
         cwd: repositoryRoot,
         env: {
@@ -183,6 +201,26 @@ export function runL2Matrix(repositoryRoot = defaultRepositoryRoot(), requestedN
     }
   }
   if (primaryFailure) throw primaryFailure
+}
+
+/** Builds the exact L2 Jest command with an integration-appropriate bounded hook timeout. */
+export function buildL2JestArguments(entry, outputFile) {
+  return [
+    '--filter',
+    entry.name,
+    'exec',
+    'jest',
+    '--config',
+    'jest.config.js',
+    '--runInBand',
+    '--testTimeout',
+    String(L2_JEST_TIMEOUT_MS),
+    '--runTestsByPath',
+    ...entry.specs,
+    '--json',
+    '--outputFile',
+    outputFile
+  ]
 }
 
 /** Creates owner-local workload material and binds Collaboration's real mTLS client construction to it. */
@@ -339,6 +377,26 @@ function safeName(value) {
   return value.replaceAll(/[^a-z0-9-]+/giu, '_')
 }
 
+/** Rejects a prepared L2 shard when the verified build artifact was not restored. */
+function assertPreparedBuild(repositoryRoot, inventory) {
+  for (const target of ['src/common/dist', 'src/common/src/generated'])
+    if (!fs.existsSync(path.join(repositoryRoot, target)))
+      throw new Error(`L2_PREPARED_BUILD_MISSING path=${target}`)
+  for (const entry of inventory) {
+    const generated = path.join(entry.packageRoot, 'prisma', 'generated', 'prisma')
+    if (!fs.existsSync(generated)) {
+      throw new Error(`L2_PREPARED_BUILD_MISSING path=${path.relative(repositoryRoot, generated)}`)
+    }
+    const engines = fs.readdirSync(generated).filter((name) => /query_engine-.*\.node$/.test(name))
+    if (engines.length !== 1) {
+      throw new Error(
+        `L2_PREPARED_ENGINE_COUNT_INVALID path=${path.relative(repositoryRoot, generated)} count=${engines.length}`
+      )
+    }
+  }
+  process.stdout.write(`L2_PREPARED_BUILD=VERIFIED services=${inventory.length}\n`)
+}
+
 /** Resolves the repository root from this script location. */
 function defaultRepositoryRoot() {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -347,8 +405,14 @@ function defaultRepositoryRoot() {
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : undefined
 if (invokedPath === fileURLToPath(import.meta.url)) {
   try {
-    const [command, ...rawPackageNames] = process.argv.slice(2)
-    const packageNames = rawPackageNames.filter((name) => name !== '--')
+    const [command, ...rawArguments] = process.argv.slice(2)
+    const prepared = rawArguments.includes('--prepared')
+    const {
+      shardIndex,
+      shardCount,
+      remaining: parsedArguments
+    } = parseShardFlags(rawArguments.filter((argument) => argument !== '--prepared'))
+    const packageNames = parsedArguments
     if (command === 'check') {
       const inventory = discoverL2Packages()
       for (const entry of inventory) {
@@ -358,7 +422,7 @@ if (invokedPath === fileURLToPath(import.meta.url)) {
         `L2_MATRIX_CHECK=PASS packages=${inventory.length} suites=${inventory.reduce((sum, entry) => sum + entry.specs.length, 0)}\n`
       )
     } else if (command === 'run') {
-      runL2Matrix(defaultRepositoryRoot(), packageNames)
+      runL2Matrix(defaultRepositoryRoot(), packageNames, shardIndex, shardCount, prepared)
     } else {
       throw new Error('L2_TEST_COMMAND_REQUIRED expected=check|run')
     }

@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { parseShardFlags, selectWeightedShard } from './ci-sharding.mjs'
 
 export const ASSIGNED_TEST_SURFACES = Object.freeze([
   Object.freeze({ name: '@oes/common', directory: 'src/common', roots: ['src'], typecheck: true }),
@@ -83,8 +84,27 @@ export function validateMatrix(repositoryRoot = defaultRepositoryRoot()) {
 }
 
 /** Runs every exact unit/component spec and rejects hidden skip/todo/empty results. */
-export function runUnitMatrix(repositoryRoot = defaultRepositoryRoot()) {
-  const inventory = validateMatrix(repositoryRoot)
+export function selectUnitShard(inventory, shardIndex, shardCount) {
+  return selectWeightedShard(
+    inventory,
+    shardIndex,
+    shardCount,
+    (entry) => entry.name,
+    (entry) => entry.specs.length + (entry.typecheck === true ? 1 : 0)
+  )
+}
+
+/** Runs every exact unit/component spec assigned to one optional deterministic shard. */
+export function runUnitMatrix(
+  repositoryRoot = defaultRepositoryRoot(),
+  shardIndex = null,
+  shardCount = null
+) {
+  const completeInventory = validateMatrix(repositoryRoot)
+  const inventory =
+    shardIndex === null
+      ? completeInventory
+      : selectUnitShard(completeInventory, shardIndex, shardCount).items
   const evidenceDirectory = path.join(repositoryRoot, '.tmp', 'oes-test-matrix', 'unit')
   fs.mkdirSync(evidenceDirectory, { recursive: true })
   assertNoTestResidue(repositoryRoot)
@@ -182,7 +202,9 @@ function defaultRepositoryRoot() {
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : undefined
 if (invokedPath === fileURLToPath(import.meta.url)) {
   try {
-    const [command] = process.argv.slice(2)
+    const [command, ...rawArguments] = process.argv.slice(2)
+    const { shardIndex, shardCount, remaining } = parseShardFlags(rawArguments)
+    if (remaining.length > 0) throw new Error(`TEST_MATRIX_ARGUMENT_UNKNOWN value=${remaining[0]}`)
     if (command === 'check') {
       const inventory = validateMatrix()
       for (const surface of inventory) {
@@ -192,7 +214,7 @@ if (invokedPath === fileURLToPath(import.meta.url)) {
       }
       process.stdout.write(`TEST_MATRIX_CHECK=PASS packages=${inventory.length}\n`)
     } else if (command === 'unit') {
-      runUnitMatrix()
+      runUnitMatrix(defaultRepositoryRoot(), shardIndex, shardCount)
     } else {
       throw new Error('TEST_MATRIX_COMMAND_REQUIRED expected=check|unit')
     }

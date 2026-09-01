@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('ci-pr-{0}', github.event.pull_request.number) || format('ci-{0}-{1}', github.event_name, github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   static-risk:
     name: Static and Risk Checks
@@ -78,6 +82,24 @@ jobs:
 
       - name: Run high-risk unit and contract tests
         run: pnpm test:risk
+
+      - name: Record legacy control identity
+        if: ${{ !cancelled() }}
+        env:
+          OES_CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          OES_ACCEPTED_SOURCE_IDENTITY: ${{ github.event.pull_request.head.sha || github.sha }}
+          OES_ACCEPTED_RESULT_IDENTITY: ${{ github.sha }}
+          OES_CACHE_DISPOSITION: UNKNOWN
+        run: node scripts/local/ci-performance-evidence.mjs --mode LEGACY_CONTROL --output .tmp/ci-performance/legacy-control.json
+
+      - name: Upload legacy control evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: legacy-control-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp/ci-performance/legacy-control.json
+          if-no-files-found: error
+          retention-days: 30
 
   l2-runtime:
     name: L2 Runtime Checks

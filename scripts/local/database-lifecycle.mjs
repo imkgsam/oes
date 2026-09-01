@@ -67,6 +67,23 @@ const LIFECYCLE_INFRA_SERVICES = Object.freeze([
   ...DATABASE_LIFECYCLE_INIT_SERVICES,
   'nats-advisory-monitor'
 ])
+const INFRA_PROFILES = Object.freeze({
+  full: Object.freeze({
+    initServices: DATABASE_LIFECYCLE_INIT_SERVICES,
+    longRunningServices: LONG_RUNNING_INFRA_SERVICES,
+    monitor: true,
+    resources: EXPECTED_INFRA_RESOURCES
+  }),
+  l2: Object.freeze({
+    initServices: Object.freeze(['nats-bootstrap']),
+    longRunningServices: Object.freeze(['postgres', 'nats']),
+    monitor: true,
+    resources: Object.freeze({
+      network: Object.freeze(['oes_network']),
+      volume: Object.freeze(['nats_jetstream_data', 'postgres_data'])
+    })
+  })
+})
 
 /** Runs a command with literal output and fails on a non-zero exit status. */
 function run(command, args, options = {}) {
@@ -588,9 +605,13 @@ function ownerNamedResourceNames(context, kind) {
 }
 
 /** Checks exact named volumes/networks before creation or destructive rollback. */
-function assertNamedResourceOwnership(context, environmentPath, { requireExisting }) {
+function assertNamedResourceOwnership(
+  context,
+  environmentPath,
+  { requireExisting, resources = EXPECTED_INFRA_RESOURCES }
+) {
   const rendered = renderedCompose(context, environmentPath)
-  for (const [kind, logicalNames] of Object.entries(EXPECTED_INFRA_RESOURCES)) {
+  for (const [kind, logicalNames] of Object.entries(resources)) {
     const definitions = kind === 'volume' ? rendered.volumes : rendered.networks
     const expectedNames = []
     for (const logicalName of logicalNames) {
@@ -716,8 +737,8 @@ function verifyDatabaseInvariants(context, environmentPath, service) {
   }
 }
 
-function createDatabases(context, environmentPath) {
-  for (const service of context.services) {
+function createDatabases(context, environmentPath, services = context.services) {
+  for (const service of services) {
     const exists = postgresExec(
       context,
       environmentPath,
@@ -973,41 +994,63 @@ function prepareBaseline(context, environmentPath, service, databaseUrl) {
   clearBaselineResolutionCheckpoint(context, service)
 }
 
-function up(context, environmentPath) {
+/** Resolves the exact infrastructure surface for a full lifecycle or isolated L2 shard. */
+export function selectInfraProfile(name = 'full') {
+  const profile = INFRA_PROFILES[name]
+  if (!profile) throw new Error(`DATABASE_INFRA_PROFILE_INVALID profile=${name}`)
+  return profile
+}
+
+function up(context, environmentPath, profileName = 'full') {
+  const profile = selectInfraProfile(profileName)
   assertContainerOwnership(context)
-  assertNamedResourceOwnership(context, environmentPath, { requireExisting: false })
-  writeState(context, { phase: 'STARTING' })
+  assertNamedResourceOwnership(context, environmentPath, {
+    requireExisting: false,
+    resources: profile.resources
+  })
+  writeState(context, { phase: 'STARTING', infraProfile: profileName })
   compose(context, environmentPath, INFRA_COMPOSE, [
     'up',
     '-d',
     '--wait',
     '--wait-timeout',
     '240',
-    ...LONG_RUNNING_INFRA_SERVICES
+    ...profile.longRunningServices
   ])
-  for (const service of DATABASE_LIFECYCLE_INIT_SERVICES) {
+  for (const service of profile.initServices) {
     compose(context, environmentPath, INFRA_COMPOSE, ['up', '--no-deps', service])
   }
-  compose(context, environmentPath, INFRA_COMPOSE, [
-    'up',
-    '-d',
-    '--no-deps',
-    'nats-advisory-monitor'
-  ])
+  if (profile.monitor) {
+    compose(context, environmentPath, INFRA_COMPOSE, [
+      'up',
+      '-d',
+      '--no-deps',
+      'nats-advisory-monitor'
+    ])
+  }
   assertContainerOwnership(context)
-  assertNamedResourceOwnership(context, environmentPath, { requireExisting: true })
+  assertNamedResourceOwnership(context, environmentPath, {
+    requireExisting: true,
+    resources: profile.resources
+  })
   const port = postgresPort(context, environmentPath)
-  writeState(context, { phase: 'UP', postgresPort: port })
-  process.stdout.write(`INFRA_UP=PASS project=${context.projectName} postgresPort=${port}\n`)
+  writeState(context, { phase: 'UP', infraProfile: profileName, postgresPort: port })
+  process.stdout.write(`INFRA_UP=PASS project=${context.projectName} profile=${profileName} postgresPort=${port}\n`)
 }
 
 function health(context, environmentPath) {
+  const state = readState(context)
+  assertRollbackBinding(context, state)
+  const profileName = state.infraProfile ?? 'full'
+  selectInfraProfile(profileName)
   const ids = assertContainerOwnership(context)
   if (ids.length === 0) throw new Error('HEALTH_PROJECT_NOT_RUNNING')
+  const runningServices = new Set()
   for (const id of ids) {
     const payload = JSON.parse(capture('docker', ['inspect', id]))[0]
     const service = payload.Config.Labels['com.docker.compose.service']
     const status = payload.State.Status
+    runningServices.add(service)
     if (COMPLETED_SERVICES.has(service)) {
       if (status !== 'exited' || payload.State.ExitCode !== 0) {
         throw new Error(`HEALTH_COMPLETION_FAILED service=${service} status=${status} exit=${payload.State.ExitCode}`)
@@ -1021,19 +1064,38 @@ function health(context, environmentPath) {
     process.stdout.write(`HEALTH service=${service} status=${status} health=${payload.State.Health?.Status ?? 'n/a'}\n`)
   }
   for (const [service, endpoint] of Object.entries(HTTP_READINESS)) {
+    if (!runningServices.has(service)) continue
     const port = servicePort(context, environmentPath, service, endpoint.port)
     const url = `http://127.0.0.1:${port}${endpoint.path}`
     const result = probeHttpReadiness(url)
     process.stdout.write(`READINESS service=${service} status=PASS attempt=${result.attempt}\n`)
   }
   writeState(context, { phase: 'HEALTHY' })
-  process.stdout.write(`INFRA_HEALTH=PASS containers=${ids.length}\n`)
+  process.stdout.write(`INFRA_HEALTH=PASS profile=${profileName} containers=${ids.length}\n`)
 }
 
-function migrate(context, environmentPath) {
+/** Selects an exact non-empty database subset while rejecting duplicate and unknown service names. */
+export function selectDatabaseServices(services, requestedNames = []) {
+  if (requestedNames.length === 0) return services
+  const duplicates = requestedNames.filter((name, index) => requestedNames.indexOf(name) !== index)
+  if (duplicates.length > 0) {
+    throw new Error(`DATABASE_SERVICE_DUPLICATE services=${[...new Set(duplicates)].sort().join(',')}`)
+  }
+  const requested = new Set(requestedNames)
+  const selected = services.filter((service) => requested.delete(service.name))
+  if (requested.size > 0) {
+    throw new Error(`DATABASE_SERVICE_UNKNOWN services=${[...requested].sort().join(',')}`)
+  }
+  if (selected.length === 0) throw new Error('DATABASE_SERVICE_SELECTION_EMPTY')
+  return Object.freeze(selected)
+}
+
+/** Migrates either the complete inventory or one exact CI shard-owned database subset. */
+function migrate(context, environmentPath, requestedNames = []) {
   const state = readState(context)
   assertRollbackBinding(context, state)
-  createDatabases(context, environmentPath)
+  const services = selectDatabaseServices(context.services, requestedNames)
+  createDatabases(context, environmentPath, services)
   const port = state.postgresPort ?? postgresPort(context, environmentPath)
   const failureAfterRaw = process.env.OES_DB_FAIL_AFTER
   const failureAfter = failureAfterRaw === undefined ? undefined : Number(failureAfterRaw)
@@ -1041,7 +1103,7 @@ function migrate(context, environmentPath) {
     throw new Error('MIGRATION_FAILURE_INJECTION_INVALID')
   }
   let completed = 0
-  for (const service of context.services) {
+  for (const service of services) {
     if (failureAfter === completed) {
       throw new Error(`MIGRATION_FAILURE_INJECTED after=${completed}`)
     }
@@ -1338,8 +1400,12 @@ function verify(context, environmentPath) {
 function rollback(context, environmentPath) {
   const state = readState(context)
   assertRollbackBinding(context, state)
+  const profile = selectInfraProfile(state.infraProfile ?? 'full')
   assertContainerOwnership(context)
-  assertNamedResourceOwnership(context, environmentPath, { requireExisting: true })
+  assertNamedResourceOwnership(context, environmentPath, {
+    requireExisting: true,
+    resources: profile.resources
+  })
   run('docker', databaseRollbackComposeArgs(context, environmentPath), {
     cwd: context.repositoryRoot
   })
@@ -1419,13 +1485,14 @@ function config(context, environmentPath) {
 
 /** Executes the bounded database lifecycle CLI. */
 export function main(argv = process.argv.slice(2)) {
-  const [command] = argv
+  const [command, ...rawArguments] = argv
+  const arguments_ = rawArguments.filter((argument) => argument !== '--')
   const context = loadDatabaseContext()
   const environmentPath = writeComposeEnvironment(context)
   if (command === 'config') config(context, environmentPath)
-  else if (command === 'up') up(context, environmentPath)
+  else if (command === 'up') up(context, environmentPath, parseProfileArguments(arguments_))
   else if (command === 'health') health(context, environmentPath)
-  else if (command === 'migrate') migrate(context, environmentPath)
+  else if (command === 'migrate') migrate(context, environmentPath, parseServiceArguments(arguments_))
   else if (command === 'seed') seed(context, environmentPath)
   else if (command === 'verify') verify(context, environmentPath)
   else if (command === 'rollback') rollback(context, environmentPath)
@@ -1439,6 +1506,29 @@ export function main(argv = process.argv.slice(2)) {
   } else {
     throw new Error('DATABASE_COMMAND_REQUIRED expected=config|up|health|migrate|seed|verify|rollback|cycle')
   }
+}
+
+/** Parses the bounded infrastructure profile used only by task-local L2 execution. */
+function parseProfileArguments(arguments_) {
+  if (arguments_.length === 0) return 'full'
+  if (arguments_.length !== 2 || arguments_[0] !== '--profile') {
+    throw new Error('DATABASE_INFRA_PROFILE_ARGUMENT_INVALID expected=--profile full|l2')
+  }
+  selectInfraProfile(arguments_[1])
+  return arguments_[1]
+}
+
+/** Parses the single explicit --services CSV selector used by isolated L2 shards. */
+function parseServiceArguments(arguments_) {
+  if (arguments_.length === 0) return []
+  if (arguments_.length !== 2 || arguments_[0] !== '--services') {
+    throw new Error('DATABASE_SERVICE_ARGUMENT_INVALID expected=--services <service[,service]>')
+  }
+  const names = arguments_[1].split(',')
+  if (names.some((name) => !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name))) {
+    throw new Error('DATABASE_SERVICE_ARGUMENT_INVALID expected=--services <service[,service]>')
+  }
+  return names
 }
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : undefined
