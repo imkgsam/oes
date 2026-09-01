@@ -25,8 +25,6 @@ export interface EmployeeLoginAccountSummary extends IdentityAccountSummary {
 
 export interface IIdentityServicePort {
   getUserById(userId: string): Promise<IdentityUserSummary | null>
-  getUserByEmail(email: string): Promise<IdentityUserSummary | null>
-  getUserByPhone(phone: string): Promise<IdentityUserSummary | null>
   getAvailableAccountsByUserId(userId: string): Promise<AccountCandidateSummary[]>
   getAccountById(accountId: string): Promise<IdentityAccountSummary | null>
   resolveAuthLoginAccount(userId: string, accountId: string): Promise<IdentityAccountSummary | null>

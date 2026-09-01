@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import {
+  AUTH_ACCEPTANCE_FIXTURES,
   buildSeedAccounts,
   buildSeedHrEmployees,
   buildSeedIdentityEmployeeBindings,
@@ -33,18 +34,59 @@ test('tenant-web auth seed baseline stays minimal and tenant scoped', () => {
   const employees = buildSeedHrEmployees()
   const tenantParties = buildSeedTenantParties()
 
-  assert.equal(tenants.length, 2)
-  assert.equal(users.length, 4)
-  assert.equal(accounts.length, 4)
+  assert.equal(tenants.length, 3)
+  assert.equal(users.length, 7)
+  assert.equal(accounts.length, 7)
   assert.equal(employees.length, 4)
   assert.equal(
     tenantParties.filter((party) => party.type === 'ORGANIZATION').length,
-    2
+    3
   )
   assert.equal(
     tenantParties.filter((party) => party.type === 'PERSON').length,
     4
   )
+})
+
+test('tenant-web auth seed defines independent recovery, MFA, and password-setup states', () => {
+  const fixtures = AUTH_ACCEPTANCE_FIXTURES
+  assert.equal(
+    new Set([
+      fixtures.passwordRecovery.userId,
+      fixtures.passwordSetup.userId,
+      fixtures.mfa.userId
+    ]).size,
+    3
+  )
+  assert.deepEqual(fixtures.passwordRecovery.expectedChannels, ['EMAIL', 'PHONE'])
+  assert.deepEqual(fixtures.mfa.tenantTerminalMfaPolicy, {
+    terminal: 'WEB',
+    loginMfaRequired: true,
+    newDeviceMfaRequired: false,
+    allowedFactors: ['TOTP'],
+    factorPriority: ['TOTP']
+  })
+  assert.equal(fixtures.mfa.binding.type, 'TOTP')
+  assert.equal(fixtures.mfa.binding.enabled, true)
+  assert.deepEqual(fixtures.passwordSetup.requirement, {
+    id: '00000000-0000-4000-8000-000000000821',
+    reason: 'FIRST_LOGIN',
+    required: true,
+    requiredBy: 'seed:tenant-web-auth',
+    requiredAt: new Date('2026-04-14T09:00:00.000Z')
+  })
+})
+
+test('tenant-web auth seed resets stale grants before rebuilding dedicated acceptance state', () => {
+  const grantCleanup = source.indexOf('passwordRecoveryGrant.deleteMany')
+  const loginMethodCleanup = source.indexOf('loginMethod.deleteMany')
+  assert.notEqual(grantCleanup, -1)
+  assert.ok(grantCleanup < loginMethodCleanup)
+  assert.match(source, /mfaBinding\.deleteMany/)
+  assert.match(source, /mfaBinding\.create/)
+  assert.match(source, /passwordSetupRequirement\.deleteMany/)
+  assert.match(source, /passwordSetupRequirement\.create/)
+  assert.match(source, /tenantTerminalMfaPolicy\.upsert/)
 })
 
 test('tenant-web auth seed keeps identity account and HR employee tenantPartyId aligned', () => {
@@ -68,4 +110,13 @@ test('tenant-web auth seed writes only exact managed HUMAN principal bindings', 
   assert.match(source, /principalType:\s*PrincipalType\.HUMAN/)
   assert.match(source, /principalId:\s*\{ in: managedHumanPrincipalIds \}/)
   assert.doesNotMatch(source, /\{ scopeLevel: ScopeLevel\.TENANT \}/)
+})
+
+test('tenant-web auth seed never prints login identifiers, passwords, OTPs, or database URLs', () => {
+  assert.doesNotMatch(source, /summary\.loginUsers\.(?:join|at)|summary\.loginUsers\[/)
+  assert.doesNotMatch(source, /PDA_LOGIN_SMOKE_SEED\.identifier/)
+  assert.doesNotMatch(source, /BROWSER_EXTENSION_DESIGNER_DEMO_SEED\.identifier/)
+  assert.doesNotMatch(source, /`Password: \$\{DEFAULT_PASSWORD\}`/)
+  assert.doesNotMatch(source, /`OTP: \$\{DEFAULT_OTP_CODE\}`/)
+  assert.match(source, /sanitizeTenantWebAuthSeedMessage/)
 })
