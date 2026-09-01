@@ -8,7 +8,7 @@ worktreeKey: collaboration-framework-continuous-optimization
 pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
-state: RUNNING
+state: CANDIDATE_READY
 
 ## Objective
 
@@ -18,9 +18,9 @@ state: RUNNING
 
 ### stage-merge-runtime
 
-state: RUNNING
-candidate: pending
-review: local-ri
+state: CANDIDATE_READY
+candidate: 165262e4061d391616cdda64b0efab3f4d134521
+review: Feature RI exact integration candidate pending
 
 - Scope: Stage merge 卡完整性、有序逐项 admission、健康前缀保留、失败后缀停止、main 漂移技术等价修订。
 - Protected scope: 不创建总产品分支/PR，不 direct push main，不改变 Merge Commit 与 `Baseline Checks` 保护。
@@ -29,9 +29,9 @@ review: local-ri
 
 ### cleanup-archive-runtime
 
-state: READY
-candidate: pending
-review: local-ri
+state: CANDIDATE_READY
+candidate: 165262e4061d391616cdda64b0efab3f4d134521
+review: Feature RI exact integration candidate pending
 
 - Scope: cleanup 意图触发的完整 roster 盘点、partial retry、依赖序自动 archive。
 - Protected scope: unknown/shared/active/dirty/SHA mismatch 原样保留；长期 Global UD 不归档；不创建 task registry/watchdog。
@@ -40,9 +40,9 @@ review: local-ri
 
 ### optimized-ci-shadow
 
-state: READY
-candidate: pending
-review: local-ri
+state: CANDIDATE_READY
+candidate: 165262e4061d391616cdda64b0efab3f4d134521
+review: Feature RI exact integration candidate pending
 
 - Scope: PR stale-run cancellation、确定性测试 inventory/sharding、generated/Prisma artifact 单次构建复用与相同 Prisma engine 单副本传输、L2 仅启动 Postgres/NATS 且只迁移本 shard 数据库、main exact-equivalence fast smoke/full fallback、独立 cleanup、paired fingerprint evidence、non-required optimized shadow。
 - Protected scope: legacy full gate 继续唯一 authoritative `Baseline Checks`；shadow 不写 Git/PR/main，不授权 merge，不缩减验证面。
@@ -55,3 +55,12 @@ review: local-ri
 - CI workflow syntax/static contracts、deterministic shard coverage、cleanup residue 均通过。
 - legacy authoritative behavior 与 optimized shadow behavior 都有可复现证据。
 - 独立 Feature RI 审核 exact candidate 后才发布 Draft PR。
+
+## Candidate evidence
+
+- implementation ancestor: `165262e4061d391616cdda64b0efab3f4d134521`
+- full prepared build, proto compatibility, design-gap, risk/unit and collaboration runtime gates: exit `0`
+- deterministic L2 shards: `20/20 suites, 45 tests` in 68s; `20/20 suites, 57 tests` in 66s; `19/19 suites, 83 tests` in 62s; every shard rollback verified zero task-owned container/volume/network residue
+- prepared artifact roundtrip: 21 Prisma targets, one engine digest, 21/21 restored; local compressed fixture reduced from 192,577,704 to 21,530,266 bytes
+- workflow syntax: `actionlint v1.7.12`, exit `0`; formatting and static contracts: exit `0`
+- performance cutover: pending the frozen 20 PR/main pairs, cold-cache/superseded/Stage/attempt minimums and all thresholds; legacy `Baseline Checks` remains authoritative
