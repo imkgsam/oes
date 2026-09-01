@@ -342,6 +342,8 @@ function validateResult(
       revision.refreshedHead !== result.effectiveHeadSha
     )
       fail('STAGE_MERGE_RESULT_REVISION_MISMATCH', item.featureKey)
+    if (!repositoryRoot) fail('STAGE_MERGE_REVISION_READBACK_REQUIRED', item.featureKey)
+    verifyTechnicalRevisionEquivalence(repositoryRoot, item, revision, runner)
   }
   if (result.state === 'MERGED_VERIFIED') {
     if (
@@ -369,6 +371,40 @@ function validateResult(
   ) {
     fail('STAGE_MERGE_PENDING_RESULT_INVALID', item.featureKey)
   }
+}
+
+/** Recomputes moving-main Git equivalence and ancestry whenever a revision enters admission. */
+function verifyTechnicalRevisionEquivalence(
+  repositoryRoot: string,
+  item: StageMergeItem,
+  revision: StageMergeTechnicalRevision,
+  runner: CommandRunner
+): void {
+  const previous = readStageMergeCandidateFingerprints(
+    repositoryRoot,
+    revision.previousBase,
+    revision.previousHead,
+    runner
+  )
+  const refreshed = readStageMergeCandidateFingerprints(
+    repositoryRoot,
+    revision.latestMain,
+    revision.refreshedHead,
+    runner
+  )
+  if (
+    previous.patchFingerprint !== item.patchFingerprint ||
+    previous.contentFingerprint !== item.contentFingerprint ||
+    refreshed.patchFingerprint !== item.patchFingerprint ||
+    refreshed.contentFingerprint !== item.contentFingerprint
+  )
+    fail('STAGE_MERGE_REVISION_EQUIVALENCE_READBACK_MISMATCH', item.featureKey)
+  const ancestry = runner.run(
+    'git',
+    ['merge-base', '--is-ancestor', revision.previousHead, revision.refreshedHead],
+    repositoryRoot
+  )
+  if (ancestry.exitCode !== 0) fail('STAGE_MERGE_REFRESH_NOT_FAST_FORWARD', item.featureKey)
 }
 
 /** Re-reads merged PR, merge parents, main ancestry, and main Baseline Checks. */

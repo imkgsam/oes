@@ -155,19 +155,10 @@ test('moving-main revision accepts only unchanged card content and ordering', ()
     effectiveHeadSha: input.refreshedHead,
     technicalRevisionFingerprint: revision.revisionFingerprint
   }
+  const admissionRunner = revisedMergedReadbackRunner(value, input, patch, content, '7'.repeat(40))
   assert.equal(
-    planStageMerge(
-      value,
-      [revisedResult],
-      [revision],
-      '/fixture',
-      mergedReadbackRunner(
-        value,
-        '7'.repeat(40),
-        new Map([[item.featureKey, input.refreshedHead]]),
-        new Map([[item.featureKey, input.latestMain]])
-      )
-    ).nextItem?.featureKey,
+    planStageMerge(value, [revisedResult], [revision], '/fixture', admissionRunner).nextItem
+      ?.featureKey,
     'beta'
   )
   assert.throws(
@@ -244,6 +235,25 @@ test('moving-main rejects a refreshed feature head that rewrites previous histor
     () => createTechnicalRevision(value, input, '/fixture', rejectingRunner),
     /STAGE_MERGE_REFRESH_NOT_FAST_FORWARD/
   )
+
+  const revision = createTechnicalRevision(value, input, '/fixture', baseRunner)
+  const revisedResult: StageMergeItemResult = {
+    ...merged(value, 0),
+    effectiveHeadSha: input.refreshedHead,
+    technicalRevisionFingerprint: revision.revisionFingerprint
+  }
+  const forgedAdmissionRunner = revisedMergedReadbackRunner(
+    value,
+    input,
+    patch,
+    content,
+    '7'.repeat(40),
+    false
+  )
+  assert.throws(
+    () => planStageMerge(value, [revisedResult], [revision], '/fixture', forgedAdmissionRunner),
+    /STAGE_MERGE_REFRESH_NOT_FAST_FORWARD/
+  )
 })
 
 test('Stage merge rejects unknown result states before they can extend the healthy prefix', () => {
@@ -314,6 +324,42 @@ function revisionRunner(
           exitCode: 0
         }
       return { stdout: '', stderr: `unexpected ${command} ${args.join(' ')}`, exitCode: 1 }
+    }
+  }
+}
+
+/** Combines immutable Git equivalence facts with the final merged PR/main readback. */
+function revisedMergedReadbackRunner(
+  value: StageMergeAuthorization,
+  input: {
+    previousHead: string
+    latestMain: string
+    refreshedHead: string
+  },
+  patch: string,
+  content: string,
+  currentMain: string,
+  fastForward = true
+): CommandRunner {
+  const revision = revisionRunner(input.latestMain, input.refreshedHead, patch, content)
+  const merged = mergedReadbackRunner(
+    value,
+    currentMain,
+    new Map([[value.items[0].featureKey, input.refreshedHead]]),
+    new Map([[value.items[0].featureKey, input.latestMain]])
+  )
+  return {
+    run(command, args, cwd) {
+      if (
+        command === 'git' &&
+        args.join(' ') ===
+          `merge-base --is-ancestor ${input.previousHead} ${input.refreshedHead}` &&
+        !fastForward
+      )
+        return { stdout: '', stderr: '', exitCode: 1 }
+      if (command === 'git' && ['cat-file', 'diff', 'merge-base'].includes(args[0]))
+        return revision.run(command, args, cwd)
+      return merged.run(command, args, cwd)
     }
   }
 }
