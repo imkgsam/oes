@@ -550,6 +550,8 @@ export interface StageLifecycleRosterAuthority {
   authorityFingerprint: string
   stageKey: string
   stageOwnerTaskId: string
+  transitionId: string
+  stageCleanupAuthorizationFingerprint: string
   source: 'TASK_NATIVE_CREATION_RECEIPTS'
   createdRoster: StageLifecycleCreatedTask[]
 }
@@ -560,6 +562,8 @@ export interface StageLifecycleInventory {
   inventoryFingerprint: string
   stageKey: string
   stageOwnerTaskId: string
+  transitionId: string
+  stageCleanupAuthorizationFingerprint: string
   cleanupIntentDetected: true
   stageExit: 'PASSED' | 'PENDING' | 'FAILED'
   resourceCleanup: 'PENDING' | 'VERIFIED' | 'PARTIAL_FAILURE'
@@ -577,6 +581,18 @@ export interface StageArchiveResult {
   inventoryFingerprint: string
   taskNativeReadbackFingerprint: string
   resultFingerprint: string
+}
+
+export interface StageArchiveResultSet {
+  schemaVersion: 1
+  kind: 'OES_STAGE_ARCHIVE_RESULT_SET'
+  resultSetFingerprint: string
+  stageKey: string
+  stageOwnerTaskId: string
+  transitionId: string
+  stageCleanupAuthorizationFingerprint: string
+  inventoryFingerprint: string
+  results: StageArchiveResult[]
 }
 
 export interface StageArchiveDecision {

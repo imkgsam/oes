@@ -161,7 +161,12 @@ test('moving-main revision accepts only unchanged card content and ordering', ()
       [revisedResult],
       [revision],
       '/fixture',
-      mergedReadbackRunner(value, '7'.repeat(40), new Map([[item.featureKey, input.refreshedHead]]))
+      mergedReadbackRunner(
+        value,
+        '7'.repeat(40),
+        new Map([[item.featureKey, input.refreshedHead]]),
+        new Map([[item.featureKey, input.latestMain]])
+      )
     ).nextItem?.featureKey,
     'beta'
   )
@@ -178,6 +183,66 @@ test('moving-main revision accepts only unchanged card content and ordering', ()
   assert.throws(
     () => planStageMerge(value, [{ ...revisedResult, technicalRevisionFingerprint: null }]),
     /REVISION_REQUIRED/
+  )
+})
+
+test('Stage merge readback binds every first parent to the authorized ordered history', () => {
+  const value = card()
+  const wrongOrder = mergedReadbackRunner(
+    value,
+    '8'.repeat(40),
+    new Map(),
+    new Map([
+      ['alpha', '8'.repeat(40)],
+      ['beta', '1'.repeat(40)]
+    ])
+  )
+  assert.throws(
+    () => planStageMerge(value, [merged(value, 0), merged(value, 1)], [], '/fixture', wrongOrder),
+    /STAGE_MERGE_MERGE_PARENTS_MISMATCH/
+  )
+})
+
+test('moving-main rejects a refreshed feature head that rewrites previous history', () => {
+  const value = card()
+  const item = value.items[0]
+  const patch = 'exact feature patch\n'
+  const content = ':100644 100644 a b M\tfeature.ts\n'
+  item.patchFingerprint = crypto.createHash('sha256').update(patch).digest('hex')
+  item.contentFingerprint = crypto.createHash('sha256').update(content).digest('hex')
+  value.orderedSetFingerprint = objectFingerprint(
+    value.items as unknown as Record<string, unknown>,
+    '__none__'
+  )
+  value.authorizationFingerprint = objectFingerprint(
+    value as unknown as Record<string, unknown>,
+    'authorizationFingerprint'
+  )
+  const input = {
+    featureKey: item.featureKey,
+    order: item.order,
+    previousBase: item.integrationBase,
+    latestMain: 'd'.repeat(40),
+    previousHead: item.candidateSha,
+    refreshedHead: 'e'.repeat(40),
+    scopeFingerprint: item.scopeFingerprint,
+    riskFingerprint: item.riskFingerprint,
+    orderedSetFingerprint: value.orderedSetFingerprint
+  }
+  const baseRunner = revisionRunner(input.latestMain, input.refreshedHead, patch, content)
+  const rejectingRunner: CommandRunner = {
+    run(command, args, cwd) {
+      if (
+        command === 'git' &&
+        args.join(' ') === `merge-base --is-ancestor ${input.previousHead} ${input.refreshedHead}`
+      )
+        return { stdout: '', stderr: '', exitCode: 1 }
+      return baseRunner.run(command, args, cwd)
+    }
+  }
+  assert.throws(
+    () => createTechnicalRevision(value, input, '/fixture', rejectingRunner),
+    /STAGE_MERGE_REFRESH_NOT_FAST_FORWARD/
   )
 })
 
@@ -257,7 +322,8 @@ function revisionRunner(
 function mergedReadbackRunner(
   value: StageMergeAuthorization,
   currentMain: string,
-  effectiveHeads: Map<string, string> = new Map()
+  effectiveHeads: Map<string, string> = new Map(),
+  firstParents: Map<string, string> = new Map()
 ): CommandRunner {
   return {
     run(command, args) {
@@ -289,7 +355,13 @@ function mergedReadbackRunner(
         return {
           stdout: JSON.stringify({
             parents: [
-              { sha: '1'.repeat(40) },
+              {
+                sha:
+                  firstParents.get(commitItem.featureKey) ??
+                  (commitItem.order === 1
+                    ? commitItem.integrationBase
+                    : `${commitItem.order + 5}`.repeat(40))
+              },
               { sha: effectiveHeads.get(commitItem.featureKey) ?? commitItem.candidateSha }
             ]
           }),

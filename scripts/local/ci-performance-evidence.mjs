@@ -78,6 +78,7 @@ export function generateCiPerformanceEvidence(
   environment = process.env
 ) {
   const sourceSha = git(repositoryRoot, ['rev-parse', 'HEAD'])
+  const sourceTreeSha = git(repositoryRoot, ['rev-parse', 'HEAD^{tree}'])
   const base = validSha(environment.OES_CI_BASE_SHA)
     ? environment.OES_CI_BASE_SHA
     : gitAllowFailure(repositoryRoot, ['rev-parse', `${sourceSha}^`]) || sourceSha
@@ -87,10 +88,10 @@ export function generateCiPerformanceEvidence(
   const evidence = buildCiPerformanceEvidence({
     mode,
     sourceSha,
-    sourceTreeSha: git(repositoryRoot, ['rev-parse', 'HEAD^{tree}']),
+    sourceTreeSha,
     baseSha: base,
     acceptedSourceIdentity: environment.OES_ACCEPTED_SOURCE_IDENTITY || sourceSha,
-    acceptedResultIdentity: environment.OES_ACCEPTED_RESULT_IDENTITY || sourceSha,
+    acceptedResultIdentity: environment.OES_ACCEPTED_RESULT_IDENTITY || sourceTreeSha,
     changedPaths,
     riskClass: ciRiskClass(changedPaths),
     stagePullRequests: (environment.OES_STAGE_PULL_REQUESTS || '').split(',').filter(Boolean),

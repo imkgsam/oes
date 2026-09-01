@@ -1,14 +1,19 @@
 import { objectFingerprint } from './canonical.ts'
+import { verifyTrustedReference } from './binding.ts'
 import { fail } from './errors.ts'
 import type {
+  RemoteTrustRoots,
   StageArchiveDecision,
   StageArchiveResult,
+  StageArchiveResultSet,
+  StageCleanupAuthorization,
   StageLifecycleCreatedTask,
   StageLifecycleInventory,
   StageLifecyclePlan,
   StageLifecycleRole,
   StageLifecycleRosterAuthority,
-  StageLifecycleTask
+  StageLifecycleTask,
+  TrustedAuthorizationReference
 } from './types.ts'
 
 const ROLE_TIER: Record<Exclude<StageLifecycleRole, 'GLOBAL_UD'>, number> = {
@@ -20,6 +25,112 @@ const ROLE_TIER: Record<Exclude<StageLifecycleRole, 'GLOBAL_UD'>, number> = {
   SL: 4
 }
 const DIGEST = /^[0-9a-f]{64}$/
+const trustedAuthorities = new WeakSet<object>()
+const trustedInventories = new WeakSet<object>()
+const trustedResultSets = new WeakSet<object>()
+
+/** Reopens one creation roster from the profile-protected authorization root. */
+export function loadTrustedStageLifecycleRosterAuthority(
+  reference: TrustedAuthorizationReference,
+  cleanup: StageCleanupAuthorization,
+  trust: RemoteTrustRoots
+): StageLifecycleRosterAuthority {
+  const value = validateStageLifecycleRosterAuthority(
+    verifyTrustedReference(
+      reference,
+      trust.authorizationRoot,
+      'authorityFingerprint'
+    ) as unknown as StageLifecycleRosterAuthority
+  )
+  validateLifecycleCleanupBinding(value, cleanup, trust)
+  const frozen = deepFreeze(value)
+  trustedAuthorities.add(frozen)
+  return frozen
+}
+
+/** Reopens one fresh task-native roster/state readback from the protected authorization root. */
+export function loadTrustedStageLifecycleInventory(
+  reference: TrustedAuthorizationReference,
+  authority: StageLifecycleRosterAuthority,
+  cleanup: StageCleanupAuthorization,
+  trust: RemoteTrustRoots
+): StageLifecycleInventory {
+  if (!trustedAuthorities.has(authority))
+    fail('STAGE_LIFECYCLE_TRUSTED_AUTHORITY_REQUIRED', authority.stageKey)
+  const value = validateStageLifecycleInventory(
+    authority,
+    verifyTrustedReference(
+      reference,
+      trust.authorizationRoot,
+      'inventoryFingerprint'
+    ) as unknown as StageLifecycleInventory
+  )
+  validateLifecycleCleanupBinding(value, cleanup, trust)
+  const frozen = deepFreeze(value)
+  trustedInventories.add(frozen)
+  return frozen
+}
+
+/** Reopens task-native archive results as one inventory-bound protected result set. */
+export function loadTrustedStageArchiveResults(
+  reference: TrustedAuthorizationReference,
+  inventory: StageLifecycleInventory,
+  cleanup: StageCleanupAuthorization,
+  trust: RemoteTrustRoots
+): StageArchiveResult[] {
+  if (!trustedInventories.has(inventory))
+    fail('STAGE_LIFECYCLE_TRUSTED_INVENTORY_REQUIRED', inventory.stageKey)
+  const set = verifyTrustedReference(
+    reference,
+    trust.authorizationRoot,
+    'resultSetFingerprint'
+  ) as unknown as StageArchiveResultSet
+  if (
+    set.schemaVersion !== 1 ||
+    set.kind !== 'OES_STAGE_ARCHIVE_RESULT_SET' ||
+    set.stageKey !== inventory.stageKey ||
+    set.stageOwnerTaskId !== inventory.stageOwnerTaskId ||
+    set.transitionId !== inventory.transitionId ||
+    set.stageCleanupAuthorizationFingerprint !== inventory.stageCleanupAuthorizationFingerprint ||
+    set.inventoryFingerprint !== inventory.inventoryFingerprint ||
+    !Array.isArray(set.results)
+  )
+    fail('STAGE_ARCHIVE_RESULT_SET_BINDING_MISMATCH', inventory.stageKey)
+  validateLifecycleCleanupBinding(set, cleanup, trust)
+  const results = deepFreeze(set.results)
+  trustedResultSets.add(results)
+  return results
+}
+
+/** Binds every lifecycle receipt to the exact current cleanup authorization and profile owner. */
+function validateLifecycleCleanupBinding(
+  value: {
+    stageKey: string
+    stageOwnerTaskId: string
+    transitionId: string
+    stageCleanupAuthorizationFingerprint: string
+  },
+  cleanup: StageCleanupAuthorization,
+  trust: RemoteTrustRoots
+): void {
+  if (
+    cleanup.stageOwnerTaskId !== trust.ownerTaskId ||
+    value.stageKey !== cleanup.stageKey ||
+    value.stageOwnerTaskId !== cleanup.stageOwnerTaskId ||
+    value.transitionId !== cleanup.transitionId ||
+    value.stageCleanupAuthorizationFingerprint !== cleanup.authorizationFingerprint
+  )
+    fail('STAGE_LIFECYCLE_CLEANUP_BINDING_MISMATCH', value.stageKey)
+}
+
+/** Freezes a reopened receipt graph so its trust mark cannot survive caller mutation. */
+function deepFreeze<T>(value: T): T {
+  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+    for (const child of Object.values(value as Record<string, unknown>)) deepFreeze(child)
+    Object.freeze(value)
+  }
+  return value
+}
 
 /** Validates the immutable task-native creation receipts captured before cleanup intent. */
 export function validateStageLifecycleRosterAuthority(
@@ -31,6 +142,8 @@ export function validateStageLifecycleRosterAuthority(
     value.source !== 'TASK_NATIVE_CREATION_RECEIPTS' ||
     value.stageKey.length === 0 ||
     value.stageOwnerTaskId.length === 0 ||
+    value.transitionId.length === 0 ||
+    !DIGEST.test(value.stageCleanupAuthorizationFingerprint) ||
     !Array.isArray(value.createdRoster) ||
     value.createdRoster.length === 0
   )
@@ -71,11 +184,15 @@ export function validateStageLifecycleInventory(
     value.cleanupIntentDetected !== true ||
     value.stageKey.length === 0 ||
     value.stageOwnerTaskId.length === 0 ||
+    value.transitionId.length === 0 ||
+    !DIGEST.test(value.stageCleanupAuthorizationFingerprint) ||
     !['PASSED', 'PENDING', 'FAILED'].includes(value.stageExit) ||
     !['PENDING', 'VERIFIED', 'PARTIAL_FAILURE'].includes(value.resourceCleanup) ||
     value.taskReadbackSource !== 'CODEX_TASK_NATIVE' ||
     value.stageKey !== authority.stageKey ||
     value.stageOwnerTaskId !== authority.stageOwnerTaskId ||
+    value.transitionId !== authority.transitionId ||
+    value.stageCleanupAuthorizationFingerprint !== authority.stageCleanupAuthorizationFingerprint ||
     value.rosterAuthorityFingerprint !== authority.authorityFingerprint ||
     !Array.isArray(value.terminalTaskIds)
   )
@@ -188,6 +305,12 @@ export function planStageLifecycle(
   inventoryInput: StageLifecycleInventory,
   priorResults: StageArchiveResult[] = []
 ): StageLifecyclePlan {
+  if (!trustedAuthorities.has(rosterAuthorityInput))
+    fail('STAGE_LIFECYCLE_TRUSTED_AUTHORITY_REQUIRED', rosterAuthorityInput.stageKey)
+  if (!trustedInventories.has(inventoryInput))
+    fail('STAGE_LIFECYCLE_TRUSTED_INVENTORY_REQUIRED', inventoryInput.stageKey)
+  if (priorResults.length > 0 && !trustedResultSets.has(priorResults))
+    fail('STAGE_LIFECYCLE_TRUSTED_ARCHIVE_RESULTS_REQUIRED', inventoryInput.stageKey)
   const inventory = validateStageLifecycleInventory(rosterAuthorityInput, inventoryInput)
   const excluded = inventory.readbackRoster.filter((task) => task.role === 'GLOBAL_UD')
   const archiveRoster = inventory.readbackRoster.filter((task) => task.role !== 'GLOBAL_UD')

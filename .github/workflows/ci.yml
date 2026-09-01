@@ -88,9 +88,10 @@ jobs:
         env:
           OES_CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
           OES_ACCEPTED_SOURCE_IDENTITY: ${{ github.event.pull_request.head.sha || github.sha }}
-          OES_ACCEPTED_RESULT_IDENTITY: ${{ github.sha }}
           OES_CACHE_DISPOSITION: UNKNOWN
-        run: node scripts/local/ci-performance-evidence.mjs --mode LEGACY_CONTROL --output .tmp/ci-performance/legacy-control.json
+        run: |
+          export OES_ACCEPTED_RESULT_IDENTITY="$(git rev-parse HEAD^{tree})"
+          node scripts/local/ci-performance-evidence.mjs --mode LEGACY_CONTROL --output .tmp/ci-performance/legacy-control.json
 
       - name: Upload legacy control evidence
         if: ${{ !cancelled() }}

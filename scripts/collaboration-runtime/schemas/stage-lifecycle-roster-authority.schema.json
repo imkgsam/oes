@@ -9,6 +9,8 @@
     "authorityFingerprint",
     "stageKey",
     "stageOwnerTaskId",
+    "transitionId",
+    "stageCleanupAuthorizationFingerprint",
     "source",
     "createdRoster"
   ],
@@ -18,6 +20,8 @@
     "authorityFingerprint": { "$ref": "#/$defs/sha256" },
     "stageKey": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
     "stageOwnerTaskId": { "type": "string", "minLength": 1 },
+    "transitionId": { "type": "string", "minLength": 1 },
+    "stageCleanupAuthorizationFingerprint": { "$ref": "#/$defs/sha256" },
     "source": { "const": "TASK_NATIVE_CREATION_RECEIPTS" },
     "createdRoster": {
       "type": "array",

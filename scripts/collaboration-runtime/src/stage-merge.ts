@@ -98,10 +98,11 @@ export function planStageMerge(
   const revisions = validateTechnicalRevisions(authorization, technicalRevisions)
   const healthyPrefix: string[] = []
   let failure: StageMergeItemResult | null = null
+  let previousVerifiedMergeSha: string | null = null
   for (let index = 0; index < results.length; index += 1) {
     const result = results[index]
     const item = authorization.items[index]
-    validateResult(result, item, revisions, repositoryRoot, runner)
+    validateResult(result, item, revisions, previousVerifiedMergeSha, repositoryRoot, runner)
     if (failure) fail('STAGE_MERGE_RESULT_AFTER_FAILURE', result.featureKey)
     if (result.state === 'PENDING') {
       if (index !== results.length - 1) fail('STAGE_MERGE_RESULT_AFTER_PENDING', result.featureKey)
@@ -112,6 +113,7 @@ export function planStageMerge(
       break
     }
     healthyPrefix.push(result.featureKey)
+    previousVerifiedMergeSha = result.mergeSha
   }
   if (failure) {
     return {
@@ -183,6 +185,12 @@ export function createTechnicalRevision(
     previous.contentFingerprint !== refreshed.contentFingerprint
   )
     fail('STAGE_MERGE_GIT_PATCH_CHANGED', input.featureKey)
+  const ancestry = runner.run(
+    'git',
+    ['merge-base', '--is-ancestor', input.previousHead, input.refreshedHead],
+    repositoryRoot
+  )
+  if (ancestry.exitCode !== 0) fail('STAGE_MERGE_REFRESH_NOT_FAST_FORWARD', input.featureKey)
 
   const pullReadback = readPullRequest(repositoryRoot, item.pullRequestNumber, runner)
   if (
@@ -308,6 +316,7 @@ function validateResult(
   result: StageMergeItemResult,
   item: StageMergeItem,
   revisions: Map<string, StageMergeTechnicalRevision>,
+  previousVerifiedMergeSha: string | null,
   repositoryRoot: string | undefined,
   runner: CommandRunner
 ): void {
@@ -319,13 +328,14 @@ function validateResult(
     !['PENDING', 'FAILED', 'MERGED_VERIFIED'].includes(result.state)
   )
     fail('STAGE_MERGE_RESULT_BINDING_MISMATCH', item.featureKey)
+  let revision: StageMergeTechnicalRevision | undefined
   if (result.effectiveHeadSha === item.candidateSha) {
     if (result.technicalRevisionFingerprint !== null)
       fail('STAGE_MERGE_RESULT_REVISION_UNEXPECTED', item.featureKey)
   } else {
     if (!result.technicalRevisionFingerprint)
       fail('STAGE_MERGE_RESULT_REVISION_REQUIRED', item.featureKey)
-    const revision = revisions.get(result.technicalRevisionFingerprint)
+    revision = revisions.get(result.technicalRevisionFingerprint)
     if (
       !revision ||
       revision.featureKey !== item.featureKey ||
@@ -342,7 +352,9 @@ function validateResult(
     )
       fail('STAGE_MERGE_VERIFIED_RESULT_INVALID', item.featureKey)
     if (!repositoryRoot) fail('STAGE_MERGE_REMOTE_READBACK_REQUIRED', item.featureKey)
-    verifyMergedResultReadback(repositoryRoot, item, result, runner)
+    const expectedFirstParent =
+      previousVerifiedMergeSha ?? revision?.latestMain ?? item.integrationBase
+    verifyMergedResultReadback(repositoryRoot, item, result, expectedFirstParent, runner)
   } else if (result.state === 'FAILED') {
     if (
       !result.failureCode ||
@@ -364,6 +376,7 @@ function verifyMergedResultReadback(
   repositoryRoot: string,
   item: StageMergeItem,
   result: StageMergeItemResult,
+  expectedFirstParent: string,
   runner: CommandRunner
 ): void {
   const slug = readRepositorySlug(repositoryRoot, runner)
@@ -382,8 +395,9 @@ function verifyMergedResultReadback(
   ) as { parents?: Array<{ sha?: string }> }
   if (
     commit.parents?.length !== 2 ||
+    commit.parents[0]?.sha !== expectedFirstParent ||
     commit.parents[1]?.sha !== result.effectiveHeadSha ||
-    !SHA.test(String(commit.parents[0]?.sha ?? ''))
+    !SHA.test(expectedFirstParent)
   )
     fail('STAGE_MERGE_MERGE_PARENTS_MISMATCH', item.featureKey)
   const remoteMain = readRemoteMain(repositoryRoot, runner)

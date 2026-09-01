@@ -75,7 +75,6 @@ jobs:
         env:
           OES_CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           OES_ACCEPTED_SOURCE_IDENTITY: ${{ github.event.pull_request.head.sha || github.sha }}
-          OES_ACCEPTED_RESULT_IDENTITY: ${{ github.sha }}
           OES_CACHE_DISPOSITION: UNKNOWN
         run: |
           mkdir -p .tmp/ci-shadow
@@ -87,7 +86,8 @@ jobs:
             -czf .tmp/ci-shadow/prepared-build.tar.gz "${roots[@]}" .tmp/ci-shadow/prisma-engine
           sha256sum .tmp/ci-shadow/prepared-build.tar.gz > .tmp/ci-shadow/prepared-build.sha256
           digest="$(cut -d' ' -f1 .tmp/ci-shadow/prepared-build.sha256)"
-          OES_PREPARED_ARTIFACT_DIGEST="${digest}" node scripts/local/ci-performance-evidence.mjs \
+          OES_ACCEPTED_RESULT_IDENTITY="$(git rev-parse HEAD^{tree})" \
+            OES_PREPARED_ARTIFACT_DIGEST="${digest}" node scripts/local/ci-performance-evidence.mjs \
             --mode OPTIMIZED_SHADOW \
             --output .tmp/ci-shadow/optimized-shadow.json
 
@@ -240,8 +240,8 @@ jobs:
       - name: Bind main evidence input
         run: |
           printf 'OES_CI_BASE_SHA=%s\n' "$(git rev-parse HEAD^)" >> "${GITHUB_ENV}"
-          printf 'OES_ACCEPTED_SOURCE_IDENTITY=%s\n' "${GITHUB_SHA}" >> "${GITHUB_ENV}"
-          printf 'OES_ACCEPTED_RESULT_IDENTITY=%s\n' "${GITHUB_SHA}" >> "${GITHUB_ENV}"
+          printf 'OES_ACCEPTED_SOURCE_IDENTITY=%s\n' "$(git rev-parse HEAD^2)" >> "${GITHUB_ENV}"
+          printf 'OES_ACCEPTED_RESULT_IDENTITY=%s\n' "$(git rev-parse HEAD^{tree})" >> "${GITHUB_ENV}"
       - name: Locate the successful associated PR artifact
         id: locate
         continue-on-error: true

@@ -6,6 +6,7 @@ import test from 'node:test'
 import {
   buildL2JestArguments,
   discoverL2Packages,
+  L2_SERIAL_CONFLICT_GROUPS,
   L2_JEST_TIMEOUT_MS,
   partitionL2Shards,
   selectL2Packages,
@@ -100,6 +101,25 @@ test('internal L2 shards use the same deterministic complete partition', () => {
   const shards = partitionL2Shards(inventory, 2)
   assert.deepEqual(shards[0], selectL2Shard(inventory, 0, 2))
   assert.deepEqual(shards[1], selectL2Shard(inventory, 1, 2))
+})
+
+test('shared NATS publishers and consumers are serialized in one L2 conflict lane', () => {
+  assert.deepEqual(L2_SERIAL_CONFLICT_GROUPS, [['collaboration-service', 'notification-service']])
+  const inventory = Object.freeze([
+    Object.freeze({ name: 'collaboration-service', specs: ['a', 'b', 'c', 'd'] }),
+    Object.freeze({ name: 'notification-service', specs: ['a', 'b', 'c', 'd', 'e'] }),
+    Object.freeze({ name: 'identity-service', specs: Array(9).fill('a') }),
+    Object.freeze({ name: 'permission-service', specs: Array(8).fill('a') }),
+    Object.freeze({ name: 'site-service', specs: Array(8).fill('a') })
+  ])
+  const shards = partitionL2Shards(inventory, 3)
+  const collaborationShard = shards.find((shard) =>
+    shard.items.some((entry) => entry.name === 'collaboration-service')
+  )
+  assert.deepEqual(
+    collaborationShard.items.map((entry) => entry.name),
+    ['collaboration-service', 'notification-service']
+  )
 })
 
 test('local trust bootstrap keeps the OpenSSL CA serial below the task-owned output root', () => {

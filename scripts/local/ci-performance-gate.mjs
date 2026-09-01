@@ -1,9 +1,43 @@
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+const trustedSamples = new WeakSet()
+
+/** Reopens one GitHub-readback sample from the effective-profile authorization root. */
+export function loadTrustedCiPerformanceSample(reference, trust) {
+  if (!reference || typeof reference !== 'object')
+    throw new Error('CI_PERFORMANCE_REFERENCE_REQUIRED')
+  if (!path.isAbsolute(reference.path) || !path.isAbsolute(trust?.authorizationRoot ?? ''))
+    throw new Error('CI_PERFORMANCE_TRUST_ROOT_INVALID')
+  const root = fs.realpathSync(trust.authorizationRoot)
+  const target = fs.realpathSync(reference.path)
+  const relative = path.relative(root, target)
+  if (relative === '' || relative.startsWith('..') || path.isAbsolute(relative))
+    throw new Error('CI_PERFORMANCE_SAMPLE_OUTSIDE_TRUST_ROOT')
+  const bytes = fs.readFileSync(target)
+  if (!digest(reference.sha256) || sha256(bytes) !== reference.sha256)
+    throw new Error('CI_PERFORMANCE_SAMPLE_SHA_MISMATCH')
+  const sample = JSON.parse(bytes.toString('utf8'))
+  if (
+    sample.schemaVersion !== 1 ||
+    sample.kind !== 'OES_CI_PERFORMANCE_SAMPLE' ||
+    sample.source !== 'GITHUB_ACTIONS_READBACK' ||
+    !/^[^/\s]+\/[^/\s]+$/.test(sample.repository ?? '') ||
+    reference.fingerprint !== sample.sampleFingerprint ||
+    !digest(sample.sampleFingerprint) ||
+    sample.sampleFingerprint !== fingerprint(sample, 'sampleFingerprint')
+  )
+    throw new Error('CI_PERFORMANCE_SAMPLE_PROVENANCE_INVALID')
+  deepFreeze(sample)
+  trustedSamples.add(sample)
+  return sample
+}
+
 /** Evaluates the frozen optimized-CI cutover thresholds from one complete task-local sample. */
 export function evaluateCiPerformanceCutover(sample) {
+  if (!trustedSamples.has(sample)) throw new Error('CI_PERFORMANCE_TRUSTED_SAMPLE_REQUIRED')
   const pairs = requiredArray(sample.acceptedPairs, 'acceptedPairs')
   const superseded = requiredArray(sample.supersededPairs, 'supersededPairs')
   const stages = requiredArray(sample.stageSequences, 'stageSequences')
@@ -121,6 +155,14 @@ function validatePairedObservation(value, collection, observationIds, runIdentit
     value.controlArtifactIdentity === value.shadowArtifactIdentity
   )
     throw new Error(`CI_PERFORMANCE_ARTIFACT_BINDING_INVALID collection=${collection}`)
+  if (
+    !/^\d+:[1-9]\d*$/.test(value.controlRunIdentity) ||
+    !/^\d+:[1-9]\d*$/.test(value.shadowRunIdentity) ||
+    !/^\d+:[0-9a-f]{64}$/.test(value.controlArtifactIdentity) ||
+    !/^\d+:[0-9a-f]{64}$/.test(value.shadowArtifactIdentity) ||
+    !digest(value.githubReadbackFingerprint)
+  )
+    throw new Error(`CI_PERFORMANCE_GITHUB_PROVENANCE_INVALID collection=${collection}`)
   for (const key of ['controlJobMinutes', 'optimizedJobMinutes'])
     if (!Number.isFinite(value[key]) || value[key] < 0)
       throw new Error(`CI_PERFORMANCE_METRIC_INVALID key=${key}`)
@@ -129,6 +171,38 @@ function validatePairedObservation(value, collection, observationIds, runIdentit
 /** Checks one canonical lowercase SHA-256 identity. */
 function digest(value) {
   return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value)
+}
+
+/** Hashes exact artifact or sample bytes. */
+function sha256(value) {
+  return crypto.createHash('sha256').update(value).digest('hex')
+}
+
+/** Computes one stable canonical record fingerprint excluding its fingerprint field. */
+function fingerprint(value, omitted) {
+  const clone = { ...value }
+  delete clone[omitted]
+  return sha256(canonical(clone))
+}
+
+/** Canonicalizes nested JSON keys for reproducible trust-root receipts. */
+function canonical(value) {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
+  if (value && typeof value === 'object')
+    return `{${Object.entries(value)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, child]) => `${JSON.stringify(key)}:${canonical(child)}`)
+      .join(',')}}`
+  return JSON.stringify(value)
+}
+
+/** Prevents a verified sample from being changed after provenance validation. */
+function deepFreeze(value) {
+  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+    for (const child of Object.values(value)) deepFreeze(child)
+    Object.freeze(value)
+  }
+  return value
 }
 
 /** Implements nearest-rank P95 over the complete observation vector. */
@@ -165,12 +239,26 @@ function requiredArray(value, field) {
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : undefined
 if (invokedPath === fileURLToPath(import.meta.url)) {
   try {
-    const inputIndex = process.argv.indexOf('--input')
-    if (inputIndex < 0 || !process.argv[inputIndex + 1])
-      throw new Error('CI_PERFORMANCE_INPUT_REQUIRED')
-    process.stdout.write(
-      `${JSON.stringify(evaluateCiPerformanceCutover(JSON.parse(fs.readFileSync(process.argv[inputIndex + 1], 'utf8'))))}\n`
+    const profileIndex = process.argv.indexOf('--profile-report')
+    const referenceIndex = process.argv.indexOf('--sample-reference')
+    if (
+      profileIndex < 0 ||
+      !process.argv[profileIndex + 1] ||
+      referenceIndex < 0 ||
+      !process.argv[referenceIndex + 1]
     )
+      throw new Error('CI_PERFORMANCE_TRUSTED_INPUT_REQUIRED')
+    const { loadRemoteTrustRootsFromProfileReport, verifyEffectiveProfileReport } =
+      await import('../collaboration-runtime/src/profile-preflight.ts')
+    const report = verifyEffectiveProfileReport(
+      JSON.parse(fs.readFileSync(process.argv[profileIndex + 1], 'utf8'))
+    )
+    const trust = loadRemoteTrustRootsFromProfileReport(report)
+    const sample = loadTrustedCiPerformanceSample(
+      JSON.parse(fs.readFileSync(process.argv[referenceIndex + 1], 'utf8')),
+      trust
+    )
+    process.stdout.write(`${JSON.stringify(evaluateCiPerformanceCutover(sample))}\n`)
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`)
     process.exitCode = 1

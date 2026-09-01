@@ -49,8 +49,8 @@ export function verifyCiMainEquivalence({
   }
   if (evidence.workload.sourceTreeSha !== treeSha) throw new Error('CI_MAIN_TREE_MISMATCH')
   if (
-    evidence.workload.sourceSha !== mainSha ||
-    evidence.workload.acceptedResultIdentity !== mainSha
+    !/^[0-9a-f]{40}$/.test(String(evidence.workload.sourceSha ?? '')) ||
+    evidence.workload.acceptedResultIdentity !== treeSha
   )
     throw new Error('CI_MAIN_ACCEPTED_RESULT_MISMATCH')
   if (

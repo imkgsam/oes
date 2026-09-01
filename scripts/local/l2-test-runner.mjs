@@ -6,14 +6,12 @@ import { fileURLToPath } from 'node:url'
 import { loadDatabaseContext } from './database-lifecycle.mjs'
 import { parseEnvironmentFile } from './worktree-env.mjs'
 import { assertJestResult, assertNoTestResidue } from './test-matrix.mjs'
-import {
-  parseParallelShardFlag,
-  parseShardFlags,
-  partitionWeighted,
-  selectWeightedShard
-} from './ci-sharding.mjs'
+import { parseParallelShardFlag, parseShardFlags, partitionWeighted } from './ci-sharding.mjs'
 
 export const L2_JEST_TIMEOUT_MS = 30_000
+export const L2_SERIAL_CONFLICT_GROUPS = Object.freeze([
+  Object.freeze(['collaboration-service', 'notification-service'])
+])
 
 /** Discovers every versioned service L2 spec and binds it to its owning package. */
 export function discoverL2Packages(repositoryRoot = defaultRepositoryRoot()) {
@@ -72,22 +70,43 @@ export function selectL2Packages(inventory, requestedNames = []) {
 
 /** Selects one deterministic, non-empty L2 package shard weighted by exact suite count. */
 export function selectL2Shard(inventory, shardIndex, shardCount) {
-  return selectWeightedShard(
-    inventory,
-    shardIndex,
-    shardCount,
-    (entry) => entry.name,
-    (entry) => entry.specs.length
-  )
+  if (!Number.isInteger(shardIndex) || shardIndex < 0 || shardIndex >= shardCount)
+    throw new Error(`CI_SHARD_INDEX_INVALID index=${shardIndex} count=${shardCount}`)
+  return partitionL2Shards(inventory, shardCount)[shardIndex]
 }
 
 /** Partitions the complete L2 inventory for concurrent execution behind one shared lifecycle. */
 export function partitionL2Shards(inventory, shardCount) {
-  return partitionWeighted(
-    inventory,
+  const remaining = new Map(inventory.map((entry) => [entry.name, entry]))
+  const groups = []
+  for (const conflictGroup of L2_SERIAL_CONFLICT_GROUPS) {
+    const items = conflictGroup.flatMap((name) => {
+      const item = remaining.get(name)
+      if (!item) return []
+      remaining.delete(name)
+      return [item]
+    })
+    if (items.length > 0) groups.push(Object.freeze(items))
+  }
+  for (const item of remaining.values()) groups.push(Object.freeze([item]))
+  const partitions = partitionWeighted(
+    groups,
     shardCount,
-    (entry) => entry.name,
-    (entry) => entry.specs.length
+    (group) => group.map((entry) => entry.name).join('+'),
+    (group) => group.reduce((sum, entry) => sum + entry.specs.length, 0)
+  )
+  return Object.freeze(
+    partitions.map((shard) =>
+      Object.freeze({
+        index: shard.index,
+        weight: shard.weight,
+        items: Object.freeze(
+          shard.items
+            .flatMap((group) => group)
+            .sort((left, right) => left.name.localeCompare(right.name))
+        )
+      })
+    )
   )
 }
 

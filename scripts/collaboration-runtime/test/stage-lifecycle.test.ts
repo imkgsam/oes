@@ -1,15 +1,28 @@
 import assert from 'node:assert/strict'
+import crypto from 'node:crypto'
 import test from 'node:test'
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { objectFingerprint } from '../src/canonical.ts'
-import { planStageLifecycle } from '../src/stage-lifecycle.ts'
+import {
+  loadTrustedStageArchiveResults,
+  loadTrustedStageLifecycleInventory,
+  loadTrustedStageLifecycleRosterAuthority,
+  planStageLifecycle
+} from '../src/stage-lifecycle.ts'
 import { validateJsonSchema } from '../src/schema-validation.ts'
 import type {
   StageArchiveResult,
+  StageArchiveResultSet,
+  StageCleanupAuthorization,
   StageLifecycleInventory,
-  StageLifecycleRosterAuthority
+  StageLifecycleRosterAuthority,
+  TrustedAuthorizationReference
 } from '../src/types.ts'
+
+const CLEANUP_FINGERPRINT = 'f'.repeat(64)
+const TRANSITION_ID = 'stage:cleanup:1'
 
 /** Creates a complete terminal Stage roster plus a long-lived Global UD. */
 function fixture(): {
@@ -43,6 +56,8 @@ function fixture(): {
     authorityFingerprint: '',
     stageKey: 'stage-one',
     stageOwnerTaskId: '/root/sl',
+    transitionId: TRANSITION_ID,
+    stageCleanupAuthorizationFingerprint: CLEANUP_FINGERPRINT,
     source: 'TASK_NATIVE_CREATION_RECEIPTS',
     createdRoster: createdRoster.map(({ taskId, role, ownerTaskId }, index) => ({
       taskId,
@@ -61,6 +76,8 @@ function fixture(): {
     inventoryFingerprint: '',
     stageKey: 'stage-one',
     stageOwnerTaskId: '/root/sl',
+    transitionId: TRANSITION_ID,
+    stageCleanupAuthorizationFingerprint: CLEANUP_FINGERPRINT,
     cleanupIntentDetected: true,
     stageExit: 'PASSED',
     resourceCleanup: 'VERIFIED',
@@ -80,6 +97,87 @@ function fixture(): {
     'inventoryFingerprint'
   )
   return { authority, inventory: value }
+}
+
+/** Reopens lifecycle inputs from one task-owner-read-only trust-root fixture. */
+function trustedFixture(
+  input = fixture(),
+  priorResults: StageArchiveResult[] = []
+): {
+  authority: StageLifecycleRosterAuthority
+  inventory: StageLifecycleInventory
+  priorResults: StageArchiveResult[]
+} {
+  const root = mkdtempSync(join(tmpdir(), 'oes-stage-lifecycle-trust-'))
+  const trust = {
+    authorizationRoot: root,
+    admissionRoot: root,
+    profilePath: join(root, 'profile.toml'),
+    profileSha256: 'a'.repeat(64),
+    ownerTaskId: '/root/sl',
+    profileTransitionId: TRANSITION_ID,
+    profileExpectedState: 'DELIVERY_ACTIVE' as const
+  }
+  const cleanup = {
+    authorizationFingerprint: CLEANUP_FINGERPRINT,
+    stageKey: 'stage-one',
+    stageOwnerTaskId: '/root/sl',
+    transitionId: TRANSITION_ID
+  } as unknown as StageCleanupAuthorization
+  const authority = loadTrustedStageLifecycleRosterAuthority(
+    writeTrustedReference(root, 'authority.json', input.authority, 'authorityFingerprint'),
+    cleanup,
+    trust
+  )
+  const inventory = loadTrustedStageLifecycleInventory(
+    writeTrustedReference(root, 'inventory.json', input.inventory, 'inventoryFingerprint'),
+    authority,
+    cleanup,
+    trust
+  )
+  if (priorResults.length === 0) return { authority, inventory, priorResults: [] }
+  const set: StageArchiveResultSet = {
+    schemaVersion: 1,
+    kind: 'OES_STAGE_ARCHIVE_RESULT_SET',
+    resultSetFingerprint: '',
+    stageKey: inventory.stageKey,
+    stageOwnerTaskId: inventory.stageOwnerTaskId,
+    transitionId: inventory.transitionId,
+    stageCleanupAuthorizationFingerprint: inventory.stageCleanupAuthorizationFingerprint,
+    inventoryFingerprint: inventory.inventoryFingerprint,
+    results: priorResults
+  }
+  set.resultSetFingerprint = objectFingerprint(
+    set as unknown as Record<string, unknown>,
+    'resultSetFingerprint'
+  )
+  return {
+    authority,
+    inventory,
+    priorResults: loadTrustedStageArchiveResults(
+      writeTrustedReference(root, 'results.json', set, 'resultSetFingerprint'),
+      inventory,
+      cleanup,
+      trust
+    )
+  }
+}
+
+/** Writes one issuer-owned receipt and returns its exact digest/fingerprint reference. */
+function writeTrustedReference(
+  root: string,
+  name: string,
+  value: unknown,
+  fingerprintField: string
+): TrustedAuthorizationReference {
+  const path = join(root, name)
+  const bytes = Buffer.from(`${JSON.stringify(value)}\n`)
+  writeFileSync(path, bytes)
+  return {
+    path,
+    sha256: crypto.createHash('sha256').update(bytes).digest('hex'),
+    fingerprint: (value as Record<string, string>)[fingerprintField]
+  }
 }
 
 /** Seals one exact archive result. */
@@ -113,7 +211,7 @@ function result(
 }
 
 test('automatic archive exposes only the earliest incomplete dependency tier', () => {
-  const { authority, inventory } = fixture()
+  const { authority, inventory } = trustedFixture()
   const first = planStageLifecycle(authority, inventory)
   assert.equal(first.status, 'ARCHIVE_READY')
   assert.deepEqual(
@@ -124,11 +222,13 @@ test('automatic archive exposes only the earliest incomplete dependency tier', (
     ['FEATURE_RI', 'FEATURE_RI', 'IT']
   )
   assert.equal(first.decisions.at(-1)?.decision, 'EXCLUDE_GLOBAL_UD')
-  const second = planStageLifecycle(authority, inventory, [
-    result(inventory, '/root/sl/it', 'IT', 'ARCHIVED'),
-    result(inventory, '/root/sl/ri-a', 'FEATURE_RI', 'ARCHIVED'),
-    result(inventory, '/root/sl/ri-b', 'FEATURE_RI', 'ARCHIVED')
+  const plain = fixture()
+  const trusted = trustedFixture(plain, [
+    result(plain.inventory, '/root/sl/it', 'IT', 'ARCHIVED'),
+    result(plain.inventory, '/root/sl/ri-a', 'FEATURE_RI', 'ARCHIVED'),
+    result(plain.inventory, '/root/sl/ri-b', 'FEATURE_RI', 'ARCHIVED')
   ])
+  const second = planStageLifecycle(trusted.authority, trusted.inventory, trusted.priorResults)
   assert.deepEqual(
     second.decisions
       .filter((decision) => decision.decision === 'ARCHIVE')
@@ -138,11 +238,12 @@ test('automatic archive exposes only the earliest incomplete dependency tier', (
 })
 
 test('archive partial failure retries only the failed tier and preserves completed tasks', () => {
-  const { authority, inventory } = fixture()
-  const plan = planStageLifecycle(authority, inventory, [
-    result(inventory, '/root/sl/it', 'IT', 'ARCHIVED'),
-    result(inventory, '/root/sl/ri-a', 'FEATURE_RI', 'FAILED')
+  const plain = fixture()
+  const trusted = trustedFixture(plain, [
+    result(plain.inventory, '/root/sl/it', 'IT', 'ARCHIVED'),
+    result(plain.inventory, '/root/sl/ri-a', 'FEATURE_RI', 'FAILED')
   ])
+  const plan = planStageLifecycle(trusted.authority, trusted.inventory, trusted.priorResults)
   assert.equal(plan.status, 'ARCHIVE_PARTIAL_FAILURE')
   assert.equal(
     plan.decisions.find((item) => item.taskId === '/root/sl/it')?.decision,
@@ -153,7 +254,8 @@ test('archive partial failure retries only the failed tier and preserves complet
 })
 
 test('archive waits for full terminal roster and verified resource cleanup', () => {
-  const { authority, inventory } = fixture()
+  const plain = fixture()
+  const { authority, inventory } = plain
   inventory.readbackRoster[2].state = 'UNKNOWN'
   inventory.terminalTaskIds = inventory.terminalTaskIds.filter(
     (taskId) => taskId !== '/root/sl/fl-a'
@@ -166,7 +268,11 @@ test('archive waits for full terminal roster and verified resource cleanup', () 
     inventory as unknown as Record<string, unknown>,
     'inventoryFingerprint'
   )
-  assert.equal(planStageLifecycle(authority, inventory).status, 'WAIT_TERMINAL_ROSTER')
+  let trusted = trustedFixture(plain)
+  assert.equal(
+    planStageLifecycle(trusted.authority, trusted.inventory).status,
+    'WAIT_TERMINAL_ROSTER'
+  )
   inventory.readbackRoster[2].state = 'TERMINAL'
   inventory.terminalTaskIds.push('/root/sl/fl-a')
   inventory.resourceCleanup = 'PARTIAL_FAILURE'
@@ -178,7 +284,11 @@ test('archive waits for full terminal roster and verified resource cleanup', () 
     inventory as unknown as Record<string, unknown>,
     'inventoryFingerprint'
   )
-  assert.equal(planStageLifecycle(authority, inventory).status, 'WAIT_RESOURCE_CLEANUP')
+  trusted = trustedFixture(plain)
+  assert.equal(
+    planStageLifecycle(trusted.authority, trusted.inventory).status,
+    'WAIT_RESOURCE_CLEANUP'
+  )
 })
 
 test('cleanup rejects a truncated self-consistent roster before SL archive', () => {
@@ -203,8 +313,22 @@ test('cleanup rejects a truncated self-consistent roster before SL archive', () 
     'inventoryFingerprint'
   )
   assert.throws(
-    () => planStageLifecycle(authority, inventory),
+    () => trustedFixture({ authority, inventory }),
     /STAGE_LIFECYCLE_TOPOLOGY_INCOMPLETE/
+  )
+})
+
+test('caller-computed lifecycle summaries cannot enter the archive planner', () => {
+  const { authority, inventory } = fixture()
+  assert.throws(
+    () => planStageLifecycle(authority, inventory),
+    /STAGE_LIFECYCLE_TRUSTED_AUTHORITY_REQUIRED/
+  )
+  const trusted = trustedFixture()
+  const fakeResult = result(trusted.inventory, '/root/sl/it', 'IT', 'ARCHIVED')
+  assert.throws(
+    () => planStageLifecycle(trusted.authority, trusted.inventory, [fakeResult]),
+    /STAGE_LIFECYCLE_TRUSTED_ARCHIVE_RESULTS_REQUIRED/
   )
 })
 

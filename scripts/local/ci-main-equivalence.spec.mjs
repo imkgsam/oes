@@ -13,6 +13,7 @@ test('main equivalence binds two merge parents, exact tree, toolchain, lockfile,
   try {
     assert.doesNotThrow(() => verifyCiMainEquivalence(fixture.input))
     const evidence = JSON.parse(fs.readFileSync(fixture.evidencePath, 'utf8'))
+    assert.notEqual(evidence.workload.sourceSha, run(fixture.root, 'git', ['rev-parse', 'HEAD']))
     evidence.workload.sourceTreeSha = '0'.repeat(40)
     evidence.workloadFingerprint = digest(evidence.workload)
     fs.writeFileSync(fixture.evidencePath, JSON.stringify(evidence))
@@ -58,7 +59,6 @@ test('main equivalence rejects forged toolchain, workflow, inventory, and accept
 
     evidence.workload.commandInventory = ['build', 'test']
     evidence.workload.acceptedResultIdentity = '9'.repeat(40)
-    evidence.workload.sourceSha = '9'.repeat(40)
     reseal(evidence)
     fs.writeFileSync(fixture.evidencePath, JSON.stringify(evidence))
     assert.throws(() => verifyCiMainEquivalence(fixture.input), /ACCEPTED_RESULT_MISMATCH/)
@@ -104,6 +104,17 @@ function createFixture() {
   run(root, 'git', ['merge', '--no-ff', 'feature', '-m', 'merge feature'])
   const mainSha = run(root, 'git', ['rev-parse', 'HEAD'])
   const treeSha = run(root, 'git', ['rev-parse', 'HEAD^{tree}'])
+  const syntheticMergeSha = run(
+    root,
+    'git',
+    ['commit-tree', treeSha, '-p', baseSha, '-p', headSha],
+    {
+      GIT_AUTHOR_DATE: '2026-09-01T00:00:00Z',
+      GIT_COMMITTER_DATE: '2026-09-01T00:00:00Z'
+    },
+    'synthetic pull request merge\n'
+  )
+  assert.notEqual(syntheticMergeSha, mainSha)
   const archivePath = path.join(root, 'prepared-build.tar.gz')
   fs.writeFileSync(archivePath, 'prepared build fixture')
   const artifactDigest = fileDigest(archivePath)
@@ -111,11 +122,11 @@ function createFixture() {
   fs.writeFileSync(checksumPath, `${artifactDigest}  prepared-build.tar.gz\n`)
   const evidence = buildCiPerformanceEvidence({
     mode: 'OPTIMIZED_SHADOW',
-    sourceSha: mainSha,
+    sourceSha: syntheticMergeSha,
     sourceTreeSha: treeSha,
     baseSha,
     acceptedSourceIdentity: headSha,
-    acceptedResultIdentity: mainSha,
+    acceptedResultIdentity: treeSha,
     changedPaths: ['feature.txt'],
     riskClass: 'STANDARD',
     stagePullRequests: [],
@@ -151,8 +162,13 @@ function createFixture() {
   }
 }
 
-function run(cwd, executable, args) {
-  const result = spawnSync(executable, args, { cwd, encoding: 'utf8' })
+function run(cwd, executable, args, environment = {}, input = undefined) {
+  const result = spawnSync(executable, args, {
+    cwd,
+    encoding: 'utf8',
+    env: { ...process.env, ...environment },
+    input
+  })
   assert.equal(result.status, 0, result.stderr)
   return result.stdout.trim()
 }

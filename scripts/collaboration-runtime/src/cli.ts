@@ -29,7 +29,12 @@ import {
   planStageMerge,
   readStageMergeCandidateFingerprints
 } from './stage-merge.ts'
-import { planStageLifecycle } from './stage-lifecycle.ts'
+import {
+  loadTrustedStageArchiveResults,
+  loadTrustedStageLifecycleInventory,
+  loadTrustedStageLifecycleRosterAuthority,
+  planStageLifecycle
+} from './stage-lifecycle.ts'
 import { RemoteDriver } from './remote-driver.ts'
 import {
   CiRecoveryController,
@@ -44,13 +49,11 @@ import type {
   EffectiveProfileReport,
   EvidenceKeyInput,
   ObservedCleanupResource,
-  StageArchiveResult,
-  StageLifecycleInventory,
-  StageLifecycleRosterAuthority,
   StageMergeAuthorization,
   StageMergeItemResult,
   StageMergeTechnicalRevision,
-  StageMergeTechnicalRevisionInput
+  StageMergeTechnicalRevisionInput,
+  TrustedAuthorizationReference
 } from './types.ts'
 
 /** Returns the value following one required command-line flag. */
@@ -231,12 +234,29 @@ async function main(args: string[]): Promise<void> {
     return
   }
   if (command === 'stage-lifecycle-plan') {
-    const rosterAuthority = readJson<StageLifecycleRosterAuthority>(
-      flag(args, '--roster-authority')
+    const profileReport = verifyEffectiveProfileReport(
+      readJson<EffectiveProfileReport>(flag(args, '--profile-report'))
     )
-    const inventory = readJson<StageLifecycleInventory>(flag(args, '--inventory'))
+    const trust = loadRemoteTrustRootsFromProfileReport(profileReport)
+    const cleanup = loadTrustedStageCleanupAuthorization(flag(args, '--authorization'), trust)
+    const rosterAuthority = loadTrustedStageLifecycleRosterAuthority(
+      readJson<TrustedAuthorizationReference>(flag(args, '--roster-authority')),
+      cleanup,
+      trust
+    )
+    const inventory = loadTrustedStageLifecycleInventory(
+      readJson<TrustedAuthorizationReference>(flag(args, '--inventory')),
+      rosterAuthority,
+      cleanup,
+      trust
+    )
     const priorResults = args.includes('--prior-results')
-      ? readJson<StageArchiveResult[]>(flag(args, '--prior-results'))
+      ? loadTrustedStageArchiveResults(
+          readJson<TrustedAuthorizationReference>(flag(args, '--prior-results')),
+          inventory,
+          cleanup,
+          trust
+        )
       : []
     const plan = planStageLifecycle(rosterAuthority, inventory, priorResults)
     if (args.includes('--output')) writeJsonAtomic(flag(args, '--output'), plan)
