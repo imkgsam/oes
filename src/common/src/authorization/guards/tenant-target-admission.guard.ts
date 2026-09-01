@@ -105,10 +105,7 @@ export class TenantTargetAdmissionGuard implements CanActivate {
     if (execution === undefined) {
       throw denied('verified tenant target execution context is missing')
     }
-    if (
-      execution.authorizationDeclaration.mode !== 'BUSINESS' ||
-      !matchesSystemTargetAuthorization(declaration, execution.authorizationDeclaration)
-    ) {
+    if (!matchesSystemTargetAuthorization(declaration, execution.authorizationDeclaration)) {
       throw denied('tenant target RPC authorization declaration does not match')
     }
     const requestId = requireCorrelation(execution.requestId, 'request id')
@@ -130,7 +127,7 @@ export class TenantTargetAdmissionGuard implements CanActivate {
   }
 }
 
-/** Binds dedicated SYSTEM targeting to the same singleton BUSINESS Code admitted by TrustedExecutionGuard. */
+/** Binds dedicated SYSTEM targeting to the same singleton BUSINESS or INTERNAL Code admitted by TrustedExecutionGuard. */
 function matchesSystemTargetAuthorization(
   targetDeclaration: unknown,
   rpcDeclaration: RpcAuthorizationModeDeclaration
@@ -156,7 +153,7 @@ function matchesSystemTargetAuthorization(
   if (code === undefined || !('value' in code) || typeof code.value !== 'string') {
     return false
   }
-  if (rpcDeclaration.mode !== 'BUSINESS') {
+  if (rpcDeclaration.mode !== 'BUSINESS' && rpcDeclaration.mode !== 'INTERNAL') {
     return false
   }
   const permissions = rpcDeclaration.permissions

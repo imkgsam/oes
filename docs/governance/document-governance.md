@@ -150,9 +150,9 @@ Proposal及UD envelope只保留能独立证明以下事实的一份当前记录�
 docs/plans/stages/<stage-key>.md
 ```
 
-Stage Packet只存在于SL本地coordination branch/worktree，不push、不创建产品PR、不合入main。只保存当前objective、scope/protected scope、integration base、FL引用与依赖、WIP、exit criteria、blocker和Human可见状态；状态原位覆盖，不保存聊天、时间线、task registry、watcher、technical receipt或IT candidate细节。
+Stage Packet只存在于SL本地coordination branch/worktree，不push、不创建产品PR、不合入main。只保存当前objective、scope/protected scope、integration base、FL引用与依赖、WIP、exit criteria、blocker和Human可见状态；全部FL/Feature RI/Stage RI完成后可保存一份current ordered merge set引用，逐项结果原位更新。状态原位覆盖，不保存聊天、时间线、task registry、watcher、technical receipt或IT candidate细节。
 
-Human正常进度以可见SL task为入口，Stage Packet提供可恢复的当前协调状态。全部FL完成和Stage exit通过后，SL展示一张批量cleanup卡；每个FL清理自己的资源，SL只汇总结果并通过一个cleanup-only PR删除卡内terminal Feature Packets，最后清理Stage Packet和自身资源。
+Human正常进度以可见SL task为入口，Stage Packet提供可恢复的当前协调状态。全部FL、Feature RI与Stage RI完成后，SL展示一张绑定全部exact PR heads、集合和顺序的Stage merge卡；每个PR仍保持独立Merge Commit、验证、审计和回退边界。Stage exit通过且Human表达cleanup意图时，系统先只读盘点task-native created roster与全部owner资源，再展示一张批量cleanup卡；每个owner清理自己的exact资源，SL只汇总幂等结果并通过一个cleanup-only PR删除卡内terminal Feature Packets，最后清理Stage Packet和自身资源。created roster、terminal roster、cleanup与archive结果只保留一份task-local current evidence，不进入Stage Packet历史或长期registry。
 
 纯`HOST_LOCAL_OPERATION` Stage只在SL task-local current evidence中保存同等精简的objective、scope/protected scope、FL引用、依赖、WIP、exit criteria和blocker，不创建repository Stage Packet或协调worktree。
 
@@ -166,9 +166,9 @@ docs/plans/features/<feature-key>.md
 
 FP只保存当前scope/protected scope、slices、依赖、acceptance、candidate、Feature RI和Human可见状态。只有FL写FP；状态原位覆盖，不写执行流水、重复测试输出或内部task消息。
 
-一个FL同时最多一个Feature RI。IT的进度默认由FL和FP汇总；独立可恢复IT另建可见task。candidate验证只维护一份当前记录，输入未变的focused/affected evidence直接复用。
+一个FL同时最多一个Feature RI。IT的进度默认由FL和FP汇总；独立可恢复IT另建可见task。candidate验证只维护一份当前记录，输入未变的focused/affected evidence直接复用。有parent SL时，单个FL ready不产生merge授权，必须等待完整Stage merge set与Stage RI。
 
-feature merge和main验证通过后进入cleanup。standalone FL使用自己的cleanup卡；有parent SL时由一张Stage Cleanup卡统一授权，各FL仍只清理自己的exact资源。未terminal、coverage不完整、owner不明、dirty或SHA不匹配的FP和资源保持原状。
+feature merge和main验证通过后进入cleanup。standalone FL使用自己的cleanup卡；有parent SL时由一张Stage Cleanup卡统一授权全部owner，各owner仍只清理自己的exact资源。partial success保留且只重试失败项；未terminal、coverage不完整、owner不明、shared、active、dirty或SHA不匹配的FP和资源保持原状并报告。created/terminal roster核对完成后按IT/Feature RI、FL、Stage-related Design Owner、Stage RI、SL的依赖序archive，长期UD不进入archive roster。
 
 `HOST_LOCAL_OPERATION` FL只在task-local current evidence中保留当前scope/protected scope、精确资源清单、验收、review和post-check，不创建Feature Packet、Git candidate或PR。破坏性操作确认绑定的是当前精确操作候选而不是repository artifact；完成后按同一owner的cleanup边界处理task-local临时资源和task归档。
 

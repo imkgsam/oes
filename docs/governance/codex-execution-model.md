@@ -11,8 +11,9 @@
 3. 多 feature 交付可以由一个 Stage Lead（SL）协调多个 Feature Lead（FL）并行推进；
 4. Human 能在正常 Codex 项目任务列表中看到所有 owner 与独立 reviewer；
 5. 已确认范围内的权限、环境、测试、Git 和恢复动作自动执行；
-6. main 继续使用 PR、required CI、Human merge 与精确清理保护；
-7. 框架运行成本必须显著低于被交付工作的成本。
+6. main 继续使用独立PR、required CI、Human merge与精确清理保护，多Feature Stage只需要一张绑定全部exact heads、集合和顺序的merge确认；
+7. authoritative candidate CI保持完整但并行，main只重复无法由exact-equivalence证明覆盖的工作；
+8. 框架运行成本必须显著低于被交付工作的成本。
 
 本模型不建立全局调度中心、task registry、watchdog、heartbeat、pull inbox、历史状态账本或长期过程档案。异常优先修复 exact current owner，不通过新增协调角色掩盖运行时缺陷。
 
@@ -40,7 +41,7 @@ Direct 由一个 Senior/Principal Engineer 级 owner 闭合一个无稳定设计
 
 ### 2.5 Stage Lead（SL）
 
-SL 是一个多 feature Delivery Stage 的 Technical Delivery Lead。`REPOSITORY_DELIVERY` 中，SL建立一个本地 Stage Packet，按独立交付物拆分FL，管理依赖、WIP、moving-main、Stage Review和状态汇总，只在本地verification worktree组合exact candidates；`HOST_LOCAL_OPERATION` 中，SL只使用task-local current evidence协调同等范围，不创建Stage Packet、branch或worktree。SL不写feature产品代码，不建立remote stage product branch、总PR或stage merge。
+SL 是一个多 feature Delivery Stage 的 Technical Delivery Lead。`REPOSITORY_DELIVERY` 中，SL建立一个本地 Stage Packet，按独立交付物拆分FL，管理依赖、WIP、moving-main、Stage Review、一次Stage merge确认、逐PR串行admission、全Stage cleanup和状态汇总，只在本地verification worktree组合exact candidates；`HOST_LOCAL_OPERATION` 中，SL只使用task-local current evidence协调同等范围，不创建Stage Packet、branch或worktree。SL不写feature产品代码，不建立remote stage product branch、总PR或stage merge commit。
 
 ### 2.6 Feature Lead（FL）
 
@@ -311,13 +312,13 @@ FL → task-local current evidence → 实现/IT → exact操作候选 → 按�
 
 ### 8.3 Stage
 
-`REPOSITORY_DELIVERY` Stage中，SL建立本地Stage Packet，按WIP启动sibling FL。每个FL独立拥有candidate、Feature RI和Draft PR。SL只组合exact candidates和latest-main results，不创建总产品分支或大PR。
+`REPOSITORY_DELIVERY` Stage中，SL建立本地Stage Packet，按WIP启动sibling FL。每个FL独立拥有candidate、Feature RI和Draft PR。SL只组合exact candidates和latest-main results，不创建总产品分支或大PR。全部FL、Feature RI与Stage RI都完成后，Stage才进入merge-ready并形成一张绑定全部exact PR heads、集合、顺序、scope和risk的Stage merge卡。
 
 纯`HOST_LOCAL_OPERATION` Stage中，SL只在task-local current evidence协调sibling FL、依赖、WIP和exit criteria；每个FL独立拥有精确host资源范围、操作候选和验收结果，不创建Stage/Feature Git资源或产品PR。
 
 FL发现范围实际包含多个独立交付物时返回SL；只要新拓扑仍在confirmed Stage scope、protected scope、capabilities和WIP ceiling内，SL自动调整并只发状态通知。真实扩围或不可消解的owner/write conflict才询问Human。
 
-parent派发child后保存当前checkpoint并结束turn；exact child result到达后恢复。禁止持续polling或占用执行槽等待。
+parent派发child后保存当前checkpoint并结束turn；exact child result到达后恢复。SL或FL等待CI时同样结束当前turn，由CI worker或bounded helper以退避方式等待并返回typed result；helper不成为owner、不建立heartbeat、watchdog、task registry或第二状态库。禁止role task持续polling或占用执行槽等待。
 
 ### 8.4 Delivery中的design gap
 
@@ -344,7 +345,7 @@ main前进本身不使授权失效。无关变化自动集成并复用证据；�
 
 1. Focused：changed module、direct unit、lint/typecheck；
 2. Affected：受影响依赖、关键集成、兼容与恢复；
-3. Full Gate：PR merge前、Stage exit、main merge后。
+3. Authoritative Full Gate：在merge前对latest main上的exact prospective result运行完整validation surface；无native Merge Queue时由已整合latest main的exact PR head承载，有queue时由exact `merge_group`承载。Stage exit确认每个item均有对应authoritative evidence；`push main`只运行9.4定义的exact-equivalence/integrity与快速smoke，只有equivalence证明缺失或不等价时才fail-closed升级Full Gate。
 
 证据只在candidate、依赖、输入、环境或命令版本改变时失效。RI只补验缺失或受影响风险，不重复owner已证明且输入未变的完整矩阵。
 
@@ -354,12 +355,27 @@ main前进本身不使授权失效。无关变化自动集成并复用证据；�
 
 ### 9.4 CI拓扑
 
-required aggregate context保持唯一`Baseline Checks`，且不缩减现有validation surface。workflow把完整gate拆为两个独立、fail-closed且可并行的job：
+required aggregate context保持唯一`Baseline Checks`，且任何事件分层、分片、cache或artifact复用都不得缩减现有validation surface。每个required命令必须被一个非空、可追溯的authoritative shard覆盖；缺失、重复归属、取消、未知选择器、artifact digest不匹配、cleanup residue或aggregate输入不完整都fail closed。
 
-1. `static-risk`：frozen lockfile安装、Proto lint/generation/breaking、build、non-empty inventory、declared design-gap检查，以及全部unit、contract和runtime-risk tests；同一job内generation/build只执行一次并复用结果；
-2. `l2-runtime`：使用独立task-owned Postgres/NATS环境，执行migration与全部L2 tests，并以`always()`无条件验证和清理container、volume、network及lifecycle residue。
+CI按远端能力使用两种事件拓扑：
 
-`Baseline Checks`只聚合这两个job，任一缺失、取消或失败都失败。PR candidate和最终Merge Commit分别运行完整优化后CI；main CI不得复用PR evidence。两个job之间不共享可写database/runtime资源，优化只消除重复工作，不降低隔离、断言或清理。
+1. 当前仓库没有active native Merge Queue规则时，`pull_request`是完整authoritative candidate gate；`push main`只执行exact-equivalence/integrity验证和快速smoke。只有main merge commit、两个parent、accepted PR head、validated prospective result tree、workflow/command manifest、lockfile、toolchain与artifact digest全部exact-equivalent时才允许跳过重复full gate；任一证明缺失或不等价时在同一main run fail-closed升级为完整gate。
+2. 未来仓库ruleset明确启用且runtime readback验证native Merge Queue后，`pull_request`只运行focused/affected feedback，`merge_group`对GitHub生成的exact prospective merge result运行authoritative full gate；`push main`继续执行exact-equivalence/integrity与快速smoke。不能证明queue capability或`merge_group` identity时回到第一种拓扑，不以仅PR focused checks放行。
+
+authoritative full gate使用受版本控制的deterministic inventory和风险权重并行执行：
+
+- 一个prepare边界只进行一次frozen lockfile安装、Proto/Prisma generation与build，输出content-addressed、digest-verified、只读build artifact；toolchain、lockfile、generator、build command、workflow或source输入任一变化产生新key，禁止使用宽松restore key把不同输入视为命中；
+- static、Proto compatibility、design-gap、unit、contract与runtime-risk tests按完整inventory分片；L2按历史耗时平衡分片，每个shard使用独立task-owned Postgres/NATS、端口、volume、network与证据目录，并以`always()`验证和清理；
+- cache miss只影响耗时；cache或artifact不可验证时重建或进入legacy full gate，不能转为成功。测试assertion、contract、build或type failure直接失败，不因fallback或retry被遮蔽；
+- `Baseline Checks`只聚合本次authoritative topology声明的全部shards、integrity与cleanup结果，任一required输入缺失、取消或失败即失败；旧完整gate保留为workflow cutover fallback，直到新拓扑、inventory和aggregate在同一candidate上证明等价。
+
+`pull_request`使用按PR identity分组的`cancel-in-progress`，新head产生后旧run必须在一分钟内取消；`main`和已admit的`merge_group`不得被无关run取消。CI infrastructure failure只允许same SHA重跑failed job一次；测试结果反转计入flaky rerun而不视为基础设施恢复，重复flaky必须作为阻塞缺陷治理，不允许skip、quarantine或降低assertion代替修复。
+
+以GitHub workflow/check facts和每个run的普通artifact计算性能，不建立repository CI账本或第二状态库。dated baseline与observed result只保存在当前Proposal或implementation verification evidence，不进入canonical Governance。每个观测同时绑定两个相互独立的identity：`workloadFingerprint`只包含changed-path/risk class、Stage PR count/order、适用的accepted source/result identity、command/test inventory、lockfile、toolchain与cache disposition；`executionFingerprint`只包含workflow revision、event topology、`LEGACY_CONTROL`、`OPTIMIZED_SHADOW`或`OPTIMIZED_ACTIVE` mode，以及shard/cache/artifact strategy。workflow、topology或execution mode不进入`workloadFingerprint`；PR与main只通过accepted head和merge parents关联，不能按时间邻近推测配对。
+
+性能cutover前，legacy full gate保持唯一authoritative `Baseline Checks`和唯一merge/main verification授权来源；follow-on implementation candidate只在同一个bound source/result input上运行non-required、无Git/PR/merge mutation的optimized shadow，shadow成功或失败都不能授权merge、替代required context或改变accepted result。一个matched pair或Stage sequence必须具有相同`workloadFingerprint`，并同时具有明确不同且绑定的`LEGACY_CONTROL`与`OPTIMIZED_SHADOW` execution fingerprints；任一侧缺失即为unpaired且不计入达标样本。cutover sample从第一个完整paired shadow observation开始连续收集，到满足全部最小量或30个calendar days为止，不得排除失败、取消、retry或较慢run。最小量为20个accepted PR/main exact pairs、其中至少5个cold-cache authoritative candidates，10个自然或受控的superseded PR run pairs、5个每组至少3个PR的matched Stage sequences，以及50个authoritative test attempts；P95使用nearest-rank，job-minutes包含样本内全部attempt，flaky rerun指source、dependency、environment、command与SHA均未变化时test result反转。matched baseline与optimized observation使用相同`workloadFingerprint`、各自绑定的execution fingerprint和相同统计规则保存在task-local evidence。
+
+三项wall-clock边界固定且必须覆盖完整aggregate，不得选择较快sub-job：candidate full gate从bound prospective input的workflow run `created_at`开始，到该run全部required-equivalent prepare、shard、integrity与cleanup聚合完成时结束；main smoke从exact Merge Commit的`push main` run（shadow使用同一输入的无mutation synthetic event）`created_at`开始，到equivalence/integrity、smoke以及触发时的full fallback聚合完成时结束；多PR Stage从全部bound heads、Feature RI、Stage RI就绪且Human merge确认被记录、ordered Stage可以执行时开始，到最后一个ordered PR的post-merge main验证完成时结束，并包含serial admission、latest-main refresh、CI queue/runtime、merge response与post-merge validation。shadow Stage使用同一开始时间和同序exact prospective commits执行无mutation replay，以最后一个synthetic result的完整main aggregate结束，不读写PR或main。follow-on implementation只有在上述sample同时证明optimized candidate full-gate P95不超过5分钟、optimized main smoke P95不超过2分钟、重复完整main gate为0、superseded PR CI一分钟内取消、PR加main总job-minutes较matched legacy control至少降低35%、matched optimized Stage duration较legacy control至少降低50%，且flaky rerun率低于2%时才完成性能cutover。30天内样本不足或任一目标未满足时继续legacy full gate并报告当前样本，不以推算值、选择性窗口、局部job或未配对run宣告cutover。
 
 ### 9.5 Collaboration runtime最小不变量
 
@@ -387,13 +403,15 @@ collaboration-runtime变更的fast automatic set至少覆盖：FIFO与exact retu
 
 ### 10.3 PR和merge
 
-每个FL在完整candidate和Feature RI通过后才push并创建Draft PR。有parent SL时，Stage Review通过且candidate已整合latest main后进入merge-ready。
+每个FL在完整candidate和Feature RI通过后才push并创建Draft PR。standalone Direct/FL在candidate已整合latest main后进入merge-ready；有parent SL时，必须等待全部Stage FL、全部Feature RI和Stage RI完成，任何单项提前完成都不产生单PR merge卡。
 
-Human确认exact PR后，driver在mutation边界重新读取base/head/checks/reviews和latest remote `main`。main未变化且base/head/checks/reviews匹配时只执行一次Merge Commit；main已前进时，必须先通过GitHub merge queue或等价prospective merge result在latest main上验证exact candidate，并要求完整`Baseline Checks`成功后再Merge Commit。
+standalone Human确认一个exact PR/head；Stage Human只确认一张有序Stage merge卡。Stage卡绑定stage、全部feature/owner、exact PR number/head、集合、顺序、candidate content、scope、risk、required checks与stop point；一项缺失即fail closed。一次Stage确认授权driver按卡内顺序逐个执行独立Merge Commit、逐项main验证并在每项成功后继续，不授权新增PR、换序、扩scope或修改candidate内容。每个FL仍保留自己的PR、merge SHA、CI/审计证据、main验证、失败与回退边界，SL不生成总产品branch、总PR或总merge commit。
 
-main前进但candidate content和confirmed scope均未变化时，原Human merge confirmation继续有效；candidate SHA、content或scope任一变化时旧卡失效并显示refreshed merge card。merge后验证：`origin/main`等于merge SHA、merge具有exact两个parents、accepted candidate为merge祖先、required main workflow成功、protected resources保持不变。
+每个实际mutation边界都重新读取base/head/checks/reviews和latest remote `main`。当前没有native Merge Queue时使用有界`serial-latest-main` admission；未来只有ruleset和API readback都证明native Merge Queue可用时才逐项使用queue。无论哪种模式，都必须在latest main上的exact prospective result通过本拓扑authoritative `Baseline Checks`后才能Merge Commit。Stage一次最多admit一个item，因此失败时没有尚未验证的同Stage后续item留在queue。串行lock只保护当前mutation/recovery临界区，完成或安全失败即释放，不形成持久调度中心、全局任务状态或后台queue owner。
 
-多FL按latest-main串行admission；上游merge后，下游只运行drift/affected matrix，不自动重做完整Feature RI。
+main漂移但PR patch/content、Stage集合与顺序、confirmed scope和risk均未变化时，drift/affected matrix只用于证明原Stage confirmation仍可沿用，不能代替authoritative gate。当前无native Merge Queue时，owner在bounded serial admission内以append-only merge commit把latest main整合进candidate，证明相对各自base的patch/content fingerprint不变，fast-forward更新同一PR head，并等待完整`pull_request` `Baseline Checks`在该exact refreshed head成功；mutation前main再次变化则从新的latest main重新执行本过程。新的exact head/base通过technical equivalence revision绑定原Stage confirmation。native Merge Queue启用时由exact `merge_group` Full Gate完成同一prospective证明。PR业务内容、Stage集合、顺序、scope或risk任一变化时整张旧Stage卡失效，所有尚未合并items准备完成后只刷新一张Stage卡；已合并健康前缀保持原审计与授权，不重新确认或回滚。
+
+每个merge后验证：`origin/main`等于该项merge SHA、merge具有exact两个parents、accepted candidate为merge祖先、authoritative candidate equivalence与required main workflow成功、protected resources保持不变。验证成功才进入下一项。任一Stage item的admission、CI、merge或main验证失败，立即停止尚未合并的同Stage后续项并返回exact owner；已合并健康前缀保留，其他Design、standalone FL和其他SL继续。修复后只重验失败项及其受影响后缀，不重复健康前缀、完整Feature RI或无关CI。
 
 ### 10.4 Local main convergence
 
@@ -409,13 +427,15 @@ main验证后显示一次cleanup卡。owner只删除卡中exact、clean、merged
 
 ### 11.2 Repository-delivery Stage
 
-全部FL merge且Stage exit通过后，SL显示一张批量cleanup卡。Human确认一次后：
+Human表达cleanup意图时，SL先自动执行一次无mutation的全Stage inventory，不为盘点本身请求确认。inventory从native task parent/child truth、Stage Packet与owner current evidence即时派生created roster，绑定全部FL、IT、Feature RI、Stage-related Design Owner、Stage RI、SL及其exact resource；不创建task registry、历史cleanup ledger或第二状态库。系统把created roster与terminal roster、owner、activity、cleanliness、SHA、共享关系和protected scope逐项核对后，只显示一张exact Stage cleanup卡。
 
-1. 每个FL清理自己的exact资源并返回结果，不再分别询问Human；
-2. 一个FL失败只保留该FL失败资源，已完成项不重复；
-3. SL通过一个cleanup-only PR只删除已列明terminal Feature Packets；
-4. SL删除本地Stage Packet和自己的协调/验证资源；
-5. 最终复核后archive完成的role tasks。
+Stage cleanup卡只有在全部owner达到terminal且Stage exit通过时才允许建议执行；仍active、owner不明或roster不完整时保留全部相关资源并显示阻塞项。Human确认一次后：
+
+1. 每个owner只清理卡内属于自己的exact、terminal、clean、unshared、SHA-matched资源并返回typed result，不再分别询问Human；unknown、shared、active、dirty、mismatch或卡外资源保留并报告；
+2. 每个resource action保存独立幂等结果；partial success保留，重试只执行失败项，已删除、已缺失或明确保留项不重复；
+3. SL只在全部Feature Packet均已绑定terminal owner结果后，通过一个cleanup-only PR删除卡内exact Feature Packets，再删除本地Stage Packet和自己的协调/验证资源；
+4. created roster与terminal roster及每个owner cleanup terminal result重新核对后，系统依次archive：IT与Feature RI → FL → Stage-related Design Owner → Stage RI → SL；前序不满足时停止后序archive，只重试失败项；
+5. exact global UD是长期canonical owner，不进入Stage archive roster。task archive失败不撤销已验证的资源清理，也不重新执行成功项。
 
 Design Owner与UD分别清理自己的资源，互不代替。
 
@@ -432,13 +452,14 @@ host操作本身属于已确认work scope，不伪装成Git cleanup。post-check
 3. CI infrastructure failure只允许在same SHA重跑failed job一次；build、type、contract或assertion failure不blind rerun，由same owner修复后运行affected/full required gate；
 4. permission或credential failure立即返回一个可执行blocker，不循环尝试；
 5. lost PR/merge response先读取remote truth，已成功则复用，否则只retry缺失动作；
-6. 一个FL失败只暂停该lane；
+6. 一个FL失败只暂停该lane；Stage merge期间任一item失败只停止同Stage未合并后缀，健康已合并前缀与其他Stage/FL/Design继续；
 7. duplicate message或driver retry读取已有结果，不重复mutation；
 8. ordinary conflict只由artifact owner解决；
 9. exact owner不可恢复时才显示一次Human recovery card；
 10. unknown、dirty、SHA不匹配或owner仍活动的资源保持原状；
 11. replacement必须在旧owner终止并验证后创建，禁止双owner；
-12. cleanup partial failure只重试失败项。
+12. cleanup partial failure只重试失败项；unknown、shared、active、dirty、SHA mismatch与卡外资源保持原状并形成可见preserved result，不以强制删除换取完成；
+13. task archive按cleanup依赖序执行，失败只停止依赖它的后序archive，不恢复已完成清理或重复archive。
 
 ## 13. Runtime cutover与in-flight兼容
 
@@ -466,15 +487,15 @@ canonical merge后按以下顺序恢复：
 
 ### 13.3 Continuous Optimization cutover
 
-7.2、7.3、9.4、9.5、10.2至10.4、12、14.2.1与14.6的新增runtime行为和命令形式，只约束follow-on collaboration-framework implementation candidate完成Merge Commit、main CI和canonical verification之后获得Human确认的新Proposal与新remote/local-sync动作；该implementation merge是本轮continuous optimization的exact cutover point。
+本轮Stage merge、事件分层CI、CI wait handoff与全Stage cleanup/archive的新行为，只约束follow-on collaboration-framework implementation candidate完成Merge Commit、main CI、canonical verification并证明legacy fallback之后获得Human确认的新Stage merge/cleanup卡和新CI run；该implementation merge是本轮exact cutover point。
 
-cutover前已active或已确认的Proposal、owner、PR、checkpoint与frozen binding继续按原规则到terminal/cleanup，不迁移、不backfill queue receipt、不重写历史。required context名称`Baseline Checks`在CI内部拓扑切换前后保持不变；workflow cutover失败时保留旧完整gate，禁止以部分新job替代。
+cutover前已active或已确认的Proposal、owner、PR、Stage/standalone merge卡、cleanup卡、checkpoint与frozen binding继续按原规则到terminal/cleanup，不迁移、不扩展既有确认、不backfill新roster或重写历史。existing-delivery design gap在canonical merge后自动返回exact原owner，只恢复affected lane。required context名称`Baseline Checks`在CI内部拓扑切换前后保持不变；新workflow、inventory、aggregate、equivalence或fallback任一缺失/失败时继续运行legacy full gate并fail closed，禁止以部分新job或main smoke替代完整验证。
 
 ## 14. Human命令契约
 
-本节是Human意图、确认、merge、local-main sync与cleanup的唯一自然语言契约，版本为`OES-COLLAB-COMMANDS/v8`。
+本节是Human意图、确认、merge、local-main sync与cleanup的唯一自然语言契约，版本为`OES-COLLAB-COMMANDS/v9`。
 
-<!-- BEGIN OES_COLLAB_COMMANDS_V8 -->
+<!-- BEGIN OES_COLLAB_COMMANDS_V9 -->
 
 ### 14.1 状态
 
@@ -573,6 +594,8 @@ Human说`查看 UD 队列`时直接返回只读派生视图，不显示确认卡
 
 ### 14.5 Merge
 
+Standalone Direct/FL：
+
 ```text
 PR与required CI已准备完成。
 1. Merge Commit合入main（建议）
@@ -580,7 +603,16 @@ PR与required CI已准备完成。
 3. 查看验证结果
 ```
 
-每张merge卡只绑定一个exact PR/head。main变化时机器自动刷新并只在语义或scope失效时换卡。
+Stage：
+
+```text
+阶段内全部PR、Feature RI与Stage RI已准备完成，合并集合与顺序已冻结。
+1. 按本卡顺序逐个Merge Commit合入main（建议）
+2. 暂不合并
+3. 查看PR heads、顺序与验证结果
+```
+
+standalone merge卡只绑定一个exact PR/head。Stage卡绑定全部exact PR heads、集合、顺序、scope和risk；一次确认只授权卡内有序集合，每项仍独立merge、验证、审计和回退。main变化但PR content、集合、顺序、scope和risk不变时机器自动重验并形成exact equivalence revision，不换Human卡；上述任一语义输入变化时整张Stage卡失效，尚未合并集合准备完成后只刷新一张卡。任一item失败停止同Stage未合并后缀，已合并健康前缀保留。
 
 ### 14.6 Local main sync
 
@@ -609,11 +641,13 @@ main验证已通过。
 Stage：
 
 ```text
-阶段验收已通过，终态资源已汇总。
-1. 清理本卡列明的全部FL与Stage资源（建议）
+阶段验收已通过，全部owner、task与终态资源已只读盘点并核对。
+1. 清理本卡列明的全部owner资源并按依赖顺序归档任务（建议）
 2. 保留资源
-3. 查看清单
+3. 查看owner、资源、保留项与归档顺序
 ```
+
+Human表达cleanup意图即自动触发只读全Stage inventory；inventory不删除、不archive、不另行请求确认。一次选项1授权卡内全部owner执行各自exact cleanup与terminal task archive；partial success保留，重试只处理失败项。unknown、shared、active、dirty、mismatch和卡外资源始终保留并报告；长期UD不归档。
 
 ### 14.8 Recovery
 
@@ -631,9 +665,9 @@ same-owner自动恢复失败且replacement确实必要时：
 
 ### 14.9 编号与失效
 
-只有一张latest有效待确认卡时，单独`1`、`2`等按该卡执行。新的Human条件、scope变化、执行、取消或绑定失效使旧卡失效并展示刷新卡。相同动作重试复用已有结果。
+只有一张latest有效待确认卡时，单独`1`、`2`等按该卡执行。新的Human条件、scope变化、执行、取消或绑定失效使旧卡失效并展示刷新卡；Stage main纯漂移只产生10.3定义的technical equivalence revision，不形成新Human gate。相同动作重试复用已有结果。
 
-<!-- END OES_COLLAB_COMMANDS_V8 -->
+<!-- END OES_COLLAB_COMMANDS_V9 -->
 
 ## 15. 完成标准
 
@@ -648,5 +682,8 @@ same-owner自动恢复失败且replacement确实必要时：
 7. host/App重启后恢复same owner和已有成果；
 8. 已确认范围内普通permission prompt为零；
 9. Human可在30秒内理解状态；
-10. 不存在隐藏owner、重复owner、全局调度中心或重复完整测试。
-11. host-local owner可在无GitHub连接时创建为可见local task，且不会创建worktree或触发Git fetch。
+10. 多FL Stage只在全部FL/Feature RI/Stage RI完成后以一张有序卡逐PR合并，失败保留健康前缀并停止后缀；
+11. authoritative candidate保持完整validation surface，main不重复已由exact-equivalence证明的full gate；
+12. Stage cleanup一次确认覆盖全部owner且只重试失败项，terminal tasks按依赖序archive，长期UD不归档；
+13. 不存在隐藏owner、重复owner、全局调度中心或重复完整测试；
+14. host-local owner可在无GitHub连接时创建为可见local task，且不会创建worktree或触发Git fetch。

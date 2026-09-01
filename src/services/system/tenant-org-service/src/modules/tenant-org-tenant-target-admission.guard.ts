@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config'
 import { Reflector } from '@nestjs/core'
 import {
   AuthorizeBusinessRpc,
+  AuthorizeInternalCall,
   createSystemTenantTargetMethodDeclaration,
   createTenantTargetMethodDeclaration,
   getAuthenticatedGrpcRequestContext,
@@ -99,6 +100,32 @@ export function DeclareTenantOrgTargetRpc(input: {
         })
   return applyDecorators(
     AuthorizeBusinessRpc({ all: [input.permissionCode] }),
+    SetMetadata(TENANT_ORG_TARGET_METHOD_METADATA_KEY, declaration)
+  )
+}
+
+/** Declares one exact INTERNAL selector method with the same target-owner guard. */
+export function DeclareTenantOrgInternalTargetRpc(input: {
+  readonly methodReference: string
+  readonly permissionCode: string
+  readonly machineWorkloadConfigKeys: readonly Exclude<
+    TenantOrgTargetWorkloadConfigKey,
+    'TENANT_ORG_GATEWAY_SPIFFE_ID'
+  >[]
+}) {
+  const declaration: TenantOrgSystemTargetDeclaration = Object.freeze({
+    kind: 'TENANT_ORG_SYSTEM_TARGET',
+    methodReference: input.methodReference,
+    selectorField: 'tenantId',
+    tenantAuthority: 'TOKEN_TENANT_EQUALITY',
+    systemAuthority: 'DEDICATED',
+    gatewayWorkloadConfigKey: 'TENANT_ORG_GATEWAY_SPIFFE_ID',
+    machineWorkloadConfigKeys: Object.freeze([...input.machineWorkloadConfigKeys]),
+    permissionCode: input.permissionCode,
+    range: 'ALL'
+  })
+  return applyDecorators(
+    AuthorizeInternalCall({ all: [input.permissionCode] }),
     SetMetadata(TENANT_ORG_TARGET_METHOD_METADATA_KEY, declaration)
   )
 }

@@ -63,8 +63,18 @@ export class PublicEntryFoundationTrustedGrpcExecutionProducer {
     return this.produce(target, 'INTERNAL', [code])
   }
 
+  /** Produces the fixed tenantless Public Entry MACHINE root even inside an admitted HUMAN request. */
+  forInternalMachineCall(target: Target, code: string): Promise<Metadata> {
+    return this.produce(target, 'INTERNAL', [code], true)
+  }
+
   /** Selects execution source from guard-owned request scope and never from request DTO values. */
-  private async produce(target: Target, mode: Mode, codes: readonly string[]): Promise<Metadata> {
+  private async produce(
+    target: Target,
+    mode: Mode,
+    codes: readonly string[],
+    forceMachineRoot = false
+  ): Promise<Metadata> {
     const profile = requirePublicEntryFoundationTarget(target)
     const correlation = inboundExecutionTokenCredentialScope.requireCorrelation()
     let inbound:
@@ -75,7 +85,7 @@ export class PublicEntryFoundationTrustedGrpcExecutionProducer {
     } catch {
       inbound = undefined
     }
-    const isHuman = inbound?.principalType === 'HUMAN'
+    const isHuman = !forceMachineRoot && inbound?.principalType === 'HUMAN'
     const root = isHuman
       ? createTrustedExecutionContext({
           subject: inbound.subject,
@@ -195,6 +205,7 @@ class PublicEntryFoundationMachineSourceCredentialClient {
   private client?: ClientGrpc
   private service?: MachineWorkloadSourceCredentialServiceClient
   async issue(): Promise<string> {
+    const metadata = buildPublicEntryMachineSourceCredentialMetadata()
     const response = await safeGrpcCall(
       this.machine().issueMachineWorkloadSourceCredential(
         {
@@ -204,7 +215,7 @@ class PublicEntryFoundationMachineSourceCredentialClient {
             'PUBLIC_ENTRY_FOUNDATION_MACHINE_WORKLOAD_BINDING_VERSION'
           )
         },
-        new Metadata()
+        metadata
       ),
       { caller: 'public-entry-service', method: 'IssueMachineWorkloadSourceCredential' }
     )
@@ -227,6 +238,16 @@ class PublicEntryFoundationMachineSourceCredentialClient {
       'MachineWorkloadSourceCredentialService'
     ))
   }
+}
+
+/** Propagates only guard-verified request correlation to Auth's machine-source bootstrap. */
+export function buildPublicEntryMachineSourceCredentialMetadata(): Metadata {
+  const correlation = inboundExecutionTokenCredentialScope.requireCorrelation()
+  const metadata = new Metadata()
+  metadata.set('x-request-id', correlation.requestId)
+  metadata.set('traceparent', correlation.traceparent)
+  if (correlation.tracestate) metadata.set('tracestate', correlation.tracestate)
+  return metadata
 }
 
 /** Scopes one opaque MACHINE source credential to exactly one STS exchange. */

@@ -2,7 +2,7 @@
 import type { PublicEntryBusinessCardApi } from '#/api'
 
 import { computed, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 
 import { IconifyIcon } from '@vben/icons'
 
@@ -11,15 +11,27 @@ import { QRCode, Skeleton } from 'ant-design-vue'
 import { renderPublicBusinessCardApi } from '#/api'
 
 const route = useRoute()
-const router = useRouter()
 const loading = ref(false)
-const result = ref<PublicEntryBusinessCardApi.PublicRenderResult | null>(null)
+const result = ref<null | PublicEntryBusinessCardApi.PublicRenderResult>(null)
 const businessCardId = computed(() => String(route.params.businessCardId ?? ''))
 const view = computed(() => result.value?.view)
+const publicState = computed(() => result.value?.state)
+const publicStateContent = computed(() => {
+  if (publicState.value === 'PUBLIC_CARD_NOT_FOUND') {
+    return {
+      description: '该公开名片不存在或链接已失效。',
+      title: '名片不存在'
+    }
+  }
+  return {
+    description: '该公开名片当前无法展示，请稍后再试。',
+    title: '名片暂不可用'
+  }
+})
 const sortedActions = computed(() => {
-  return [...(view.value?.contactActions ?? [])]
+  return (view.value?.contactActions ?? [])
     .filter((action) => action.actionUrl || action.contactActionType === 'SAVE_VCARD')
-    .sort((left, right) => (left.displayOrder ?? 0) - (right.displayOrder ?? 0))
+    .toSorted((left, right) => (left.displayOrder ?? 0) - (right.displayOrder ?? 0))
 })
 const publicQrValue = computed(() =>
   view.value?.publicUrl || `/public/business-cards/${businessCardId.value}`
@@ -39,12 +51,6 @@ async function loadPublicCard() {
   try {
     const nextResult = await renderPublicBusinessCardApi(businessCardId.value)
     result.value = nextResult
-    if (nextResult?.state !== 'AVAILABLE' || !nextResult.view) {
-      await router.replace({
-        name: 'FallbackNotFound',
-        params: { path: ['404'] }
-      })
-    }
   } finally {
     loading.value = false
   }
@@ -148,6 +154,16 @@ onMounted(loadPublicCard)
         </div>
       </div>
     </section>
+    <section
+      v-else-if="publicState"
+      class="public-card-status"
+      :data-public-card-state="publicState"
+      role="status"
+    >
+      <div class="public-card-status__mark" aria-hidden="true">名</div>
+      <h1>{{ publicStateContent.title }}</h1>
+      <p>{{ publicStateContent.description }}</p>
+    </section>
   </main>
 </template>
 
@@ -163,10 +179,43 @@ onMounted(loadPublicCard)
   padding: 28px;
 }
 .public-card-page__skeleton,
-.public-card {
+.public-card,
+.public-card-status {
   margin: 0 auto;
   max-width: 500px;
   width: 100%;
+}
+.public-card-status {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 26px 70px -38px rgb(15 23 42 / 46%);
+  padding: 64px 36px;
+  text-align: center;
+}
+.public-card-status__mark {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #0f766e, #115e59);
+  color: #fff;
+  font-size: 28px;
+  font-weight: 800;
+}
+.public-card-status h1 {
+  margin: 4px 0 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+.public-card-status p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.6;
 }
 .public-card {
   background: #fff;

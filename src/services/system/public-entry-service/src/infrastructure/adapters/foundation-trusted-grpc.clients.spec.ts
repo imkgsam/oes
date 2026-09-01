@@ -1,4 +1,6 @@
+import { inboundExecutionTokenCredentialScope } from '@oes/common/authorization'
 import {
+  buildPublicEntryMachineSourceCredentialMetadata,
   PUBLICENTRY_FOUNDATION_TARGETS,
   requirePublicEntryFoundationTarget
 } from './foundation-trusted-grpc.clients'
@@ -20,5 +22,29 @@ describe('PublicEntry foundation trusted gRPC targets', () => {
       expect(profile.audience).not.toContain('*')
       expect(Object.isFrozen(profile)).toBe(true)
     }
+  })
+
+  it('propagates only verified public correlation to the Auth machine-source bootstrap', () => {
+    const request = {}
+    inboundExecutionTokenCredentialScope.preparePublicCorrelation(request, {
+      requestId: 'public-card-request-701',
+      traceparent: '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01',
+      tracestate: 'oes=public-card'
+    })
+
+    const metadata = inboundExecutionTokenCredentialScope.runPrepared(request, () =>
+      buildPublicEntryMachineSourceCredentialMetadata()
+    )
+    expect(metadata.getMap()).toEqual({
+      'x-request-id': 'public-card-request-701',
+      traceparent: '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01',
+      tracestate: 'oes=public-card'
+    })
+  })
+
+  it('fails closed when the machine-source bootstrap has no verified request correlation', () => {
+    expect(() => buildPublicEntryMachineSourceCredentialMetadata()).toThrow(
+      'Transport-private HUMAN OBO subject credential is required'
+    )
   })
 })
