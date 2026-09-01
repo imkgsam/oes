@@ -2,13 +2,13 @@
 
 featureKey: system-human-obo-session-hydration
 truthCommit: a912abb73e64f8065044f5a278d02439c473d171
-baseSha: 5f712519b05fb53ae577dfe36fa5277e1e690ea1
+baseSha: a58ada6b500f198c9fc863bf6247edfc24c8c34a
 integrationBranch: codex/system-human-obo-session-hydration
 worktreeKey: 917a
-pullRequest: https://github.com/imkgsam/oes/pull/55
+pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
-state: ACCEPTED
+state: CANDIDATE
 
 ## Objective
 
@@ -34,6 +34,26 @@ review: local-ri ACCEPTED exact 58e72653ec79efc78e89172ccb67641269e107f4; findin
 - Acceptance: the verifier and signer consume the same scope/tenant truth table; audit records the
   derived scope and optional tenant before return; cache keys cannot alias SYSTEM and TENANT; all
   negative cases fail before Permission/signing as applicable.
+
+### runtime-gateway-first-hop-audiences
+
+state: CANDIDATE
+candidate: 080417c4fa77f5f0811232c0b91bd395d1d28def
+review: pending same Feature RI `01a05313-01f8-7243-bc19-3c7d31be6f3f`
+
+- Scope: add only the four proven Gateway workload audiences for Browser Activity, CRM, HR and
+  Site, with exact stable-truth provenance and runtime projection tests.
+- Protected scope: Gateway HUMAN_OBO target audiences, Permission workload issuance tuples,
+  product permissions, SYSTEM/TENANT semantics, optional trace handling and Public Card paths.
+- PublicEntry second hop: current source carries exact HUMAN_OBO source/correlation metadata in the
+  focused producer proof, while the missing-policy counterfactual produces different literals from
+  the recorded runtime correlation failure. Marked `UNREPRODUCED`; no policy or product change.
+- Acceptance: baseline/modified audience proof, wildcard/duplicate negatives, local runtime profile,
+  Auth/Common correlation and signing gates, focused PublicEntry proof, provenance, rollback and
+  `git diff --check` pass on the exact candidate.
+- Known independent base blocker: PublicEntry package build reaches pre-existing generated client
+  errors for the three `resolvePublicBusinessCard*` owner-fact RPCs even after `pnpm proto:gen`; no
+  generated file changed and this candidate does not repair that contract gap.
 
 ## Scope / tenant truth table
 
