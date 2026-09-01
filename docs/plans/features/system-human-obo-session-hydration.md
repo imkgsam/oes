@@ -2,10 +2,11 @@
 
 featureKey: system-human-obo-session-hydration
 truthCommit: a912abb73e64f8065044f5a278d02439c473d171
-baseSha: 5f712519b05fb53ae577dfe36fa5277e1e690ea1
-integrationBranch: codex/system-human-obo-session-hydration
+baseSha: a58ada6b500f198c9fc863bf6247edfc24c8c34a
+integrationBranch: codex/system-human-obo-session-hydration-runtime-audiences
+priorRemote: codex/system-human-obo-session-hydration / PR #55 MERGED
 worktreeKey: 917a
-pullRequest: https://github.com/imkgsam/oes/pull/55
+pullRequest: follow-up pending
 mergeSha: pending
 cleanup: HOLD
 state: ACCEPTED
@@ -34,6 +35,30 @@ review: local-ri ACCEPTED exact 58e72653ec79efc78e89172ccb67641269e107f4; findin
 - Acceptance: the verifier and signer consume the same scope/tenant truth table; audit records the
   derived scope and optional tenant before return; cache keys cannot alias SYSTEM and TENANT; all
   negative cases fail before Permission/signing as applicable.
+
+### runtime-gateway-first-hop-audiences
+
+state: ACCEPTED
+candidate: 4fb04d0d25029b2eac67c792522c8adbcef12b3c
+review: same Feature RI `01a05313-01f8-7243-bc19-3c7d31be6f3f` ACCEPTED exact
+  `4fb04d0d25029b2eac67c792522c8adbcef12b3c`; findings none
+
+- Scope: add only the four proven Gateway workload audiences for Browser Activity, CRM, HR and
+  Site, with exact stable-truth provenance and runtime projection tests.
+- Protected scope: Gateway HUMAN_OBO target audiences, Permission workload issuance tuples,
+  product permissions, SYSTEM/TENANT semantics, optional trace handling and Public Card paths.
+- PublicEntry second hop: current source carries exact HUMAN_OBO source/correlation metadata in the
+  focused producer proof, while the missing-policy counterfactual produces different literals from
+  the recorded runtime correlation failure. Marked `UNREPRODUCED`; no policy or product change.
+- Acceptance: baseline/modified audience proof, wildcard/duplicate negatives, local runtime profile,
+  Auth/Common correlation and signing gates, focused PublicEntry proof, provenance, rollback and
+  `git diff --check` pass on the exact candidate.
+- RI repair: CRM provenance now resolves the current `## 18. Trusted gRPC Inbound Boundary` and
+  every new source fragment is executable-checked against an existing stable heading whose bounded
+  section contains the declared Code. HR remains the exact current `17-RPC` heading.
+- Known independent base blocker: PublicEntry package build reaches pre-existing generated client
+  errors for the three `resolvePublicBusinessCard*` owner-fact RPCs even after `pnpm proto:gen`; no
+  generated file changed and this candidate does not repair that contract gap.
 
 ## Scope / tenant truth table
 

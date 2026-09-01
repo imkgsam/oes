@@ -1,7 +1,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { spawnSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import {
+  parseParallelShardFlag,
+  parseShardFlags,
+  partitionWeighted,
+  selectWeightedShard
+} from './ci-sharding.mjs'
 
 export const ASSIGNED_TEST_SURFACES = Object.freeze([
   Object.freeze({ name: '@oes/common', directory: 'src/common', roots: ['src'], typecheck: true }),
@@ -83,46 +89,126 @@ export function validateMatrix(repositoryRoot = defaultRepositoryRoot()) {
 }
 
 /** Runs every exact unit/component spec and rejects hidden skip/todo/empty results. */
-export function runUnitMatrix(repositoryRoot = defaultRepositoryRoot()) {
-  const inventory = validateMatrix(repositoryRoot)
+export function selectUnitShard(inventory, shardIndex, shardCount) {
+  return selectWeightedShard(
+    inventory,
+    shardIndex,
+    shardCount,
+    (entry) => entry.name,
+    (entry) => entry.specs.length + (entry.typecheck === true ? 1 : 0)
+  )
+}
+
+/** Partitions every unit surface for internal concurrency after one shared install/restore. */
+export function partitionUnitShards(inventory, shardCount) {
+  return partitionWeighted(
+    inventory,
+    shardCount,
+    (entry) => entry.name,
+    (entry) => entry.specs.length + (entry.typecheck === true ? 1 : 0)
+  )
+}
+
+/** Runs every exact unit/component spec assigned to one optional deterministic shard. */
+export async function runUnitMatrix(
+  repositoryRoot = defaultRepositoryRoot(),
+  shardIndex = null,
+  shardCount = null,
+  parallelShardCount = null
+) {
+  const completeInventory = validateMatrix(repositoryRoot)
+  if (parallelShardCount !== null && shardIndex !== null)
+    throw new Error('UNIT_PARALLEL_AND_EXTERNAL_SHARD_CONFLICT')
+  const inventory =
+    shardIndex === null
+      ? completeInventory
+      : selectUnitShard(completeInventory, shardIndex, shardCount).items
   const evidenceDirectory = path.join(repositoryRoot, '.tmp', 'oes-test-matrix', 'unit')
   fs.mkdirSync(evidenceDirectory, { recursive: true })
   assertNoTestResidue(repositoryRoot)
+  const shards =
+    parallelShardCount === null
+      ? [Object.freeze({ index: 0, items: inventory })]
+      : partitionUnitShards(inventory, parallelShardCount)
+  process.stdout.write(
+    `UNIT_EXECUTION sharedSetup=true parallelShards=${shards.length} packages=${inventory.length}\n`
+  )
+  const results = await Promise.allSettled(
+    shards.map((shard) => runUnitShardBatch(repositoryRoot, evidenceDirectory, shard))
+  )
+  const failures = results
+    .filter((result) => result.status === 'rejected')
+    .map((result) => result.reason)
+  if (failures.length > 0)
+    throw new AggregateError(failures, `UNIT_SHARD_FAILURES count=${failures.length}`)
   let totalTests = 0
   let totalSuites = 0
-  for (const surface of inventory) {
-    if (surface.typecheck === true) {
-      run('pnpm', ['--filter', surface.name, 'run', 'test:typecheck'], { cwd: repositoryRoot })
-    }
-    const outputFile = path.join(evidenceDirectory, `${safeName(surface.name)}.json`)
-    fs.rmSync(outputFile, { force: true })
-    const args = [
-      '--filter',
-      surface.name,
-      'exec',
-      'jest',
-      '--config',
-      'jest.config.js',
-      '--runInBand',
-      '--runTestsByPath',
-      ...surface.specs,
-      '--json',
-      '--outputFile',
-      outputFile
-    ]
-    run('pnpm', args, { cwd: repositoryRoot })
-    assertNoTestResidue(repositoryRoot)
-    const result = JSON.parse(fs.readFileSync(outputFile, 'utf8'))
-    assertJestResult(surface.name, result, surface.specs.length)
-    totalTests += result.numTotalTests
-    totalSuites += result.numTotalTestSuites
-    process.stdout.write(
-      `TEST_SURFACE package=${surface.name} suites=${result.numTotalTestSuites} tests=${result.numTotalTests} status=PASS\n`
-    )
+  for (const result of results) {
+    totalTests += result.value.tests
+    totalSuites += result.value.suites
   }
   process.stdout.write(
     `TEST_MATRIX_UNIT=PASS packages=${inventory.length} suites=${totalSuites} tests=${totalTests}\n`
   )
+}
+
+/** Runs one weighted unit batch serially while sibling batches execute on the same runner. */
+async function runUnitShardBatch(repositoryRoot, evidenceDirectory, shard) {
+  let totalTests = 0
+  let totalSuites = 0
+  const failures = []
+  for (const surface of shard.items) {
+    try {
+      if (surface.typecheck === true)
+        await runAsync(
+          'pnpm',
+          ['--filter', surface.name, 'run', 'test:typecheck'],
+          {
+            cwd: repositoryRoot
+          },
+          `unit-${shard.index}-${surface.name}-typecheck`
+        )
+      const outputFile = path.join(evidenceDirectory, `${safeName(surface.name)}.json`)
+      fs.rmSync(outputFile, { force: true })
+      const args = [
+        '--filter',
+        surface.name,
+        'exec',
+        'jest',
+        '--config',
+        'jest.config.js',
+        '--runInBand',
+        '--runTestsByPath',
+        ...surface.specs,
+        '--json',
+        '--outputFile',
+        outputFile
+      ]
+      await runAsync('pnpm', args, { cwd: repositoryRoot }, `unit-${shard.index}-${surface.name}`)
+      assertNoTestResidue(repositoryRoot)
+      const result = JSON.parse(fs.readFileSync(outputFile, 'utf8'))
+      assertJestResult(surface.name, result, surface.specs.length)
+      totalTests += result.numTotalTests
+      totalSuites += result.numTotalTestSuites
+      process.stdout.write(
+        `TEST_SURFACE shard=${shard.index} package=${surface.name} suites=${result.numTotalTestSuites} tests=${result.numTotalTests} status=PASS\n`
+      )
+    } catch (error) {
+      failures.push(error)
+      process.stdout.write(
+        `TEST_SURFACE shard=${shard.index} package=${surface.name} status=FAIL reason=${error instanceof Error ? error.message : String(error)}\n`
+      )
+    }
+  }
+  if (failures.length > 0)
+    throw new AggregateError(
+      failures,
+      `UNIT_BATCH_FAILURES shard=${shard.index} count=${failures.length}`
+    )
+  process.stdout.write(
+    `UNIT_SHARD=PASS shard=${shard.index} packages=${shard.items.length} suites=${totalSuites} tests=${totalTests}\n`
+  )
+  return Object.freeze({ suites: totalSuites, tests: totalTests })
 }
 
 /** Fails closed when a certificate fixture leaks its serial state into the repository root. */
@@ -150,14 +236,21 @@ export function assertJestResult(packageName, result, expectedSuiteFiles) {
   }
 }
 
-/** Executes one command with literal command and status evidence. */
-function run(command, args, options) {
-  process.stdout.write(`COMMAND ${command} ${args.join(' ')}\n`)
-  const result = spawnSync(command, args, { ...options, stdio: 'inherit' })
-  process.stdout.write(`EXIT status=${result.status ?? 'spawn-error'}\n`)
-  if (result.error) throw result.error
-  if (result.status !== 0)
-    throw new Error(`COMMAND_FAILED command=${command} exit=${result.status}`)
+/** Executes one test command asynchronously and fails closed on spawn, signal, or non-zero exit. */
+function runAsync(command, args, options, label) {
+  process.stdout.write(`COMMAND label=${label} ${command} ${args.join(' ')}\n`)
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, { ...options, stdio: 'inherit' })
+    child.once('error', reject)
+    child.once('close', (status, signal) => {
+      process.stdout.write(
+        `EXIT label=${label} status=${status ?? 'signal'} signal=${signal ?? 'none'}\n`
+      )
+      if (status !== 0)
+        reject(new Error(`COMMAND_FAILED command=${command} exit=${status ?? signal}`))
+      else resolve()
+    })
+  })
 }
 
 /** Visits ordinary files below one repository-owned test root. */
@@ -182,7 +275,11 @@ function defaultRepositoryRoot() {
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : undefined
 if (invokedPath === fileURLToPath(import.meta.url)) {
   try {
-    const [command] = process.argv.slice(2)
+    const [command, ...rawArguments] = process.argv.slice(2)
+    const { parallelShardCount, remaining: parallelArguments } =
+      parseParallelShardFlag(rawArguments)
+    const { shardIndex, shardCount, remaining } = parseShardFlags(parallelArguments)
+    if (remaining.length > 0) throw new Error(`TEST_MATRIX_ARGUMENT_UNKNOWN value=${remaining[0]}`)
     if (command === 'check') {
       const inventory = validateMatrix()
       for (const surface of inventory) {
@@ -192,7 +289,7 @@ if (invokedPath === fileURLToPath(import.meta.url)) {
       }
       process.stdout.write(`TEST_MATRIX_CHECK=PASS packages=${inventory.length}\n`)
     } else if (command === 'unit') {
-      runUnitMatrix()
+      await runUnitMatrix(defaultRepositoryRoot(), shardIndex, shardCount, parallelShardCount)
     } else {
       throw new Error('TEST_MATRIX_COMMAND_REQUIRED expected=check|unit')
     }

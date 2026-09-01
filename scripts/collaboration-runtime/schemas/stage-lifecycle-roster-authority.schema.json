@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/stage-lifecycle-roster-authority-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "authorityFingerprint",
+    "stageKey",
+    "stageOwnerTaskId",
+    "transitionId",
+    "stageCleanupAuthorizationFingerprint",
+    "source",
+    "createdRoster"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "OES_STAGE_LIFECYCLE_ROSTER_AUTHORITY" },
+    "authorityFingerprint": { "$ref": "#/$defs/sha256" },
+    "stageKey": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "stageOwnerTaskId": { "type": "string", "minLength": 1 },
+    "transitionId": { "type": "string", "minLength": 1 },
+    "stageCleanupAuthorizationFingerprint": { "$ref": "#/$defs/sha256" },
+    "source": { "const": "TASK_NATIVE_CREATION_RECEIPTS" },
+    "createdRoster": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/createdTask" }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "createdTask": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskId", "role", "ownerTaskId", "creationReceiptFingerprint"],
+      "properties": {
+        "taskId": { "type": "string", "minLength": 1 },
+        "role": {
+          "enum": ["IT", "FEATURE_RI", "FL", "STAGE_DESIGN", "STAGE_RI", "SL", "GLOBAL_UD"]
+        },
+        "ownerTaskId": { "type": ["string", "null"], "minLength": 1 },
+        "creationReceiptFingerprint": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}
