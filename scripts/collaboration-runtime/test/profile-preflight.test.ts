@@ -10,7 +10,13 @@ import {
 } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { canonicalJson, sha256 } from '../src/canonical.ts'
+import {
+  canonicalJson,
+  objectFingerprint,
+  readJson,
+  sha256,
+  writeJsonAtomic
+} from '../src/canonical.ts'
 import { validateJsonSchema } from '../src/schema-validation.ts'
 import {
   classifyCapabilityIssue,
@@ -22,7 +28,6 @@ import {
   planProfileRepair,
   readApprovalTelemetry,
   runEffectiveProfileProbePhase,
-  runEffectiveProfilePreflight,
   SystemPreflightProbeAdapter,
   verifyEffectiveProfileReport,
   type ApprovalTelemetryExpectation,
@@ -37,10 +42,14 @@ import {
 import type {
   ApprovalMode,
   ApprovalTelemetry,
+  ApprovalTelemetrySnapshotRecord,
   CapabilityName,
   CapabilityObservation,
-  EffectiveProfileReport
+  EffectiveProfileReport,
+  ProfileLaunchReceipt,
+  TrustedAuthorizationReference
 } from '../src/types.ts'
+import type { EffectiveProfileProbeDraft, PreflightRequest } from '../src/profile-preflight.ts'
 
 const effectiveProfileSchema = JSON.parse(
   readFileSync(
@@ -86,8 +95,11 @@ class PassingProbe implements PreflightProbeAdapter {
     }
   }
 
-  async approvalTelemetry(expectation: ApprovalTelemetryExpectation): Promise<ApprovalTelemetry> {
-    return readApprovalTelemetry(this.telemetryPath, expectation)
+  async approvalTelemetry(
+    expectation: ApprovalTelemetryExpectation,
+    telemetryEventSource?: string
+  ): Promise<ApprovalTelemetry> {
+    return readApprovalTelemetry(telemetryEventSource ?? this.telemetryPath, expectation)
   }
 }
 
@@ -129,10 +141,14 @@ function telemetry(root: string, approvalMode: ApprovalMode = 'ON_REQUEST_AUTO_R
     path,
     [
       JSON.stringify({
+        type: 'session_meta',
+        payload: { id: 'session-1', session_id: 'session-1' }
+      }),
+      JSON.stringify({
         ordinal: 1,
         type: 'turn_context',
         payload: {
-          turn_id: 'turn-1',
+          turn_id: 'turn-2',
           approval_policy: pair.approvalPolicy,
           approvals_reviewer: pair.approvalsReviewer,
           ...MANAGED_PERMISSION
@@ -148,10 +164,72 @@ function telemetry(root: string, approvalMode: ApprovalMode = 'ON_REQUEST_AUTO_R
           ...MANAGED_PERMISSION
         }
       }),
-      JSON.stringify({ type: 'event_msg', payload: { type: 'agent_message' } })
+      JSON.stringify({ type: 'event_msg', payload: { type: 'agent_message' } }),
+      JSON.stringify({
+        type: 'event_msg',
+        payload: { type: 'task_complete', turn_id: 'turn-2' }
+      })
     ].join('\n')
   )
   return path
+}
+
+/** Emulates the external issuer by sealing one immutable draft/session/turn snapshot record. */
+function sealSnapshotRecord(
+  request: PreflightRequest,
+  draft: EffectiveProfileProbeDraft,
+  snapshotPath: string,
+  rolloutSessionId = 'session-1',
+  completedTurnId = 'turn-2'
+): TrustedAuthorizationReference {
+  const receipt = readJson<ProfileLaunchReceipt>(request.launchReceipt.path)
+  const snapshotSha256 = sha256(readFileSync(snapshotPath))
+  const snapshot = {
+    path: snapshotPath,
+    sha256: snapshotSha256,
+    fingerprint: sha256(
+      canonicalJson({ eventSource: snapshotPath, eventSourceSha256: snapshotSha256 })
+    )
+  }
+  const record: ApprovalTelemetrySnapshotRecord = {
+    schemaVersion: 1,
+    kind: 'OES_APPROVAL_TELEMETRY_SNAPSHOT_RECORD',
+    snapshotRecordFingerprint: '',
+    ownerTaskId: request.ownerTaskId,
+    transitionId: request.transitionId,
+    profileGeneration: receipt.profileGeneration,
+    launchReceiptFingerprint: receipt.receiptFingerprint,
+    probeDraftFingerprint: draft.draftFingerprint,
+    probeRequestFingerprint: draft.requestFingerprint,
+    rolloutSessionId,
+    completedTurnId,
+    snapshot
+  }
+  record.snapshotRecordFingerprint = objectFingerprint(
+    record as unknown as Record<string, unknown>,
+    'snapshotRecordFingerprint'
+  )
+  const path = join(dirname(snapshotPath), `snapshot-record-${draft.draftFingerprint}.json`)
+  writeJsonAtomic(path, record)
+  return {
+    path,
+    sha256: sha256(readFileSync(path)),
+    fingerprint: record.snapshotRecordFingerprint
+  }
+}
+
+/** Runs the production two-phase protocol for compact unit fixtures. */
+async function runTwoPhaseFixture(
+  request: PreflightRequest,
+  adapter: PassingProbe
+): Promise<EffectiveProfileReport> {
+  const draftPath = join(
+    dirname(request.resultPath),
+    `draft-${request.transitionId.replace(/[^a-z0-9]/giu, '-')}.json`
+  )
+  const draft = await runEffectiveProfileProbePhase(request, adapter, draftPath)
+  const snapshotRecord = sealSnapshotRecord(request, draft, adapter.telemetryPath)
+  return finalizeEffectiveProfilePreflight(request, adapter, draftPath, snapshotRecord)
 }
 
 /** Renders one complete v2 installed profile and launch receipt fixture. */
@@ -220,7 +298,7 @@ test('actual probe adapter records and verifies every delivery capability with z
   const root = mkdtempSync(join(tmpdir(), 'oes-profile-test-'))
   const rendered = renderedProfile(root, '/root/fl', 'handoff:1')
   const telemetryPath = trustedTelemetry(rendered)
-  const report = await runEffectiveProfilePreflight(
+  const report = await runTwoPhaseFixture(
     {
       ownerTaskId: '/root/fl',
       transitionId: 'handoff:1',
@@ -254,7 +332,7 @@ test('v2 writer supports NEVER_USER with zero approval events and executable sch
   const root = mkdtempSync(join(tmpdir(), 'oes-profile-never-test-'))
   const rendered = renderedProfile(root, '/root/fl', 'handoff:never', 'NEVER_USER')
   const telemetryPath = trustedTelemetry(rendered, 'NEVER_USER')
-  const report = await runEffectiveProfilePreflight(
+  const report = await runTwoPhaseFixture(
     {
       ownerTaskId: '/root/fl',
       transitionId: 'handoff:never',
@@ -351,21 +429,28 @@ test('v2 preflight rejects unrestricted effective filesystem telemetry end to en
   )
   writeFileSync(
     eventSource,
-    JSON.stringify({
-      ordinal: 1,
-      type: 'turn_context',
-      payload: {
-        turn_id: 'turn-unrestricted',
-        approval_policy: 'never',
-        approvals_reviewer: 'user',
-        ...MANAGED_PERMISSION,
-        file_system_sandbox_policy: { kind: 'unrestricted' }
-      }
-    })
+    [
+      JSON.stringify({ type: 'session_meta', payload: { id: 'session-1' } }),
+      JSON.stringify({
+        ordinal: 1,
+        type: 'turn_context',
+        payload: {
+          turn_id: 'turn-2',
+          approval_policy: 'never',
+          approvals_reviewer: 'user',
+          ...MANAGED_PERMISSION,
+          file_system_sandbox_policy: { kind: 'unrestricted' }
+        }
+      }),
+      JSON.stringify({
+        type: 'event_msg',
+        payload: { type: 'task_complete', turn_id: 'turn-2' }
+      })
+    ].join('\n')
   )
 
   await assert.rejects(
-    runEffectiveProfilePreflight(
+    runTwoPhaseFixture(
       {
         ownerTaskId: '/root/fl',
         transitionId: 'handoff:unrestricted',
@@ -470,7 +555,7 @@ test('v1 reader remains frozen to on-request auto-review and v2 fields stay forb
   const root = mkdtempSync(join(tmpdir(), 'oes-profile-v1-reader-test-'))
   const rendered = renderedProfile(root, '/root/fl', 'legacy:source')
   const telemetryPath = trustedTelemetry(rendered)
-  const v2 = await runEffectiveProfilePreflight(
+  const v2 = await runTwoPhaseFixture(
     {
       ownerTaskId: '/root/fl',
       transitionId: 'legacy:source',
@@ -500,6 +585,11 @@ test('v1 reader remains frozen to on-request auto-review and v2 fields stay forb
     effectivePermissionSandboxFingerprint: _telemetryEffective,
     eventSourceFingerprint: _telemetrySource,
     contexts: _contexts,
+    snapshotRecord: _snapshotRecord,
+    probeDraftFingerprint: _probeDraftFingerprint,
+    probeRequestFingerprint: _probeRequestFingerprint,
+    rolloutSessionId: _rolloutSessionId,
+    completedTurnId: _completedTurnId,
     ...legacyTelemetry
   } = v2Telemetry
   const v1: EffectiveProfileReport = { ...common, schemaVersion: 1, telemetry: legacyTelemetry }
@@ -517,7 +607,7 @@ test('profile verification reopens evidence, profile bytes, and telemetry', asyn
   const root = mkdtempSync(join(tmpdir(), 'oes-profile-reopen-test-'))
   const rendered = renderedProfile(root, '/root/fl', 'handoff:2')
   const telemetryPath = trustedTelemetry(rendered)
-  const report = await runEffectiveProfilePreflight(
+  const report = await runTwoPhaseFixture(
     {
       ownerTaskId: '/root/fl',
       transitionId: 'handoff:2',
@@ -721,11 +811,13 @@ test('two-phase preflight finalizes only after the completed target turn is issu
     draft.observations.map(({ name }) => name),
     ['filesystemWrite']
   )
+  const snapshotRecord = sealSnapshotRecord(request, draft, issuerSnapshot)
 
   const report = await finalizeEffectiveProfilePreflight(
     request,
     new PassingProbe(root, issuerSnapshot),
-    draftPath
+    draftPath,
+    snapshotRecord
   )
   assert.deepEqual(
     report.observations.map(({ name }) => name),
@@ -737,8 +829,80 @@ test('two-phase preflight finalizes only after the completed target turn is issu
   changed.transitionId = 'handoff:rebound'
   writeFileSync(draftPath, `${canonicalJson(changed)}\n`)
   await assert.rejects(
-    finalizeEffectiveProfilePreflight(request, new PassingProbe(root, issuerSnapshot), draftPath),
+    finalizeEffectiveProfilePreflight(
+      request,
+      new PassingProbe(root, issuerSnapshot),
+      draftPath,
+      snapshotRecord
+    ),
     /PROFILE_PROBE_DRAFT_BINDING_INVALID/
+  )
+})
+
+test('finalizer rejects an older safe snapshot record and inspects the bad current turn', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'oes-profile-snapshot-replay-test-'))
+  const rendered = renderedProfile(root, '/root/fl', 'handoff:snapshot-replay', 'NEVER_USER')
+  const authorizationRoot = join(dirname(rendered.installedProfile.path), 'trusted-authorizations')
+  const generated = telemetry(authorizationRoot, 'NEVER_USER')
+  const safeSnapshot = join(authorizationRoot, 'older-safe.jsonl')
+  writeFileSync(safeSnapshot, readFileSync(generated))
+  const badSnapshot = join(authorizationRoot, 'current-bad.jsonl')
+  writeFileSync(badSnapshot, readFileSync(generated))
+  appendFileSync(
+    badSnapshot,
+    `\n${JSON.stringify({ type: 'event_msg', payload: { type: 'exec_approval_request' } })}\n`
+  )
+  const request: PreflightRequest = {
+    ownerTaskId: '/root/fl',
+    transitionId: 'handoff:snapshot-replay',
+    approvalMode: 'NEVER_USER',
+    launchReceipt: rendered.launchReceipt,
+    expectedState: 'HANDOFF_PENDING',
+    declaredCapabilities: ['filesystemWrite', 'approvalTelemetry'],
+    profile: {
+      name: 'oes-profile',
+      permission: 'oes-owner',
+      path: rendered.installedProfile.path,
+      sha256: rendered.installedProfile.sha256
+    },
+    resultPath: join(root, 'profile-report.json')
+  }
+  const oldSmoke = join(root, 'old-smoke')
+  const currentSmoke = join(root, 'current-smoke')
+  mkdirSync(oldSmoke)
+  mkdirSync(currentSmoke)
+  const oldDraftPath = join(root, 'old-draft.json')
+  const currentDraftPath = join(root, 'current-draft.json')
+  const oldDraft = await runEffectiveProfileProbePhase(
+    request,
+    new PassingProbe(oldSmoke, safeSnapshot),
+    oldDraftPath
+  )
+  const oldRecord = sealSnapshotRecord(request, oldDraft, safeSnapshot)
+  const currentDraft = await runEffectiveProfileProbePhase(
+    request,
+    new PassingProbe(currentSmoke, badSnapshot),
+    currentDraftPath
+  )
+  const currentRecord = sealSnapshotRecord(request, currentDraft, badSnapshot)
+
+  await assert.rejects(
+    finalizeEffectiveProfilePreflight(
+      request,
+      new PassingProbe(currentSmoke, safeSnapshot),
+      currentDraftPath,
+      oldRecord
+    ),
+    /APPROVAL_TELEMETRY_SNAPSHOT_RECORD_BINDING_MISMATCH/
+  )
+  await assert.rejects(
+    finalizeEffectiveProfilePreflight(
+      request,
+      new PassingProbe(currentSmoke, safeSnapshot),
+      currentDraftPath,
+      currentRecord
+    ),
+    /NEVER_USER_APPROVAL_EVENT_FORBIDDEN/
   )
 })
 
@@ -808,7 +972,7 @@ test('caller-writable profile reports cannot select remote trust roots', async (
   const root = mkdtempSync(join(tmpdir(), 'oes-runtime-trust-profile-test-'))
   const rendered = renderedProfile(root, '/root/fl', 'delivery:1')
   const telemetryPath = trustedTelemetry(rendered)
-  const report = await runEffectiveProfilePreflight(
+  const report = await runTwoPhaseFixture(
     {
       ownerTaskId: '/root/fl',
       transitionId: 'delivery:1',

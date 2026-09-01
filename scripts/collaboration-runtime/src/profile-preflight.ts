@@ -22,7 +22,7 @@ import {
   sha256,
   writeJsonAtomic
 } from './canonical.ts'
-import { validateProfileReportEnvelope } from './binding.ts'
+import { validateProfileReportEnvelope, verifyTrustedReference } from './binding.ts'
 import { fail } from './errors.ts'
 import {
   approvalPair,
@@ -34,6 +34,7 @@ import {
   CAPABILITY_NAMES,
   type ApprovalMode,
   type ApprovalTelemetry,
+  type ApprovalTelemetrySnapshotRecord,
   type CapabilityName,
   type CapabilityObservation,
   type EffectivePermissionContext,
@@ -65,10 +66,14 @@ export interface ProfileRepairPlan {
 export interface PreflightProbeAdapter {
   observe(
     name: CapabilityName,
-    telemetryExpectation?: ApprovalTelemetryExpectation
+    telemetryExpectation?: ApprovalTelemetryExpectation,
+    telemetryEventSource?: string
   ): Promise<CapabilityObservation>
   credentialReference(): Promise<EffectiveProfileReport['credentialReference']>
-  approvalTelemetry(expectation: ApprovalTelemetryExpectation): Promise<ApprovalTelemetry>
+  approvalTelemetry(
+    expectation: ApprovalTelemetryExpectation,
+    telemetryEventSource?: string
+  ): Promise<ApprovalTelemetry>
 }
 
 export interface PreflightRequest {
@@ -104,7 +109,7 @@ export interface ApprovalTelemetryExpectation {
 export interface SystemProbeOptions {
   repositoryRoot: string
   smokeRoot: string
-  telemetryEventSource: string
+  telemetryEventSource?: string
   git?: string
   node?: string
 }
@@ -156,6 +161,59 @@ function readInstalledProfileRuntimeAuthority(
 /** Binds one telemetry source to its issuer-owned path and exact bytes. */
 function telemetrySourceFingerprint(eventSource: string, eventSourceSha256: string): string {
   return sha256(canonicalJson({ eventSource, eventSourceSha256 }))
+}
+
+/** Hashes only authority-bearing request semantics so result-path relocation cannot rebind a probe. */
+export function profilePreflightRequestFingerprint(request: PreflightRequest): string {
+  return sha256(
+    canonicalJson({
+      ownerTaskId: request.ownerTaskId,
+      transitionId: request.transitionId,
+      approvalMode: request.approvalMode,
+      launchReceipt: request.launchReceipt,
+      expectedState: request.expectedState,
+      declaredCapabilities: request.declaredCapabilities,
+      profile: request.profile
+    })
+  )
+}
+
+/** Validates that one issuer snapshot contains the exact completed rollout session and turn. */
+function verifyTelemetrySnapshotIdentity(
+  bytes: Buffer,
+  rolloutSessionId: string,
+  completedTurnId: string
+): void {
+  let sessionMatched = false
+  let contextMatched = false
+  let lastCompletedTurnId = ''
+  for (const line of bytes.toString('utf8').split(/\r?\n/u)) {
+    if (!line) continue
+    let event: Record<string, unknown>
+    try {
+      event = JSON.parse(line) as Record<string, unknown>
+    } catch {
+      continue
+    }
+    const payload =
+      event.payload && typeof event.payload === 'object'
+        ? (event.payload as Record<string, unknown>)
+        : undefined
+    if (event.type === 'session_meta' && payload) {
+      const identity = String(payload.session_id ?? payload.id ?? event.id ?? '')
+      if (identity && identity !== rolloutSessionId)
+        fail('APPROVAL_TELEMETRY_SESSION_MISMATCH', identity)
+      if (identity === rolloutSessionId) sessionMatched = true
+    }
+    if (event.type === 'turn_context' && String(payload?.turn_id ?? '') === completedTurnId)
+      contextMatched = true
+    if (event.type === 'event_msg' && payload?.type === 'task_complete')
+      lastCompletedTurnId = String(payload.turn_id ?? '')
+  }
+  if (!sessionMatched) fail('APPROVAL_TELEMETRY_SESSION_MISSING', rolloutSessionId)
+  if (!contextMatched) fail('APPROVAL_TELEMETRY_COMPLETED_TURN_CONTEXT_MISSING', completedTurnId)
+  if (lastCompletedTurnId !== completedTurnId)
+    fail('APPROVAL_TELEMETRY_TASK_COMPLETE_MISMATCH', lastCompletedTurnId || completedTurnId)
 }
 
 /** Reopens telemetry only from the profile-sealed, read-only authorization root. */
@@ -538,6 +596,92 @@ export function verifyEffectiveProfileReport(
     }
   }
   const actualTelemetry = readApprovalTelemetry(report.telemetry.eventSource, telemetryExpectation)
+  if (report.schemaVersion === 2 && telemetryExpectation) {
+    const reference = report.telemetry.snapshotRecord
+    if (
+      !reference ||
+      !report.telemetry.probeDraftFingerprint ||
+      !report.telemetry.probeRequestFingerprint ||
+      !report.telemetry.rolloutSessionId ||
+      !report.telemetry.completedTurnId ||
+      !report.launchReceipt ||
+      !report.approvalMode
+    )
+      fail('PROFILE_V2_TELEMETRY_SNAPSHOT_BINDING_REQUIRED', report.ownerTaskId)
+    const raw = verifyTrustedReference(
+      reference,
+      telemetryExpectation.trustedAuthorizationRoot,
+      'snapshotRecordFingerprint'
+    )
+    const recordKeys = [
+      'schemaVersion',
+      'kind',
+      'snapshotRecordFingerprint',
+      'ownerTaskId',
+      'transitionId',
+      'profileGeneration',
+      'launchReceiptFingerprint',
+      'probeDraftFingerprint',
+      'probeRequestFingerprint',
+      'rolloutSessionId',
+      'completedTurnId',
+      'snapshot'
+    ]
+    if (canonicalJson(Object.keys(raw).sort()) !== canonicalJson(recordKeys.sort()))
+      fail('PROFILE_V2_TELEMETRY_SNAPSHOT_RECORD_FIELDS_INVALID', reference.path)
+    const record = raw as unknown as ApprovalTelemetrySnapshotRecord
+    const receipt = loadProfileLaunchReceipt(report.launchReceipt)
+    const reconstructedRequest: PreflightRequest = {
+      ownerTaskId: report.ownerTaskId,
+      transitionId: report.transitionId,
+      approvalMode: report.approvalMode,
+      launchReceipt: report.launchReceipt,
+      expectedState: report.expectedState,
+      declaredCapabilities: report.declaredCapabilities,
+      profile: report.profile,
+      resultPath: ''
+    }
+    if (
+      !record.snapshot ||
+      typeof record.snapshot.path !== 'string' ||
+      typeof record.snapshot.sha256 !== 'string' ||
+      typeof record.snapshot.fingerprint !== 'string' ||
+      typeof record.rolloutSessionId !== 'string' ||
+      typeof record.completedTurnId !== 'string' ||
+      canonicalJson(Object.keys(record.snapshot).sort()) !==
+        canonicalJson(['path', 'sha256', 'fingerprint'].sort()) ||
+      record.schemaVersion !== 1 ||
+      record.kind !== 'OES_APPROVAL_TELEMETRY_SNAPSHOT_RECORD' ||
+      record.ownerTaskId !== report.ownerTaskId ||
+      record.transitionId !== report.transitionId ||
+      record.profileGeneration !== receipt.profileGeneration ||
+      record.launchReceiptFingerprint !== receipt.receiptFingerprint ||
+      record.probeDraftFingerprint !== report.telemetry.probeDraftFingerprint ||
+      record.probeRequestFingerprint !== report.telemetry.probeRequestFingerprint ||
+      record.probeRequestFingerprint !== profilePreflightRequestFingerprint(reconstructedRequest) ||
+      record.rolloutSessionId !== report.telemetry.rolloutSessionId ||
+      record.completedTurnId !== report.telemetry.completedTurnId ||
+      canonicalJson(record.snapshot) !==
+        canonicalJson({
+          path: report.telemetry.eventSource,
+          sha256: report.telemetry.eventSourceSha256,
+          fingerprint: report.telemetry.eventSourceFingerprint
+        })
+    )
+      fail('PROFILE_V2_TELEMETRY_SNAPSHOT_BINDING_MISMATCH', report.ownerTaskId)
+    const trusted = readTrustedTelemetrySource(
+      record.snapshot.path,
+      telemetryExpectation.trustedAuthorizationRoot
+    )
+    verifyTelemetrySnapshotIdentity(trusted.bytes, record.rolloutSessionId, record.completedTurnId)
+    Object.assign(actualTelemetry, {
+      snapshotRecord: reference,
+      probeDraftFingerprint: record.probeDraftFingerprint,
+      probeRequestFingerprint: record.probeRequestFingerprint,
+      rolloutSessionId: record.rolloutSessionId,
+      completedTurnId: record.completedTurnId
+    })
+  }
   const telemetryExtras = Object.keys(report.telemetry).filter(
     (key) =>
       !(
@@ -552,7 +696,12 @@ export function verifyEffectiveProfileReport(
               'normalPermissionPromptCount',
               'approvalMode',
               'effectivePermissionSandboxFingerprint',
-              'contexts'
+              'contexts',
+              'snapshotRecord',
+              'probeDraftFingerprint',
+              'probeRequestFingerprint',
+              'rolloutSessionId',
+              'completedTurnId'
             ]
           : [
               'eventSource',
@@ -718,6 +867,74 @@ function prepareProfilePreflight(request: PreflightRequest): ApprovalTelemetryEx
   }
 }
 
+/** Reopens the issuer record that binds one exact probe draft to one completed rollout snapshot. */
+function loadApprovalTelemetrySnapshotRecord(
+  reference: TrustedAuthorizationReference,
+  request: PreflightRequest,
+  draft: EffectiveProfileProbeDraft,
+  trustedAuthorizationRoot: string
+): ApprovalTelemetrySnapshotRecord {
+  const raw = verifyTrustedReference(
+    reference,
+    trustedAuthorizationRoot,
+    'snapshotRecordFingerprint'
+  )
+  const keys = [
+    'schemaVersion',
+    'kind',
+    'snapshotRecordFingerprint',
+    'ownerTaskId',
+    'transitionId',
+    'profileGeneration',
+    'launchReceiptFingerprint',
+    'probeDraftFingerprint',
+    'probeRequestFingerprint',
+    'rolloutSessionId',
+    'completedTurnId',
+    'snapshot'
+  ]
+  if (canonicalJson(Object.keys(raw).sort()) !== canonicalJson(keys.sort()))
+    fail('APPROVAL_TELEMETRY_SNAPSHOT_RECORD_FIELDS_INVALID', reference.path)
+  const record = raw as unknown as ApprovalTelemetrySnapshotRecord
+  const receipt = loadProfileLaunchReceipt(request.launchReceipt)
+  if (
+    typeof record.rolloutSessionId !== 'string' ||
+    typeof record.completedTurnId !== 'string' ||
+    !record.snapshot ||
+    typeof record.snapshot.path !== 'string' ||
+    typeof record.snapshot.sha256 !== 'string' ||
+    typeof record.snapshot.fingerprint !== 'string' ||
+    !/^[0-9a-f]{64}$/u.test(record.snapshot.sha256) ||
+    !/^[0-9a-f]{64}$/u.test(record.snapshot.fingerprint) ||
+    record.schemaVersion !== 1 ||
+    record.kind !== 'OES_APPROVAL_TELEMETRY_SNAPSHOT_RECORD' ||
+    record.ownerTaskId !== request.ownerTaskId ||
+    record.transitionId !== request.transitionId ||
+    record.profileGeneration !== receipt.profileGeneration ||
+    record.launchReceiptFingerprint !== receipt.receiptFingerprint ||
+    record.probeDraftFingerprint !== draft.draftFingerprint ||
+    record.probeRequestFingerprint !== draft.requestFingerprint ||
+    record.probeRequestFingerprint !== profilePreflightRequestFingerprint(request)
+  )
+    fail('APPROVAL_TELEMETRY_SNAPSHOT_RECORD_BINDING_MISMATCH', reference.path)
+  if (!record.rolloutSessionId.trim() || !record.completedTurnId.trim())
+    fail('APPROVAL_TELEMETRY_SNAPSHOT_IDENTITY_REQUIRED', reference.path)
+  if (
+    !record.snapshot ||
+    canonicalJson(Object.keys(record.snapshot).sort()) !==
+      canonicalJson(['path', 'sha256', 'fingerprint'].sort())
+  )
+    fail('APPROVAL_TELEMETRY_SNAPSHOT_REFERENCE_INVALID', reference.path)
+  const trusted = readTrustedTelemetrySource(record.snapshot.path, trustedAuthorizationRoot)
+  if (
+    sha256(trusted.bytes) !== record.snapshot.sha256 ||
+    trusted.fingerprint !== record.snapshot.fingerprint
+  )
+    fail('APPROVAL_TELEMETRY_SNAPSHOT_REFERENCE_MISMATCH', record.snapshot.path)
+  verifyTelemetrySnapshotIdentity(trusted.bytes, record.rolloutSessionId, record.completedTurnId)
+  return record
+}
+
 /** Reopens and validates one exact completed probe phase before telemetry finalization. */
 function loadEffectiveProfileProbeDraft(
   draftPath: string,
@@ -743,7 +960,7 @@ function loadEffectiveProfileProbeDraft(
     draft.kind !== 'OES_EFFECTIVE_PROFILE_PROBE_DRAFT' ||
     draft.draftFingerprint !==
       objectFingerprint(draft as unknown as Record<string, unknown>, 'draftFingerprint') ||
-    draft.requestFingerprint !== sha256(canonicalJson(request)) ||
+    draft.requestFingerprint !== profilePreflightRequestFingerprint(request) ||
     draft.ownerTaskId !== request.ownerTaskId ||
     draft.transitionId !== request.transitionId ||
     canonicalJson(draft.declaredCapabilities) !== canonicalJson(request.declaredCapabilities)
@@ -778,7 +995,7 @@ export async function runEffectiveProfileProbePhase(
     schemaVersion: 1,
     kind: 'OES_EFFECTIVE_PROFILE_PROBE_DRAFT',
     draftFingerprint: '',
-    requestFingerprint: sha256(canonicalJson(request)),
+    requestFingerprint: profilePreflightRequestFingerprint(request),
     ownerTaskId: request.ownerTaskId,
     transitionId: request.transitionId,
     declaredCapabilities: [...request.declaredCapabilities],
@@ -797,13 +1014,31 @@ export async function runEffectiveProfileProbePhase(
 export async function finalizeEffectiveProfilePreflight(
   request: PreflightRequest,
   adapter: PreflightProbeAdapter,
-  draftPath: string
+  draftPath: string,
+  snapshotRecordReference: TrustedAuthorizationReference
 ): Promise<EffectiveProfileReport> {
   const telemetryExpectation = prepareProfilePreflight(request)
   const draft = loadEffectiveProfileProbeDraft(draftPath, request)
+  const snapshotRecord = loadApprovalTelemetrySnapshotRecord(
+    snapshotRecordReference,
+    request,
+    draft,
+    telemetryExpectation.trustedAuthorizationRoot
+  )
+  const telemetryEventSource = snapshotRecord.snapshot.path
   const observations = [...draft.observations]
   if (request.declaredCapabilities.includes('approvalTelemetry'))
-    observations.push(await adapter.observe('approvalTelemetry', telemetryExpectation))
+    observations.push(
+      await adapter.observe('approvalTelemetry', telemetryExpectation, telemetryEventSource)
+    )
+  const telemetry = await adapter.approvalTelemetry(telemetryExpectation, telemetryEventSource)
+  Object.assign(telemetry, {
+    snapshotRecord: snapshotRecordReference,
+    probeDraftFingerprint: draft.draftFingerprint,
+    probeRequestFingerprint: draft.requestFingerprint,
+    rolloutSessionId: snapshotRecord.rolloutSessionId,
+    completedTurnId: snapshotRecord.completedTurnId
+  })
   const report: EffectiveProfileReport = {
     schemaVersion: 2,
     kind: 'OES_EFFECTIVE_PROFILE_REPORT',
@@ -814,38 +1049,7 @@ export async function finalizeEffectiveProfilePreflight(
     profile: request.profile,
     observations,
     credentialReference: draft.credentialReference,
-    telemetry: await adapter.approvalTelemetry(telemetryExpectation),
-    resourceTopology: readInstalledProfileResourceTopology(request.profile.path),
-    approvalMode: request.approvalMode,
-    launchReceipt: request.launchReceipt,
-    effectivePermissionSandboxFingerprint:
-      telemetryExpectation.expectedEffectivePermissionSandboxFingerprint
-  }
-  verifyEffectiveProfileReport(report)
-  writeJsonAtomic(request.resultPath, report)
-  return verifyEffectiveProfileReport(report)
-}
-
-/** Executes every declared probe, verifies the complete report, and atomically records it. */
-export async function runEffectiveProfilePreflight(
-  request: PreflightRequest,
-  adapter: PreflightProbeAdapter
-): Promise<EffectiveProfileReport> {
-  const telemetryExpectation = prepareProfilePreflight(request)
-  const observations: CapabilityObservation[] = []
-  for (const capability of request.declaredCapabilities)
-    observations.push(await adapter.observe(capability, telemetryExpectation))
-  const report: EffectiveProfileReport = {
-    schemaVersion: 2,
-    kind: 'OES_EFFECTIVE_PROFILE_REPORT',
-    ownerTaskId: request.ownerTaskId,
-    transitionId: request.transitionId,
-    expectedState: request.expectedState,
-    declaredCapabilities: [...request.declaredCapabilities],
-    profile: request.profile,
-    observations,
-    credentialReference: await adapter.credentialReference(),
-    telemetry: await adapter.approvalTelemetry(telemetryExpectation),
+    telemetry,
     resourceTopology: readInstalledProfileResourceTopology(request.profile.path),
     approvalMode: request.approvalMode,
     launchReceipt: request.launchReceipt,
@@ -859,7 +1063,8 @@ export async function runEffectiveProfilePreflight(
 
 /** Executes the canonical harmless capability smoke with literal persisted evidence. */
 export class SystemPreflightProbeAdapter implements PreflightProbeAdapter {
-  readonly options: Required<SystemProbeOptions>
+  readonly options: Required<Omit<SystemProbeOptions, 'telemetryEventSource'>> &
+    Pick<SystemProbeOptions, 'telemetryEventSource'>
   private credentialKeys: string[] | null = null
 
   constructor(options: SystemProbeOptions) {
@@ -868,7 +1073,8 @@ export class SystemPreflightProbeAdapter implements PreflightProbeAdapter {
 
   async observe(
     name: CapabilityName,
-    telemetryExpectation?: ApprovalTelemetryExpectation
+    telemetryExpectation?: ApprovalTelemetryExpectation,
+    telemetryEventSource?: string
   ): Promise<CapabilityObservation> {
     await mkdir(this.options.smokeRoot, { recursive: true })
     try {
@@ -954,12 +1160,10 @@ export class SystemPreflightProbeAdapter implements PreflightProbeAdapter {
         this.credentialKeys = this.readCredentialKeys()
         literalOutput = `keys=${this.credentialKeys.join(',')};valuesRecorded=false`
       } else {
-        command = `read telemetry ${this.options.telemetryEventSource}`
+        const eventSource = this.telemetryEventSource(telemetryEventSource)
+        command = `read telemetry ${eventSource}`
         if (!telemetryExpectation) fail('PROFILE_V2_TELEMETRY_EXPECTATION_REQUIRED', name)
-        const telemetry = readApprovalTelemetry(
-          this.options.telemetryEventSource,
-          telemetryExpectation
-        )
+        const telemetry = readApprovalTelemetry(eventSource, telemetryExpectation)
         literalOutput = `policy=${telemetry.approvalPolicy};reviewer=${telemetry.approvalsReviewer};normalPermissionPromptCount=${telemetry.normalPermissionPromptCount}`
       }
       return this.persistObservation({ name, command, literalOutput, exitCode: 0, result: 'PASS' })
@@ -980,8 +1184,18 @@ export class SystemPreflightProbeAdapter implements PreflightProbeAdapter {
     return { reference: 'git-credential:https://github.com', keys, secretValuesRecorded: false }
   }
 
-  async approvalTelemetry(expectation: ApprovalTelemetryExpectation): Promise<ApprovalTelemetry> {
-    return readApprovalTelemetry(this.options.telemetryEventSource, expectation)
+  async approvalTelemetry(
+    expectation: ApprovalTelemetryExpectation,
+    telemetryEventSource?: string
+  ): Promise<ApprovalTelemetry> {
+    return readApprovalTelemetry(this.telemetryEventSource(telemetryEventSource), expectation)
+  }
+
+  /** Resolves telemetry only from the finalizer-supplied issuer record in production. */
+  private telemetryEventSource(explicit?: string): string {
+    const eventSource = explicit ?? this.options.telemetryEventSource
+    if (!eventSource) fail('APPROVAL_TELEMETRY_SOURCE_REQUIRED', this.options.smokeRoot)
+    return eventSource
   }
 
   /** Executes one exact subprocess and returns combined non-secret output. */

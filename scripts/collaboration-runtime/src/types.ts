@@ -275,6 +275,11 @@ export interface ApprovalTelemetry {
   eventSource: string
   eventSourceSha256: string
   eventSourceFingerprint?: string
+  snapshotRecord?: TrustedAuthorizationReference
+  probeDraftFingerprint?: string
+  probeRequestFingerprint?: string
+  rolloutSessionId?: string
+  completedTurnId?: string
   approvalPolicy: ApprovalPolicy
   approvalsReviewer: ApprovalsReviewer
   approvalEventCount: number
@@ -282,6 +287,21 @@ export interface ApprovalTelemetry {
   approvalMode?: ApprovalMode
   effectivePermissionSandboxFingerprint?: string
   contexts?: EffectivePermissionContext[]
+}
+
+export interface ApprovalTelemetrySnapshotRecord {
+  schemaVersion: 1
+  kind: 'OES_APPROVAL_TELEMETRY_SNAPSHOT_RECORD'
+  snapshotRecordFingerprint: string
+  ownerTaskId: string
+  transitionId: string
+  profileGeneration: number
+  launchReceiptFingerprint: string
+  probeDraftFingerprint: string
+  probeRequestFingerprint: string
+  rolloutSessionId: string
+  completedTurnId: string
+  snapshot: TrustedAuthorizationReference
 }
 
 export interface ProfileLaunchReceipt {

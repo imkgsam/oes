@@ -95,6 +95,11 @@
         "eventSource": { "type": "string", "pattern": "^/" },
         "eventSourceSha256": { "$ref": "#/$defs/sha256" },
         "eventSourceFingerprint": { "$ref": "#/$defs/sha256" },
+        "snapshotRecord": { "$ref": "#/$defs/reference" },
+        "probeDraftFingerprint": { "$ref": "#/$defs/sha256" },
+        "probeRequestFingerprint": { "$ref": "#/$defs/sha256" },
+        "rolloutSessionId": { "type": "string", "minLength": 1 },
+        "completedTurnId": { "type": "string", "minLength": 1 },
         "approvalPolicy": { "enum": ["on-request", "never"] },
         "approvalsReviewer": { "enum": ["auto_review", "user"] },
         "approvalEventCount": { "type": "integer", "minimum": 0 },
@@ -176,7 +181,12 @@
               { "not": { "required": ["approvalMode"] } },
               { "not": { "required": ["effectivePermissionSandboxFingerprint"] } },
               { "not": { "required": ["eventSourceFingerprint"] } },
-              { "not": { "required": ["contexts"] } }
+              { "not": { "required": ["contexts"] } },
+              { "not": { "required": ["snapshotRecord"] } },
+              { "not": { "required": ["probeDraftFingerprint"] } },
+              { "not": { "required": ["probeRequestFingerprint"] } },
+              { "not": { "required": ["rolloutSessionId"] } },
+              { "not": { "required": ["completedTurnId"] } }
             ],
             "properties": {
               "approvalPolicy": { "const": "on-request" },
@@ -201,7 +211,12 @@
               "approvalMode",
               "effectivePermissionSandboxFingerprint",
               "eventSourceFingerprint",
-              "contexts"
+              "contexts",
+              "snapshotRecord",
+              "probeDraftFingerprint",
+              "probeRequestFingerprint",
+              "rolloutSessionId",
+              "completedTurnId"
             ]
           }
         }

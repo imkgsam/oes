@@ -21,7 +21,6 @@ import {
   finalizeEffectiveProfilePreflight,
   loadRemoteTrustRootsFromProfileReport,
   runEffectiveProfileProbePhase,
-  runEffectiveProfilePreflight,
   verifyEffectiveProfileReport,
   type PreflightRequest,
   type SystemProbeOptions
@@ -96,18 +95,6 @@ async function main(args: string[]): Promise<void> {
     emit(await new RemoteDriver(new GitHubRemoteAdapter(), trust).run(binding))
     return
   }
-  if (command === 'profile-preflight') {
-    const input = readJson<{ request: PreflightRequest; systemProbe: SystemProbeOptions }>(
-      flag(args, '--input')
-    )
-    emit(
-      await runEffectiveProfilePreflight(
-        input.request,
-        new SystemPreflightProbeAdapter(input.systemProbe)
-      )
-    )
-    return
-  }
   if (command === 'profile-preflight-probe') {
     const input = readJson<{
       request: PreflightRequest
@@ -128,12 +115,14 @@ async function main(args: string[]): Promise<void> {
       request: PreflightRequest
       systemProbe: SystemProbeOptions
       draftPath: string
+      snapshotRecord: TrustedAuthorizationReference
     }>(flag(args, '--input'))
     emit(
       await finalizeEffectiveProfilePreflight(
         input.request,
         new SystemPreflightProbeAdapter(input.systemProbe),
-        input.draftPath
+        input.draftPath,
+        input.snapshotRecord
       )
     )
     return
