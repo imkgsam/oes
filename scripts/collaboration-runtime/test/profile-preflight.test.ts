@@ -996,6 +996,27 @@ test('standard git credential fill keeps only approved reference keys', async ()
   assert.deepEqual((await adapter.credentialReference()).keys, ['password', 'username'])
 })
 
+test('credential reference preserves helper failure without recording secret values', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'oes-credential-failure-test-'))
+  const fakeGit = join(root, 'git')
+  writeFileSync(
+    fakeGit,
+    '#!/bin/sh\ncat >/dev/null\nprintf "username=fixture\\npassword=redacted\\n"\nprintf "password=stderr-secret\\n" >&2\nexit 7\n'
+  )
+  chmodSync(fakeGit, 0o700)
+  const adapter = new SystemPreflightProbeAdapter({
+    repositoryRoot: process.cwd(),
+    smokeRoot: root,
+    telemetryEventSource: telemetry(root),
+    git: fakeGit
+  })
+  const observation = await adapter.observe('credentialReference')
+  assert.equal(observation.result, 'FAIL')
+  assert.equal(observation.exitCode, 1)
+  assert.match(observation.literalOutput, /git credential fill \[7\]/)
+  assert.doesNotMatch(observation.literalOutput, /fixture|redacted|stderr-secret/)
+})
+
 test('failed system probes preserve combined stdout and stderr diagnostics', async () => {
   const root = mkdtempSync(join(tmpdir(), 'oes-probe-diagnostics-test-'))
   const fakeNode = join(root, 'node')

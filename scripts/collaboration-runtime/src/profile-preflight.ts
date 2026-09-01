@@ -1302,14 +1302,14 @@ export class SystemPreflightProbeAdapter implements PreflightProbeAdapter {
     return `${result.stdout ?? ''}${result.stderr ?? ''}`
   }
 
-  /** Runs the credential helper behind a key-only pipe so secret values never enter this process. */
+  /** Keeps credential values inside a POSIX child shell and returns only approved reference keys. */
   private readCredentialKeys(): string[] {
     const result = spawnSync(
       '/bin/sh',
       [
         '-c',
-        `set -o pipefail
-printf 'protocol=https\\nhost=github.com\\n\\n' | "$1" credential fill 2>/dev/null | sed 's/=.*//'`,
+        `credential_output=$(printf 'protocol=https\\nhost=github.com\\n\\n' | "$1" credential fill 2>/dev/null) || exit $?
+printf '%s\\n' "$credential_output" | sed 's/=.*//'`,
         'oes-credential-probe',
         this.options.git
       ],
