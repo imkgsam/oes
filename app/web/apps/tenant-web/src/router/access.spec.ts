@@ -1,7 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const generateAccessibleMock = vi.fn();
-const getAllMenusApiMock = vi.fn();
+const listNavigationEntriesApiMock = vi.fn();
 const authContextStoreMock = {
   visibleEntries: [] as string[],
 };
@@ -25,7 +25,7 @@ vi.mock('ant-design-vue', () => ({
 }));
 
 vi.mock('#/api', () => ({
-  getAllMenusApi: getAllMenusApiMock,
+  listNavigationEntriesApi: listNavigationEntriesApiMock,
 }));
 
 vi.mock('#/layouts', () => ({
@@ -43,6 +43,12 @@ vi.mock('#/store', () => ({
 
 // Verifies visible-entry filtering removes unauthorized governance parents from both route and menu trees.
 describe('router access visible-entry filtering', () => {
+  beforeEach(() => {
+    authContextStoreMock.visibleEntries = [];
+    generateAccessibleMock.mockReset();
+    listNavigationEntriesApiMock.mockReset();
+  });
+
   it('resolves a default entry path from route meta instead of a fixed entry list', async () => {
     const { resolveEntryPathFromRoutes } = await import('./entry-path');
     const routes = [
@@ -64,7 +70,9 @@ describe('router access visible-entry filtering', () => {
     expect(resolveEntryPathFromRoutes(routes, 'finance.dashboard')).toBe(
       '/finance/dashboard',
     );
-    expect(resolveEntryPathFromRoutes(routes, 'admin.role-management')).toBeUndefined();
+    expect(
+      resolveEntryPathFromRoutes(routes, 'admin.role-management'),
+    ).toBeUndefined();
   });
 
   it('removes the tenant-admin governance parent when none of its children are visible', async () => {
@@ -252,7 +260,9 @@ describe('router access visible-entry filtering', () => {
       },
     ];
 
-    const filtered = filterRoutesByVisibleEntries(routes, ['finance.dashboard']);
+    const filtered = filterRoutesByVisibleEntries(routes, [
+      'finance.dashboard',
+    ]);
 
     expect(filtered).toEqual(routes);
   });
@@ -359,8 +369,14 @@ describe('router access visible-entry filtering', () => {
       },
     ];
 
-    expect(filterRoutesByVisibleEntries(routes, ['workbench.home'])).toEqual([]);
-    expect(filterRoutesByVisibleEntries(routes, ['tenant-settings.employee-employment'])).toEqual(routes);
+    expect(filterRoutesByVisibleEntries(routes, ['workbench.home'])).toEqual(
+      [],
+    );
+    expect(
+      filterRoutesByVisibleEntries(routes, [
+        'tenant-settings.employee-employment',
+      ]),
+    ).toEqual(routes);
   });
 
   it('removes the master-data parent when none of its children remain visible', async () => {
@@ -556,7 +572,9 @@ describe('router access visible-entry filtering', () => {
       },
     ];
 
-    const filtered = filterRoutesByVisibleEntries(routes, ['mes.mold-management']);
+    const filtered = filterRoutesByVisibleEntries(routes, [
+      'mes.mold-management',
+    ]);
 
     expect(filtered).toEqual(routes);
   });
@@ -740,12 +758,36 @@ describe('router access visible-entry filtering', () => {
     ]);
   });
 
-  it('falls back to the local filtered routes when the remote menu endpoint is unavailable', async () => {
-    authContextStoreMock.visibleEntries = ['sales.quote-orders'];
-    getAllMenusApiMock.mockRejectedValueOnce(new Error('missing menu endpoint'));
+  it('maps canonical registry entries onto visible SYSTEM and TENANT local routes', async () => {
+    authContextStoreMock.visibleEntries = [
+      'admin.permission-management',
+      'tenant-settings.org-structure',
+    ];
+    listNavigationEntriesApiMock.mockResolvedValueOnce({
+      entries: [
+        {
+          enabled: true,
+          entryKey: 'admin.permission-management',
+          supportedTerminals: ['WEB'],
+        },
+        {
+          enabled: true,
+          entryKey: 'tenant-settings.org-structure',
+          supportedTerminals: ['WEB'],
+        },
+        {
+          enabled: true,
+          entryKey: 'unknown.unmapped',
+          supportedTerminals: ['WEB'],
+        },
+      ],
+      page: 1,
+      pageSize: 100,
+      total: 3,
+    });
     generateAccessibleMock.mockImplementationOnce(async (_mode, input) => {
       return {
-        accessibleMenus: await input.fetchMenuListAsync(),
+        accessibleMenus: input.routes,
         accessibleRoutes: input.routes,
       };
     });
@@ -757,39 +799,165 @@ describe('router access visible-entry filtering', () => {
           {
             component: () => Promise.resolve({}),
             meta: {
-              entryKey: 'sales.quote-orders',
+              entryKey: 'admin.permission-management',
             },
-            name: 'TenantSalesQuoteOrderWorkspace',
-            path: '/sales/quote-orders',
+            name: 'AdminPermissionManagement',
+            path: '/admin/permission-management',
           },
         ],
-        name: 'TenantSales',
-        path: '/sales',
+        name: 'TenantAdminGovernance',
+        path: '/admin',
+      },
+      {
+        children: [
+          {
+            component: () => Promise.resolve({}),
+            meta: {
+              entryKey: 'tenant-settings.org-structure',
+            },
+            name: 'TenantOrgStructureManagement',
+            path: '/settings/org-structure',
+          },
+        ],
+        name: 'TenantSettings',
+        path: '/settings',
       },
     ] as any;
 
     const result = await generateAccess({
-      roles: ['SALES'],
+      roles: ['SYSTEM_ADMIN', 'TENANT_ADMIN'],
       router: {} as never,
       routes,
     });
 
-    expect(result.accessibleMenus).toEqual([
-      {
-        children: [
-          {
-            meta: {
-              entryKey: 'sales.quote-orders',
-            },
-            name: 'TenantSalesQuoteOrderWorkspace',
-            path: '/sales/quote-orders',
-          },
-        ],
-        name: 'TenantSales',
-        path: '/sales',
-      },
-    ]);
+    expect(listNavigationEntriesApiMock).toHaveBeenCalledWith({
+      enabled: true,
+      page: 1,
+      pageSize: 100,
+      terminal: 'WEB',
+    });
+    expect(generateAccessibleMock).toHaveBeenCalledWith(
+      'frontend',
+      expect.objectContaining({ routes }),
+    );
+    expect(result.accessibleMenus).toEqual(routes);
     expect(result.accessibleRoutes).toEqual(routes);
+  });
+
+  it('reads every canonical registry page before mapping local routes', async () => {
+    authContextStoreMock.visibleEntries = [
+      'admin.permission-management',
+      'tenant-settings.org-structure',
+    ];
+    listNavigationEntriesApiMock
+      .mockResolvedValueOnce({
+        entries: [{ entryKey: 'admin.permission-management' }],
+        page: 1,
+        pageSize: 100,
+        total: 2,
+      })
+      .mockResolvedValueOnce({
+        entries: [{ entryKey: 'tenant-settings.org-structure' }],
+        page: 2,
+        pageSize: 100,
+        total: 2,
+      });
+    generateAccessibleMock.mockImplementationOnce(async (_mode, input) => ({
+      accessibleMenus: input.routes,
+      accessibleRoutes: input.routes,
+    }));
+
+    const { generateAccess } = await import('./access');
+    const routes = [
+      {
+        meta: { entryKey: 'admin.permission-management' },
+        name: 'AdminPermissionManagement',
+        path: '/admin/permission-management',
+      },
+      {
+        meta: { entryKey: 'tenant-settings.org-structure' },
+        name: 'TenantOrgStructureManagement',
+        path: '/settings/org-structure',
+      },
+    ] as any;
+
+    const result = await generateAccess({
+      roles: ['SYSTEM_ADMIN', 'TENANT_ADMIN'],
+      router: {} as never,
+      routes,
+    });
+
+    expect(listNavigationEntriesApiMock).toHaveBeenNthCalledWith(2, {
+      enabled: true,
+      page: 2,
+      pageSize: 100,
+      terminal: 'WEB',
+    });
+    expect(result.accessibleMenus).toEqual(routes);
+  });
+
+  it('returns no governed routes for an empty canonical registry result', async () => {
+    authContextStoreMock.visibleEntries = ['admin.permission-management'];
+    listNavigationEntriesApiMock.mockResolvedValueOnce({
+      entries: [],
+      page: 1,
+      pageSize: 100,
+      total: 0,
+    });
+    generateAccessibleMock.mockImplementationOnce(async (_mode, input) => ({
+      accessibleMenus: input.routes,
+      accessibleRoutes: input.routes,
+    }));
+
+    const { generateAccess } = await import('./access');
+    const result = await generateAccess({
+      roles: ['SYSTEM_ADMIN'],
+      router: {} as never,
+      routes: [
+        {
+          meta: { entryKey: 'admin.permission-management' },
+          name: 'AdminPermissionManagement',
+          path: '/admin/permission-management',
+        },
+      ] as any,
+    });
+
+    expect(result.accessibleMenus).toEqual([]);
+    expect(result.accessibleRoutes).toEqual([]);
+  });
+
+  it.each([
+    [
+      'permission denial',
+      Object.assign(new Error('forbidden'), { status: 403 }),
+    ],
+    [
+      'service failure',
+      Object.assign(new Error('unavailable'), { status: 503 }),
+    ],
+  ])('propagates %s without restoring local routes', async (_label, error) => {
+    authContextStoreMock.visibleEntries = ['admin.permission-management'];
+    listNavigationEntriesApiMock.mockRejectedValueOnce(error);
+    generateAccessibleMock.mockImplementationOnce(async (_mode, input) => ({
+      accessibleMenus: await input.fetchMenuListAsync(),
+      accessibleRoutes: input.routes,
+    }));
+
+    const { generateAccess } = await import('./access');
+
+    await expect(
+      generateAccess({
+        roles: ['SYSTEM_ADMIN'],
+        router: {} as never,
+        routes: [
+          {
+            meta: { entryKey: 'admin.permission-management' },
+            name: 'AdminPermissionManagement',
+            path: '/admin/permission-management',
+          },
+        ] as any,
+      }),
+    ).rejects.toBe(error);
   });
 
   it('removes the procurement parent when the procurement entry is not visible', async () => {
@@ -860,7 +1028,9 @@ describe('router access visible-entry filtering', () => {
       },
     ];
 
-    const filtered = filterRoutesByVisibleEntries(routes, ['procurement.management']);
+    const filtered = filterRoutesByVisibleEntries(routes, [
+      'procurement.management',
+    ]);
 
     expect(filtered).toEqual(routes);
   });
