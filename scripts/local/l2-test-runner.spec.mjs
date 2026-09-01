@@ -7,6 +7,7 @@ import {
   buildL2JestArguments,
   discoverL2Packages,
   L2_JEST_TIMEOUT_MS,
+  partitionL2Shards,
   selectL2Packages,
   selectL2Shard,
   serviceDatabaseUrl
@@ -88,6 +89,17 @@ test('L2 sharding is deterministic, balanced, non-empty, and complete', () => {
   assert.ok(Math.abs(left.weight - right.weight) <= 1)
   assert.deepEqual(selectL2Shard(inventory, 0, 2), left)
   assert.throws(() => selectL2Shard(inventory, 0, 4), /CI_SHARD_EMPTY_FORBIDDEN/)
+})
+
+test('internal L2 shards use the same deterministic complete partition', () => {
+  const inventory = Object.freeze([
+    Object.freeze({ name: 'alpha-service', specs: ['a', 'b', 'c'] }),
+    Object.freeze({ name: 'beta-service', specs: ['a', 'b'] }),
+    Object.freeze({ name: 'gamma-service', specs: ['a'] })
+  ])
+  const shards = partitionL2Shards(inventory, 2)
+  assert.deepEqual(shards[0], selectL2Shard(inventory, 0, 2))
+  assert.deepEqual(shards[1], selectL2Shard(inventory, 1, 2))
 })
 
 test('local trust bootstrap keeps the OpenSSL CA serial below the task-owned output root', () => {

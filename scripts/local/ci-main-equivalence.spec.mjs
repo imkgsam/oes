@@ -126,7 +126,7 @@ function createFixture() {
     cacheDisposition: 'WARM',
     workflowRevision: '2'.repeat(64),
     eventTopology: 'pull_request',
-    shardStrategy: 'weighted-unit-2-l2-3-v1',
+    shardStrategy: 'shared-setup-weighted-unit-2-l2-3-v2',
     cacheStrategy: 'exact-pnpm-lockfile-key',
     artifactStrategy: 'content-addressed-prepared-build-v1',
     artifactDigest

@@ -83,7 +83,7 @@ export function verifyCiMainEquivalence({
     throw new Error('CI_MAIN_WORKFLOW_REVISION_MISMATCH')
   if (
     evidence.execution.eventTopology !== 'pull_request' ||
-    evidence.execution.shardStrategy !== 'weighted-unit-2-l2-3-v1' ||
+    evidence.execution.shardStrategy !== 'shared-setup-weighted-unit-2-l2-3-v2' ||
     evidence.execution.cacheStrategy !== 'exact-pnpm-lockfile-key' ||
     evidence.execution.artifactStrategy !== 'content-addressed-prepared-build-v1'
   )

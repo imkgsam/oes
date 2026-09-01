@@ -40,6 +40,26 @@ export function selectWeightedShard(items, shardIndex, shardCount, keyOf, weight
   return partitionWeighted(items, shardCount, keyOf, weightOf)[shardIndex]
 }
 
+/** Parses one optional internal parallel-shard count without consuming external shard flags. */
+export function parseParallelShardFlag(args) {
+  const remaining = []
+  let parallelShardCount = null
+  for (let index = 0; index < args.length; index += 1) {
+    const value = args[index]
+    if (value !== '--parallel-shards') {
+      remaining.push(value)
+      continue
+    }
+    if (parallelShardCount !== null) throw new Error('CI_PARALLEL_SHARD_FLAG_DUPLICATE')
+    const scalar = args[index + 1]
+    if (scalar === undefined || !/^\d+$/.test(scalar) || Number(scalar) < 2)
+      throw new Error('CI_PARALLEL_SHARD_COUNT_INVALID')
+    parallelShardCount = Number(scalar)
+    index += 1
+  }
+  return Object.freeze({ parallelShardCount, remaining: Object.freeze(remaining) })
+}
+
 /** Parses an optional exact --shard-index/--shard-count pair and returns remaining selectors. */
 export function parseShardFlags(args) {
   const remaining = []

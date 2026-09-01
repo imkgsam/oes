@@ -1,12 +1,17 @@
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { loadDatabaseContext } from './database-lifecycle.mjs'
 import { parseEnvironmentFile } from './worktree-env.mjs'
 import { assertJestResult, assertNoTestResidue } from './test-matrix.mjs'
-import { parseShardFlags, selectWeightedShard } from './ci-sharding.mjs'
+import {
+  parseParallelShardFlag,
+  parseShardFlags,
+  partitionWeighted,
+  selectWeightedShard
+} from './ci-sharding.mjs'
 
 export const L2_JEST_TIMEOUT_MS = 30_000
 
@@ -76,17 +81,34 @@ export function selectL2Shard(inventory, shardIndex, shardCount) {
   )
 }
 
+/** Partitions the complete L2 inventory for concurrent execution behind one shared lifecycle. */
+export function partitionL2Shards(inventory, shardCount) {
+  return partitionWeighted(
+    inventory,
+    shardCount,
+    (entry) => entry.name,
+    (entry) => entry.specs.length
+  )
+}
+
 /** Runs all L2 specs against exact task-owned Postgres/NATS resources and always rolls them back. */
-export function runL2Matrix(
+export async function runL2Matrix(
   repositoryRoot = defaultRepositoryRoot(),
   requestedNames = [],
   shardIndex = null,
   shardCount = null,
-  prepared = false
+  prepared = false,
+  parallelShardCount = null
 ) {
   const selected = selectL2Packages(discoverL2Packages(repositoryRoot), requestedNames)
+  if (parallelShardCount !== null && shardIndex !== null)
+    throw new Error('L2_PARALLEL_AND_EXTERNAL_SHARD_CONFLICT')
   const inventory =
     shardIndex === null ? selected : selectL2Shard(selected, shardIndex, shardCount).items
+  const executionShards =
+    parallelShardCount === null
+      ? [Object.freeze({ index: 0, items: inventory })]
+      : partitionL2Shards(inventory, parallelShardCount)
   assertNoTestResidue(repositoryRoot)
   run('pnpm', ['env:ensure'], { cwd: repositoryRoot })
   const context = loadDatabaseContext(repositoryRoot)
@@ -121,56 +143,31 @@ export function runL2Matrix(
       throw new Error('L2_POSTGRES_PORT_INVALID')
     const nats = loadNatsEnvironment(context, repositoryRoot)
     const services = new Map(context.services.map((service) => [service.name, service]))
-    const testFailures = []
-    for (const entry of inventory) {
-      const service = services.get(entry.name)
-      if (!service) throw new Error(`L2_DATABASE_BINDING_MISSING package=${entry.name}`)
-      const databaseUrl = serviceDatabaseUrl(context, service, postgresPort)
-      const outputFile = path.join(evidenceDirectory, `${safeName(entry.name)}.json`)
-      fs.rmSync(outputFile, { force: true })
-      const args = buildL2JestArguments(entry, outputFile)
-      const result = runAllowFailure('pnpm', args, {
-        cwd: repositoryRoot,
-        env: {
-          ...process.env,
-          NODE_ENV: 'test',
-          DATABASE_URL: databaseUrl,
-          COLLABORATION_DATABASE_URL: databaseUrl,
-          OES_L2_DATABASE_URL: databaseUrl,
-          EVENT_BUS_LIVE: 'true',
-          NOTIFICATION_EVENT_LIVE_TEST: 'true',
-          NOTIFICATION_DELIVERY_PAYLOAD_KEY: taskLocalKey(context.taskKey, entry.name),
-          ...(entry.name === 'collaboration-service' ? trustEnvironment : {}),
-          ...nats.forPackage(entry.name)
-        }
-      })
-      if (!fs.existsSync(outputFile)) {
-        testFailures.push(
-          new Error(`L2_JEST_REPORT_MISSING package=${entry.name} exit=${result.status}`)
-        )
-        process.stdout.write(`L2_SURFACE package=${entry.name} status=FAIL reason=report-missing\n`)
-        continue
-      }
-      const report = JSON.parse(fs.readFileSync(outputFile, 'utf8'))
-      try {
-        assertJestResult(entry.name, report, entry.specs.length)
-        if (result.status !== 0)
-          throw new Error(`COMMAND_FAILED command=pnpm exit=${result.status}`)
-      } catch (error) {
-        testFailures.push(error)
-        process.stdout.write(
-          `L2_SURFACE package=${entry.name} suites=${report.numTotalTestSuites} tests=${report.numTotalTests} failed=${report.numFailedTests} pending=${report.numPendingTests} todo=${report.numTodoTests} status=FAIL\n`
-        )
-        continue
-      }
-      totalSuites += report.numTotalTestSuites
-      totalTests += report.numTotalTests
-      process.stdout.write(
-        `L2_SURFACE package=${entry.name} suites=${report.numTotalTestSuites} tests=${report.numTotalTests} status=PASS\n`
+    process.stdout.write(
+      `L2_EXECUTION sharedLifecycle=true parallelShards=${executionShards.length} packages=${inventory.length}\n`
+    )
+    const results = await Promise.allSettled(
+      executionShards.map((shard) =>
+        runL2ShardBatch({
+          shard,
+          repositoryRoot,
+          context,
+          services,
+          postgresPort,
+          nats,
+          trustEnvironment,
+          evidenceDirectory
+        })
       )
-    }
-    if (testFailures.length > 0) {
-      throw new AggregateError(testFailures, `L2_TEST_FAILURES count=${testFailures.length}`)
+    )
+    const failures = results
+      .filter((result) => result.status === 'rejected')
+      .map((result) => result.reason)
+    if (failures.length > 0)
+      throw new AggregateError(failures, `L2_SHARD_FAILURES count=${failures.length}`)
+    for (const result of results) {
+      totalSuites += result.value.suites
+      totalTests += result.value.tests
     }
     process.stdout.write(
       `TEST_MATRIX_L2=PASS packages=${inventory.length} suites=${totalSuites} tests=${totalTests}\n`
@@ -201,6 +198,75 @@ export function runL2Matrix(
     }
   }
   if (primaryFailure) throw primaryFailure
+}
+
+/** Runs one weighted package batch serially while sibling batches share the same task-owned infra. */
+async function runL2ShardBatch({
+  shard,
+  repositoryRoot,
+  context,
+  services,
+  postgresPort,
+  nats,
+  trustEnvironment,
+  evidenceDirectory
+}) {
+  let suites = 0
+  let tests = 0
+  const failures = []
+  for (const entry of shard.items) {
+    try {
+      const service = services.get(entry.name)
+      if (!service) throw new Error(`L2_DATABASE_BINDING_MISSING package=${entry.name}`)
+      const databaseUrl = serviceDatabaseUrl(context, service, postgresPort)
+      const outputFile = path.join(evidenceDirectory, `${safeName(entry.name)}.json`)
+      fs.rmSync(outputFile, { force: true })
+      const result = await runAllowFailureAsync(
+        'pnpm',
+        buildL2JestArguments(entry, outputFile),
+        {
+          cwd: repositoryRoot,
+          env: {
+            ...process.env,
+            NODE_ENV: 'test',
+            DATABASE_URL: databaseUrl,
+            COLLABORATION_DATABASE_URL: databaseUrl,
+            OES_L2_DATABASE_URL: databaseUrl,
+            EVENT_BUS_LIVE: 'true',
+            NOTIFICATION_EVENT_LIVE_TEST: 'true',
+            NOTIFICATION_DELIVERY_PAYLOAD_KEY: taskLocalKey(context.taskKey, entry.name),
+            ...(entry.name === 'collaboration-service' ? trustEnvironment : {}),
+            ...nats.forPackage(entry.name)
+          }
+        },
+        `l2-${shard.index}-${entry.name}`
+      )
+      if (!fs.existsSync(outputFile))
+        throw new Error(`L2_JEST_REPORT_MISSING package=${entry.name} exit=${result.status}`)
+      const report = JSON.parse(fs.readFileSync(outputFile, 'utf8'))
+      assertJestResult(entry.name, report, entry.specs.length)
+      if (result.status !== 0) throw new Error(`COMMAND_FAILED command=pnpm exit=${result.status}`)
+      suites += report.numTotalTestSuites
+      tests += report.numTotalTests
+      process.stdout.write(
+        `L2_SURFACE shard=${shard.index} package=${entry.name} suites=${report.numTotalTestSuites} tests=${report.numTotalTests} status=PASS\n`
+      )
+    } catch (error) {
+      failures.push(error)
+      process.stdout.write(
+        `L2_SURFACE shard=${shard.index} package=${entry.name} status=FAIL reason=${error instanceof Error ? error.message : String(error)}\n`
+      )
+    }
+  }
+  if (failures.length > 0)
+    throw new AggregateError(
+      failures,
+      `L2_BATCH_FAILURES shard=${shard.index} count=${failures.length}`
+    )
+  process.stdout.write(
+    `L2_SHARD=PASS shard=${shard.index} packages=${shard.items.length} suites=${suites} tests=${tests}\n`
+  )
+  return Object.freeze({ suites, tests })
 }
 
 /** Builds the exact L2 Jest command with an integration-appropriate bounded hook timeout. */
@@ -329,6 +395,21 @@ function runAllowFailure(command, args, options) {
   return result
 }
 
+/** Runs one test process asynchronously so disjoint package shards can share setup safely. */
+function runAllowFailureAsync(command, args, options, label) {
+  process.stdout.write(`COMMAND label=${label} ${command} ${args.join(' ')}\n`)
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, { ...options, stdio: 'inherit' })
+    child.once('error', reject)
+    child.once('close', (status, signal) => {
+      process.stdout.write(
+        `EXIT label=${label} status=${status ?? 'signal'} signal=${signal ?? 'none'}\n`
+      )
+      resolve(Object.freeze({ status, signal }))
+    })
+  })
+}
+
 /** Runs a command and fails on any non-zero status. */
 function run(command, args, options) {
   const result = runAllowFailure(command, args, options)
@@ -407,11 +488,14 @@ if (invokedPath === fileURLToPath(import.meta.url)) {
   try {
     const [command, ...rawArguments] = process.argv.slice(2)
     const prepared = rawArguments.includes('--prepared')
+    const { parallelShardCount, remaining: parallelArguments } = parseParallelShardFlag(
+      rawArguments.filter((argument) => argument !== '--prepared')
+    )
     const {
       shardIndex,
       shardCount,
       remaining: parsedArguments
-    } = parseShardFlags(rawArguments.filter((argument) => argument !== '--prepared'))
+    } = parseShardFlags(parallelArguments)
     const packageNames = parsedArguments
     if (command === 'check') {
       const inventory = discoverL2Packages()
@@ -422,7 +506,14 @@ if (invokedPath === fileURLToPath(import.meta.url)) {
         `L2_MATRIX_CHECK=PASS packages=${inventory.length} suites=${inventory.reduce((sum, entry) => sum + entry.specs.length, 0)}\n`
       )
     } else if (command === 'run') {
-      runL2Matrix(defaultRepositoryRoot(), packageNames, shardIndex, shardCount, prepared)
+      await runL2Matrix(
+        defaultRepositoryRoot(),
+        packageNames,
+        shardIndex,
+        shardCount,
+        prepared,
+        parallelShardCount
+      )
     } else {
       throw new Error('L2_TEST_COMMAND_REQUIRED expected=check|run')
     }

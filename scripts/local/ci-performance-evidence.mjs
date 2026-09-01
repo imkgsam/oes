@@ -106,7 +106,9 @@ export function generateCiPerformanceEvidence(
     workflowRevision: ciWorkflowRevision(repositoryRoot),
     eventTopology: environment.GITHUB_EVENT_NAME || 'local',
     shardStrategy:
-      mode === 'LEGACY_CONTROL' ? 'legacy-static-plus-single-l2' : 'weighted-unit-2-l2-3-v1',
+      mode === 'LEGACY_CONTROL'
+        ? 'legacy-static-plus-single-l2'
+        : 'shared-setup-weighted-unit-2-l2-3-v2',
     cacheStrategy: 'exact-pnpm-lockfile-key',
     artifactStrategy: mode === 'LEGACY_CONTROL' ? 'none' : 'content-addressed-prepared-build-v1',
     artifactDigest: environment.OES_PREPARED_ARTIFACT_DIGEST || null

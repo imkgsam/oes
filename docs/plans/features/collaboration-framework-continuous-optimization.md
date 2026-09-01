@@ -60,7 +60,8 @@ review: Feature RI exact integration candidate pending
 
 - implementation ancestor: `165262e4061d391616cdda64b0efab3f4d134521`
 - full prepared build, proto compatibility, design-gap, risk/unit and collaboration runtime gates: exit `0`
-- deterministic L2 shards: `20/20 suites, 45 tests` in 68s; `20/20 suites, 57 tests` in 66s; `19/19 suites, 83 tests` in 62s; every shard rollback verified zero task-owned container/volume/network residue
+- shared-setup unit execution: two internal weighted lanes, complete `8 packages / 452 suites / 2,088 tests` in 42.78s
+- shared-lifecycle L2 execution: three internal weighted lanes, complete `18 packages / 59 suites / 185 tests` in 73.04s with one rollback and zero task-owned container/volume/network residue; compared with the prior three-job local runner phases (`58s + 48s + 63s = 169s`), runner consumption fell 56.8%, while the isolated L2 critical path changed from 63s to 73s before accounting for two removed installs/artifact restores/lifecycles
 - prepared artifact roundtrip: 21 Prisma targets, one engine digest, 21/21 restored; local compressed fixture reduced from 192,577,704 to 21,530,266 bytes
 - workflow syntax: `actionlint v1.7.12`, exit `0`; formatting and static contracts: exit `0`
 - performance cutover: pending the frozen 20 PR/main pairs, cold-cache/superseded/Stage/attempt minimums and all thresholds; legacy `Baseline Checks` remains authoritative

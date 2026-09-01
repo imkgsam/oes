@@ -8,6 +8,7 @@ import {
   assertJestResult,
   assertNoTestResidue,
   discoverSpecs,
+  partitionUnitShards,
   selectUnitShard
 } from './test-matrix.mjs'
 
@@ -93,4 +94,5 @@ test('unit sharding assigns every surface exactly once with deterministic weight
     ['alpha', 'beta', 'gamma']
   )
   assert.deepEqual(selectUnitShard(inventory, 0, 2), shards[0])
+  assert.deepEqual(partitionUnitShards(inventory, 2), shards)
 })

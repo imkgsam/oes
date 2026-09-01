@@ -140,16 +140,12 @@ jobs:
           node --test scripts/local/foundation-trusted-grpc-atomic-group.spec.mjs
 
   unit-shards:
-    name: Optimized Shadow / Unit ${{ matrix.shard }}
+    name: Optimized Shadow / Unit (2 internal shards)
     if: ${{ github.event_name == 'pull_request' }}
     needs: [prepare]
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [0, 1]
     env:
-      OES_CI_TASK_KEY: ci_${{ github.run_id }}_${{ github.run_attempt }}_shadow_unit_${{ matrix.shard }}
+      OES_CI_TASK_KEY: ci_${{ github.run_id }}_${{ github.run_attempt }}_shadow_unit
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -171,19 +167,16 @@ jobs:
           echo "${expected}  .tmp/ci-shadow/prepared-build.tar.gz" | sha256sum -c -
           tar -xzf .tmp/ci-shadow/prepared-build.tar.gz
           node scripts/local/ci-prepared-artifact.mjs restore --root .tmp/ci-shadow/prisma-engine
-      - run: pnpm test:unit -- --shard-index ${{ matrix.shard }} --shard-count 2
+      - name: Run two weighted unit shards behind one install and artifact restore
+        run: pnpm test:unit -- --parallel-shards 2
 
   l2-shards:
-    name: Optimized Shadow / L2 ${{ matrix.shard }}
+    name: Optimized Shadow / L2 (3 internal shards)
     if: ${{ github.event_name == 'pull_request' }}
     needs: [prepare]
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [0, 1, 2]
     env:
-      OES_CI_TASK_KEY: ci_${{ github.run_id }}_${{ github.run_attempt }}_shadow_l2_${{ matrix.shard }}
+      OES_CI_TASK_KEY: ci_${{ github.run_id }}_${{ github.run_attempt }}_shadow_l2
     steps:
       - uses: actions/checkout@v7
         with:
@@ -207,8 +200,8 @@ jobs:
           echo "${expected}  .tmp/ci-shadow/prepared-build.tar.gz" | sha256sum -c -
           tar -xzf .tmp/ci-shadow/prepared-build.tar.gz
           node scripts/local/ci-prepared-artifact.mjs restore --root .tmp/ci-shadow/prisma-engine
-      - name: Run one isolated weighted L2 shard
-        run: pnpm test:l2 -- --prepared --shard-index ${{ matrix.shard }} --shard-count 3
+      - name: Run three weighted L2 shards behind one shared task-owned lifecycle
+        run: pnpm test:l2 -- --prepared --parallel-shards 3
       - name: Verify task-owned runtime cleanup
         if: ${{ always() }}
         run: |
