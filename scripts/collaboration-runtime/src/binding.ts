@@ -143,7 +143,7 @@ function validateRemoteResourceTopology(
 }
 
 /** Verifies one immutable artifact reference within the configured authorization root. */
-function verifyTrustedReference(
+export function verifyTrustedReference(
   reference: TrustedAuthorizationReference,
   authorizationRoot: string,
   fingerprintField: string
