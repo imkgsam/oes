@@ -6,7 +6,21 @@ import { Page, useVbenDrawer } from '@vben/common-ui';
 import { Button, Card, Checkbox, message } from 'ant-design-vue';
 
 import { useVbenForm } from '#/adapter/form';
-import { getAllMenusApi } from '#/api';
+import { listNavigationEntriesApi } from '#/api';
+
+// Loads canonical navigation entries for the API-select demo without depending on a menu-tree endpoint.
+async function getNavigationEntryOptionsApi() {
+  const result = await listNavigationEntriesApi({
+    enabled: true,
+    page: 1,
+    pageSize: 100,
+    terminal: 'WEB',
+  });
+  return result.entries.map((entry) => ({
+    name: entry.name,
+    path: entry.entryKey,
+  }));
+}
 
 const [Form, formApi] = useVbenForm({
   commonConfig: {
@@ -40,7 +54,7 @@ const [Form, formApi] = useVbenForm({
           }));
         },
         // 菜单接口
-        api: getAllMenusApi,
+        api: getNavigationEntryOptionsApi,
       },
       // 字段名
       fieldName: 'api',
@@ -52,7 +66,7 @@ const [Form, formApi] = useVbenForm({
       // 对应组件的参数
       componentProps: {
         // 菜单接口
-        api: getAllMenusApi,
+        api: getNavigationEntryOptionsApi,
         childrenField: 'children',
         // 菜单接口转options格式
         labelField: 'name',
