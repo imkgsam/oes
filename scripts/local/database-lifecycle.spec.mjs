@@ -8,6 +8,7 @@ import test from 'node:test'
 import {
   assertBaselineResolutionCheckpoint,
   assertDatabaseInvariantDigest,
+  assertTenantWebAuthSeedSnapshot,
   assertExactLifecycleOwnerResources,
   assertPinnedComposeImages,
   assertResourceOwnershipRecord,
@@ -17,6 +18,10 @@ import {
   DATABASE_LIFECYCLE_INIT_SERVICES,
   databaseLifecycleComposeArgs,
   databaseRollbackComposeArgs,
+  buildDatabaseSeedCommands,
+  beginDatabaseSeedState,
+  executeDatabaseSeedCommands,
+  failDatabaseSeedState,
   loadBaselineResolvePlan,
   loadDatabaseContext,
   ownerNamedResourceListArgs,
@@ -213,16 +218,106 @@ test('service and Gateway images generate tracked proto outputs before Common bu
 })
 
 test('clean lifecycle prepares generated contracts and Common before TypeScript seed execution', () => {
-  const contents = fs.readFileSync(
-    path.join(repositoryRoot, 'scripts/local/database-lifecycle.mjs'),
-    'utf8'
+  const context = loadDatabaseContext(repositoryRoot)
+  const commands = buildDatabaseSeedCommands(context, 49123)
+  assert.deepEqual(
+    commands.slice(0, 3).map(({ command, args }) => [command, ...args]),
+    [
+      ['pnpm', 'generated:all'],
+      ['pnpm', 'common:build'],
+      ['pnpm', '--filter', 'permission-service', 'seed:apply', '--', '--apply']
+    ]
   )
-  const generated = contents.indexOf("run('pnpm', ['generated:all']")
-  const common = contents.indexOf("run('pnpm', ['common:build']")
-  const permissionSeed = contents.indexOf("['--filter', 'permission-service', 'seed:apply'")
-  assert.ok(generated >= 0)
-  assert.ok(common > generated)
-  assert.ok(permissionSeed > common)
+})
+
+test('ordinary database seed invokes the official tenant-web auth fixture with explicit task URLs', () => {
+  const context = loadDatabaseContext(repositoryRoot)
+  const commands = buildDatabaseSeedCommands(context, 49123, { SENTINEL: 'preserved' })
+  const tenantWeb = commands.find(
+    (command) => command.args.at(-1) === 'scripts/local/seed-tenant-web-auth-test-data.mjs'
+  )
+
+  assert.ok(tenantWeb)
+  assert.equal(tenantWeb.command, 'node')
+  assert.equal(tenantWeb.environment.SENTINEL, 'preserved')
+  assert.equal(tenantWeb.environment.OES_TASK_KEY, context.taskKey)
+  for (const key of [
+    'AUTH_DATABASE_URL',
+    'IDENTITY_DATABASE_URL',
+    'PERMISSION_DATABASE_URL',
+    'TENANT_ORG_DATABASE_URL',
+    'PARTY_DATABASE_URL',
+    'HR_DATABASE_URL'
+  ]) {
+    const url = new URL(tenantWeb.environment[key])
+    assert.equal(url.hostname, '127.0.0.1')
+    assert.equal(url.port, '49123')
+  }
+})
+
+test('database seed stops at the first failed command and never records later work', () => {
+  const visited = []
+  const commands = [
+    { command: 'first', args: [], options: {} },
+    { command: 'tenant-web', args: [], options: {} },
+    { command: 'after-failure', args: [], options: {} }
+  ]
+
+  assert.throws(
+    () =>
+      executeDatabaseSeedCommands(commands, (command) => {
+        visited.push(command)
+        if (command === 'tenant-web') throw new Error('fixture failure')
+      }),
+    /fixture failure/
+  )
+  assert.deepEqual(visited, ['first', 'tenant-web'])
+})
+
+test('database seed snapshot requires every dedicated auth acceptance fixture', () => {
+  const valid = {
+    authAcceptanceRecoveryGrantCount: 0,
+    authAcceptanceRecoveryLoginMethodCount: 2,
+    authAcceptanceRecoveryEmailMethodCount: 1,
+    authAcceptanceRecoveryPhoneMethodCount: 1,
+    authAcceptanceMfaBindingCount: 1,
+    authAcceptanceMfaWebPolicyCount: 1,
+    authAcceptancePasswordSetupCount: 1,
+    identityAuthAcceptanceUserCount: 3
+  }
+  assert.doesNotThrow(() => assertTenantWebAuthSeedSnapshot(valid))
+  assert.throws(
+    () => assertTenantWebAuthSeedSnapshot({ ...valid, authAcceptanceMfaBindingCount: 0 }),
+    /TENANT_WEB_AUTH_SEED_INCOMPLETE.*authAcceptanceMfaBindingCount/
+  )
+  assert.throws(
+    () => assertTenantWebAuthSeedSnapshot({ ...valid, authAcceptanceMfaWebPolicyCount: 0 }),
+    /TENANT_WEB_AUTH_SEED_INCOMPLETE.*authAcceptanceMfaWebPolicyCount/
+  )
+  assert.throws(
+    () => assertTenantWebAuthSeedSnapshot({ ...valid, authAcceptanceRecoveryPhoneMethodCount: 0 }),
+    /TENANT_WEB_AUTH_SEED_INCOMPLETE.*authAcceptanceRecoveryPhoneMethodCount/
+  )
+})
+
+test('database seed invalidates earlier SEEDED or VERIFIED success before work and on failure', () => {
+  for (const phase of ['SEEDED', 'VERIFIED']) {
+    const earlier = { phase, seedSnapshot: { digest: 'old-success' } }
+    assert.deepEqual(
+      { ...earlier, ...beginDatabaseSeedState() },
+      {
+        phase: 'SEEDING',
+        seedSnapshot: null
+      }
+    )
+    assert.deepEqual(
+      { ...earlier, ...failDatabaseSeedState() },
+      {
+        phase: 'SEED_FAILED',
+        seedSnapshot: null
+      }
+    )
+  }
 })
 
 test('Compose image policy covers main and infra rendered references', () => {

@@ -1,10 +1,14 @@
 import { createRequire } from 'node:module';
-import { existsSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  resolveTenantWebAuthSeedDatabaseUrls,
+  sanitizeTenantWebAuthSeedMessage,
+} from './tenant-web-auth-seed-environment.mjs';
 
 import {
+  AUTH_ACCEPTANCE_FIXTURES,
   buildSeedAccountRoleBindings,
   buildSeedAccounts,
   buildBrowserExtensionDesignerDemoSeed,
@@ -37,10 +41,21 @@ import {
   TENANT_SYSTEM_ADMIN_ACCOUNT_ROLE_BINDINGS,
 } from './tenant-web-auth-test-fixtures.mjs';
 
+const DATABASE_URLS = resolveTenantWebAuthSeedDatabaseUrls();
+const AUTH_DB_URL = DATABASE_URLS.get('AUTH_DATABASE_URL');
+const IDENTITY_DB_URL = DATABASE_URLS.get('IDENTITY_DATABASE_URL');
+const PERMISSION_DB_URL = DATABASE_URLS.get('PERMISSION_DATABASE_URL');
+const TENANT_ORG_DB_URL = DATABASE_URLS.get('TENANT_ORG_DATABASE_URL');
+const PARTY_DB_URL = DATABASE_URLS.get('PARTY_DATABASE_URL');
+const HR_DB_URL = DATABASE_URLS.get('HR_DATABASE_URL');
+const DATABASE_CREDENTIAL_VALUES = [...DATABASE_URLS.values()].flatMap((value) => {
+  const url = new URL(value);
+  return [url.username, url.password];
+});
+
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..', '..');
-const PRIMARY_WORKSPACE_ROOT = path.resolve(ROOT, '..', '..');
 
 const {
   PrismaClient: IdentityPrismaClient,
@@ -57,7 +72,9 @@ const {
   PrismaClient: AuthPrismaClient,
   CredentialType,
   LoginMethodType,
+  MfaType,
   OTPUsage,
+  PasswordSetupReason,
 } = require(path.join(ROOT, 'src/services/system/auth-service/prisma/generated/prisma'));
 const {
   PrismaClient: PermissionPrismaClient,
@@ -120,51 +137,6 @@ const SEEDED_USER_IDENTIFIERS = {
   emails: SEEDED_USERS_DATA.map((user) => user.email).filter(Boolean),
   phones: SEEDED_USERS_DATA.map((user) => user.phone).filter(Boolean),
 };
-
-function parseEnvValue(raw) {
-  const trimmed = raw.trim();
-  if (
-    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-    (trimmed.startsWith("'") && trimmed.endsWith("'"))
-  ) {
-    return trimmed.slice(1, -1);
-  }
-  return trimmed;
-}
-
-// Resolves one service database url from an explicit env var or the service-local .env file.
-function resolveDatabaseUrl(envKey, serviceRelativePath) {
-  const direct = process.env[envKey];
-  if (direct?.trim()) {
-    return direct.trim();
-  }
-
-  const envCandidates = [
-    path.join(ROOT, serviceRelativePath, '.env'),
-    path.join(PRIMARY_WORKSPACE_ROOT, serviceRelativePath, '.env'),
-  ];
-  const envPath = envCandidates.find((candidate) => existsSync(candidate));
-  if (!envPath) {
-    throw new Error(
-      `${envKey} is not set and no service .env file was found in ${envCandidates.join(' or ')}`
-    );
-  }
-
-  const envContent = readFileSync(envPath, 'utf8');
-  const match = envContent.match(/^\s*DATABASE_URL\s*=\s*(.+)\s*$/m);
-  if (!match) {
-    throw new Error(`DATABASE_URL was not found in ${envPath}`);
-  }
-
-  return parseEnvValue(match[1]);
-}
-
-const AUTH_DB_URL = resolveDatabaseUrl('AUTH_DATABASE_URL', 'src/services/system/auth-service');
-const IDENTITY_DB_URL = resolveDatabaseUrl('IDENTITY_DATABASE_URL', 'src/services/system/identity-service');
-const PERMISSION_DB_URL = resolveDatabaseUrl('PERMISSION_DATABASE_URL', 'src/services/system/permission-service');
-const TENANT_ORG_DB_URL = resolveDatabaseUrl('TENANT_ORG_DATABASE_URL', 'src/services/system/tenant-org-service');
-const PARTY_DB_URL = resolveDatabaseUrl('PARTY_DATABASE_URL', 'src/services/system/party-service');
-const HR_DB_URL = resolveDatabaseUrl('HR_DATABASE_URL', 'src/services/system/hr-service');
 
 // Runs the permission and navigation foundation sync so built-in tenant admin instances stay authoritative.
 function syncPermissionFoundationForLocalSystemAccount() {
@@ -311,6 +283,15 @@ async function seedIdentity(identity) {
 // Rebuilds the managed local auth login methods, credentials, and OTP fixtures in auth-service.
 async function seedAuth(auth, passwordHash) {
   await auth.$transaction(async (tx) => {
+    await tx.passwordRecoveryGrant.deleteMany({
+      where: { userId: { in: MANAGED_USER_IDS } },
+    });
+    await tx.mfaBinding.deleteMany({
+      where: { userId: { in: MANAGED_USER_IDS } },
+    });
+    await tx.passwordSetupRequirement.deleteMany({
+      where: { userId: { in: MANAGED_USER_IDS } },
+    });
     await tx.credential.deleteMany({
       where: {
         LoginMethod: {
@@ -388,6 +369,56 @@ async function seedAuth(auth, passwordHash) {
         },
       });
     }
+
+    await tx.mfaBinding.create({
+      data: {
+        id: AUTH_ACCEPTANCE_FIXTURES.mfa.binding.id,
+        userId: AUTH_ACCEPTANCE_FIXTURES.mfa.userId,
+        type: MfaType[AUTH_ACCEPTANCE_FIXTURES.mfa.binding.type],
+        secret: AUTH_ACCEPTANCE_FIXTURES.mfa.binding.secret,
+        enabled: AUTH_ACCEPTANCE_FIXTURES.mfa.binding.enabled,
+      },
+    });
+
+    await tx.passwordSetupRequirement.create({
+      data: {
+        id: AUTH_ACCEPTANCE_FIXTURES.passwordSetup.requirement.id,
+        userId: AUTH_ACCEPTANCE_FIXTURES.passwordSetup.userId,
+        required: AUTH_ACCEPTANCE_FIXTURES.passwordSetup.requirement.required,
+        reason: PasswordSetupReason[AUTH_ACCEPTANCE_FIXTURES.passwordSetup.requirement.reason],
+        requiredBy: AUTH_ACCEPTANCE_FIXTURES.passwordSetup.requirement.requiredBy,
+        requiredAt: AUTH_ACCEPTANCE_FIXTURES.passwordSetup.requirement.requiredAt,
+      },
+    });
+
+    await tx.tenantTerminalMfaPolicy.upsert({
+      where: {
+        tenantId_terminal: {
+          tenantId: AUTH_ACCEPTANCE_FIXTURES.mfa.tenantId,
+          terminal: AUTH_ACCEPTANCE_FIXTURES.mfa.tenantTerminalMfaPolicy.terminal,
+        },
+      },
+      update: {
+        loginMfaRequired:
+          AUTH_ACCEPTANCE_FIXTURES.mfa.tenantTerminalMfaPolicy.loginMfaRequired,
+        newDeviceMfaRequired:
+          AUTH_ACCEPTANCE_FIXTURES.mfa.tenantTerminalMfaPolicy.newDeviceMfaRequired,
+        allowedFactors: AUTH_ACCEPTANCE_FIXTURES.mfa.tenantTerminalMfaPolicy.allowedFactors,
+        factorPriority: AUTH_ACCEPTANCE_FIXTURES.mfa.tenantTerminalMfaPolicy.factorPriority,
+        updatedBy: 'seed:auth-mfa-acceptance',
+      },
+      create: {
+        tenantId: AUTH_ACCEPTANCE_FIXTURES.mfa.tenantId,
+        terminal: AUTH_ACCEPTANCE_FIXTURES.mfa.tenantTerminalMfaPolicy.terminal,
+        loginMfaRequired:
+          AUTH_ACCEPTANCE_FIXTURES.mfa.tenantTerminalMfaPolicy.loginMfaRequired,
+        newDeviceMfaRequired:
+          AUTH_ACCEPTANCE_FIXTURES.mfa.tenantTerminalMfaPolicy.newDeviceMfaRequired,
+        allowedFactors: AUTH_ACCEPTANCE_FIXTURES.mfa.tenantTerminalMfaPolicy.allowedFactors,
+        factorPriority: AUTH_ACCEPTANCE_FIXTURES.mfa.tenantTerminalMfaPolicy.factorPriority,
+        updatedBy: 'seed:auth-mfa-acceptance',
+      },
+    });
 
     await tx.terminalLoginPolicy.upsert({
       where: { terminal: PDA_LOGIN_SMOKE_SEED.terminalLoginPolicy.terminal },
@@ -884,24 +915,17 @@ async function seedHr(hr) {
   });
 }
 
-// Prints a compact summary so local operators can immediately see which tenants and credentials were rebuilt.
+// Prints a compact redacted summary without exposing login identifiers or credential material.
 function printSummary() {
   const summary = buildSeedSummary();
   console.log('Seeded tenant-web org/people test data successfully.');
-  console.log(`Tenants: ${summary.tenants.join(' / ')}`);
+  console.log(`Tenants: ${summary.tenants.length}`);
   console.log(`Org units: ${summary.orgUnitCount}`);
   console.log(`Employees: ${summary.employeeCount}`);
   console.log(`Lifecycle coverage: ${summary.lifecycleCoverage.join(', ')}`);
   console.log(`Access coverage: ${summary.accessCoverage.join(', ')}`);
-  console.log(`Login users: ${summary.loginUsers.join(' ; ')}`);
-  console.log(
-    `PDA smoke login: ${PDA_LOGIN_SMOKE_SEED.identifier} / tenant ${PDA_LOGIN_SMOKE_SEED.tenantId}`
-  );
-  console.log(
-    `Browser extension designer demo: ${BROWSER_EXTENSION_DESIGNER_DEMO_SEED.identifier} / tenant ${BROWSER_EXTENSION_DESIGNER_DEMO_SEED.tenantId}`
-  );
-  console.log(`Password: ${DEFAULT_PASSWORD}`);
-  console.log(`OTP: ${DEFAULT_OTP_CODE}`);
+  console.log(`Login fixtures: ${summary.loginUsers.length}`);
+  console.log('Credential material: <REDACTED>');
 }
 
 async function main() {
@@ -964,6 +988,13 @@ async function main() {
 
 main().catch((error) => {
   console.error('Failed to seed tenant-web org/people test data.');
-  console.error(error);
+  console.error(
+    sanitizeTenantWebAuthSeedMessage(error instanceof Error ? error.message : String(error), [
+      DEFAULT_PASSWORD,
+      DEFAULT_OTP_CODE,
+      AUTH_ACCEPTANCE_FIXTURES.mfa.binding.secret,
+      ...DATABASE_CREDENTIAL_VALUES,
+    ]),
+  );
   process.exitCode = 1;
 });
