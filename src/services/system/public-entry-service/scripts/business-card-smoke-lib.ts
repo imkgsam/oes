@@ -232,27 +232,37 @@ function createContactAssetPort(seed: BusinessCardSmokeSeed): BusinessCardContac
   return {
     resolvePublicSafeValues: async (input) =>
       input.actionRefs.flatMap<ContactActionPublicSafeValue>((ref) => {
-        if (ref.contactActionType === 'CALL_PHONE' && ref.targetRefId === seed.contactAssets.phoneAssetId) {
+        if (
+          ref.contactActionType === 'CALL_PHONE' &&
+          ref.targetRefId === seed.contactAssets.phoneAssetId
+        ) {
           return [
             {
+              contactActionType: ref.contactActionType,
               targetRefType: ref.targetRefType,
               targetRefId: ref.targetRefId,
               contactAssetKind: 'WORK_PHONE' as const,
               displayValue: seed.contactAssets.phone,
               actionUrl: `tel:${seed.contactAssets.phone.replace(/[^\d+]/g, '')}`,
-              available: true
+              available: true,
+              includeInVCardAllowed: true
             }
           ]
         }
-        if (ref.contactActionType === 'SEND_EMAIL' && ref.targetRefId === seed.contactAssets.emailAssetId) {
+        if (
+          ref.contactActionType === 'SEND_EMAIL' &&
+          ref.targetRefId === seed.contactAssets.emailAssetId
+        ) {
           return [
             {
+              contactActionType: ref.contactActionType,
               targetRefType: ref.targetRefType,
               targetRefId: ref.targetRefId,
               contactAssetKind: 'WORK_EMAIL' as const,
               displayValue: seed.contactAssets.email,
               actionUrl: `mailto:${seed.contactAssets.email}`,
-              available: true
+              available: true,
+              includeInVCardAllowed: true
             }
           ]
         }
@@ -281,7 +291,8 @@ function createAuthorizationPort(seed: BusinessCardSmokeSeed): BusinessCardAutho
   return {
     checkPermission: async (input) => input.tenantId === seed.tenantId,
     buildQueryScope: async (input) => ({ tenantId: input.tenantId }),
-    checkResource: async (input) => input.tenantId === seed.tenantId && input.resource.tenantId === seed.tenantId
+    checkResource: async (input) =>
+      input.tenantId === seed.tenantId && input.resource.tenantId === seed.tenantId
   }
 }
 

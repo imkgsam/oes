@@ -25,59 +25,71 @@ const ACTION_COMPATIBLE_TYPES: Record<string, string[]> = {
 
 // ResolveContactActionTargetsHandler returns public-safe contact values for BusinessCard action refs.
 @QueryHandler(ResolveContactActionTargetsQuery)
-export class ResolveContactActionTargetsHandler
-  implements IQueryHandler<ResolveContactActionTargetsQuery, ResolveContactActionTargetsView>
-{
+export class ResolveContactActionTargetsHandler implements IQueryHandler<
+  ResolveContactActionTargetsQuery,
+  ResolveContactActionTargetsView
+> {
   constructor(
     @Inject(SYMBOLS.REPO.ACCOUNT_CONTACT_ASSET)
     private readonly accountContactAssetRepository: AccountContactAssetRepository
   ) {}
 
   async execute(query: ResolveContactActionTargetsQuery): Promise<ResolveContactActionTargetsView> {
-    const ids = uniqueTargetIds(query.targetRefs)
-    const assets = await this.accountContactAssetRepository.listByIds(ids)
-    const assetsById = new Map(assets.map((asset) => [asset.id, asset]))
+    return resolveContactActionTargets(this.accountContactAssetRepository, query)
+  }
+}
 
-    return {
-      targets: query.targetRefs.map((ref) => {
-        const base = createBaseTarget(ref)
-        if (ref.targetRefType !== CONTACT_ASSET_REF_TYPE) {
-          return hide(base, 'TARGET_REF_TYPE_UNSUPPORTED')
-        }
-        if (!ref.targetRefId?.trim()) {
-          return hide(base, 'TARGET_REF_EMPTY')
-        }
+/** Resolves public-safe action targets after the caller has established the owning account. */
+export async function resolveContactActionTargets(
+  accountContactAssetRepository: AccountContactAssetRepository,
+  query: Pick<
+    ResolveContactActionTargetsQuery,
+    'tenantId' | 'accountId' | 'employeeId' | 'targetRefs'
+  >
+): Promise<ResolveContactActionTargetsView> {
+  const ids = uniqueTargetIds(query.targetRefs)
+  const assets = await accountContactAssetRepository.listByIds(ids)
+  const assetsById = new Map(assets.map((asset) => [asset.id, asset]))
 
-        const asset = assetsById.get(ref.targetRefId)
-        if (!asset) {
-          return hide(base, 'CONTACT_ASSET_NOT_FOUND')
-        }
-        if (asset.tenantId !== query.tenantId || asset.accountId !== query.accountId) {
-          return hide(base, 'CONTACT_ASSET_SCOPE_MISMATCH')
-        }
-        if (query.employeeId?.trim() && asset.employeeId && asset.employeeId !== query.employeeId) {
-          return hide(base, 'CONTACT_ASSET_SCOPE_MISMATCH')
-        }
-        if (asset.status !== ACTIVE_STATUS) {
-          return hide(base, 'CONTACT_ASSET_NOT_ACTIVE')
-        }
-        if (!isActionCompatible(ref.contactActionType, asset.type)) {
-          return hide(base, 'CONTACT_ACTION_TYPE_MISMATCH')
-        }
+  return {
+    targets: query.targetRefs.map((ref) => {
+      const base = createBaseTarget(ref)
+      if (ref.targetRefType !== CONTACT_ASSET_REF_TYPE) {
+        return hide(base, 'TARGET_REF_TYPE_UNSUPPORTED')
+      }
+      if (!ref.targetRefId?.trim()) {
+        return hide(base, 'TARGET_REF_EMPTY')
+      }
 
-        const publicValueSummary = toPublicValueSummary(ref.contactActionType, asset)
-        if (!publicValueSummary) {
-          return hide(base, 'PUBLIC_VALUE_UNAVAILABLE')
-        }
+      const asset = assetsById.get(ref.targetRefId)
+      if (!asset) {
+        return hide(base, 'CONTACT_ASSET_NOT_FOUND')
+      }
+      if (asset.tenantId !== query.tenantId || asset.accountId !== query.accountId) {
+        return hide(base, 'CONTACT_ASSET_SCOPE_MISMATCH')
+      }
+      if (query.employeeId?.trim() && asset.employeeId && asset.employeeId !== query.employeeId) {
+        return hide(base, 'CONTACT_ASSET_SCOPE_MISMATCH')
+      }
+      if (asset.status !== ACTIVE_STATUS) {
+        return hide(base, 'CONTACT_ASSET_NOT_ACTIVE')
+      }
+      if (!isActionCompatible(ref.contactActionType, asset.type)) {
+        return hide(base, 'CONTACT_ACTION_TYPE_MISMATCH')
+      }
 
-        return {
-          ...base,
-          renderable: true,
-          hiddenReason: null,
-          publicValueSummary
-        }
-      })
-    }
+      const publicValueSummary = toPublicValueSummary(ref.contactActionType, asset)
+      if (!publicValueSummary) {
+        return hide(base, 'PUBLIC_VALUE_UNAVAILABLE')
+      }
+
+      return {
+        ...base,
+        renderable: true,
+        hiddenReason: null,
+        publicValueSummary
+      }
+    })
   }
 }
 

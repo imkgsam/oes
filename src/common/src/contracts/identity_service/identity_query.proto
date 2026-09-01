@@ -9,6 +9,7 @@ service IdentityQueryService {
   rpc ListAuthLoginAccountCandidates(ListAuthLoginAccountCandidatesRequest) returns (ListAuthLoginAccountCandidatesResponse);
   rpc ResolveAuthLoginAccount(ResolveAuthLoginAccountRequest) returns (ResolveAuthLoginAccountResponse);
   rpc ResolveAuthEmployeeLoginAccount(ResolveAuthEmployeeLoginAccountRequest) returns (ResolveAuthEmployeeLoginAccountResponse);
+  rpc ResolvePublicBusinessCardIdentity(ResolvePublicBusinessCardIdentityRequest) returns (ResolvePublicBusinessCardIdentityResponse);
   rpc GetAccountById(GetAccountByIdRequest) returns (GetAccountByIdResponse);
   rpc GetEmployeeBindingByAccountId(GetEmployeeBindingByAccountIdRequest) returns (GetEmployeeBindingByAccountIdResponse);
   rpc ResolveEmployeeLoginAccount(ResolveEmployeeLoginAccountRequest) returns (ResolveEmployeeLoginAccountResponse);
@@ -388,6 +389,22 @@ message ResolvedContactActionTarget {
   bool renderable = 4;
   string hidden_reason = 5;
   ContactAssetPublicValueSummary public_value_summary = 6;
+}
+
+message ResolvePublicBusinessCardIdentityRequest {
+  string tenant_id = 1;
+  string employee_id = 2;
+  repeated ContactActionTargetRef target_refs = 3;
+}
+
+message ResolvePublicBusinessCardIdentityResponse {
+  bool available = 1;
+  string tenant_id = 2;
+  string employee_id = 3;
+  string account_id = 4;
+  string display_name = 5;
+  repeated ResolvedContactActionTarget targets = 6;
+  string reason_code = 7;
 }
 
 message ResolveContactActionTargetsRequest {

@@ -13,7 +13,9 @@ export type BusinessCardEmployeeSummary = {
   englishName?: string | null
   title?: string | null
   department?: string | null
+  orgUnitId?: string | null
   officialPhotoUrl?: string | null
+  contactValues?: ContactActionPublicSafeValue[]
   status: 'ACTIVE' | 'INACTIVE' | 'OFFBOARDED'
 }
 
@@ -21,10 +23,12 @@ export type BusinessCardCompanyDisplaySummary = {
   tenantId: string
   companyDisplayName?: string | null
   websiteUrl?: string | null
+  departmentDisplayName?: string | null
   logoUrl?: string | null
 }
 
 export type ContactActionPublicSafeValue = {
+  contactActionType: ContactActionType
   targetRefType: ContactActionTargetRefType
   targetRefId?: string | null
   contactAssetKind?:
@@ -38,6 +42,7 @@ export type ContactActionPublicSafeValue = {
   displayValue?: string | null
   actionUrl?: string | null
   available: boolean
+  includeInVCardAllowed: boolean
 }
 
 export type ContactActionResolveRef = {
@@ -56,6 +61,7 @@ export interface BusinessCardEmployeePort {
   getEmployeeSummary(input: {
     tenantId: string
     employeeId: string
+    actionRefs?: ContactActionResolveRef[]
     traceId?: string
   }): Promise<BusinessCardEmployeeSummary | null>
   getEmployeeByAccount(input: {
@@ -79,6 +85,7 @@ export interface BusinessCardContactAssetPort {
 export interface BusinessCardTenantProfilePort {
   getCompanyDisplaySummary(input: {
     tenantId: string
+    orgUnitId?: string | null
     traceId?: string
   }): Promise<BusinessCardCompanyDisplaySummary | null>
 }

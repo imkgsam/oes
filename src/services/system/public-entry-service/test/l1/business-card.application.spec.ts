@@ -57,7 +57,44 @@ function buildService(overrides?: {
   const employeePort: BusinessCardEmployeePort = {
     getEmployeeSummary: jest.fn(async (input) => {
       const employee = employees.get(input.employeeId)
-      return employee && employee.tenantId === input.tenantId ? employee : null
+      return employee && employee.tenantId === input.tenantId
+        ? {
+            ...employee,
+            contactValues: (input.actionRefs ?? [])
+              .filter((ref) => ref.targetRefId !== 'missing_asset')
+              .map((ref) => ({
+                contactActionType: ref.contactActionType,
+                targetRefType: ref.targetRefType,
+                targetRefId: ref.targetRefId,
+                contactAssetKind:
+                  ref.contactActionType === 'SEND_EMAIL'
+                    ? ('WORK_EMAIL' as const)
+                    : ref.contactActionType === 'CALL_PHONE'
+                      ? ('WORK_PHONE' as const)
+                      : ref.contactActionType === 'ADD_WECHAT'
+                        ? ('WECHAT' as const)
+                        : ('WHATSAPP' as const),
+                displayValue:
+                  ref.contactActionType === 'SEND_EMAIL'
+                    ? 'alex.chen@example.com'
+                    : ref.contactActionType === 'CALL_PHONE'
+                      ? '+1 555 0101'
+                      : ref.contactActionType === 'ADD_WECHAT'
+                        ? 'alex-work'
+                        : '+15550101',
+                actionUrl:
+                  ref.contactActionType === 'SEND_EMAIL'
+                    ? 'mailto:alex.chen@example.com'
+                    : ref.contactActionType === 'CALL_PHONE'
+                      ? 'tel:+15550101'
+                      : ref.contactActionType === 'ADD_WECHAT'
+                        ? 'weixin://dl/chat?alex-work'
+                        : 'https://wa.me/15550101',
+                available: true,
+                includeInVCardAllowed: true
+              }))
+          }
+        : null
     }),
     getEmployeeByAccount: jest.fn(async (input) => {
       const employee = Array.from(employees.values()).find(
@@ -72,6 +109,7 @@ function buildService(overrides?: {
       input.actionRefs
         .filter((ref) => ref.targetRefId !== 'missing_asset')
         .map((ref) => ({
+          contactActionType: ref.contactActionType,
           targetRefType: ref.targetRefType,
           targetRefId: ref.targetRefId,
           contactAssetKind:
@@ -98,7 +136,8 @@ function buildService(overrides?: {
                 : ref.contactActionType === 'ADD_WECHAT'
                   ? 'weixin://dl/chat?alex-work'
                   : 'https://wa.me/15550101',
-          available: true
+          available: true,
+          includeInVCardAllowed: true
         }))
     ),
     ...overrides?.contactAsset
@@ -252,8 +291,16 @@ describe('BusinessCardApplicationService', () => {
     jest.clearAllMocks()
 
     await service.listCards({ tenantId, operatorContext })
-    await service.getCardDetail({ tenantId, businessCardId: created.businessCard.businessCardId, operatorContext })
-    await service.updateCardConfig({ tenantId, businessCardId: created.businessCard.businessCardId, operatorContext })
+    await service.getCardDetail({
+      tenantId,
+      businessCardId: created.businessCard.businessCardId,
+      operatorContext
+    })
+    await service.updateCardConfig({
+      tenantId,
+      businessCardId: created.businessCard.businessCardId,
+      operatorContext
+    })
     await service.updateContactActions({
       tenantId,
       businessCardId: created.businessCard.businessCardId,
@@ -265,22 +312,44 @@ describe('BusinessCardApplicationService', () => {
       businessCardId: created.businessCard.businessCardId,
       operatorContext
     })
-    await service.runReadinessCheck({ tenantId, businessCardId: created.businessCard.businessCardId, operatorContext })
+    await service.runReadinessCheck({
+      tenantId,
+      businessCardId: created.businessCard.businessCardId,
+      operatorContext
+    })
     await service.getMainPublicEntrySummary({
       tenantId,
       businessCardId: created.businessCard.businessCardId,
       operatorContext
     })
-    await service.getVisitSummary({ tenantId, businessCardId: created.businessCard.businessCardId, operatorContext })
-    await service.enableCard({ tenantId, businessCardId: created.businessCard.businessCardId, operatorContext })
-    await service.disableCard({ tenantId, businessCardId: created.businessCard.businessCardId, operatorContext })
-
-    expect(authorizationPort.buildQueryScope).toHaveBeenCalledWith({
+    await service.getVisitSummary({
       tenantId,
-      permissionCode: 'public-entry.business-card.read',
+      businessCardId: created.businessCard.businessCardId,
       operatorContext
     })
-    expect((authorizationPort.checkResource as jest.Mock).mock.calls.map(([input]) => input.permissionCode)).toEqual([
+    await service.enableCard({
+      tenantId,
+      businessCardId: created.businessCard.businessCardId,
+      operatorContext
+    })
+    await service.disableCard({
+      tenantId,
+      businessCardId: created.businessCard.businessCardId,
+      operatorContext
+    })
+
+    expect((authorizationPort.buildQueryScope as jest.Mock).mock.calls).toContainEqual([
+      {
+        tenantId,
+        permissionCode: 'public-entry.business-card.read',
+        operatorContext
+      }
+    ])
+    expect(
+      (authorizationPort.checkResource as jest.Mock).mock.calls.map(
+        ([input]) => input.permissionCode
+      )
+    ).toEqual([
       'public-entry.business-card.read',
       'public-entry.business-card.read',
       'public-entry.business-card.manage',
@@ -390,9 +459,10 @@ describe('BusinessCardApplicationService', () => {
       displayValue: 'oes.example.com'
     })
     expect(publicView.view?.contactActions[2]).toMatchObject({
-      actionUrl: expect.stringContaining(`/public/business-cards/${created.businessCard.businessCardId}.vcf`)
+      actionUrl: `/public-entry/public/business-cards/${created.businessCard.businessCardId}.vcf`
     })
     expect(JSON.stringify(publicView.view)).not.toContain('missing_asset')
+    expect(JSON.stringify(publicView.view)).not.toContain('includeInVCard')
   })
 
   it('hides official photo from public render when visibility config disables it', async () => {
@@ -596,5 +666,106 @@ describe('BusinessCardApplicationService', () => {
     expect(vcard.body).toContain('TEL;TYPE=WORK:+1 555 0101')
     expect(vcard.body).not.toContain('alex.chen@example.com')
     expect(vcard.body).not.toContain('Enterprise Sales')
+  })
+
+  it('exports a visible contact only when both card config and Identity owner allow vCard use', async () => {
+    const { service } = buildService({
+      employee: {
+        getEmployeeSummary: jest.fn(async (input) => ({
+          tenantId: input.tenantId,
+          employeeId: input.employeeId,
+          accountId: 'acc_employee',
+          displayName: 'Alex Chen',
+          orgUnitId: null,
+          status: 'ACTIVE' as const,
+          contactValues: [
+            {
+              contactActionType: 'CALL_PHONE' as const,
+              targetRefType: 'CONTACT_ASSET' as const,
+              targetRefId: 'card_denied',
+              contactAssetKind: 'WORK_PHONE' as const,
+              displayValue: '+1 555 0101',
+              actionUrl: 'tel:+15550101',
+              available: true,
+              includeInVCardAllowed: true
+            },
+            {
+              contactActionType: 'CALL_PHONE' as const,
+              targetRefType: 'CONTACT_ASSET' as const,
+              targetRefId: 'owner_denied',
+              contactAssetKind: 'WORK_PHONE' as const,
+              displayValue: '+1 555 0102',
+              actionUrl: 'tel:+15550102',
+              available: true,
+              includeInVCardAllowed: false
+            },
+            {
+              contactActionType: 'CALL_PHONE' as const,
+              targetRefType: 'CONTACT_ASSET' as const,
+              targetRefId: 'allowed',
+              contactAssetKind: 'WORK_PHONE' as const,
+              displayValue: '+1 555 0103',
+              actionUrl: 'tel:+15550103',
+              available: true,
+              includeInVCardAllowed: true
+            }
+          ]
+        }))
+      }
+    })
+    const created = await service.ensurePrimaryCard({ tenantId, employeeId, operatorContext })
+    await service.updateContactActions({
+      tenantId,
+      businessCardId: created.businessCard.businessCardId,
+      operatorContext,
+      contactActionConfigs: [
+        {
+          contactActionType: 'CALL_PHONE',
+          targetRefType: 'CONTACT_ASSET',
+          targetRefId: 'card_denied',
+          visibility: 'PUBLIC',
+          displayOrder: 10,
+          enabled: true,
+          includeInVCard: false
+        },
+        {
+          contactActionType: 'CALL_PHONE',
+          targetRefType: 'CONTACT_ASSET',
+          targetRefId: 'owner_denied',
+          visibility: 'PUBLIC',
+          displayOrder: 20,
+          enabled: true,
+          includeInVCard: true
+        },
+        {
+          contactActionType: 'CALL_PHONE',
+          targetRefType: 'CONTACT_ASSET',
+          targetRefId: 'allowed',
+          visibility: 'PUBLIC',
+          displayOrder: 30,
+          enabled: true,
+          includeInVCard: true
+        }
+      ]
+    })
+    await service.bindOrRefreshMainPublicEntry({
+      tenantId,
+      businessCardId: created.businessCard.businessCardId,
+      operatorContext
+    })
+    await service.enableCard({
+      tenantId,
+      businessCardId: created.businessCard.businessCardId,
+      operatorContext
+    })
+
+    const vcard = await service.generateVCard({
+      tenantId,
+      businessCardId: created.businessCard.businessCardId
+    })
+
+    expect(vcard.body).not.toContain('+1 555 0101')
+    expect(vcard.body).not.toContain('+1 555 0102')
+    expect(vcard.body).toContain('TEL;TYPE=WORK:+1 555 0103')
   })
 })

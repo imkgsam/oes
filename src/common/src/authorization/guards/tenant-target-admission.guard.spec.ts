@@ -68,6 +68,14 @@ function businessDeclaration(...codes: readonly string[]): RpcAuthorizationModeD
   })
 }
 
+/** Builds one immutable trusted INTERNAL declaration for an exact owner-fact Code fixture. */
+function internalDeclaration(...codes: readonly string[]): RpcAuthorizationModeDeclaration {
+  return Object.freeze({
+    mode: 'INTERNAL',
+    permissions: Object.freeze({ all: Object.freeze([...codes]) })
+  })
+}
+
 /** Stamps request data through the same private verified-execution utility used by TrustedExecutionGuard. */
 function verifiedData(
   selector: unknown = 'Tenant-A',
@@ -313,6 +321,26 @@ describe('TenantTargetAdmissionGuard', () => {
     })
   })
 
+  it('admits tenantless SYSTEM MACHINE for an exact singleton INTERNAL target Code', async () => {
+    const systemToken = token({ principalType: 'MACHINE', tenantId: undefined })
+    delete (systemToken as { tenantId?: string }).tenantId
+    const binder = { bind: jest.fn(async () => true) }
+    const declaration = internalDeclaration(CODE)
+    const fixture = guardFixture(systemDeclaration(), verifiedData('Target-B', systemToken), {
+      binder,
+      rpcAuthorizationDeclaration: declaration,
+      currentRpcAuthorizationDeclaration: declaration
+    })
+
+    await expect(execute(fixture)).resolves.toBe('handled')
+    expect(requireAdmittedTenantTarget(fixture.data)).toMatchObject({
+      selector: 'Target-B',
+      subjectScope: 'SYSTEM',
+      permissionCode: CODE,
+      range: 'ALL'
+    })
+  })
+
   it('composes the real trusted guard and target guard on one dedicated SYSTEM handler', async () => {
     const fixture = realSystemGuardComposition()
 
@@ -360,13 +388,8 @@ describe('TenantTargetAdmissionGuard', () => {
         allowDelegated: true
       }) as RpcAuthorizationModeDeclaration
     ],
-    [
-      'INTERNAL mode',
-      Object.freeze({
-        mode: 'INTERNAL',
-        permissions: Object.freeze({ all: Object.freeze([CODE]) })
-      }) as RpcAuthorizationModeDeclaration
-    ]
+    ['conflicting INTERNAL Code', internalDeclaration(OTHER_CODE)],
+    ['multiple INTERNAL Codes', internalDeclaration(CODE, OTHER_CODE)]
   ])('rejects dedicated SYSTEM with %s before audit', async (_label, rpcDeclaration) => {
     const systemToken = token({ tenantId: undefined })
     delete (systemToken as { tenantId?: string }).tenantId

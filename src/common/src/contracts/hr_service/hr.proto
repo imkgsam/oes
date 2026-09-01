@@ -7,6 +7,7 @@ option java_package = "com.oes.hr.v1";
 
 service HrQueryService {
   rpc ResolveAuthLoginEmployee(ResolveAuthLoginEmployeeRequest) returns (ResolveAuthLoginEmployeeResponse);
+  rpc ResolvePublicBusinessCardEmployee(ResolvePublicBusinessCardEmployeeRequest) returns (ResolvePublicBusinessCardEmployeeResponse);
   rpc GetEmployeeById(GetEmployeeByIdRequest) returns (GetEmployeeByIdResponse);
   rpc GetEmployeeByTenantPartyId(GetEmployeeByTenantPartyIdRequest) returns (GetEmployeeByTenantPartyIdResponse);
   rpc ResolveActiveEmployeeByCode(ResolveActiveEmployeeByCodeRequest) returns (ResolveActiveEmployeeByCodeResponse);
@@ -24,6 +25,22 @@ message ResolveAuthLoginEmployeeRequest {
 message ResolveAuthLoginEmployeeResponse {
   string employee_id = 1;
   string active_employment_id = 2;
+}
+
+message ResolvePublicBusinessCardEmployeeRequest {
+  string tenant_id = 1;
+  string employee_id = 2;
+}
+
+message ResolvePublicBusinessCardEmployeeResponse {
+  bool available = 1;
+  string employee_id = 2;
+  EmployeeLifecycleStatus lifecycle_status = 3;
+  string active_employment_id = 4;
+  string org_unit_id = 5;
+  string position_name = 6;
+  string official_photo_url = 7;
+  string reason_code = 8;
 }
 
 service HrManagementService {

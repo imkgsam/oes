@@ -2,16 +2,19 @@ import { ListAccountContactAssetsHandler } from './list-account-contact-assets.h
 import { ListAccountWorkEmailAssetsHandler } from './list-account-work-email-assets.handler'
 import { ListAccountWorkPhoneAssetsHandler } from './list-account-work-phone-assets.handler'
 import { ResolveContactActionTargetsHandler } from './resolve-contact-action-targets.handler'
+import { ResolvePublicBusinessCardIdentityHandler } from './resolve-public-business-card-identity.handler'
 
 export * from './list-account-contact-assets.query'
 export * from './list-account-work-email-assets.query'
 export * from './list-account-work-phone-assets.query'
 export * from './resolve-contact-action-targets.query'
+export * from './resolve-public-business-card-identity.query'
 export * from './contact-query.result'
 
 export const ContactQueryHandlers = [
   ListAccountContactAssetsHandler,
   ListAccountWorkEmailAssetsHandler,
   ListAccountWorkPhoneAssetsHandler,
-  ResolveContactActionTargetsHandler
+  ResolveContactActionTargetsHandler,
+  ResolvePublicBusinessCardIdentityHandler
 ]

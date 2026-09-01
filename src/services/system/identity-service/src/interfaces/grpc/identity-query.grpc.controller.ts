@@ -20,6 +20,8 @@ import {
   ResolveAuthLoginAccountResponse,
   ResolveAuthEmployeeLoginAccountRequest,
   ResolveAuthEmployeeLoginAccountResponse,
+  ResolvePublicBusinessCardIdentityRequest,
+  ResolvePublicBusinessCardIdentityResponse,
   CountTenantAccountsRequest,
   CountTenantAccountsResponse,
   ListAccountsRequest,
@@ -87,6 +89,8 @@ import {
   ListAccountWorkPhoneAssetsQuery,
   ResolveContactActionTargetsQuery,
   ResolveContactActionTargetsView,
+  PublicBusinessCardIdentityView,
+  ResolvePublicBusinessCardIdentityQuery,
   ResolveIntegrationMachineForAuthQuery,
   ResolveMachinePrincipalForAuthQuery,
   ServiceAccountView,
@@ -99,6 +103,7 @@ import {
 import { IdentityGrpcPresenter } from './identity-grpc.presenter'
 import { getOptionalOperatorScope } from './grpc-request-context'
 import { AuthorizeIdentityMachineBootstrap } from '../../modules/identity-trusted-execution.module'
+import { AuthorizeIdentityPublicEntryOwnerFact } from '../../modules/identity-trusted-execution.module'
 
 type ResolveEmployeeLoginAccountRequest = {
   tenantId?: string
@@ -173,6 +178,44 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
         accountEnabled: account.accountEnabled,
         employeeId: request.employeeId!
       }
+    }
+  }
+
+  @AuthorizeIdentityPublicEntryOwnerFact()
+  @AuthorizeInternalCall({ all: ['identity.internal.public_business_card_identity.resolve'] })
+  @UseGuards(IdentityAudienceTrustedInternalExecutionGuard)
+  async resolvePublicBusinessCardIdentity(
+    request: ResolvePublicBusinessCardIdentityRequest
+  ): Promise<ResolvePublicBusinessCardIdentityResponse> {
+    try {
+      const result = await this.queryBus.execute<
+        ResolvePublicBusinessCardIdentityQuery,
+        PublicBusinessCardIdentityView
+      >(
+        new ResolvePublicBusinessCardIdentityQuery({
+          tenantId: request.tenantId ?? '',
+          employeeId: request.employeeId ?? '',
+          targetRefs: (request.targetRefs ?? []).map((ref) => ({
+            contactActionType: ref.contactActionType ?? '',
+            targetRefType: ref.targetRefType ?? '',
+            targetRefId: ref.targetRefId || null
+          }))
+        })
+      )
+      if (!result.available) return { available: false, reasonCode: result.reasonCode }
+      return {
+        available: true,
+        tenantId: result.tenantId ?? '',
+        employeeId: result.employeeId ?? '',
+        accountId: result.accountId ?? '',
+        displayName: result.displayName ?? '',
+        targets: result.targets.map((target) =>
+          IdentityGrpcPresenter.toResolvedContactActionTarget(target)
+        ),
+        reasonCode: ''
+      }
+    } catch {
+      return { available: false, reasonCode: 'OWNER_FACT_UNAVAILABLE' }
     }
   }
 
