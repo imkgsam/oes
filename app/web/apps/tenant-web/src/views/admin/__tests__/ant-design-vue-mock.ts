@@ -206,6 +206,7 @@ export const SelectOption = defineComponent({
 export const Select = defineComponent({
   name: 'Select',
   props: {
+    'onUpdate:value': Function,
     disabled: Boolean,
     maxTagCount: {
       default: undefined,

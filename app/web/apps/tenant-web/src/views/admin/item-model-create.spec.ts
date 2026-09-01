@@ -68,6 +68,32 @@ describe('item model create page', () => {
     createManagedItemModelApi.mockResolvedValue({ itemModelId: 'model-2' })
   })
 
+  it('mounts and remounts ItemModel selectors without console warnings or errors', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const page = (await import('./item-model-create.vue')).default
+    const mountView = () => mount(page)
+
+    let warningText = ''
+    let errorText = ''
+    try {
+      for (const mountPhase of [mountView, mountView]) {
+        const wrapper = mountPhase()
+        await flushPromises()
+        wrapper.unmount()
+      }
+      warningText = warnSpy.mock.calls.flat().join('\n')
+      errorText = errorSpy.mock.calls.flat().join('\n')
+    } finally {
+      warnSpy.mockRestore()
+      errorSpy.mockRestore()
+    }
+
+    expect(warningText).toBe('')
+    expect(errorText).toBe('')
+    expect(listManagedItemCategoriesApi).toHaveBeenCalledTimes(2)
+  })
+
   it('creates an ItemModel on a dedicated page and routes to its detail page', async () => {
     const page = (await import('./item-model-create.vue')).default
     const wrapper = mount(page)
