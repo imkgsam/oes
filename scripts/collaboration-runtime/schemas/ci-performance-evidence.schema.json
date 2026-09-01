@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/ci-performance-evidence-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "workloadFingerprint",
+    "executionFingerprint",
+    "workload",
+    "execution"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "OES_CI_PERFORMANCE_EVIDENCE" },
+    "workloadFingerprint": { "$ref": "#/$defs/sha256" },
+    "executionFingerprint": { "$ref": "#/$defs/sha256" },
+    "workload": { "$ref": "#/$defs/workload" },
+    "execution": { "$ref": "#/$defs/execution" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "gitSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "stringArray": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+    "workload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceSha",
+        "sourceTreeSha",
+        "baseSha",
+        "acceptedSourceIdentity",
+        "acceptedResultIdentity",
+        "changedPaths",
+        "riskClass",
+        "stagePullRequests",
+        "commandInventory",
+        "testInventory",
+        "lockfileDigest",
+        "toolchain",
+        "cacheDisposition"
+      ],
+      "properties": {
+        "sourceSha": { "$ref": "#/$defs/gitSha" },
+        "sourceTreeSha": { "$ref": "#/$defs/gitSha" },
+        "baseSha": { "$ref": "#/$defs/gitSha" },
+        "acceptedSourceIdentity": { "$ref": "#/$defs/gitSha" },
+        "acceptedResultIdentity": { "$ref": "#/$defs/gitSha" },
+        "changedPaths": { "$ref": "#/$defs/stringArray" },
+        "riskClass": { "enum": ["STANDARD", "HIGH"] },
+        "stagePullRequests": { "$ref": "#/$defs/stringArray" },
+        "commandInventory": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "testInventory": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "lockfileDigest": { "$ref": "#/$defs/sha256" },
+        "toolchain": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["node", "pnpm", "buf"],
+          "properties": {
+            "node": { "type": "string", "minLength": 1 },
+            "pnpm": { "type": "string", "minLength": 1 },
+            "buf": { "type": "string", "minLength": 1 }
+          }
+        },
+        "cacheDisposition": { "enum": ["UNKNOWN", "COLD", "WARM"] }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workflowRevision",
+        "eventTopology",
+        "mode",
+        "shardStrategy",
+        "cacheStrategy",
+        "artifactStrategy",
+        "artifactDigest"
+      ],
+      "properties": {
+        "workflowRevision": { "$ref": "#/$defs/sha256" },
+        "eventTopology": { "type": "string", "minLength": 1 },
+        "mode": { "enum": ["LEGACY_CONTROL", "OPTIMIZED_SHADOW", "OPTIMIZED_ACTIVE"] },
+        "shardStrategy": { "type": "string", "minLength": 1 },
+        "cacheStrategy": { "type": "string", "minLength": 1 },
+        "artifactStrategy": { "type": "string", "minLength": 1 },
+        "artifactDigest": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}

@@ -24,6 +24,17 @@ import {
   type SystemProbeOptions
 } from './profile-preflight.ts'
 import { validateJsonSchema } from './schema-validation.ts'
+import {
+  createTechnicalRevision,
+  planStageMerge,
+  readStageMergeCandidateFingerprints
+} from './stage-merge.ts'
+import {
+  loadTrustedStageArchiveResults,
+  loadTrustedStageLifecycleInventory,
+  loadTrustedStageLifecycleRosterAuthority,
+  planStageLifecycle
+} from './stage-lifecycle.ts'
 import { RemoteDriver } from './remote-driver.ts'
 import {
   CiRecoveryController,
@@ -37,7 +48,12 @@ import type {
   DriftAssessmentInput,
   EffectiveProfileReport,
   EvidenceKeyInput,
-  ObservedCleanupResource
+  ObservedCleanupResource,
+  StageMergeAuthorization,
+  StageMergeItemResult,
+  StageMergeTechnicalRevision,
+  StageMergeTechnicalRevisionInput,
+  TrustedAuthorizationReference
 } from './types.ts'
 
 /** Returns the value following one required command-line flag. */
@@ -188,6 +204,63 @@ async function main(args: string[]): Promise<void> {
     verifyCleanupOnlyDeletion(authorization, diff)
     verifyChildCleanupResults(authorization, childResults)
     emit({ status: 'STAGE_CLEANUP_VERIFIED', stageKey: authorization.stageKey })
+    return
+  }
+  if (command === 'stage-merge-plan') {
+    const authorization = readJson<StageMergeAuthorization>(flag(args, '--authorization'))
+    const results = readJson<StageMergeItemResult[]>(flag(args, '--results'))
+    const revisions = args.includes('--technical-revisions')
+      ? readJson<StageMergeTechnicalRevision[]>(flag(args, '--technical-revisions'))
+      : []
+    emit(planStageMerge(authorization, results, revisions, flag(args, '--repository-root')))
+    return
+  }
+  if (command === 'stage-merge-candidate-readback') {
+    emit(
+      readStageMergeCandidateFingerprints(
+        flag(args, '--repository-root'),
+        flag(args, '--base'),
+        flag(args, '--head')
+      )
+    )
+    return
+  }
+  if (command === 'stage-merge-revision') {
+    const authorization = readJson<StageMergeAuthorization>(flag(args, '--authorization'))
+    const input = readJson<StageMergeTechnicalRevisionInput>(flag(args, '--input'))
+    const revision = createTechnicalRevision(authorization, input, flag(args, '--repository-root'))
+    if (args.includes('--output')) writeJsonAtomic(flag(args, '--output'), revision)
+    emit(revision)
+    return
+  }
+  if (command === 'stage-lifecycle-plan') {
+    const profileReport = verifyEffectiveProfileReport(
+      readJson<EffectiveProfileReport>(flag(args, '--profile-report'))
+    )
+    const trust = loadRemoteTrustRootsFromProfileReport(profileReport)
+    const cleanup = loadTrustedStageCleanupAuthorization(flag(args, '--authorization'), trust)
+    const rosterAuthority = loadTrustedStageLifecycleRosterAuthority(
+      readJson<TrustedAuthorizationReference>(flag(args, '--roster-authority')),
+      cleanup,
+      trust
+    )
+    const inventory = loadTrustedStageLifecycleInventory(
+      readJson<TrustedAuthorizationReference>(flag(args, '--inventory')),
+      rosterAuthority,
+      cleanup,
+      trust
+    )
+    const priorResults = args.includes('--prior-results')
+      ? loadTrustedStageArchiveResults(
+          readJson<TrustedAuthorizationReference>(flag(args, '--prior-results')),
+          inventory,
+          cleanup,
+          trust
+        )
+      : []
+    const plan = planStageLifecycle(rosterAuthority, inventory, priorResults)
+    if (args.includes('--output')) writeJsonAtomic(flag(args, '--output'), plan)
+    emit(plan)
     return
   }
   fail('CLI_COMMAND_UNKNOWN', command ?? 'NONE')
