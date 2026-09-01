@@ -11,6 +11,50 @@ jest.mock('@oes/common/tracing', () => ({
 
 // Verifies gateway gRPC exception mapping preserves FAILED_PRECONDITION semantics instead of collapsing them into pseudo-500 responses.
 describe('GatewayExceptionFilter', () => {
+  it.each(['unknown identifier', 'wrong password'])(
+    'maps %s to the same public invalid-credentials HTTP shape',
+    () => {
+      const logger = { error: jest.fn(), warn: jest.fn() }
+      const filter = new GatewayExceptionFilter(logger as any)
+      const json = jest.fn()
+      const res = { status: jest.fn(() => ({ json })) }
+      const req = {
+        header: jest.fn(() => 'request-login-1'),
+        method: 'POST',
+        originalUrl: '/api/v1/auth/login'
+      }
+      const host = {
+        switchToHttp: () => ({
+          getRequest: () => req,
+          getResponse: () => res
+        })
+      } as ArgumentsHost
+
+      filter.catch(
+        new RpcException({
+          grpcStatus: status.INVALID_ARGUMENT,
+          code: 'AUTH_INVALID_CREDENTIALS',
+          message: 'Invalid credentials',
+          messageKey: 'auth.invalid_credentials'
+        }),
+        host
+      )
+
+      expect(res.status).toHaveBeenCalledWith(400)
+      expect(json).toHaveBeenCalledWith({
+        code: 'AUTH_INVALID_CREDENTIALS',
+        message: 'Invalid credentials',
+        messageKey: 'auth.invalid_credentials',
+        details: undefined,
+        meta: {
+          traceId: expect.any(String),
+          requestId: 'request-login-1',
+          timestamp: expect.any(String)
+        }
+      })
+    }
+  )
+
   it('maps FAILED_PRECONDITION RpcException values to HTTP 412', () => {
     const logger = {
       error: jest.fn(),

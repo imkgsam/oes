@@ -4,10 +4,7 @@ import { TerminalLoginFlow } from '@oes/common/auth'
 import { IDENTITY_SERVICE, LoginMethodEnum, LoginMethodType } from '@oes/common/constants'
 import { ExceptionFactory, OESExceptionBase } from '@oes/common/exceptions'
 import { EmailPasswordLoginRequestDto } from '@oes/common/dtos'
-import {
-  AccountCandidateSummary,
-  IIdentityServicePort
-} from '../../ports/identity-service.port'
+import { AccountCandidateSummary, IIdentityServicePort } from '../../ports/identity-service.port'
 import { AuthAuditService } from '../../services/auth-audit.service'
 import { LoginRiskThrottleService } from '../../services/login-risk-throttle.service'
 import {
@@ -17,6 +14,7 @@ import {
 import { TerminalLoginPolicyService } from '../../services/terminal-login-policy.service'
 import { TenantSessionAccessService } from '../../services/tenant-session-access.service'
 import {
+  AUTH_INVALID_CREDENTIALS,
   AUTH_LOGIN_TEMPORARILY_LOCKED,
   AUTH_NO_AVAILABLE_ACCOUNT
 } from '../../../common/constants/exception-enums'
@@ -39,9 +37,10 @@ export type LoginWithEmailPasswordResult =
 
 @CommandHandler(LoginWithEmailPasswordCommand)
 // Orchestrates email-password login after enforcing terminal-level login flow policy.
-export class LoginWithEmailPasswordHandler
-  implements ICommandHandler<LoginWithEmailPasswordCommand, LoginWithEmailPasswordResult>
-{
+export class LoginWithEmailPasswordHandler implements ICommandHandler<
+  LoginWithEmailPasswordCommand,
+  LoginWithEmailPasswordResult
+> {
   constructor(
     private readonly authStrategyFactory: AuthStrategyFactory,
     private readonly authAuditService: AuthAuditService,
@@ -53,9 +52,7 @@ export class LoginWithEmailPasswordHandler
     private readonly pdaPrimaryLoginCompletionService?: PdaPrimaryLoginCompletionService
   ) {}
 
-  async execute(
-    command: LoginWithEmailPasswordCommand
-  ): Promise<LoginWithEmailPasswordResult> {
+  async execute(command: LoginWithEmailPasswordCommand): Promise<LoginWithEmailPasswordResult> {
     await this.terminalLoginPolicyService.assertFlowAllowed(
       command.terminal || 'WEB',
       command.loginFlow || TerminalLoginFlow.EmailPassword
@@ -75,41 +72,38 @@ export class LoginWithEmailPasswordHandler
     }
 
     const strategy = this.authStrategyFactory.get(LoginMethodEnum.EmailPassword)
-    let userId: string
+    const authentication = await strategy.authenticate({
+      email: command.email,
+      password: command.password
+    } as EmailPasswordLoginRequestDto)
 
-    try {
-      userId = await strategy.authenticate({
-        email: command.email,
-        password: command.password
-      } as EmailPasswordLoginRequestDto)
-    } catch (error) {
-      if (this.isInvalidCredentialError(error)) {
-        await this.loginRiskThrottleService.recordPasswordLoginFailure(
-          LoginMethodType.EMAIL,
-          command.email
-        )
-        const user = await this.identityService.getUserByEmail(command.email)
-        const deviceContext = normalizeAuthDeviceContext({
-          deviceName: command.deviceName,
-          userAgent: command.userAgent,
-          ipAddress: command.ipAddress
-        })
+    if (authentication.authenticated === false) {
+      await this.loginRiskThrottleService.recordPasswordLoginFailure(
+        LoginMethodType.EMAIL,
+        command.email
+      )
+      const deviceContext = normalizeAuthDeviceContext({
+        deviceName: command.deviceName,
+        userAgent: command.userAgent,
+        ipAddress: command.ipAddress
+      })
 
-        this.authAuditService.emitLoginFailed(command.email, 'INVALID_CREDENTIALS', {
-          method: LoginMethodEnum.EmailPassword,
-          userId: user?.userId,
-          terminal: command.terminal || 'WEB',
-          loginFlow: command.loginFlow || TerminalLoginFlow.EmailPassword,
-          deviceName: deviceContext.deviceName,
-          userAgent: deviceContext.userAgent,
-          ipAddress: deviceContext.ipAddress,
-          platform: deviceContext.platform,
-          browser: deviceContext.browser
-        })
-      }
+      this.authAuditService.emitLoginFailed(command.email, 'INVALID_CREDENTIALS', {
+        method: LoginMethodEnum.EmailPassword,
+        userId: authentication.auditUserId,
+        terminal: command.terminal || 'WEB',
+        loginFlow: command.loginFlow || TerminalLoginFlow.EmailPassword,
+        deviceName: deviceContext.deviceName,
+        userAgent: deviceContext.userAgent,
+        ipAddress: deviceContext.ipAddress,
+        platform: deviceContext.platform,
+        browser: deviceContext.browser
+      })
 
-      throw error
+      throw ExceptionFactory.domain(AUTH_INVALID_CREDENTIALS)
     }
+
+    const userId = authentication.userId
 
     await this.loginRiskThrottleService.clearPasswordLoginFailures(
       LoginMethodType.EMAIL,
@@ -144,12 +138,10 @@ export class LoginWithEmailPasswordHandler
     }
   }
 
-  private isInvalidCredentialError(error: unknown): boolean {
-    return error instanceof OESExceptionBase && error.getCode() === 'AUTH_INVALID_CREDENTIALS'
-  }
-
   private isLoginTemporarilyLockedError(error: unknown): boolean {
-    return error instanceof OESExceptionBase && error.getCode() === AUTH_LOGIN_TEMPORARILY_LOCKED.code
+    return (
+      error instanceof OESExceptionBase && error.getCode() === AUTH_LOGIN_TEMPORARILY_LOCKED.code
+    )
   }
 
   private isPdaLogin(terminal?: string): boolean {

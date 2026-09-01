@@ -8,7 +8,7 @@ function makeUuid(sequence) {
   return `00000000-0000-4000-8000-${String(sequence).padStart(12, '0')}`;
 }
 
-const LIVE_SEED_TENANT_KEYS = new Set(['meilong', 'haisheng']);
+const LIVE_SEED_TENANT_KEYS = new Set(['meilong', 'haisheng', 'beichen']);
 const LIVE_SEED_ORG_UNIT_KEYS = new Set([
   'meilong.root',
   'meilong.office',
@@ -16,6 +16,7 @@ const LIVE_SEED_ORG_UNIT_KEYS = new Set([
   'haisheng.root',
   'haisheng.gm',
   'haisheng.trade-1',
+  'beichen.root',
 ]);
 const LIVE_SEED_EMPLOYEE_KEYS = new Set([
   'meilong.chen-shuangpeng',
@@ -28,6 +29,9 @@ const LIVE_SEED_USER_KEYS = new Set([
   'lin-xiaowen',
   'he-yuchen',
   'su-manli',
+  'auth-recovery',
+  'auth-password-setup',
+  'auth-mfa',
 ]);
 
 // Builds a compact SVG avatar so each seeded demo user has a stable visual identity.
@@ -568,6 +572,42 @@ const ALL_SEEDED_USERS = [
       { key: 'account.wu-chengze.beichen', id: makeUuid(910), scopeLevel: 'TENANT', companyKey: 'beichen', displayName: '吴承泽', workEmail: 'wu.chengze@beichen.local', bindEmployeeKey: 'beichen.wu-chengze', primaryOrgKey: 'beichen.south-region', roleCodes: [] },
     ],
   },
+  {
+    key: 'auth-recovery',
+    id: makeUuid(810),
+    personName: 'Recovery Acceptance',
+    username: 'auth.recovery',
+    email: 'auth.recovery@meilong.local',
+    phone: '+8613900000110',
+    avatarUrl: buildSeedAvatar({ accent: '#0369a1', label: 'RC' }),
+    accounts: [
+      { key: 'account.auth-recovery.meilong', id: makeUuid(911), scopeLevel: 'TENANT', companyKey: 'meilong', displayName: 'Recovery Acceptance', roleCodes: [] },
+    ],
+  },
+  {
+    key: 'auth-password-setup',
+    id: makeUuid(811),
+    personName: 'Password Setup Acceptance',
+    username: 'auth.password.setup',
+    email: 'auth.password.setup@haisheng.local',
+    phone: '+8613900000111',
+    avatarUrl: buildSeedAvatar({ accent: '#7c2d12', label: 'PS' }),
+    accounts: [
+      { key: 'account.auth-password-setup.haisheng', id: makeUuid(912), scopeLevel: 'TENANT', companyKey: 'haisheng', displayName: 'Password Setup Acceptance', roleCodes: [] },
+    ],
+  },
+  {
+    key: 'auth-mfa',
+    id: makeUuid(812),
+    personName: 'MFA Acceptance',
+    username: 'auth.mfa',
+    email: 'auth.mfa@beichen.local',
+    phone: '+8613900000112',
+    avatarUrl: buildSeedAvatar({ accent: '#6d28d9', label: 'MF' }),
+    accounts: [
+      { key: 'account.auth-mfa.beichen', id: makeUuid(913), scopeLevel: 'TENANT', companyKey: 'beichen', displayName: 'MFA Acceptance', roleCodes: [] },
+    ],
+  },
 ];
 
 export const SEEDED_USERS = ALL_SEEDED_USERS.filter((user) =>
@@ -578,6 +618,55 @@ const userByKey = new Map(SEEDED_USERS.map((user) => [user.key, user]));
 const accountByKey = new Map(
   SEEDED_USERS.flatMap((user) => user.accounts.map((account) => [account.key, { ...account, userId: user.id }]))
 );
+
+const recoveryAcceptanceUser = userByKey.get('auth-recovery');
+const passwordSetupAcceptanceUser = userByKey.get('auth-password-setup');
+const mfaAcceptanceUser = userByKey.get('auth-mfa');
+
+if (!recoveryAcceptanceUser || !passwordSetupAcceptanceUser || !mfaAcceptanceUser) {
+  throw new Error('Auth acceptance fixtures are incomplete.');
+}
+
+// Declares resettable auth journey states without printing their credential material during seed.
+export const AUTH_ACCEPTANCE_FIXTURES = Object.freeze({
+  passwordRecovery: Object.freeze({
+    userId: recoveryAcceptanceUser.id,
+    accountId: recoveryAcceptanceUser.accounts[0].id,
+    identifier: recoveryAcceptanceUser.email,
+    expectedChannels: Object.freeze(['EMAIL', 'PHONE']),
+  }),
+  passwordSetup: Object.freeze({
+    userId: passwordSetupAcceptanceUser.id,
+    accountId: passwordSetupAcceptanceUser.accounts[0].id,
+    identifier: passwordSetupAcceptanceUser.email,
+    requirement: Object.freeze({
+      id: makeUuid(821),
+      reason: 'FIRST_LOGIN',
+      required: true,
+      requiredBy: ROOT_CREATED_BY,
+      requiredAt: new Date('2026-04-14T09:00:00.000Z'),
+    }),
+  }),
+  mfa: Object.freeze({
+    userId: mfaAcceptanceUser.id,
+    accountId: mfaAcceptanceUser.accounts[0].id,
+    identifier: mfaAcceptanceUser.email,
+    tenantId: companyByKey.get('beichen').id,
+    binding: Object.freeze({
+      id: makeUuid(822),
+      type: 'TOTP',
+      secret: 'JBSWY3DPEHPK3PXP',
+      enabled: true,
+    }),
+    tenantTerminalMfaPolicy: Object.freeze({
+      terminal: 'WEB',
+      loginMfaRequired: true,
+      newDeviceMfaRequired: false,
+      allowedFactors: Object.freeze(['TOTP']),
+      factorPriority: Object.freeze(['TOTP']),
+    }),
+  }),
+});
 
 const SEEDED_TENANT_ROLE_TEMPLATES = [
   {

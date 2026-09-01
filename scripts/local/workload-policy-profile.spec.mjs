@@ -11,6 +11,8 @@ test('composes the preserved Gateway tuple and exact Auth owner-fact additions',
   assert.match(output, /api-gateway/)
   assert.match(output, /urn:oes:service:auth-service/)
   assert.match(output, /urn:oes:service:item-master-service/)
+  assert.match(output, /public-entry-service/)
+  assert.match(output, /urn:oes:service:public-entry-service/)
   assert.match(output, /auth-service[^\n]+urn:oes:service:auth-service/)
   assert.match(output, /identity\.internal\.auth_login_account\.resolve/)
   assert.match(output, /hr\.internal\.auth_login_employee\.resolve/)

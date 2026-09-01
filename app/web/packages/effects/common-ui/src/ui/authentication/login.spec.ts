@@ -94,4 +94,50 @@ describe('AuthenticationLogin forget password action', () => {
     expect(onForgetPassword).toHaveBeenCalledWith({ username: 'user@example.com' })
     expect(routerPush).not.toHaveBeenCalled()
   })
+
+  it('does not emit submit when field validation fails', async () => {
+    formApi.validate.mockResolvedValue({
+      errors: { password: 'authentication.passwordTip' },
+      valid: false
+    })
+    formApi.getValues.mockResolvedValue({ password: '', username: '' })
+    const onSubmit = vi.fn()
+    const view = await import('./login.vue')
+
+    const wrapper = mount(view.default, {
+      props: {
+        onSubmit,
+        showRememberMe: false
+      }
+    })
+
+    await wrapper.get('[aria-label="login"]').trigger('click')
+    await flushPromises()
+
+    expect(formApi.validate).toHaveBeenCalledTimes(1)
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('emits current values when field validation succeeds', async () => {
+    const values = {
+      password: 'correct-password',
+      username: 'user@example.com'
+    }
+    formApi.validate.mockResolvedValue({ errors: {}, valid: true })
+    formApi.getValues.mockResolvedValue(values)
+    const onSubmit = vi.fn()
+    const view = await import('./login.vue')
+
+    const wrapper = mount(view.default, {
+      props: {
+        onSubmit,
+        showRememberMe: false
+      }
+    })
+
+    await wrapper.get('[aria-label="login"]').trigger('click')
+    await flushPromises()
+
+    expect(onSubmit).toHaveBeenCalledWith(values)
+  })
 })

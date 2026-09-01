@@ -8,10 +8,6 @@ import {
   ListAuthLoginAccountCandidatesResponse,
   GetUserByIdRequest,
   GetUserByIdResponse,
-  GetUserByEmailRequest,
-  GetUserByEmailResponse,
-  GetUserByPhoneRequest,
-  GetUserByPhoneResponse,
   IdentityQueryServiceClient,
   ResolveAuthEmployeeLoginAccountRequest,
   ResolveAuthEmployeeLoginAccountResponse,
@@ -75,50 +71,6 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
       return this.mapUser(response)
     } catch (error) {
       this.rethrowIfInfrastructureError(error, 'getUserById', { userId })
-      throw error
-    }
-  }
-
-  async getUserByEmail(email: string): Promise<IdentityUserSummary | null> {
-    try {
-      const response = await safeGrpcCall<GetUserByEmailResponse>(
-        this.identityQueryService.getUserByEmail(
-          {
-            email
-          } as GetUserByEmailRequest,
-          await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])
-        ),
-        {
-          caller: 'auth-service',
-          method: 'IdentityQueryService.getUserByEmail'
-        }
-      )
-
-      return this.mapUser(response)
-    } catch (error) {
-      this.rethrowIfInfrastructureError(error, 'getUserByEmail', { email })
-      throw error
-    }
-  }
-
-  async getUserByPhone(phone: string): Promise<IdentityUserSummary | null> {
-    try {
-      const response = await safeGrpcCall<GetUserByPhoneResponse>(
-        this.identityQueryService.getUserByPhone(
-          {
-            phone
-          } as GetUserByPhoneRequest,
-          await this.trusted.forBusinessCall('identity-service', ['identity.account.list'])
-        ),
-        {
-          caller: 'auth-service',
-          method: 'IdentityQueryService.getUserByPhone'
-        }
-      )
-
-      return this.mapUser(response)
-    } catch (error) {
-      this.rethrowIfInfrastructureError(error, 'getUserByPhone', { phone })
       throw error
     }
   }
@@ -371,9 +323,7 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
     })
   }
 
-  private mapUser(
-    response: GetUserByIdResponse | GetUserByEmailResponse | GetUserByPhoneResponse
-  ): IdentityUserSummary | null {
+  private mapUser(response: GetUserByIdResponse): IdentityUserSummary | null {
     const user = response.user
     if (!user?.id) {
       return null

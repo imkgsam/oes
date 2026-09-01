@@ -32,10 +32,9 @@ describe('LoginWithPhonePasswordHandler', () => {
     expect(errors).toEqual([])
   })
 
-  it('resolves the user id before recording a failed login audit event for known phone identities', async () => {
-    const invalidCredentialsError = ExceptionFactory.domain(AUTH_INVALID_CREDENTIALS)
+  it('uses the Auth-owned login method user id when auditing a known phone credential failure', async () => {
     const strategy = {
-      authenticate: jest.fn().mockRejectedValue(invalidCredentialsError)
+      authenticate: jest.fn().mockResolvedValue({ authenticated: false, auditUserId: 'user-1' })
     }
     const authStrategyFactory = {
       get: jest.fn().mockReturnValue(strategy)
@@ -52,8 +51,9 @@ describe('LoginWithPhonePasswordHandler', () => {
     const terminalLoginPolicyService = {
       assertFlowAllowed: jest.fn().mockResolvedValue(undefined)
     }
+    const legacyGetUserByPhone = jest.fn()
     const identityService = {
-      getUserByPhone: jest.fn().mockResolvedValue({ userId: 'user-1' }),
+      getUserByPhone: legacyGetUserByPhone,
       getAvailableAccountsByUserId: jest.fn()
     }
     const handler = new LoginWithPhonePasswordHandler(
@@ -74,13 +74,16 @@ describe('LoginWithPhonePasswordHandler', () => {
           loginFlow: TerminalLoginFlow.Password
         })
       )
-    ).rejects.toBe(invalidCredentialsError)
+    ).rejects.toMatchObject({
+      definition: AUTH_INVALID_CREDENTIALS,
+      additionalDetails: undefined
+    })
 
     expect(loginRiskThrottleService.recordPasswordLoginFailure).toHaveBeenCalledWith(
       LoginMethodType.PHONE,
       '+8613800138000'
     )
-    expect(identityService.getUserByPhone).toHaveBeenCalledWith('+8613800138000')
+    expect(legacyGetUserByPhone).not.toHaveBeenCalled()
     expect(authAuditService.emitLoginFailed).toHaveBeenCalledWith(
       '+8613800138000',
       'INVALID_CREDENTIALS',
@@ -100,6 +103,38 @@ describe('LoginWithPhonePasswordHandler', () => {
       'PDA',
       TerminalLoginFlow.Password
     )
+  })
+
+  it('preserves uniform invalid credentials when the legacy identity phone lookup is unavailable', async () => {
+    const legacyIdentityFailure = new Error('legacy identity dependency unavailable')
+    const identityService = {
+      getUserByPhone: jest.fn().mockRejectedValue(legacyIdentityFailure),
+      getAvailableAccountsByUserId: jest.fn()
+    }
+    const handler = new LoginWithPhonePasswordHandler(
+      {
+        get: jest.fn().mockReturnValue({
+          authenticate: jest.fn().mockResolvedValue({ authenticated: false })
+        })
+      } as any,
+      { emitLoginBlocked: jest.fn(), emitLoginFailed: jest.fn() } as any,
+      {
+        assertPasswordLoginAllowed: jest.fn().mockResolvedValue(undefined),
+        recordPasswordLoginFailure: jest.fn().mockResolvedValue(undefined),
+        clearPasswordLoginFailures: jest.fn()
+      } as any,
+      identityService as any,
+      { filterActiveAccountCandidates: jest.fn() } as any,
+      { assertFlowAllowed: jest.fn().mockResolvedValue(undefined) } as any
+    )
+
+    await expect(
+      handler.execute(new LoginWithPhonePasswordCommand('+8613800138000', 'bad-password'))
+    ).rejects.toMatchObject({
+      definition: AUTH_INVALID_CREDENTIALS,
+      additionalDetails: undefined
+    })
+    expect(identityService.getUserByPhone).not.toHaveBeenCalled()
   })
 
   it('rejects disabled terminal phone-password flow before throttling or strategy lookup', async () => {
@@ -143,9 +178,8 @@ describe('LoginWithPhonePasswordHandler', () => {
   })
 
   it('uses the explicit PDA password login flow when enforcing terminal policy', async () => {
-    const invalidCredentialsError = ExceptionFactory.domain(AUTH_INVALID_CREDENTIALS)
     const strategy = {
-      authenticate: jest.fn().mockRejectedValue(invalidCredentialsError)
+      authenticate: jest.fn().mockResolvedValue({ authenticated: false })
     }
     const terminalLoginPolicyService = {
       assertFlowAllowed: jest.fn().mockResolvedValue(undefined)
@@ -158,7 +192,10 @@ describe('LoginWithPhonePasswordHandler', () => {
         recordPasswordLoginFailure: jest.fn().mockResolvedValue(undefined),
         clearPasswordLoginFailures: jest.fn()
       } as any,
-      { getUserByPhone: jest.fn().mockResolvedValue(null), getAvailableAccountsByUserId: jest.fn() } as any,
+      {
+        getUserByPhone: jest.fn().mockResolvedValue(null),
+        getAvailableAccountsByUserId: jest.fn()
+      } as any,
       { filterActiveAccountCandidates: jest.fn() } as any,
       terminalLoginPolicyService as any
     )
@@ -170,7 +207,7 @@ describe('LoginWithPhonePasswordHandler', () => {
           loginFlow: TerminalLoginFlow.Password
         })
       )
-    ).rejects.toBe(invalidCredentialsError)
+    ).rejects.toMatchObject({ definition: AUTH_INVALID_CREDENTIALS })
 
     expect(terminalLoginPolicyService.assertFlowAllowed).toHaveBeenCalledWith(
       'PDA',
@@ -180,7 +217,7 @@ describe('LoginWithPhonePasswordHandler', () => {
 
   it('completes PDA phone-password login without returning account selection', async () => {
     const strategy = {
-      authenticate: jest.fn().mockResolvedValue('user-1')
+      authenticate: jest.fn().mockResolvedValue({ authenticated: true, userId: 'user-1' })
     }
     const pdaPrimaryLoginCompletionService = {
       complete: jest.fn().mockResolvedValue({

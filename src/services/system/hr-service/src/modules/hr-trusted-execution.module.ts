@@ -4,7 +4,8 @@ import {
   ForbiddenException,
   Global,
   Injectable,
-  Module
+  Module,
+  SetMetadata
 } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import {
@@ -21,6 +22,9 @@ import { HrPartyExecutionTokenExchangeClient } from '../infrastructure/adapters/
 import { HrPartyTrustedGrpcExecutionProducer } from '../infrastructure/adapters/hr-party-trusted-grpc-execution.producer'
 
 export const HR_AUDIENCE = 'urn:oes:service:hr-service'
+export const HR_PUBLIC_ENTRY_OWNER_FACT_KEY = 'oes:hr:public-entry-owner-fact'
+export const AuthorizeHrPublicEntryOwnerFact = () =>
+  SetMetadata(HR_PUBLIC_ENTRY_OWNER_FACT_KEY, true)
 const runtime = createLazyTrustedExecutionRuntime(HR_AUDIENCE)
 
 /** Restricts HR calls to Gateway HUMAN, foundation OBO, Auth pre-auth and Public Entry rendering. */
@@ -30,11 +34,11 @@ export class HrFoundationTrustedExecutionGuard
   implements CanActivate
 {
   constructor(
-    reflector: Reflector,
+    private readonly callerReflector: Reflector,
     verifier: ExecutionTokenVerifier,
     identity: GrpcWorkloadIdentityProvider
   ) {
-    super(reflector, verifier, identity, HR_AUDIENCE)
+    super(callerReflector, verifier, identity, HR_AUDIENCE)
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -43,6 +47,21 @@ export class HrFoundationTrustedExecutionGuard
       context.switchToRpc().getData()
     )?.verifiedExecutionToken
     const workload = readWorkloadName(token?.clientId ?? '')
+    const publicEntryOwnerFact = this.callerReflector.getAllAndOverride<boolean>(
+      HR_PUBLIC_ENTRY_OWNER_FACT_KEY,
+      [context.getHandler(), context.getClass()]
+    )
+    if (
+      publicEntryOwnerFact &&
+      !(
+        token?.principalType === 'MACHINE' &&
+        token.tenantId === undefined &&
+        token.orgId === undefined &&
+        workload === 'public-entry-service'
+      )
+    ) {
+      throw new ForbiddenException('HR public-card owner fact requires exact Public Entry workload')
+    }
     const allowed =
       token?.principalType === 'MACHINE'
         ? ['auth-service', 'public-entry-service'].includes(workload)

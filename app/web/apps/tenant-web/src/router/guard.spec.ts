@@ -5,6 +5,7 @@ const stopProgressMock = vi.fn();
 const fetchUserInfoMock = vi.fn();
 const refreshCurrentSessionAccessMock = vi.fn();
 const generateAccessMock = vi.fn();
+const coreRouteNamesMock = ['Login'];
 
 const accessStoreMock = {
   accessToken: 'access-token',
@@ -70,7 +71,7 @@ vi.mock('#/router/access', () => ({
 
 vi.mock('#/router/routes', () => ({
   accessRoutes: [],
-  coreRouteNames: ['Login'],
+  coreRouteNames: coreRouteNamesMock,
 }));
 
 describe('createRouterGuard', () => {
@@ -93,6 +94,40 @@ describe('createRouterGuard', () => {
       passwordSetupRequired: false,
     };
     authContextStoreMock.visibleEntries = ['workbench.home'];
+    coreRouteNamesMock.splice(0, coreRouteNamesMock.length, 'Login');
+  });
+
+  it('keeps direct and refreshed public BusinessCard routes anonymous without a login redirect', async () => {
+    const beforeEachHandlers: Array<(to: any, from: any) => Promise<any>> = [];
+    const routerMock = {
+      beforeEach: (handler: (to: any, from: any) => Promise<any>) => {
+        beforeEachHandlers.push(handler);
+      },
+      afterEach: vi.fn(),
+    };
+    accessStoreMock.accessToken = '';
+    coreRouteNamesMock.push('PublicBusinessCard');
+
+    const { createRouterGuard } = await import('./guard');
+    createRouterGuard(routerMock as any);
+
+    const handler = beforeEachHandlers[1];
+    expect(handler).toBeTypeOf('function');
+    if (!handler)
+      throw new Error('Public Business Card guard was not registered');
+    const publicTarget = {
+      fullPath: '/public/business-cards/00000000-0000-4000-8000-000000000701',
+      meta: {},
+      name: 'PublicBusinessCard',
+      params: { businessCardId: '00000000-0000-4000-8000-000000000701' },
+      path: '/public/business-cards/00000000-0000-4000-8000-000000000701',
+      query: {},
+    };
+
+    await expect(handler(publicTarget, { query: {} })).resolves.toBe(true);
+    await expect(handler(publicTarget, { query: {} })).resolves.toBe(true);
+    expect(fetchUserInfoMock).not.toHaveBeenCalled();
+    expect(generateAccessMock).not.toHaveBeenCalled();
   });
 
   it('refreshes the authenticated session once before reusing a persisted access snapshot', async () => {
@@ -112,6 +147,8 @@ describe('createRouterGuard', () => {
 
     const handler = beforeEachHandlers[1];
     expect(handler).toBeTypeOf('function');
+    if (!handler)
+      throw new Error('Authenticated session guard was not registered');
 
     const targetRoute = {
       fullPath: '/workbench/home',
@@ -120,8 +157,8 @@ describe('createRouterGuard', () => {
       path: '/workbench/home',
     };
 
-    await expect(handler!(targetRoute, { query: {} })).resolves.toBe(true);
-    await expect(handler!(targetRoute, { query: {} })).resolves.toBe(true);
+    await expect(handler(targetRoute, { query: {} })).resolves.toBe(true);
+    await expect(handler(targetRoute, { query: {} })).resolves.toBe(true);
 
     expect(refreshCurrentSessionAccessMock).toHaveBeenCalledTimes(1);
     expect(fetchUserInfoMock).not.toHaveBeenCalled();
@@ -152,6 +189,8 @@ describe('createRouterGuard', () => {
     createRouterGuard(routerMock as any);
 
     const handler = beforeEachHandlers[1];
+    expect(handler).toBeTypeOf('function');
+    if (!handler) throw new Error('Access rebuild guard was not registered');
     const targetRoute = {
       fullPath: '/crm/accounts/account-1',
       meta: {},
@@ -159,7 +198,7 @@ describe('createRouterGuard', () => {
       path: '/crm/accounts/account-1',
     };
 
-    await expect(handler!(targetRoute, { query: {} })).resolves.toMatchObject({
+    await expect(handler(targetRoute, { query: {} })).resolves.toMatchObject({
       path: '/crm/accounts/account-1',
       replace: true,
     });
