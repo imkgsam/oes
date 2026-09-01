@@ -47,7 +47,10 @@ review: local-ri
 ### page-050-refresh-rematch
 state: CANDIDATE_READY
 candidate: 7bb9a6e4057fbcd520b8573e8aacdee811f62205
-review: same-feature-ri-pending
+review: same-feature-ri-pass
+reviewedCandidate: bdcee6c20cac0406ca363186856860a82fd7273a
+latestMain: dbe4af9bcb359b120271ff54f31d324294f48856
+latestMainIntegration: d4631b5957bceaeddb876e403ff162bccc23e368
 
 - Scope:
   - `app/web/apps/tenant-web/src/router/guard.ts`
@@ -57,7 +60,7 @@ review: same-feature-ri-pending
   - PAGE-053 through PAGE-075 behavior and page implementations
   - API Gateway, permission-service, session, navigation-registry, and route-visibility contracts
 - Base:
-  - append-only integration of exact `origin/main` candidate `8ddfc73cd16e88703e8205cefa56a63366a226a3`
+  - append-only integration of exact `origin/main` candidate `dbe4af9bcb359b120271ff54f31d324294f48856`
 - Acceptance:
   - persisted access refresh rematches a visible dynamic target when its first match was the fallback route
   - persisted access refresh rematches a visible target whose matched route-record identities were replaced
