@@ -28,6 +28,7 @@ import {
   ownerNamedResourceListArgs,
   probeHttpReadiness,
   renderedNamedResources,
+  resolveRuntimePostgresPort,
   resourceFingerprint,
   selectDatabaseServices,
   selectInfraProfile
@@ -67,6 +68,22 @@ test('L2 infrastructure profile starts only Postgres and NATS dependencies', () 
   assert.equal(profile.monitor, false)
   assert.deepEqual(profile.resources.volume, ['nats_jetstream_data', 'postgres_data'])
   assert.throws(() => selectInfraProfile('unknown'), /DATABASE_INFRA_PROFILE_INVALID/)
+})
+
+test('live Docker PostgreSQL mapping supersedes a persisted port after daemon remap', () => {
+  assert.deepEqual(resolveRuntimePostgresPort(56816, 51229), {
+    port: 51229,
+    changed: true
+  })
+  assert.deepEqual(resolveRuntimePostgresPort(51229, 51229), {
+    port: 51229,
+    changed: false
+  })
+  assert.throws(() => resolveRuntimePostgresPort(51229, 0), /POSTGRES_HOST_PORT_INVALID/)
+  assert.throws(
+    () => resolveRuntimePostgresPort(Number.NaN, 51229),
+    /POSTGRES_PERSISTED_PORT_INVALID/
+  )
 })
 
 test('generated Compose inputs keep secrets local and map every service to postgres', () => {

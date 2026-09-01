@@ -639,6 +639,37 @@ function postgresPort(context, environmentPath) {
   return servicePort(context, environmentPath, 'postgres', 5432)
 }
 
+/** Treats the current Docker published port as authoritative after daemon restarts or remaps. */
+export function resolveRuntimePostgresPort(persistedPort, publishedPort) {
+  if (!Number.isInteger(publishedPort) || publishedPort < 1 || publishedPort > 65_535) {
+    throw new Error('POSTGRES_HOST_PORT_INVALID')
+  }
+  if (
+    persistedPort !== undefined &&
+    (!Number.isInteger(persistedPort) || persistedPort < 1 || persistedPort > 65_535)
+  ) {
+    throw new Error('POSTGRES_PERSISTED_PORT_INVALID')
+  }
+  return {
+    port: publishedPort,
+    changed: persistedPort !== undefined && persistedPort !== publishedPort
+  }
+}
+
+/** Reads and reports the exact live task-owned PostgreSQL mapping used by host-side clients. */
+function runtimePostgresPort(context, environmentPath, state) {
+  const selection = resolveRuntimePostgresPort(
+    state?.postgresPort,
+    postgresPort(context, environmentPath)
+  )
+  if (selection.changed) {
+    process.stdout.write(
+      `POSTGRES_PORT_REFRESH before=${state.postgresPort} after=${selection.port}\n`
+    )
+  }
+  return selection.port
+}
+
 function servicePort(context, environmentPath, service, targetPort) {
   const output = compose(context, environmentPath, INFRA_COMPOSE, ['port', service, String(targetPort)])
   const match = /:(\d+)$/.exec(output.split(/\r?\n/).at(-1))
@@ -1059,7 +1090,7 @@ function up(context, environmentPath, profileName = 'full') {
     requireExisting: true,
     resources: profile.resources
   })
-  const port = postgresPort(context, environmentPath)
+  const port = runtimePostgresPort(context, environmentPath, readState(context))
   writeState(context, { phase: 'UP', infraProfile: profileName, postgresPort: port })
   process.stdout.write(`INFRA_UP=PASS project=${context.projectName} profile=${profileName} postgresPort=${port}\n`)
 }
@@ -1096,7 +1127,8 @@ function health(context, environmentPath) {
     const result = probeHttpReadiness(url)
     process.stdout.write(`READINESS service=${service} status=PASS attempt=${result.attempt}\n`)
   }
-  writeState(context, { phase: 'HEALTHY' })
+  const port = runtimePostgresPort(context, environmentPath, state)
+  writeState(context, { phase: 'HEALTHY', postgresPort: port })
   process.stdout.write(`INFRA_HEALTH=PASS profile=${profileName} containers=${ids.length}\n`)
 }
 
@@ -1122,7 +1154,7 @@ function migrate(context, environmentPath, requestedNames = []) {
   assertRollbackBinding(context, state)
   const services = selectDatabaseServices(context.services, requestedNames)
   createDatabases(context, environmentPath, services)
-  const port = state.postgresPort ?? postgresPort(context, environmentPath)
+  const port = runtimePostgresPort(context, environmentPath, state)
   const failureAfterRaw = process.env.OES_DB_FAIL_AFTER
   const failureAfter = failureAfterRaw === undefined ? undefined : Number(failureAfterRaw)
   if (failureAfter !== undefined && (!Number.isInteger(failureAfter) || failureAfter < 0)) {
@@ -1438,7 +1470,7 @@ export function failDatabaseSeedState() {
 function seed(context, environmentPath) {
   const state = readState(context)
   assertRollbackBinding(context, state)
-  const port = state.postgresPort ?? postgresPort(context, environmentPath)
+  const port = runtimePostgresPort(context, environmentPath, state)
   const previousSnapshot = state.seedSnapshot
   writeState(context, beginDatabaseSeedState())
   let snapshot
@@ -1477,6 +1509,7 @@ function seed(context, environmentPath) {
 function verify(context, environmentPath) {
   const state = readState(context)
   assertRollbackBinding(context, state)
+  const port = runtimePostgresPort(context, environmentPath, state)
   const seen = new Set()
   for (const service of context.services) {
     if (seen.has(service.database)) throw new Error(`VERIFY_SHARED_DATABASE database=${service.database}`)
@@ -1493,7 +1526,7 @@ function verify(context, environmentPath) {
     if (applied !== expected) {
       throw new Error(`VERIFY_MIGRATION_COUNT service=${service.name} expected=${expected} actual=${applied}`)
     }
-    assertSchemaMatches(context, service, postgresUrl(context, service, state.postgresPort))
+    assertSchemaMatches(context, service, postgresUrl(context, service, port))
     verifyDatabaseInvariants(context, environmentPath, service)
     process.stdout.write(
       `VERIFY service=${service.name} database=${service.database} migrations=${applied} status=PASS\n`
@@ -1505,7 +1538,7 @@ function verify(context, environmentPath) {
   if (JSON.stringify(current) !== JSON.stringify(state.seedSnapshot)) {
     throw new Error('VERIFY_SEED_SNAPSHOT_MISMATCH')
   }
-  writeState(context, { phase: 'VERIFIED' })
+  writeState(context, { phase: 'VERIFIED', postgresPort: port })
   process.stdout.write(`DATABASE_VERIFY=PASS databases=${seen.size}\n`)
 }
 
