@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
-import { homedir, tmpdir } from 'node:os'
+import { tmpdir } from 'node:os'
 import { canonicalJson, objectFingerprint, sha256 } from '../src/canonical.ts'
 import {
   GitHubRemoteAdapter,
@@ -48,8 +48,7 @@ function git(cwd: string, args: string[]): string {
 
 /** Creates one structurally stable frozen owner binding for contract tests. */
 function stableBinding(overrides: Partial<OwnerResourceBinding> = {}): OwnerResourceBinding {
-  const ownerTaskId =
-    overrides.ownerTaskId ?? '11111111-1111-4111-8111-111111111111'
+  const ownerTaskId = overrides.ownerTaskId ?? '11111111-1111-4111-8111-111111111111'
   const binding: OwnerResourceBinding = {
     schemaVersion: 1,
     kind: 'OES_OWNER_RESOURCE_BINDING',
@@ -344,10 +343,7 @@ test('stable scratch identity is deterministically bound to the exact owner task
       '/Users/fixture/.codex/oes/artifacts/33333333/runtime/checkpoint-bundle.json',
     gitBundlePath: '/Users/fixture/.codex/oes/artifacts/33333333/runtime/owner.bundle'
   })
-  assert.equal(
-    ownerA.taskTempRoot,
-    `/private/tmp/oes-owner-${sha256(ownerA.ownerTaskId)}`
-  )
+  assert.equal(ownerA.taskTempRoot, `/private/tmp/oes-owner-${sha256(ownerA.ownerTaskId)}`)
   assert.throws(
     () => validateOwnerResourceBinding(ownerBSharedPath),
     /STABLE_OWNER_TASK_TEMP_NOT_OWNER_EXCLUSIVE/
@@ -454,7 +450,7 @@ test('stable reboot and temp loss restore only the exact owner and become idempo
 })
 
 test('system recovery restores the canonical origin accepted by remote preflight', async (t) => {
-  const root = mkdtempSync(join(homedir(), '.oes-stable-recovery-test-'))
+  const root = mkdtempSync(join(process.cwd(), '.oes-stable-recovery-test-'))
   const scratch = join(
     realpathSync(tmpdir()),
     stableOwnerTaskTempLeaf('11111111-1111-4111-8111-111111111111')
