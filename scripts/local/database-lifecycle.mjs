@@ -666,6 +666,7 @@ function runtimePostgresPort(context, environmentPath, state) {
     process.stdout.write(
       `POSTGRES_PORT_REFRESH before=${state.postgresPort} after=${selection.port}\n`
     )
+    writeState(context, { postgresPort: selection.port })
   }
   return selection.port
 }
@@ -1467,6 +1468,16 @@ export function failDatabaseSeedState() {
   return { phase: 'SEED_FAILED', seedSnapshot: null }
 }
 
+/** Invalidates any earlier successful verification before semantic checks begin. */
+export function beginDatabaseVerifyState() {
+  return { phase: 'VERIFYING' }
+}
+
+/** Records a failed verification without presenting the previous success phase as current. */
+export function failDatabaseVerifyState() {
+  return { phase: 'VERIFY_FAILED' }
+}
+
 function seed(context, environmentPath) {
   const state = readState(context)
   assertRollbackBinding(context, state)
@@ -1509,34 +1520,45 @@ function seed(context, environmentPath) {
 function verify(context, environmentPath) {
   const state = readState(context)
   assertRollbackBinding(context, state)
-  const port = runtimePostgresPort(context, environmentPath, state)
+  writeState(context, beginDatabaseVerifyState())
   const seen = new Set()
-  for (const service of context.services) {
-    if (seen.has(service.database)) throw new Error(`VERIFY_SHARED_DATABASE database=${service.database}`)
-    seen.add(service.database)
-    const expected = migrationCount(service)
-    const applied = Number(
-      postgresExec(
-        context,
-        environmentPath,
-        service.database,
-        'SELECT count(*) FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL'
+  let port
+  try {
+    port = runtimePostgresPort(context, environmentPath, state)
+    for (const service of context.services) {
+      if (seen.has(service.database)) {
+        throw new Error(`VERIFY_SHARED_DATABASE database=${service.database}`)
+      }
+      seen.add(service.database)
+      const expected = migrationCount(service)
+      const applied = Number(
+        postgresExec(
+          context,
+          environmentPath,
+          service.database,
+          'SELECT count(*) FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL'
+        )
       )
-    )
-    if (applied !== expected) {
-      throw new Error(`VERIFY_MIGRATION_COUNT service=${service.name} expected=${expected} actual=${applied}`)
+      if (applied !== expected) {
+        throw new Error(
+          `VERIFY_MIGRATION_COUNT service=${service.name} expected=${expected} actual=${applied}`
+        )
+      }
+      assertSchemaMatches(context, service, postgresUrl(context, service, port))
+      verifyDatabaseInvariants(context, environmentPath, service)
+      process.stdout.write(
+        `VERIFY service=${service.name} database=${service.database} migrations=${applied} status=PASS\n`
+      )
     }
-    assertSchemaMatches(context, service, postgresUrl(context, service, port))
-    verifyDatabaseInvariants(context, environmentPath, service)
-    process.stdout.write(
-      `VERIFY service=${service.name} database=${service.database} migrations=${applied} status=PASS\n`
-    )
-  }
-  if (!state.seedSnapshot) throw new Error('VERIFY_SEED_SNAPSHOT_MISSING')
-  const current = seedSnapshot(context, environmentPath)
-  assertTenantWebAuthSeedSnapshot(current)
-  if (JSON.stringify(current) !== JSON.stringify(state.seedSnapshot)) {
-    throw new Error('VERIFY_SEED_SNAPSHOT_MISMATCH')
+    if (!state.seedSnapshot) throw new Error('VERIFY_SEED_SNAPSHOT_MISSING')
+    const current = seedSnapshot(context, environmentPath)
+    assertTenantWebAuthSeedSnapshot(current)
+    if (JSON.stringify(current) !== JSON.stringify(state.seedSnapshot)) {
+      throw new Error('VERIFY_SEED_SNAPSHOT_MISMATCH')
+    }
+  } catch (error) {
+    writeState(context, failDatabaseVerifyState())
+    throw error
   }
   writeState(context, { phase: 'VERIFIED', postgresPort: port })
   process.stdout.write(`DATABASE_VERIFY=PASS databases=${seen.size}\n`)

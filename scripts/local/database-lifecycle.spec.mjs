@@ -21,8 +21,10 @@ import {
   databaseRollbackComposeArgs,
   buildDatabaseSeedCommands,
   beginDatabaseSeedState,
+  beginDatabaseVerifyState,
   executeDatabaseSeedCommands,
   failDatabaseSeedState,
+  failDatabaseVerifyState,
   loadBaselineResolvePlan,
   loadDatabaseContext,
   ownerNamedResourceListArgs,
@@ -382,6 +384,22 @@ test('database seed invalidates earlier SEEDED or VERIFIED success before work a
       }
     )
   }
+})
+
+test('database verification invalidates earlier VERIFIED success before work and on failure', () => {
+  const earlier = {
+    phase: 'VERIFIED',
+    postgresPort: 56816,
+    seedSnapshot: { authAcceptanceMfaFactorPolicyCount: 4 }
+  }
+  assert.deepEqual({ ...earlier, ...beginDatabaseVerifyState() }, {
+    ...earlier,
+    phase: 'VERIFYING'
+  })
+  assert.deepEqual({ ...earlier, ...failDatabaseVerifyState() }, {
+    ...earlier,
+    phase: 'VERIFY_FAILED'
+  })
 })
 
 test('Compose image policy covers main and infra rendered references', () => {

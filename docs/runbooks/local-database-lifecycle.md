@@ -26,6 +26,8 @@ pnpm db:verify
 
 Every host-side lifecycle command re-reads the task container's current published PostgreSQL port. If Docker Desktop restarts and remaps the dynamic port, the live mapping supersedes the persisted value, the lifecycle records `POSTGRES_PORT_REFRESH`, and the updated port is written back without discarding the current seed snapshot.
 
+Verification changes the lifecycle phase to `VERIFYING` before semantic checks. Any failed migration, schema, invariant, or seed-snapshot check records `VERIFY_FAILED`; only a complete pass records `VERIFIED`. A detected PostgreSQL port refresh is persisted before migrate, seed, or verify work begins, so later command failure cannot restore a stale port.
+
 The tenant-web auth seed output contains counts and status only. It does not print login identifiers, passwords, OTPs, TOTP secrets, or database URLs.
 
 Before running the first seed command, the lifecycle replaces any older `SEEDED` or `VERIFIED` record with `SEEDING` and clears its snapshot. A command or snapshot failure records `SEED_FAILED` with no snapshot and exits non-zero; only a complete verified snapshot records `SEEDED`.
