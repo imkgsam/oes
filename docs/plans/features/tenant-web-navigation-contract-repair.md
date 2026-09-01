@@ -3,9 +3,12 @@
 featureKey: tenant-web-navigation-contract-repair
 truthCommit: 0c8adcaf382c09fb56d9790b44a02de783a63ea8
 baseSha: 0c8adcaf382c09fb56d9790b44a02de783a63ea8
-integrationBranch: codex/tenant-web-navigation-contract-repair
+integrationBranch: codex/tenant-web-page-050-refresh-rematch
 worktreeKey: a95f
 pullRequest: pending
+priorPullRequest: 49
+priorPullRequestState: MERGED
+publicationRole: PAGE-050_ACCEPTED_SUCCESSOR
 mergeSha: pending
 cleanup: HOLD
 state: CANDIDATE_READY
