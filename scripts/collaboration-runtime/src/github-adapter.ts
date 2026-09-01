@@ -704,20 +704,33 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
     const checkSha = checks[0]?.sha ?? binding.candidateSha
     const authoritativeChecks = this.currentRequiredChecks(binding, checks, checkSha) ?? []
     for (const check of authoritativeChecks) {
-      const values = JSON.parse(
-        checked(
-          this.runner,
-          this.gh,
-          [
-            'api',
-            `repos/${binding.repositorySlug}/check-runs/${String(check.id)}/annotations?per_page=100`
-          ],
-          cwd
-        )
-      ) as Array<Record<string, unknown>>
-      annotations += values.filter((a) =>
-        ['warning', 'failure'].includes(String(a.annotation_level))
-      ).length
+      let exhausted = false
+      for (let page = 1; page <= 1_000; page += 1) {
+        const values = JSON.parse(
+          checked(
+            this.runner,
+            this.gh,
+            [
+              'api',
+              `repos/${binding.repositorySlug}/check-runs/${String(check.id)}/annotations?per_page=100&page=${page}`
+            ],
+            cwd
+          )
+        ) as unknown
+        if (!Array.isArray(values)) fail('CHECK_ANNOTATIONS_RESPONSE_INVALID', String(check.id))
+        annotations += values.filter((annotation) => {
+          if (!annotation || typeof annotation !== 'object')
+            fail('CHECK_ANNOTATION_INVALID', String(check.id))
+          return ['warning', 'failure'].includes(
+            String((annotation as Record<string, unknown>).annotation_level)
+          )
+        }).length
+        if (values.length < 100) {
+          exhausted = true
+          break
+        }
+      }
+      if (!exhausted) fail('CHECK_ANNOTATIONS_PAGINATION_INCOMPLETE', String(check.id))
     }
     const issueComments = (
       JSON.parse(

@@ -266,6 +266,7 @@ export interface EffectivePermissionContext {
   approvalsReviewer: ApprovalsReviewer
   permissionProfileType: string
   sandboxPolicyType: string
+  fileSystemSandboxPolicyKind: string
   activePermissionProfileId: string | null
   permissionSandboxFingerprint: string
 }
@@ -273,6 +274,7 @@ export interface EffectivePermissionContext {
 export interface ApprovalTelemetry {
   eventSource: string
   eventSourceSha256: string
+  eventSourceFingerprint?: string
   approvalPolicy: ApprovalPolicy
   approvalsReviewer: ApprovalsReviewer
   approvalEventCount: number

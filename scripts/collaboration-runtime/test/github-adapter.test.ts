@@ -125,8 +125,12 @@ class ScenarioRunner implements CommandRunner {
           })
         )
       const annotationMatch = endpoint.match(/\/check-runs\/(\d+)\/annotations/)
-      if (annotationMatch)
-        return ok(JSON.stringify(this.annotationsByCheckId.get(Number(annotationMatch[1])) ?? []))
+      if (annotationMatch) {
+        const values = this.annotationsByCheckId.get(Number(annotationMatch[1])) ?? []
+        const page = Number(new URL(`https://fixture.invalid/${endpoint}`).searchParams.get('page'))
+        const start = (page - 1) * 100
+        return ok(JSON.stringify(values.slice(start, start + 100)))
+      }
       if (endpoint.includes('/check-runs'))
         return ok(JSON.stringify({ check_runs: this.checkRuns }))
       if (endpoint.includes('/comments?') || endpoint.includes('/reviews?')) return ok('[]')
@@ -682,6 +686,37 @@ test('review gate counts annotations only from the newest authoritative required
   assert.equal(
     runner.commands.some((command) => command.includes('/check-runs/20/annotations')),
     false
+  )
+})
+
+test('review gate reads required-check annotations through the final page', async () => {
+  const binding = remoteBinding({
+    action: 'verify-pr',
+    pullRequest: {
+      baseRef: 'main',
+      draft: true,
+      number: 12,
+      requiredChecks: ['Baseline Checks'],
+      title: 'Runtime',
+      body: 'Exact candidate'
+    }
+  })
+  const runner = new ScenarioRunner(binding.candidateSha, binding.integrationBase)
+  runner.pullExists = true
+  runner.checkRuns = [
+    { id: 11, name: 'Baseline Checks', status: 'completed', conclusion: 'success' }
+  ]
+  runner.annotationsByCheckId.set(11, [
+    ...Array.from({ length: 100 }, () => ({ annotation_level: 'notice' })),
+    { annotation_level: 'failure' }
+  ])
+
+  const truth = await new GitHubRemoteAdapter(runner).readTruth(binding)
+
+  assert.equal(truth.reviewGate.annotations, 1)
+  assert.equal(
+    runner.commands.some((command) => command.includes('/annotations?per_page=100&page=2')),
+    true
   )
 })
 

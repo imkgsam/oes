@@ -78,6 +78,8 @@ export interface PreflightRequest {
 export interface ApprovalTelemetryExpectation {
   approvalMode: ApprovalMode
   expectedEffectivePermissionSandboxFingerprint: string
+  expectedActivePermissionProfileId: string
+  trustedAuthorizationRoot: string
 }
 
 export interface SystemProbeOptions {
@@ -91,6 +93,63 @@ export interface SystemProbeOptions {
 interface InstalledProfileIdentity {
   ownerTaskId: string
   transitionId: string
+}
+
+interface InstalledProfileRuntimeAuthority {
+  defaultPermissionProfileId: string
+  trustedAuthorizationRoot: string
+}
+
+const ACCEPTED_RUNTIME_SANDBOX_POLICY_TYPES = new Set(['workspace-write'])
+
+/** Reads the profile-sealed permission identity and issuer-owned telemetry trust root. */
+function readInstalledProfileRuntimeAuthority(
+  profilePath: string
+): InstalledProfileRuntimeAuthority {
+  const profile = readFileSync(profilePath, 'utf8')
+  let section = ''
+  let defaultPermissionProfileId = ''
+  let trustedAuthorizationRoot = ''
+  for (const rawLine of profile.split(/\r?\n/u)) {
+    const line = rawLine.trim()
+    if (!line || line.startsWith('#')) continue
+    const sectionMatch = /^\[([^\]]+)\]$/u.exec(line)
+    if (sectionMatch) {
+      section = sectionMatch[1]
+      continue
+    }
+    const assignment = /^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*("(?:[^"\\]|\\.)*")$/u.exec(line)
+    if (!assignment) continue
+    if (section === '' && assignment[1] === 'default_permissions') {
+      if (defaultPermissionProfileId) fail('PROFILE_DEFAULT_PERMISSION_DUPLICATE', profilePath)
+      defaultPermissionProfileId = JSON.parse(assignment[2]) as string
+    }
+    if (section === 'collaboration_runtime' && assignment[1] === 'trusted_authorization_root') {
+      if (trustedAuthorizationRoot) fail('PROFILE_AUTHORIZATION_ROOT_DUPLICATE', profilePath)
+      trustedAuthorizationRoot = JSON.parse(assignment[2]) as string
+    }
+  }
+  if (!defaultPermissionProfileId.trim() || !isAbsolute(trustedAuthorizationRoot))
+    fail('PROFILE_RUNTIME_AUTHORITY_INVALID', profilePath)
+  return { defaultPermissionProfileId, trustedAuthorizationRoot }
+}
+
+/** Binds one telemetry source to its issuer-owned path and exact bytes. */
+function telemetrySourceFingerprint(eventSource: string, eventSourceSha256: string): string {
+  return sha256(canonicalJson({ eventSource, eventSourceSha256 }))
+}
+
+/** Reopens telemetry only from the profile-sealed, read-only authorization root. */
+function readTrustedTelemetrySource(
+  eventSource: string,
+  trustedAuthorizationRoot: string
+): { bytes: Buffer; fingerprint: string } {
+  if (!isAbsolute(eventSource)) fail('APPROVAL_TELEMETRY_SOURCE_NOT_ABSOLUTE', eventSource)
+  assertPathWithin(trustedAuthorizationRoot, eventSource)
+  assertPathWithin(realpathSync(trustedAuthorizationRoot), realpathSync(eventSource))
+  const bytes = readFileSync(eventSource)
+  const digest = sha256(bytes)
+  return { bytes, fingerprint: telemetrySourceFingerprint(eventSource, digest) }
 }
 
 /** Reads the issuer-sealed owner and transition from the installed profile bytes. */
@@ -213,7 +272,10 @@ export function readApprovalTelemetry(
   eventSource: string,
   expectation?: ApprovalTelemetryExpectation
 ): ApprovalTelemetry {
-  const bytes = readFileSync(eventSource)
+  const trusted = expectation
+    ? readTrustedTelemetrySource(eventSource, expectation.trustedAuthorizationRoot)
+    : null
+  const bytes = trusted?.bytes ?? readFileSync(eventSource)
   let approvalEventCount = 0
   let normalPermissionPromptCount = 0
   const contexts: EffectivePermissionContext[] = []
@@ -245,6 +307,11 @@ export function readApprovalTelemetry(
           payload.sandbox_policy && typeof payload.sandbox_policy === 'object'
             ? (payload.sandbox_policy as Record<string, unknown>)
             : null
+        const fileSystemSandboxPolicy =
+          payload.file_system_sandbox_policy &&
+          typeof payload.file_system_sandbox_policy === 'object'
+            ? (payload.file_system_sandbox_policy as Record<string, unknown>)
+            : null
         const activePermissionProfile =
           payload.active_permission_profile && typeof payload.active_permission_profile === 'object'
             ? (payload.active_permission_profile as Record<string, unknown>)
@@ -255,18 +322,20 @@ export function readApprovalTelemetry(
             ? (permissionProfile.file_system as Record<string, unknown>)
             : null
         const sandboxPolicyType = String(sandboxPolicy?.type ?? '')
+        const fileSystemSandboxPolicyKind = String(fileSystemSandboxPolicy?.kind ?? '')
         const activePermissionProfileId = activePermissionProfile
           ? String(activePermissionProfile.id ?? '') || null
           : null
         if (
           permissionProfileType !== 'managed' ||
           String(permissionFileSystem?.type ?? '') !== 'restricted' ||
-          !sandboxPolicyType ||
-          ['danger-full-access', 'unrestricted'].includes(sandboxPolicyType)
+          !ACCEPTED_RUNTIME_SANDBOX_POLICY_TYPES.has(sandboxPolicyType) ||
+          fileSystemSandboxPolicyKind !== 'restricted' ||
+          activePermissionProfileId !== expectation.expectedActivePermissionProfileId
         )
           fail(
             'EFFECTIVE_PERMISSION_SANDBOX_UNMANAGED',
-            `${permissionProfileType}/${String(permissionFileSystem?.type ?? '')}/${sandboxPolicyType}/${activePermissionProfileId ?? 'none'}`
+            `${permissionProfileType}/${String(permissionFileSystem?.type ?? '')}/${sandboxPolicyType}/${fileSystemSandboxPolicyKind}/${activePermissionProfileId ?? 'none'}`
           )
         const fingerprint = effectivePermissionSandboxFingerprint(payload)
         const turnId = String(payload.turn_id ?? '')
@@ -281,6 +350,7 @@ export function readApprovalTelemetry(
           approvalsReviewer: approvalsReviewer as EffectivePermissionContext['approvalsReviewer'],
           permissionProfileType,
           sandboxPolicyType,
+          fileSystemSandboxPolicyKind,
           activePermissionProfileId,
           permissionSandboxFingerprint: fingerprint
         })
@@ -332,6 +402,7 @@ export function readApprovalTelemetry(
     fail('NEVER_USER_APPROVAL_EVENT_FORBIDDEN', String(approvalEventCount))
   return {
     ...base,
+    eventSourceFingerprint: trusted?.fingerprint,
     approvalMode: expectation.approvalMode,
     effectivePermissionSandboxFingerprint:
       expectation.expectedEffectivePermissionSandboxFingerprint,
@@ -384,6 +455,7 @@ export function verifyEffectiveProfileReport(
       `${report.ownerTaskId}:${report.transitionId}`
     )
   const installedTopology = readInstalledProfileResourceTopology(report.profile.path)
+  const runtimeAuthority = readInstalledProfileRuntimeAuthority(report.profile.path)
   if (report.resourceTopology === undefined) {
     if (installedTopology.resourceTopologyVersion !== 'pre-cutover-v1')
       fail('STABLE_PROFILE_REPORT_TOPOLOGY_MISSING', report.ownerTaskId)
@@ -441,7 +513,9 @@ export function verifyEffectiveProfileReport(
       fail('PROFILE_V2_INSTALLED_LAUNCH_EFFECTIVE_DRIFT', report.ownerTaskId)
     telemetryExpectation = {
       approvalMode: report.approvalMode,
-      expectedEffectivePermissionSandboxFingerprint: report.effectivePermissionSandboxFingerprint
+      expectedEffectivePermissionSandboxFingerprint: report.effectivePermissionSandboxFingerprint,
+      expectedActivePermissionProfileId: runtimeAuthority.defaultPermissionProfileId,
+      trustedAuthorizationRoot: runtimeAuthority.trustedAuthorizationRoot
     }
   }
   const actualTelemetry = readApprovalTelemetry(report.telemetry.eventSource, telemetryExpectation)
@@ -452,6 +526,7 @@ export function verifyEffectiveProfileReport(
           ? [
               'eventSource',
               'eventSourceSha256',
+              'eventSourceFingerprint',
               'approvalPolicy',
               'approvalsReviewer',
               'approvalEventCount',
@@ -609,6 +684,7 @@ export async function runEffectiveProfilePreflight(
   adapter: PreflightProbeAdapter
 ): Promise<EffectiveProfileReport> {
   const receipt = loadProfileLaunchReceipt(request.launchReceipt)
+  const runtimeAuthority = readInstalledProfileRuntimeAuthority(request.profile.path)
   if (
     receipt.ownerTaskId !== request.ownerTaskId ||
     receipt.transitionId !== request.transitionId ||
@@ -620,7 +696,9 @@ export async function runEffectiveProfilePreflight(
   const telemetryExpectation = {
     approvalMode: request.approvalMode,
     expectedEffectivePermissionSandboxFingerprint:
-      receipt.expectedEffectivePermissionSandboxFingerprint
+      receipt.expectedEffectivePermissionSandboxFingerprint,
+    expectedActivePermissionProfileId: runtimeAuthority.defaultPermissionProfileId,
+    trustedAuthorizationRoot: runtimeAuthority.trustedAuthorizationRoot
   }
   const observations: CapabilityObservation[] = []
   for (const capability of request.declaredCapabilities)
@@ -770,20 +848,7 @@ export class SystemPreflightProbeAdapter implements PreflightProbeAdapter {
   }
 
   async approvalTelemetry(expectation: ApprovalTelemetryExpectation): Promise<ApprovalTelemetry> {
-    await mkdir(this.options.smokeRoot, { recursive: true })
-    const sourceBytes = readFileSync(this.options.telemetryEventSource)
-    const snapshotPath = join(
-      this.options.smokeRoot,
-      `approval-telemetry-${sha256(sourceBytes)}.jsonl`
-    )
-    try {
-      writeFileSync(snapshotPath, sourceBytes, { flag: 'wx' })
-    } catch (error) {
-      if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error
-      if (!readFileSync(snapshotPath).equals(sourceBytes))
-        fail('APPROVAL_TELEMETRY_SNAPSHOT_COLLISION', snapshotPath)
-    }
-    return readApprovalTelemetry(snapshotPath, expectation)
+    return readApprovalTelemetry(this.options.telemetryEventSource, expectation)
   }
 
   /** Executes one exact subprocess and returns combined non-secret output. */
@@ -810,13 +875,13 @@ export class SystemPreflightProbeAdapter implements PreflightProbeAdapter {
       [
         '-c',
         `set -o pipefail
-printf 'protocol=https\\nhost=github.com\\n\\n' | "$1" credential fill | sed 's/=.*//'`,
+printf 'protocol=https\\nhost=github.com\\n\\n' | "$1" credential fill 2>/dev/null | sed 's/=.*//'`,
         'oes-credential-probe',
         this.options.git
       ],
       {
         encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe']
+        stdio: ['ignore', 'pipe', 'ignore']
       }
     )
     if (result.status !== 0) throw new Error(`git credential fill [${result.status ?? 1}]`)

@@ -94,6 +94,7 @@
       "properties": {
         "eventSource": { "type": "string", "pattern": "^/" },
         "eventSourceSha256": { "$ref": "#/$defs/sha256" },
+        "eventSourceFingerprint": { "$ref": "#/$defs/sha256" },
         "approvalPolicy": { "enum": ["on-request", "never"] },
         "approvalsReviewer": { "enum": ["auto_review", "user"] },
         "approvalEventCount": { "type": "integer", "minimum": 0 },
@@ -113,6 +114,7 @@
               "approvalsReviewer",
               "permissionProfileType",
               "sandboxPolicyType",
+              "fileSystemSandboxPolicyKind",
               "activePermissionProfileId",
               "permissionSandboxFingerprint"
             ],
@@ -123,6 +125,7 @@
               "approvalsReviewer": { "enum": ["auto_review", "user"] },
               "permissionProfileType": { "type": "string", "minLength": 1 },
               "sandboxPolicyType": { "type": "string", "minLength": 1 },
+              "fileSystemSandboxPolicyKind": { "const": "restricted" },
               "activePermissionProfileId": { "type": ["string", "null"] },
               "permissionSandboxFingerprint": { "$ref": "#/$defs/sha256" }
             }
@@ -172,6 +175,7 @@
             "allOf": [
               { "not": { "required": ["approvalMode"] } },
               { "not": { "required": ["effectivePermissionSandboxFingerprint"] } },
+              { "not": { "required": ["eventSourceFingerprint"] } },
               { "not": { "required": ["contexts"] } }
             ],
             "properties": {
@@ -193,7 +197,12 @@
         ],
         "properties": {
           "telemetry": {
-            "required": ["approvalMode", "effectivePermissionSandboxFingerprint", "contexts"]
+            "required": [
+              "approvalMode",
+              "effectivePermissionSandboxFingerprint",
+              "eventSourceFingerprint",
+              "contexts"
+            ]
           }
         }
       }

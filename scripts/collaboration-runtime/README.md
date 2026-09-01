@@ -6,7 +6,7 @@ This directory is the repository-owned implementation of the reliability rules f
 
 - `profile/`: exact-owner project profile template. It seals the owner/transition identity, separates the owner-exclusive Git directory from shared metadata, keeps the action-authorization root read-only, and grants only the protocol's shared serial-admission directory.
 - `src/profile-policy.ts`: closed approval-mode rendering, installed-profile/launch-receipt sealing, and monotonic same-owner successor transitions.
-- `src/profile-preflight.ts`: production capability probes, v1 read compatibility, v2-only writing, all-context managed/restricted telemetry hashing, zero-normal-prompt acceptance, and bounded defect/repair routing.
+- `src/profile-preflight.ts`: production capability probes, v1 read compatibility, v2-only writing, issuer-root telemetry readback, all-context managed/restricted telemetry hashing, zero-normal-prompt acceptance, and bounded defect/repair routing.
 - `src/resource-topology.ts`: sealed stable-owner resource bindings, physical owner-namespaced scratch roots, private Git/common-directory observation, durable Packet/evidence/checkpoint verification, duplicate-transition detection, and exact-path recovery planning.
 - `src/remote-driver.ts`: monotonic remote transaction state, result-loss reconstruction, and read-after-write recovery.
 - `src/github-adapter.ts`: exact Git/GitHub implementation for `preflight`, `publish-pr`, `verify-pr`, `merge-pr`, `verify-main`, and `cleanup`, including repository rules, review, annotation, merge-group, and merge-parent gates.
