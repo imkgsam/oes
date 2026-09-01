@@ -20,7 +20,7 @@ import {
   TENANT_STANDARD_TEMPLATE_KEY,
   VisibilityConfig
 } from '../../domain/types/business-card.types'
-import { TargetResolverRequest } from '../../domain/types/short-link.types'
+import { ShortLinkRecord, TargetResolverRequest } from '../../domain/types/short-link.types'
 import { ShortLinkApplicationService } from './short-link-application.service'
 import {
   BusinessCardAuthorizationPort,
@@ -79,6 +79,8 @@ type PublicBusinessCardComposition = {
   result: PublicRenderResult
   vCardContactActionIndexes: ReadonlySet<number>
 }
+
+type ShortLinkResult = { shortLink: ShortLinkRecord }
 
 // BusinessCardApplicationService coordinates card config, upstream facts, ShortLink consumption, authorization, and audit.
 export class BusinessCardApplicationService {
@@ -226,7 +228,7 @@ export class BusinessCardApplicationService {
       input,
       BUSINESS_CARD_PERMISSION_CODES.PUBLIC_ENTRY_MANAGE
     )
-    const existing = current.publicEntryRef
+    const existing: ShortLinkResult | null = current.publicEntryRef
       ? await this.shortLinkService
           .getShortLink({
             tenantId: input.tenantId,
@@ -502,7 +504,7 @@ export class BusinessCardApplicationService {
   // withLivePublicEntryRef overlays the current ShortLink lifecycle onto BusinessCard's stored entry reference.
   private async withLivePublicEntryRef<T extends BusinessCardRecord | null>(card: T): Promise<T> {
     if (!card?.publicEntryRef) return card
-    const result = await this.shortLinkService
+    const result: ShortLinkResult | null = await this.shortLinkService
       .getShortLink({
         tenantId: card.tenantId,
         shortLinkId: card.publicEntryRef.publicEntryId

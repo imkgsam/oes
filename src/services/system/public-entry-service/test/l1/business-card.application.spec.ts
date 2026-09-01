@@ -338,11 +338,13 @@ describe('BusinessCardApplicationService', () => {
       operatorContext
     })
 
-    expect(authorizationPort.buildQueryScope).toHaveBeenCalledWith({
-      tenantId,
-      permissionCode: 'public-entry.business-card.read',
-      operatorContext
-    })
+    expect((authorizationPort.buildQueryScope as jest.Mock).mock.calls).toContainEqual([
+      {
+        tenantId,
+        permissionCode: 'public-entry.business-card.read',
+        operatorContext
+      }
+    ])
     expect(
       (authorizationPort.checkResource as jest.Mock).mock.calls.map(
         ([input]) => input.permissionCode

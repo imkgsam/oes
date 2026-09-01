@@ -112,6 +112,9 @@ describe('createRouterGuard', () => {
     createRouterGuard(routerMock as any);
 
     const handler = beforeEachHandlers[1];
+    expect(handler).toBeTypeOf('function');
+    if (!handler)
+      throw new Error('Public Business Card guard was not registered');
     const publicTarget = {
       fullPath: '/public/business-cards/00000000-0000-4000-8000-000000000701',
       meta: {},
@@ -121,8 +124,8 @@ describe('createRouterGuard', () => {
       query: {},
     };
 
-    await expect(handler!(publicTarget, { query: {} })).resolves.toBe(true);
-    await expect(handler!(publicTarget, { query: {} })).resolves.toBe(true);
+    await expect(handler(publicTarget, { query: {} })).resolves.toBe(true);
+    await expect(handler(publicTarget, { query: {} })).resolves.toBe(true);
     expect(fetchUserInfoMock).not.toHaveBeenCalled();
     expect(generateAccessMock).not.toHaveBeenCalled();
   });
@@ -144,6 +147,8 @@ describe('createRouterGuard', () => {
 
     const handler = beforeEachHandlers[1];
     expect(handler).toBeTypeOf('function');
+    if (!handler)
+      throw new Error('Authenticated session guard was not registered');
 
     const targetRoute = {
       fullPath: '/workbench/home',
@@ -152,8 +157,8 @@ describe('createRouterGuard', () => {
       path: '/workbench/home',
     };
 
-    await expect(handler!(targetRoute, { query: {} })).resolves.toBe(true);
-    await expect(handler!(targetRoute, { query: {} })).resolves.toBe(true);
+    await expect(handler(targetRoute, { query: {} })).resolves.toBe(true);
+    await expect(handler(targetRoute, { query: {} })).resolves.toBe(true);
 
     expect(refreshCurrentSessionAccessMock).toHaveBeenCalledTimes(1);
     expect(fetchUserInfoMock).not.toHaveBeenCalled();
@@ -184,6 +189,8 @@ describe('createRouterGuard', () => {
     createRouterGuard(routerMock as any);
 
     const handler = beforeEachHandlers[1];
+    expect(handler).toBeTypeOf('function');
+    if (!handler) throw new Error('Access rebuild guard was not registered');
     const targetRoute = {
       fullPath: '/crm/accounts/account-1',
       meta: {},
@@ -191,7 +198,7 @@ describe('createRouterGuard', () => {
       path: '/crm/accounts/account-1',
     };
 
-    await expect(handler!(targetRoute, { query: {} })).resolves.toMatchObject({
+    await expect(handler(targetRoute, { query: {} })).resolves.toMatchObject({
       path: '/crm/accounts/account-1',
       replace: true,
     });

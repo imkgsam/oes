@@ -9,6 +9,7 @@ import {
 import { PublicEntryFoundationTrustedGrpcExecutionProducer } from '../../src/infrastructure/adapters/foundation-trusted-grpc.clients'
 
 const metadata = new Metadata()
+let forInternalMachineCallSpy: jest.SpyInstance
 
 function buildGrpcClient<T extends object>(service: T) {
   return { getService: jest.fn(() => service) }
@@ -17,7 +18,7 @@ function buildGrpcClient<T extends object>(service: T) {
 describe('BusinessCard dedicated owner-fact gRPC adapters', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    jest
+    forInternalMachineCallSpy = jest
       .spyOn(PublicEntryFoundationTrustedGrpcExecutionProducer.prototype, 'forInternalMachineCall')
       .mockResolvedValue(metadata)
   })
@@ -118,12 +119,11 @@ describe('BusinessCard dedicated owner-fact gRPC adapters', () => {
     expect(identityQuery.resolveEmployeeLoginAccount).not.toHaveBeenCalled()
     expect(identityQuery.getAccountById).not.toHaveBeenCalled()
     expect(identityQuery.resolveContactActionTargets).not.toHaveBeenCalled()
-    expect(
-      PublicEntryFoundationTrustedGrpcExecutionProducer.prototype.forInternalMachineCall
-    ).toHaveBeenCalledWith('hr-service', 'hr.internal.public_business_card_employee.resolve')
-    expect(
-      PublicEntryFoundationTrustedGrpcExecutionProducer.prototype.forInternalMachineCall
-    ).toHaveBeenCalledWith(
+    expect(forInternalMachineCallSpy).toHaveBeenCalledWith(
+      'hr-service',
+      'hr.internal.public_business_card_employee.resolve'
+    )
+    expect(forInternalMachineCallSpy).toHaveBeenCalledWith(
       'identity-service',
       'identity.internal.public_business_card_identity.resolve'
     )
