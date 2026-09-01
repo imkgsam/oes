@@ -3,9 +3,10 @@
 featureKey: system-human-obo-session-hydration
 truthCommit: a912abb73e64f8065044f5a278d02439c473d171
 baseSha: a58ada6b500f198c9fc863bf6247edfc24c8c34a
-integrationBranch: codex/system-human-obo-session-hydration
+integrationBranch: codex/system-human-obo-session-hydration-runtime-audiences
+priorRemote: codex/system-human-obo-session-hydration / PR #55 MERGED
 worktreeKey: 917a
-pullRequest: pending
+pullRequest: follow-up pending
 mergeSha: pending
 cleanup: HOLD
 state: ACCEPTED
