@@ -326,6 +326,30 @@ function clearFieldError(field: keyof typeof fieldErrors, value: string) {
   }
 }
 
+/** isModelKind narrows Select output to a supported ItemModel kind. */
+function isModelKind(value: unknown): value is ItemManagementApi.ItemModelKind {
+  return typeof value === 'string' && modelKindOptions.some((option) => option === value)
+}
+
+/** isModelType narrows Select output to a supported ItemModel type. */
+function isModelType(value: unknown): value is ItemManagementApi.ItemModelType {
+  return typeof value === 'string' && modelTypeOptions.some((option) => option === value)
+}
+
+/** updateModelKind keeps the Select value update and field-error clearing in one listener. */
+function updateModelKind(value: unknown) {
+  if (!isModelKind(value)) return
+  form.modelKind = value
+  clearFieldError('modelKind', value)
+}
+
+/** updateModelType keeps the Select value update and field-error clearing in one listener. */
+function updateModelType(value: unknown) {
+  if (!isModelType(value)) return
+  form.modelType = value
+  clearFieldError('modelType', value)
+}
+
 /** validateCreateForm blocks incomplete ItemModel identities before calling the BFF. */
 function validateCreateForm() {
   const errors: string[] = []
@@ -527,9 +551,9 @@ onMounted(() => {
                       </span>
                     </template>
                     <Select
-                      v-model:value="form.modelKind"
+                      :value="form.modelKind"
                       data-testid="create-model-kind"
-                      @update:value="clearFieldError('modelKind', form.modelKind)"
+                      @update:value="updateModelKind"
                     >
                       <SelectOption v-for="kind in modelKindOptions" :key="kind" :value="kind">{{
                         modelKindLabel(kind)
@@ -566,9 +590,9 @@ onMounted(() => {
                       </span>
                     </template>
                     <Select
-                      v-model:value="form.modelType"
+                      :value="form.modelType"
                       data-testid="create-model-type"
-                      @update:value="clearFieldError('modelType', form.modelType)"
+                      @update:value="updateModelType"
                     >
                       <SelectOption v-for="type in modelTypeOptions" :key="type" :value="type">{{
                         modelTypeLabel(type)

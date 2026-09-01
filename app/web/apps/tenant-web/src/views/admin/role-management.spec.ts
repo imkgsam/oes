@@ -291,6 +291,43 @@ describe('role management page', () => {
     document.body.innerHTML = '';
   });
 
+  it('mounts and remounts the create-role dropdown without console warnings or errors', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const view = await import('./role-management.vue');
+    const mountView = () =>
+      mount(view.default, {
+        attachTo: document.body,
+        global: {
+          directives: {
+            access: { mounted: vi.fn() },
+            loading: {},
+          },
+        },
+      });
+
+    let warningText = '';
+    let errorText = '';
+    try {
+      for (const mountPhase of [mountView, mountView]) {
+        const wrapper = mountPhase();
+        await flushPromises();
+        wrapper.unmount();
+      }
+      warningText = warnSpy.mock.calls.flat().join('\n');
+      errorText = errorSpy.mock.calls.flat().join('\n');
+    } finally {
+      warnSpy.mockRestore();
+      errorSpy.mockRestore();
+    }
+
+    expect(warningText).toBe('');
+    expect(errorText).toBe('');
+    expect(listRoleTenantOptionsApi).toHaveBeenCalledTimes(2);
+    expect(listRolesApi).toHaveBeenCalledTimes(2);
+    expect(listRoleTemplatesApi).toHaveBeenCalledTimes(2);
+  });
+
   it('renders both tabs and opens the create-role modal', async () => {
     const view = await import('./role-management.vue');
 
@@ -298,6 +335,7 @@ describe('role management page', () => {
       attachTo: document.body,
       global: {
         directives: {
+          access: { mounted: vi.fn() },
           loading: {},
         },
       },
@@ -933,6 +971,7 @@ describe('role management page', () => {
       attachTo: document.body,
       global: {
         directives: {
+          access: { mounted: vi.fn() },
           loading: {},
         },
       },
@@ -955,11 +994,11 @@ describe('role management page', () => {
     await flushPromises();
     await flushPromises();
 
-    const addButton = document.body.querySelector(
-      '[data-testid="role-permission-action-perm-delete-account-assign"]',
-    ) as HTMLButtonElement | null;
+    const permissionCheckbox = document.body.querySelector(
+      '[data-testid="role-permission-checkbox-perm-delete-account"]',
+    ) as HTMLElement | null;
 
-    addButton?.click();
+    permissionCheckbox?.click();
     await flushPromises();
 
     expect(assignRolePermissionApi).toHaveBeenCalledWith('role-1', {
