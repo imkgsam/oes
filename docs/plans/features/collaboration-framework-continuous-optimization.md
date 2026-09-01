@@ -19,7 +19,7 @@ state: CANDIDATE_READY
 ### stage-merge-runtime
 
 state: CANDIDATE_READY
-candidate: ab1a2d289a72ae044895b667d4856786d5e1c3b8
+candidate: 38d0a9a33dae3a5b8659cb4669aa72591ca8a671
 review: Feature RI exact integration candidate pending
 
 - Scope: Stage merge 卡完整性、有序逐项 admission、实际 Merge Commit 一方父链绑定、健康前缀保留、失败后缀停止、main 漂移技术等价且 feature head 仅快进修订。
@@ -30,7 +30,7 @@ review: Feature RI exact integration candidate pending
 ### cleanup-archive-runtime
 
 state: CANDIDATE_READY
-candidate: ab1a2d289a72ae044895b667d4856786d5e1c3b8
+candidate: 38d0a9a33dae3a5b8659cb4669aa72591ca8a671
 review: Feature RI exact integration candidate pending
 
 - Scope: cleanup 意图触发的完整 roster 盘点、受 execution-profile trust root 与当前 Stage cleanup authorization 双重绑定的 authority/inventory/result receipt、partial retry、依赖序自动 archive。
@@ -41,7 +41,7 @@ review: Feature RI exact integration candidate pending
 ### optimized-ci-shadow
 
 state: CANDIDATE_READY
-candidate: ab1a2d289a72ae044895b667d4856786d5e1c3b8
+candidate: 38d0a9a33dae3a5b8659cb4669aa72591ca8a671
 review: Feature RI exact integration candidate pending
 
 - Scope: PR stale-run cancellation、确定性测试 inventory/sharding、generated/Prisma artifact 单次构建复用与相同 Prisma engine 单副本传输、L2 单次启动 Postgres/NATS、单次迁移全部 L2 数据库、三个内部加权车道及共享 NATS conflict group 串行化、main tree-result exact-equivalence fast smoke/full fallback、独立 cleanup、受保护 GitHub readback paired fingerprint evidence、non-required optimized shadow。
@@ -60,11 +60,15 @@ review: Feature RI exact integration candidate pending
 
 - implementation ancestor: `165262e4061d391616cdda64b0efab3f4d134521`
 - hardened implementation candidate: `ab1a2d289a72ae044895b667d4856786d5e1c3b8`
+- moving-main admission revalidation fix: `c7272332cdc2bb5c7d0464b7395a61d85764f20d`
+- latest-main convergence candidate: `38d0a9a33dae3a5b8659cb4669aa72591ca8a671`, second parent `origin/main@8ddfc73cd16e88703e8205cefa56a63366a226a3`
 - shared-setup optimization implementation: `c83fe9f0050fc7823b279a853e545512a59a410d`
 - full prepared build, proto compatibility, design-gap, risk/unit and collaboration runtime gates: exit `0`
 - shared-setup unit execution: two internal weighted lanes, complete `8 packages / 452 suites / 2,088 tests` in two passes (`42.78s`, exact committed-code rerun `63.92s`)
 - shared-lifecycle L2 execution: three internal weighted lanes, complete `18 packages / 59 suites / 185 tests` in three passes (`73.04s`, exact committed-code rerun `81.61s`, NATS conflict-group rerun `118.03s`) with one rollback and zero task-owned container/volume/network residue; `collaboration-service` and `notification-service` are proven sequential in shard 0. Compared with the prior three-job local runner phases (`58s + 48s + 63s = 169s`), the first two like-for-like observations reduced runner consumption 51.7%–56.8%; the isolated critical-path evidence is variable and remote paired evidence remains mandatory before cutover
 - prepared artifact roundtrip: 21 Prisma targets, one engine digest, 21/21 restored; local compressed fixture reduced from 192,577,704 to 21,530,266 bytes
 - second Feature RI findings closed in the working candidate: actual Stage first-parent chain, refreshed-head fast-forward proof, cleanup receipt provenance, synthetic/final Merge Commit tree identity, performance sample provenance, and shared-NATS conflict serialization all have focused negative regression coverage
+- third Feature RI adversarial finding closed: a caller-rehashed moving-main revision is re-opened at final admission; previous/refreshed patch and raw-content fingerprints plus `previousHead -> refreshedHead` ancestry are recomputed before the result can extend the healthy prefix
+- latest-main prospective validation: prepared build plus risk gate completed in `78.73s` (`75` tooling tests, `8 packages / 454 suites / 2,098 tests`, `167` collaboration runtime tests, `5` foundation tests); the concurrent shared L2 lane completed in `79.43s`, so the local paired wall clock was approximately `79.43s` rather than the `158.16s` serial sum
 - workflow syntax: `actionlint v1.7.12`, exit `0`; formatting and static contracts: exit `0`
 - performance cutover: pending the frozen 20 PR/main pairs, cold-cache/superseded/Stage/attempt minimums and all thresholds; legacy `Baseline Checks` remains authoritative
