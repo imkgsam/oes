@@ -472,6 +472,7 @@ export interface StageMergeItemResult {
   featureKey: string
   candidateSha: string
   effectiveHeadSha: string
+  technicalRevisionFingerprint: string | null
   state: 'PENDING' | 'FAILED' | 'MERGED_VERIFIED'
   acceptedMainSha: string | null
   mergeSha: string | null
@@ -502,7 +503,22 @@ export interface StageMergeTechnicalRevision {
   scopeFingerprint: string
   riskFingerprint: string
   orderedSetFingerprint: string
+  pullRequestNumber: number
+  pullRequestReadbackFingerprint: string
+  baselineCheckId: number
   decision: 'TECHNICALLY_EQUIVALENT'
+}
+
+export interface StageMergeTechnicalRevisionInput {
+  featureKey: string
+  order: number
+  previousBase: string
+  latestMain: string
+  previousHead: string
+  refreshedHead: string
+  scopeFingerprint: string
+  riskFingerprint: string
+  orderedSetFingerprint: string
 }
 
 export type StageLifecycleRole =
@@ -521,6 +537,23 @@ export interface StageLifecycleTask {
   state: 'TERMINAL' | 'ACTIVE' | 'UNKNOWN'
 }
 
+export interface StageLifecycleCreatedTask {
+  taskId: string
+  role: StageLifecycleRole
+  ownerTaskId: string | null
+  creationReceiptFingerprint: string
+}
+
+export interface StageLifecycleRosterAuthority {
+  schemaVersion: 1
+  kind: 'OES_STAGE_LIFECYCLE_ROSTER_AUTHORITY'
+  authorityFingerprint: string
+  stageKey: string
+  stageOwnerTaskId: string
+  source: 'TASK_NATIVE_CREATION_RECEIPTS'
+  createdRoster: StageLifecycleCreatedTask[]
+}
+
 export interface StageLifecycleInventory {
   schemaVersion: 1
   kind: 'OES_STAGE_LIFECYCLE_INVENTORY'
@@ -530,7 +563,10 @@ export interface StageLifecycleInventory {
   cleanupIntentDetected: true
   stageExit: 'PASSED' | 'PENDING' | 'FAILED'
   resourceCleanup: 'PENDING' | 'VERIFIED' | 'PARTIAL_FAILURE'
-  createdRoster: StageLifecycleTask[]
+  rosterAuthorityFingerprint: string
+  taskReadbackSource: 'CODEX_TASK_NATIVE'
+  readbackRosterFingerprint: string
+  readbackRoster: StageLifecycleTask[]
   terminalTaskIds: string[]
 }
 
@@ -538,6 +574,8 @@ export interface StageArchiveResult {
   taskId: string
   role: StageLifecycleRole
   state: 'ARCHIVED' | 'FAILED'
+  inventoryFingerprint: string
+  taskNativeReadbackFingerprint: string
   resultFingerprint: string
 }
 

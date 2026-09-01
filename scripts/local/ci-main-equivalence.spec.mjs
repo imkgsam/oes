@@ -35,6 +35,53 @@ test('main equivalence rejects artifact corruption even when the checksum file i
   }
 })
 
+test('main equivalence rejects forged toolchain, workflow, inventory, and accepted result', () => {
+  const fixture = createFixture()
+  try {
+    const evidence = JSON.parse(fs.readFileSync(fixture.evidencePath, 'utf8'))
+    evidence.workload.toolchain.buf = 'DELIBERATELY_WRONG'
+    reseal(evidence)
+    fs.writeFileSync(fixture.evidencePath, JSON.stringify(evidence))
+    assert.throws(() => verifyCiMainEquivalence(fixture.input), /BUF_VERSION_MISMATCH/)
+
+    evidence.workload.toolchain.buf = 'buf-fixture-v1'
+    evidence.execution.workflowRevision = 'f'.repeat(64)
+    reseal(evidence)
+    fs.writeFileSync(fixture.evidencePath, JSON.stringify(evidence))
+    assert.throws(() => verifyCiMainEquivalence(fixture.input), /WORKFLOW_REVISION_MISMATCH/)
+
+    evidence.execution.workflowRevision = '2'.repeat(64)
+    evidence.workload.commandInventory = ['placeholder']
+    reseal(evidence)
+    fs.writeFileSync(fixture.evidencePath, JSON.stringify(evidence))
+    assert.throws(() => verifyCiMainEquivalence(fixture.input), /COMMAND_INVENTORY_MISMATCH/)
+
+    evidence.workload.commandInventory = ['build', 'test']
+    evidence.workload.acceptedResultIdentity = '9'.repeat(40)
+    evidence.workload.sourceSha = '9'.repeat(40)
+    reseal(evidence)
+    fs.writeFileSync(fixture.evidencePath, JSON.stringify(evidence))
+    assert.throws(() => verifyCiMainEquivalence(fixture.input), /ACCEPTED_RESULT_MISMATCH/)
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test('main artifact lookup failures remain eligible for the same-run full fallback', () => {
+  const workflow = fs.readFileSync(
+    new URL('../../.github/workflows/ci-optimized-shadow.yml', import.meta.url),
+    'utf8'
+  )
+  assert.match(
+    workflow,
+    /Locate the successful associated PR artifact[\s\S]*?continue-on-error: true[\s\S]*?uses: actions\/github-script@v9/
+  )
+  assert.match(
+    workflow,
+    /Run fail-closed full fallback when equivalence is absent\n\s+if: \$\{\{ !cancelled\(\) && steps\.equivalence\.outputs\.exact != 'true' \}\}/
+  )
+})
+
 function createFixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'oes-ci-main-equivalence-'))
   run(root, 'git', ['init', '-b', 'main'])
@@ -55,6 +102,7 @@ function createFixture() {
   run(root, 'git', ['commit', '-m', 'main advance'])
   const baseSha = run(root, 'git', ['rev-parse', 'HEAD'])
   run(root, 'git', ['merge', '--no-ff', 'feature', '-m', 'merge feature'])
+  const mainSha = run(root, 'git', ['rev-parse', 'HEAD'])
   const treeSha = run(root, 'git', ['rev-parse', 'HEAD^{tree}'])
   const archivePath = path.join(root, 'prepared-build.tar.gz')
   fs.writeFileSync(archivePath, 'prepared build fixture')
@@ -63,18 +111,18 @@ function createFixture() {
   fs.writeFileSync(checksumPath, `${artifactDigest}  prepared-build.tar.gz\n`)
   const evidence = buildCiPerformanceEvidence({
     mode: 'OPTIMIZED_SHADOW',
-    sourceSha: '1'.repeat(40),
+    sourceSha: mainSha,
     sourceTreeSha: treeSha,
     baseSha,
     acceptedSourceIdentity: headSha,
-    acceptedResultIdentity: '1'.repeat(40),
+    acceptedResultIdentity: mainSha,
     changedPaths: ['feature.txt'],
     riskClass: 'STANDARD',
     stagePullRequests: [],
     commandInventory: ['build', 'test'],
     testInventory: ['test:one'],
     lockfileDigest: fileDigest(path.join(root, 'pnpm-lock.yaml')),
-    toolchain: { node: process.version, pnpm: '10.33.0', buf: 'buf-action-v1' },
+    toolchain: { node: process.version, pnpm: '10.33.0', buf: 'buf-fixture-v1' },
     cacheDisposition: 'WARM',
     workflowRevision: '2'.repeat(64),
     eventTopology: 'pull_request',
@@ -89,7 +137,17 @@ function createFixture() {
     root,
     archivePath,
     evidencePath,
-    input: { repositoryRoot: root, evidencePath, archivePath, checksumPath, pnpmVersion: '10.33.0' }
+    input: {
+      repositoryRoot: root,
+      evidencePath,
+      archivePath,
+      checksumPath,
+      pnpmVersion: '10.33.0',
+      bufVersion: 'buf-fixture-v1',
+      expectedCommandInventory: ['build', 'test'],
+      expectedTestInventory: ['test:one'],
+      expectedWorkflowRevision: '2'.repeat(64)
+    }
   }
 }
 
@@ -105,6 +163,11 @@ function fileDigest(file) {
 
 function digest(value) {
   return crypto.createHash('sha256').update(canonical(value)).digest('hex')
+}
+
+function reseal(evidence) {
+  evidence.workloadFingerprint = digest(evidence.workload)
+  evidence.executionFingerprint = digest(evidence.execution)
 }
 
 function canonical(value) {

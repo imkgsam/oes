@@ -24,7 +24,11 @@ import {
   type SystemProbeOptions
 } from './profile-preflight.ts'
 import { validateJsonSchema } from './schema-validation.ts'
-import { createTechnicalRevision, planStageMerge } from './stage-merge.ts'
+import {
+  createTechnicalRevision,
+  planStageMerge,
+  readStageMergeCandidateFingerprints
+} from './stage-merge.ts'
 import { planStageLifecycle } from './stage-lifecycle.ts'
 import { RemoteDriver } from './remote-driver.ts'
 import {
@@ -42,9 +46,11 @@ import type {
   ObservedCleanupResource,
   StageArchiveResult,
   StageLifecycleInventory,
+  StageLifecycleRosterAuthority,
   StageMergeAuthorization,
   StageMergeItemResult,
-  StageMergeTechnicalRevision
+  StageMergeTechnicalRevision,
+  StageMergeTechnicalRevisionInput
 } from './types.ts'
 
 /** Returns the value following one required command-line flag. */
@@ -200,32 +206,39 @@ async function main(args: string[]): Promise<void> {
   if (command === 'stage-merge-plan') {
     const authorization = readJson<StageMergeAuthorization>(flag(args, '--authorization'))
     const results = readJson<StageMergeItemResult[]>(flag(args, '--results'))
-    emit(planStageMerge(authorization, results))
+    const revisions = args.includes('--technical-revisions')
+      ? readJson<StageMergeTechnicalRevision[]>(flag(args, '--technical-revisions'))
+      : []
+    emit(planStageMerge(authorization, results, revisions, flag(args, '--repository-root')))
+    return
+  }
+  if (command === 'stage-merge-candidate-readback') {
+    emit(
+      readStageMergeCandidateFingerprints(
+        flag(args, '--repository-root'),
+        flag(args, '--base'),
+        flag(args, '--head')
+      )
+    )
     return
   }
   if (command === 'stage-merge-revision') {
     const authorization = readJson<StageMergeAuthorization>(flag(args, '--authorization'))
-    const input = readJson<
-      Omit<
-        StageMergeTechnicalRevision,
-        | 'schemaVersion'
-        | 'kind'
-        | 'revisionFingerprint'
-        | 'stageAuthorizationFingerprint'
-        | 'decision'
-      >
-    >(flag(args, '--input'))
-    const revision = createTechnicalRevision(authorization, input)
+    const input = readJson<StageMergeTechnicalRevisionInput>(flag(args, '--input'))
+    const revision = createTechnicalRevision(authorization, input, flag(args, '--repository-root'))
     if (args.includes('--output')) writeJsonAtomic(flag(args, '--output'), revision)
     emit(revision)
     return
   }
   if (command === 'stage-lifecycle-plan') {
+    const rosterAuthority = readJson<StageLifecycleRosterAuthority>(
+      flag(args, '--roster-authority')
+    )
     const inventory = readJson<StageLifecycleInventory>(flag(args, '--inventory'))
     const priorResults = args.includes('--prior-results')
       ? readJson<StageArchiveResult[]>(flag(args, '--prior-results'))
       : []
-    const plan = planStageLifecycle(inventory, priorResults)
+    const plan = planStageLifecycle(rosterAuthority, inventory, priorResults)
     if (args.includes('--output')) writeJsonAtomic(flag(args, '--output'), plan)
     emit(plan)
     return

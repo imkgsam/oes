@@ -21,7 +21,8 @@
   },
   "$defs": {
     "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-    "stringArray": { "type": "array", "items": { "type": "string" } },
+    "gitSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "stringArray": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
     "workload": {
       "type": "object",
       "additionalProperties": false,
@@ -41,16 +42,26 @@
         "cacheDisposition"
       ],
       "properties": {
-        "sourceSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
-        "sourceTreeSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
-        "baseSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
-        "acceptedSourceIdentity": { "type": "string", "minLength": 1 },
-        "acceptedResultIdentity": { "type": "string", "minLength": 1 },
+        "sourceSha": { "$ref": "#/$defs/gitSha" },
+        "sourceTreeSha": { "$ref": "#/$defs/gitSha" },
+        "baseSha": { "$ref": "#/$defs/gitSha" },
+        "acceptedSourceIdentity": { "$ref": "#/$defs/gitSha" },
+        "acceptedResultIdentity": { "$ref": "#/$defs/gitSha" },
         "changedPaths": { "$ref": "#/$defs/stringArray" },
         "riskClass": { "enum": ["STANDARD", "HIGH"] },
         "stagePullRequests": { "$ref": "#/$defs/stringArray" },
-        "commandInventory": { "$ref": "#/$defs/stringArray" },
-        "testInventory": { "$ref": "#/$defs/stringArray" },
+        "commandInventory": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "testInventory": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
         "lockfileDigest": { "$ref": "#/$defs/sha256" },
         "toolchain": {
           "type": "object",
@@ -62,7 +73,7 @@
             "buf": { "type": "string", "minLength": 1 }
           }
         },
-        "cacheDisposition": { "type": "string", "minLength": 1 }
+        "cacheDisposition": { "enum": ["UNKNOWN", "COLD", "WARM"] }
       }
     },
     "execution": {

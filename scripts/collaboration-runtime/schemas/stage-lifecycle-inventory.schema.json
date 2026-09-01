@@ -12,7 +12,10 @@
     "cleanupIntentDetected",
     "stageExit",
     "resourceCleanup",
-    "createdRoster",
+    "rosterAuthorityFingerprint",
+    "taskReadbackSource",
+    "readbackRosterFingerprint",
+    "readbackRoster",
     "terminalTaskIds"
   ],
   "properties": {
@@ -24,7 +27,14 @@
     "cleanupIntentDetected": { "const": true },
     "stageExit": { "enum": ["PASSED", "PENDING", "FAILED"] },
     "resourceCleanup": { "enum": ["PENDING", "VERIFIED", "PARTIAL_FAILURE"] },
-    "createdRoster": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/task" } },
+    "rosterAuthorityFingerprint": { "$ref": "#/$defs/sha256" },
+    "taskReadbackSource": { "const": "CODEX_TASK_NATIVE" },
+    "readbackRosterFingerprint": { "$ref": "#/$defs/sha256" },
+    "readbackRoster": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/task" }
+    },
     "terminalTaskIds": {
       "type": "array",
       "uniqueItems": true,

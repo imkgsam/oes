@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict'
+import crypto from 'node:crypto'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { objectFingerprint } from '../src/canonical.ts'
 import { createTechnicalRevision, planStageMerge } from '../src/stage-merge.ts'
+import type { CommandRunner } from '../src/github-adapter.ts'
 import { validateJsonSchema } from '../src/schema-validation.ts'
 import type { StageMergeAuthorization, StageMergeItemResult } from '../src/types.ts'
 
@@ -60,6 +62,7 @@ function merged(value: StageMergeAuthorization, index: number): StageMergeItemRe
     featureKey: item.featureKey,
     candidateSha: item.candidateSha,
     effectiveHeadSha: item.candidateSha,
+    technicalRevisionFingerprint: null,
     state: 'MERGED_VERIFIED',
     acceptedMainSha: `${index + 7}`.repeat(40),
     mergeSha: `${index + 7}`.repeat(40),
@@ -70,11 +73,26 @@ function merged(value: StageMergeAuthorization, index: number): StageMergeItemRe
 test('Stage merge admits one item at a time and completes only the full ordered set', () => {
   const value = card()
   assert.equal(planStageMerge(value, []).nextItem?.featureKey, 'alpha')
-  const afterAlpha = planStageMerge(value, [merged(value, 0)])
+  const afterAlpha = planStageMerge(
+    value,
+    [merged(value, 0)],
+    [],
+    '/fixture',
+    mergedReadbackRunner(value, '7'.repeat(40))
+  )
   assert.equal(afterAlpha.status, 'ADMIT_NEXT')
   assert.deepEqual(afterAlpha.healthyPrefix, ['alpha'])
   assert.equal(afterAlpha.nextItem?.featureKey, 'beta')
-  assert.equal(planStageMerge(value, [merged(value, 0), merged(value, 1)]).status, 'COMPLETE')
+  assert.equal(
+    planStageMerge(
+      value,
+      [merged(value, 0), merged(value, 1)],
+      [],
+      '/fixture',
+      mergedReadbackRunner(value, '8'.repeat(40))
+    ).status,
+    'COMPLETE'
+  )
 })
 
 test('Stage merge failure preserves the healthy prefix and blocks the same-Stage suffix', () => {
@@ -84,12 +102,19 @@ test('Stage merge failure preserves the healthy prefix and blocks the same-Stage
     featureKey: 'beta',
     candidateSha: value.items[1].candidateSha,
     effectiveHeadSha: value.items[1].candidateSha,
+    technicalRevisionFingerprint: null,
     state: 'FAILED',
     acceptedMainSha: value.items[0].candidateSha,
     mergeSha: null,
     failureCode: 'BASELINE_CHECKS_FAILED'
   }
-  const plan = planStageMerge(value, [merged(value, 0), failed])
+  const plan = planStageMerge(
+    value,
+    [merged(value, 0), failed],
+    [],
+    '/fixture',
+    mergedReadbackRunner(value, '7'.repeat(40))
+  )
   assert.equal(plan.status, 'STOPPED_FAILURE')
   assert.deepEqual(plan.healthyPrefix, ['alpha'])
   assert.equal(plan.nextItem, null)
@@ -99,6 +124,18 @@ test('Stage merge failure preserves the healthy prefix and blocks the same-Stage
 test('moving-main revision accepts only unchanged card content and ordering', () => {
   const value = card()
   const item = value.items[0]
+  const patch = 'exact feature patch\n'
+  const content = ':100644 100644 a b M\tfeature.ts\n'
+  item.patchFingerprint = crypto.createHash('sha256').update(patch).digest('hex')
+  item.contentFingerprint = crypto.createHash('sha256').update(content).digest('hex')
+  value.orderedSetFingerprint = objectFingerprint(
+    value.items as unknown as Record<string, unknown>,
+    '__none__'
+  )
+  value.authorizationFingerprint = objectFingerprint(
+    value as unknown as Record<string, unknown>,
+    'authorizationFingerprint'
+  )
   const input = {
     featureKey: item.featureKey,
     order: item.order,
@@ -106,16 +143,50 @@ test('moving-main revision accepts only unchanged card content and ordering', ()
     latestMain: 'd'.repeat(40),
     previousHead: item.candidateSha,
     refreshedHead: 'e'.repeat(40),
-    patchFingerprint: item.patchFingerprint,
-    contentFingerprint: item.contentFingerprint,
     scopeFingerprint: item.scopeFingerprint,
     riskFingerprint: item.riskFingerprint,
     orderedSetFingerprint: value.orderedSetFingerprint
   }
-  assert.equal(createTechnicalRevision(value, input).decision, 'TECHNICALLY_EQUIVALENT')
+  const runner = revisionRunner(input.latestMain, input.refreshedHead, patch, content)
+  const revision = createTechnicalRevision(value, input, '/fixture', runner)
+  assert.equal(revision.decision, 'TECHNICALLY_EQUIVALENT')
+  const revisedResult: StageMergeItemResult = {
+    ...merged(value, 0),
+    effectiveHeadSha: input.refreshedHead,
+    technicalRevisionFingerprint: revision.revisionFingerprint
+  }
+  assert.equal(
+    planStageMerge(
+      value,
+      [revisedResult],
+      [revision],
+      '/fixture',
+      mergedReadbackRunner(value, '7'.repeat(40), new Map([[item.featureKey, input.refreshedHead]]))
+    ).nextItem?.featureKey,
+    'beta'
+  )
   assert.throws(
-    () => createTechnicalRevision(value, { ...input, contentFingerprint: 'f'.repeat(64) }),
+    () =>
+      createTechnicalRevision(
+        value,
+        { ...input, scopeFingerprint: 'f'.repeat(64) },
+        '/fixture',
+        runner
+      ),
     /STAGE_MERGE_BUSINESS_CONTENT_CHANGED/
+  )
+  assert.throws(
+    () => planStageMerge(value, [{ ...revisedResult, technicalRevisionFingerprint: null }]),
+    /REVISION_REQUIRED/
+  )
+})
+
+test('Stage merge rejects unknown result states before they can extend the healthy prefix', () => {
+  const value = card()
+  const unknown = { ...merged(value, 0), state: 'ANY_UNKNOWN_STATE' }
+  assert.throws(
+    () => planStageMerge(value, [unknown as unknown as StageMergeItemResult]),
+    /STAGE_MERGE_RESULT_BINDING_MISMATCH/
   )
 })
 
@@ -132,3 +203,120 @@ test('Stage merge JSON schema and runtime reject incomplete or reordered cards',
   value.items.reverse()
   assert.throws(() => planStageMerge(value, []), /STAGE_MERGE_ITEM_INVALID|FINGERPRINT/)
 })
+
+/** Supplies exact local Git and GitHub readback for the moving-main fixture. */
+function revisionRunner(
+  latestMain: string,
+  refreshedHead: string,
+  patch: string,
+  content: string
+): CommandRunner {
+  return {
+    run(command, args) {
+      if (command === 'git' && args[0] === 'ls-remote')
+        return { stdout: `${latestMain}\trefs/heads/main\n`, stderr: '', exitCode: 0 }
+      if (command === 'git' && args.join(' ') === 'remote get-url origin')
+        return { stdout: 'git@github.com:ORG/REPO.git\n', stderr: '', exitCode: 0 }
+      if (command === 'git' && args[0] === 'diff')
+        return { stdout: args.includes('--raw') ? content : patch, stderr: '', exitCode: 0 }
+      if (command === 'git' && ['cat-file', 'merge-base'].includes(args[0]))
+        return { stdout: '', stderr: '', exitCode: 0 }
+      if (command === 'gh' && args[1]?.includes('/pulls/'))
+        return {
+          stdout: JSON.stringify({
+            state: 'open',
+            draft: false,
+            head: { sha: refreshedHead },
+            base: { ref: 'main' }
+          }),
+          stderr: '',
+          exitCode: 0
+        }
+      if (command === 'gh' && args[1]?.includes('/check-runs'))
+        return {
+          stdout: JSON.stringify({
+            check_runs: [
+              {
+                id: 44,
+                name: 'Baseline Checks',
+                head_sha: refreshedHead,
+                status: 'completed',
+                conclusion: 'success'
+              }
+            ]
+          }),
+          stderr: '',
+          exitCode: 0
+        }
+      return { stdout: '', stderr: `unexpected ${command} ${args.join(' ')}`, exitCode: 1 }
+    }
+  }
+}
+
+/** Supplies exact merged PR/main/check readback for every completed prefix item. */
+function mergedReadbackRunner(
+  value: StageMergeAuthorization,
+  currentMain: string,
+  effectiveHeads: Map<string, string> = new Map()
+): CommandRunner {
+  return {
+    run(command, args) {
+      if (command === 'git' && args[0] === 'ls-remote')
+        return { stdout: `${currentMain}\trefs/heads/main\n`, stderr: '', exitCode: 0 }
+      if (command === 'git' && args.join(' ') === 'remote get-url origin')
+        return { stdout: 'git@github.com:ORG/REPO.git\n', stderr: '', exitCode: 0 }
+      if (command !== 'gh') return { stdout: '', stderr: 'unexpected command', exitCode: 1 }
+      const route = args[1] ?? ''
+      const item = value.items.find((candidate) =>
+        route.includes(`/pulls/${candidate.pullRequestNumber}`)
+      )
+      if (item) {
+        const mergeSha = `${item.order + 6}`.repeat(40)
+        return {
+          stdout: JSON.stringify({
+            merged_at: '2026-09-01T00:00:00Z',
+            merge_commit_sha: mergeSha,
+            head: { sha: effectiveHeads.get(item.featureKey) ?? item.candidateSha }
+          }),
+          stderr: '',
+          exitCode: 0
+        }
+      }
+      const commitItem = value.items.find((candidate) =>
+        route.includes(`/git/commits/${`${candidate.order + 6}`.repeat(40)}`)
+      )
+      if (commitItem)
+        return {
+          stdout: JSON.stringify({
+            parents: [
+              { sha: '1'.repeat(40) },
+              { sha: effectiveHeads.get(commitItem.featureKey) ?? commitItem.candidateSha }
+            ]
+          }),
+          stderr: '',
+          exitCode: 0
+        }
+      if (route.includes('/compare/'))
+        return { stdout: JSON.stringify({ status: 'identical' }), stderr: '', exitCode: 0 }
+      if (route.includes('/check-runs')) {
+        const headSha = route.split('/commits/')[1].split('/check-runs')[0]
+        return {
+          stdout: JSON.stringify({
+            check_runs: [
+              {
+                id: 50,
+                name: 'Baseline Checks',
+                head_sha: headSha,
+                status: 'completed',
+                conclusion: 'success'
+              }
+            ]
+          }),
+          stderr: '',
+          exitCode: 0
+        }
+      }
+      return { stdout: '', stderr: `unexpected ${route}`, exitCode: 1 }
+    }
+  }
+}

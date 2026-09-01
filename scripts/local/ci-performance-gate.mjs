@@ -8,18 +8,44 @@ export function evaluateCiPerformanceCutover(sample) {
   const superseded = requiredArray(sample.supersededPairs, 'supersededPairs')
   const stages = requiredArray(sample.stageSequences, 'stageSequences')
   const attempts = requiredArray(sample.testAttempts, 'testAttempts')
-  for (const pair of [...pairs, ...superseded])
-    if (!pair.paired || pair.controlWorkloadFingerprint !== pair.shadowWorkloadFingerprint)
-      throw new Error('CI_PERFORMANCE_UNPAIRED_OBSERVATION')
-  if (stages.some((stage) => !stage.paired || stage.pullRequestCount < 3))
+  const observationIds = new Set()
+  const runIdentities = new Set()
+  for (const [collection, values] of [
+    ['acceptedPairs', pairs],
+    ['supersededPairs', superseded],
+    ['stageSequences', stages],
+    ['testAttempts', attempts]
+  ])
+    for (const value of values)
+      validatePairedObservation(value, collection, observationIds, runIdentities)
+  if (
+    stages.some((stage) => !Number.isInteger(stage.pullRequestCount) || stage.pullRequestCount < 3)
+  )
     throw new Error('CI_PERFORMANCE_STAGE_SEQUENCE_INVALID')
+  if (
+    pairs.some(
+      (pair) =>
+        !['COLD', 'WARM'].includes(pair.cacheDisposition) ||
+        typeof pair.duplicateFullMain !== 'boolean'
+    )
+  )
+    throw new Error('CI_PERFORMANCE_ACCEPTED_PAIR_INVALID')
+  if (superseded.some((pair) => !Number.isFinite(pair.cancelSeconds) || pair.cancelSeconds < 0))
+    throw new Error('CI_PERFORMANCE_SUPERSEDED_PAIR_INVALID')
+  if (
+    attempts.some(
+      (attempt) => attempt.authoritative !== true || typeof attempt.flakyRerun !== 'boolean'
+    )
+  )
+    throw new Error('CI_PERFORMANCE_ATTEMPT_NOT_AUTHORITATIVE')
   const windowDays = (Date.parse(sample.windowEnd) - Date.parse(sample.windowStart)) / 86_400_000
   if (!Number.isFinite(windowDays) || windowDays < 0 || windowDays > 30)
     throw new Error('CI_PERFORMANCE_WINDOW_INVALID')
   const candidateP95 = nearestRank(pairs.map((pair) => pair.optimizedCandidateSeconds))
   const mainP95 = nearestRank(pairs.map((pair) => pair.optimizedMainSeconds))
-  const controlJobMinutes = sum(pairs, 'controlJobMinutes')
-  const optimizedJobMinutes = sum(pairs, 'optimizedJobMinutes')
+  const completeJobMinuteSet = [...pairs, ...superseded, ...stages, ...attempts]
+  const controlJobMinutes = sum(completeJobMinuteSet, 'controlJobMinutes')
+  const optimizedJobMinutes = sum(completeJobMinuteSet, 'optimizedJobMinutes')
   const controlStageSeconds = sum(stages, 'controlSeconds')
   const optimizedStageSeconds = sum(stages, 'optimizedSeconds')
   const flakyAttempts = attempts.filter((attempt) => attempt.flakyRerun === true).length
@@ -56,6 +82,53 @@ export function evaluateCiPerformanceCutover(sample) {
     metrics: Object.freeze(metrics),
     failures: Object.freeze(failures)
   })
+}
+
+/** Requires a unique exact workload pair with distinct bound control/shadow executions. */
+function validatePairedObservation(value, collection, observationIds, runIdentities) {
+  if (
+    value.paired !== true ||
+    !digest(value.controlWorkloadFingerprint) ||
+    value.controlWorkloadFingerprint !== value.shadowWorkloadFingerprint
+  )
+    throw new Error('CI_PERFORMANCE_UNPAIRED_OBSERVATION')
+  if (
+    !digest(value.controlExecutionFingerprint) ||
+    !digest(value.shadowExecutionFingerprint) ||
+    value.controlExecutionFingerprint === value.shadowExecutionFingerprint ||
+    value.controlMode !== 'LEGACY_CONTROL' ||
+    value.shadowMode !== 'OPTIMIZED_SHADOW'
+  )
+    throw new Error('CI_PERFORMANCE_EXECUTION_BINDING_INVALID')
+  if (
+    typeof value.observationId !== 'string' ||
+    value.observationId.length === 0 ||
+    observationIds.has(value.observationId)
+  )
+    throw new Error('CI_PERFORMANCE_OBSERVATION_ID_INVALID')
+  observationIds.add(value.observationId)
+  for (const identity of [value.controlRunIdentity, value.shadowRunIdentity]) {
+    if (typeof identity !== 'string' || identity.length === 0 || runIdentities.has(identity))
+      throw new Error('CI_PERFORMANCE_RUN_IDENTITY_INVALID')
+    runIdentities.add(identity)
+  }
+  if (
+    value.controlRunIdentity === value.shadowRunIdentity ||
+    typeof value.controlArtifactIdentity !== 'string' ||
+    value.controlArtifactIdentity.length === 0 ||
+    typeof value.shadowArtifactIdentity !== 'string' ||
+    value.shadowArtifactIdentity.length === 0 ||
+    value.controlArtifactIdentity === value.shadowArtifactIdentity
+  )
+    throw new Error(`CI_PERFORMANCE_ARTIFACT_BINDING_INVALID collection=${collection}`)
+  for (const key of ['controlJobMinutes', 'optimizedJobMinutes'])
+    if (!Number.isFinite(value[key]) || value[key] < 0)
+      throw new Error(`CI_PERFORMANCE_METRIC_INVALID key=${key}`)
+}
+
+/** Checks one canonical lowercase SHA-256 identity. */
+function digest(value) {
+  return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value)
 }
 
 /** Implements nearest-rank P95 over the complete observation vector. */

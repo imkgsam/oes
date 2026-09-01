@@ -77,7 +77,7 @@ const INFRA_PROFILES = Object.freeze({
   l2: Object.freeze({
     initServices: Object.freeze(['nats-bootstrap']),
     longRunningServices: Object.freeze(['postgres', 'nats']),
-    monitor: true,
+    monitor: false,
     resources: Object.freeze({
       network: Object.freeze(['oes_network']),
       volume: Object.freeze(['nats_jetstream_data', 'postgres_data'])

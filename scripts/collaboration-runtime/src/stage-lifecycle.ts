@@ -3,9 +3,11 @@ import { fail } from './errors.ts'
 import type {
   StageArchiveDecision,
   StageArchiveResult,
+  StageLifecycleCreatedTask,
   StageLifecycleInventory,
   StageLifecyclePlan,
   StageLifecycleRole,
+  StageLifecycleRosterAuthority,
   StageLifecycleTask
 } from './types.ts'
 
@@ -17,34 +19,89 @@ const ROLE_TIER: Record<Exclude<StageLifecycleRole, 'GLOBAL_UD'>, number> = {
   STAGE_RI: 3,
   SL: 4
 }
+const DIGEST = /^[0-9a-f]{64}$/
 
-/** Validates the task-native created/terminal roster captured when cleanup intent is detected. */
+/** Validates the immutable task-native creation receipts captured before cleanup intent. */
+export function validateStageLifecycleRosterAuthority(
+  value: StageLifecycleRosterAuthority
+): StageLifecycleRosterAuthority {
+  if (
+    value.schemaVersion !== 1 ||
+    value.kind !== 'OES_STAGE_LIFECYCLE_ROSTER_AUTHORITY' ||
+    value.source !== 'TASK_NATIVE_CREATION_RECEIPTS' ||
+    value.stageKey.length === 0 ||
+    value.stageOwnerTaskId.length === 0 ||
+    !Array.isArray(value.createdRoster) ||
+    value.createdRoster.length === 0
+  )
+    fail('STAGE_LIFECYCLE_ROSTER_AUTHORITY_INVALID', value.stageKey)
+  const tasks = new Map<string, StageLifecycleCreatedTask>()
+  for (const task of value.createdRoster) {
+    if (
+      task.taskId.length === 0 ||
+      task.taskId === task.ownerTaskId ||
+      !['IT', 'FEATURE_RI', 'FL', 'STAGE_DESIGN', 'STAGE_RI', 'SL', 'GLOBAL_UD'].includes(
+        task.role
+      ) ||
+      !DIGEST.test(task.creationReceiptFingerprint)
+    )
+      fail('STAGE_LIFECYCLE_CREATION_RECEIPT_INVALID', task.taskId)
+    if (tasks.has(task.taskId)) fail('STAGE_LIFECYCLE_TASK_DUPLICATE', task.taskId)
+    tasks.set(task.taskId, task)
+  }
+  validateStageTopology(value.stageOwnerTaskId, value.createdRoster, tasks)
+  const expected = objectFingerprint(
+    value as unknown as Record<string, unknown>,
+    'authorityFingerprint'
+  )
+  if (!DIGEST.test(value.authorityFingerprint) || value.authorityFingerprint !== expected)
+    fail('STAGE_LIFECYCLE_ROSTER_AUTHORITY_FINGERPRINT_MISMATCH', value.stageKey)
+  return value
+}
+
+/** Validates a current task-native readback against the immutable creation authority. */
 export function validateStageLifecycleInventory(
+  authorityInput: StageLifecycleRosterAuthority,
   value: StageLifecycleInventory
 ): StageLifecycleInventory {
+  const authority = validateStageLifecycleRosterAuthority(authorityInput)
   if (
     value.schemaVersion !== 1 ||
     value.kind !== 'OES_STAGE_LIFECYCLE_INVENTORY' ||
     value.cleanupIntentDetected !== true ||
     value.stageKey.length === 0 ||
     value.stageOwnerTaskId.length === 0 ||
-    !Array.isArray(value.createdRoster) ||
-    value.createdRoster.length === 0 ||
+    !['PASSED', 'PENDING', 'FAILED'].includes(value.stageExit) ||
+    !['PENDING', 'VERIFIED', 'PARTIAL_FAILURE'].includes(value.resourceCleanup) ||
+    value.taskReadbackSource !== 'CODEX_TASK_NATIVE' ||
+    value.stageKey !== authority.stageKey ||
+    value.stageOwnerTaskId !== authority.stageOwnerTaskId ||
+    value.rosterAuthorityFingerprint !== authority.authorityFingerprint ||
     !Array.isArray(value.terminalTaskIds)
   )
     fail('STAGE_LIFECYCLE_INVENTORY_INVALID', value.stageKey)
-  const tasks = new Map<string, StageLifecycleTask>()
-  for (const task of value.createdRoster) {
-    if (
-      task.taskId.length === 0 ||
-      task.taskId === task.ownerTaskId ||
-      !['TERMINAL', 'ACTIVE', 'UNKNOWN'].includes(task.state)
-    )
-      fail('STAGE_LIFECYCLE_TASK_INVALID', task.taskId)
-    if (tasks.has(task.taskId)) fail('STAGE_LIFECYCLE_TASK_DUPLICATE', task.taskId)
-    tasks.set(task.taskId, task)
+  if (!Array.isArray(value.readbackRoster) || value.readbackRoster.length === 0)
+    fail('STAGE_LIFECYCLE_READBACK_ROSTER_INVALID', value.stageKey)
+  const createdTasks = new Map(authority.createdRoster.map((task) => [task.taskId, task]))
+  const readbackTasks = validateRoster(value.readbackRoster)
+  if (createdTasks.size !== readbackTasks.size)
+    fail('STAGE_LIFECYCLE_ROSTER_SIZE_MISMATCH', value.stageKey)
+  for (const [taskId, created] of createdTasks) {
+    const readback = readbackTasks.get(taskId)
+    if (!readback || readback.role !== created.role || readback.ownerTaskId !== created.ownerTaskId)
+      fail('STAGE_LIFECYCLE_READBACK_CLOSURE_MISMATCH', taskId)
   }
-  const stageLeads = value.createdRoster.filter((task) => task.role === 'SL')
+  const readbackRosterFingerprint = objectFingerprint(
+    value.readbackRoster as unknown as Record<string, unknown>,
+    '__none__'
+  )
+  if (
+    !DIGEST.test(value.readbackRosterFingerprint) ||
+    value.readbackRosterFingerprint !== readbackRosterFingerprint
+  )
+    fail('STAGE_LIFECYCLE_READBACK_ROSTER_FINGERPRINT_MISMATCH', value.stageKey)
+  const tasks = readbackTasks
+  const stageLeads = value.readbackRoster.filter((task) => task.role === 'SL')
   if (
     stageLeads.length !== 1 ||
     stageLeads[0].taskId !== value.stageOwnerTaskId ||
@@ -58,7 +115,7 @@ export function validateStageLifecycleInventory(
     if (!task || task.state !== 'TERMINAL') fail('STAGE_LIFECYCLE_TERMINAL_MISMATCH', taskId)
     terminal.add(taskId)
   }
-  for (const task of value.createdRoster)
+  for (const task of value.readbackRoster)
     if ((task.state === 'TERMINAL') !== terminal.has(task.taskId))
       fail('STAGE_LIFECYCLE_TERMINAL_COVERAGE_MISMATCH', task.taskId)
   const expected = objectFingerprint(
@@ -70,14 +127,70 @@ export function validateStageLifecycleInventory(
   return value
 }
 
+/** Validates one complete roster snapshot and returns its exact task index. */
+function validateRoster(roster: StageLifecycleTask[]): Map<string, StageLifecycleTask> {
+  const tasks = new Map<string, StageLifecycleTask>()
+  for (const task of roster) {
+    if (
+      task.taskId.length === 0 ||
+      task.taskId === task.ownerTaskId ||
+      !['IT', 'FEATURE_RI', 'FL', 'STAGE_DESIGN', 'STAGE_RI', 'SL', 'GLOBAL_UD'].includes(
+        task.role
+      ) ||
+      !['TERMINAL', 'ACTIVE', 'UNKNOWN'].includes(task.state)
+    )
+      fail('STAGE_LIFECYCLE_READBACK_TASK_INVALID', task.taskId)
+    if (tasks.has(task.taskId)) fail('STAGE_LIFECYCLE_TASK_DUPLICATE', task.taskId)
+    tasks.set(task.taskId, task)
+  }
+  return tasks
+}
+
+/** Enforces the complete Stage owner graph captured at task creation. */
+function validateStageTopology(
+  stageOwnerTaskId: string,
+  roster: Array<Pick<StageLifecycleCreatedTask, 'taskId' | 'role' | 'ownerTaskId'>>,
+  tasks: Map<string, Pick<StageLifecycleCreatedTask, 'taskId' | 'role' | 'ownerTaskId'>>
+): void {
+  const byRole = (role: StageLifecycleRole) => roster.filter((task) => task.role === role)
+  const stageLeads = byRole('SL')
+  const featureLeads = byRole('FL')
+  const featureReviews = byRole('FEATURE_RI')
+  if (
+    stageLeads.length !== 1 ||
+    stageLeads[0].taskId !== stageOwnerTaskId ||
+    stageLeads[0].ownerTaskId !== null ||
+    featureLeads.length < 2 ||
+    byRole('STAGE_RI').length !== 1
+  )
+    fail('STAGE_LIFECYCLE_TOPOLOGY_INCOMPLETE', stageOwnerTaskId)
+  for (const task of roster) {
+    const owner = task.ownerTaskId === null ? null : tasks.get(task.ownerTaskId)
+    if (task.role === 'SL' || task.role === 'GLOBAL_UD') {
+      if (task.ownerTaskId !== null) fail('STAGE_LIFECYCLE_ROOT_OWNER_INVALID', task.taskId)
+    } else if (!owner) {
+      fail('STAGE_LIFECYCLE_OWNER_ABSENT', task.taskId)
+    } else if (
+      (['IT', 'FEATURE_RI'].includes(task.role) && owner.role !== 'FL') ||
+      (['FL', 'STAGE_DESIGN', 'STAGE_RI'].includes(task.role) && owner.role !== 'SL')
+    ) {
+      fail('STAGE_LIFECYCLE_OWNER_ROLE_INVALID', task.taskId)
+    }
+  }
+  for (const lead of featureLeads)
+    if (featureReviews.filter((review) => review.ownerTaskId === lead.taskId).length !== 1)
+      fail('STAGE_LIFECYCLE_FEATURE_RI_CLOSURE_INVALID', lead.taskId)
+}
+
 /** Plans automatic archive only after Stage exit and resource cleanup, preserving partial success. */
 export function planStageLifecycle(
+  rosterAuthorityInput: StageLifecycleRosterAuthority,
   inventoryInput: StageLifecycleInventory,
   priorResults: StageArchiveResult[] = []
 ): StageLifecyclePlan {
-  const inventory = validateStageLifecycleInventory(inventoryInput)
-  const excluded = inventory.createdRoster.filter((task) => task.role === 'GLOBAL_UD')
-  const archiveRoster = inventory.createdRoster.filter((task) => task.role !== 'GLOBAL_UD')
+  const inventory = validateStageLifecycleInventory(rosterAuthorityInput, inventoryInput)
+  const excluded = inventory.readbackRoster.filter((task) => task.role === 'GLOBAL_UD')
+  const archiveRoster = inventory.readbackRoster.filter((task) => task.role !== 'GLOBAL_UD')
   const excludedDecisions: StageArchiveDecision[] = excluded.map((task) => ({
     taskId: task.taskId,
     role: task.role,
@@ -123,8 +236,19 @@ export function planStageLifecycle(
     if (byTask.has(result.taskId)) fail('STAGE_ARCHIVE_RESULT_DUPLICATE', result.taskId)
     const task = archiveRoster.find((candidate) => candidate.taskId === result.taskId)
     if (!task || task.role !== result.role) fail('STAGE_ARCHIVE_RESULT_UNBOUND', result.taskId)
+    if (
+      result.inventoryFingerprint !== inventory.inventoryFingerprint ||
+      !DIGEST.test(result.taskNativeReadbackFingerprint)
+    )
+      fail('STAGE_ARCHIVE_RESULT_READBACK_UNBOUND', result.taskId)
     const expected = objectFingerprint(
-      { taskId: result.taskId, role: result.role, state: result.state },
+      {
+        taskId: result.taskId,
+        role: result.role,
+        state: result.state,
+        inventoryFingerprint: result.inventoryFingerprint,
+        taskNativeReadbackFingerprint: result.taskNativeReadbackFingerprint
+      },
       '__none__'
     )
     if (result.resultFingerprint !== expected)

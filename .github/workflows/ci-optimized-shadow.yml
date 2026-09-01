@@ -251,6 +251,7 @@ jobs:
           printf 'OES_ACCEPTED_RESULT_IDENTITY=%s\n' "${GITHUB_SHA}" >> "${GITHUB_ENV}"
       - name: Locate the successful associated PR artifact
         id: locate
+        continue-on-error: true
         uses: actions/github-script@v9
         with:
           script: |
@@ -300,7 +301,7 @@ jobs:
             core.setOutput('found', 'false')
       - name: Restore associated PR prepared artifact
         id: restore
-        if: ${{ steps.locate.outputs.found == 'true' }}
+        if: ${{ steps.locate.outcome == 'success' && steps.locate.outputs.found == 'true' }}
         continue-on-error: true
         uses: actions/download-artifact@v8
         with:
@@ -329,7 +330,7 @@ jobs:
           pnpm collaboration-runtime:static
           node --test scripts/local/foundation-trusted-grpc-atomic-group.spec.mjs
       - name: Run fail-closed full fallback when equivalence is absent
-        if: ${{ steps.equivalence.outputs.exact != 'true' }}
+        if: ${{ !cancelled() && steps.equivalence.outputs.exact != 'true' }}
         run: |
           export OES_PROTO_BREAKING_BASE="${OES_CI_BASE_SHA}"
           pnpm proto:lint

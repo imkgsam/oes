@@ -5,33 +5,47 @@ import { evaluateCiPerformanceCutover } from './ci-performance-gate.mjs'
 /** Creates a complete passing paired sample at the frozen minimum counts. */
 function passingSample() {
   const workload = 'a'.repeat(64)
+  const paired = (collection, index, controlJobMinutes, optimizedJobMinutes) => ({
+    observationId: `${collection}-${index}`,
+    paired: true,
+    controlWorkloadFingerprint: workload,
+    shadowWorkloadFingerprint: workload,
+    controlExecutionFingerprint: 'b'.repeat(64),
+    shadowExecutionFingerprint: 'c'.repeat(64),
+    controlMode: 'LEGACY_CONTROL',
+    shadowMode: 'OPTIMIZED_SHADOW',
+    controlRunIdentity: `${collection}-control-${index}`,
+    shadowRunIdentity: `${collection}-shadow-${index}`,
+    controlArtifactIdentity: `${collection}-legacy-${index}`,
+    shadowArtifactIdentity: `${collection}-optimized-${index}`,
+    controlJobMinutes,
+    optimizedJobMinutes
+  })
   return {
     windowStart: '2026-09-01T00:00:00.000Z',
     windowEnd: '2026-09-20T00:00:00.000Z',
     acceptedPairs: Array.from({ length: 20 }, (_, index) => ({
-      paired: true,
-      controlWorkloadFingerprint: workload,
-      shadowWorkloadFingerprint: workload,
+      ...paired('accepted', index, 20, 12),
       cacheDisposition: index < 5 ? 'COLD' : 'WARM',
       optimizedCandidateSeconds: 280,
       optimizedMainSeconds: 100,
-      duplicateFullMain: false,
-      controlJobMinutes: 20,
-      optimizedJobMinutes: 12
+      duplicateFullMain: false
     })),
-    supersededPairs: Array.from({ length: 10 }, () => ({
-      paired: true,
-      controlWorkloadFingerprint: workload,
-      shadowWorkloadFingerprint: workload,
+    supersededPairs: Array.from({ length: 10 }, (_, index) => ({
+      ...paired('superseded', index, 2, 0.5),
       cancelSeconds: 45
     })),
-    stageSequences: Array.from({ length: 5 }, () => ({
-      paired: true,
+    stageSequences: Array.from({ length: 5 }, (_, index) => ({
+      ...paired('stage', index, 60, 25),
       pullRequestCount: 3,
       controlSeconds: 1200,
       optimizedSeconds: 550
     })),
-    testAttempts: Array.from({ length: 50 }, () => ({ flakyRerun: false }))
+    testAttempts: Array.from({ length: 50 }, (_, index) => ({
+      ...paired('attempt', index, 1, 0.5),
+      authoritative: true,
+      flakyRerun: false
+    }))
   }
 }
 
@@ -64,4 +78,21 @@ test('unpaired evidence and an overlong window are rejected rather than omitted'
   const overlong = passingSample()
   overlong.windowEnd = '2026-10-02T00:00:00.000Z'
   assert.throws(() => evaluateCiPerformanceCutover(overlong), /WINDOW_INVALID/)
+})
+
+test('missing execution binding or expensive omitted categories cannot authorize cutover', () => {
+  const missing = passingSample()
+  delete missing.acceptedPairs[0].controlExecutionFingerprint
+  assert.throws(() => evaluateCiPerformanceCutover(missing), /EXECUTION_BINDING_INVALID/)
+
+  const expensive = passingSample()
+  for (const value of [
+    ...expensive.supersededPairs,
+    ...expensive.stageSequences,
+    ...expensive.testAttempts
+  ])
+    value.optimizedJobMinutes = 1_000_000
+  const result = evaluateCiPerformanceCutover(expensive)
+  assert.equal(result.status, 'KEEP_LEGACY_AUTHORITATIVE')
+  assert.ok(result.failures.includes('JOB_MINUTE_REDUCTION_LT_35PCT'))
 })

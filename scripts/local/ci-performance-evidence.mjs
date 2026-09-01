@@ -7,6 +7,31 @@ import { discoverL2Packages } from './l2-test-runner.mjs'
 import { validateMatrix } from './test-matrix.mjs'
 
 const MODES = new Set(['LEGACY_CONTROL', 'OPTIMIZED_SHADOW', 'OPTIMIZED_ACTIVE'])
+export const CI_COMMAND_INVENTORY = Object.freeze([
+  'pnpm proto:lint',
+  'pnpm generated:all',
+  'pnpm proto:breaking',
+  'pnpm build:prepared',
+  'pnpm test:matrix:check',
+  'pnpm test:design-gap',
+  'pnpm test:tooling',
+  'pnpm test:unit',
+  'pnpm collaboration-runtime:check',
+  'node --test scripts/local/foundation-trusted-grpc-atomic-group.spec.mjs',
+  'pnpm test:l2'
+])
+export const CI_WORKFLOW_INPUTS = Object.freeze([
+  '.github/workflows/ci.yml',
+  '.github/workflows/ci-optimized-shadow.yml',
+  'package.json',
+  'scripts/local/ci-performance-evidence.mjs',
+  'scripts/local/ci-main-equivalence.mjs',
+  'scripts/local/ci-prepared-artifact.mjs',
+  'scripts/local/ci-sharding.mjs',
+  'scripts/local/database-lifecycle.mjs',
+  'scripts/local/l2-test-runner.mjs',
+  'scripts/local/test-matrix.mjs'
+])
 
 /** Creates paired workload/execution identities without mixing topology into workload identity. */
 export function buildCiPerformanceEvidence(input) {
@@ -59,14 +84,6 @@ export function generateCiPerformanceEvidence(
   const changedPaths = gitAllowFailure(repositoryRoot, ['diff', '--name-only', base, sourceSha])
     .split('\n')
     .filter(Boolean)
-  const unit = validateMatrix(repositoryRoot)
-  const l2 = discoverL2Packages(repositoryRoot)
-  const workflowFiles = [
-    '.github/workflows/ci.yml',
-    '.github/workflows/ci-optimized-shadow.yml',
-    'scripts/local/ci-performance-evidence.mjs',
-    'scripts/local/ci-sharding.mjs'
-  ].filter((file) => fs.existsSync(path.join(repositoryRoot, file)))
   const evidence = buildCiPerformanceEvidence({
     mode,
     sourceSha,
@@ -75,39 +92,18 @@ export function generateCiPerformanceEvidence(
     acceptedSourceIdentity: environment.OES_ACCEPTED_SOURCE_IDENTITY || sourceSha,
     acceptedResultIdentity: environment.OES_ACCEPTED_RESULT_IDENTITY || sourceSha,
     changedPaths,
-    riskClass: changedPaths.some((file) =>
-      /^(src\/common|docs\/architecture|docs\/adr|scripts\/collaboration-runtime)/.test(file)
-    )
-      ? 'HIGH'
-      : 'STANDARD',
+    riskClass: ciRiskClass(changedPaths),
     stagePullRequests: (environment.OES_STAGE_PULL_REQUESTS || '').split(',').filter(Boolean),
-    commandInventory: [
-      'pnpm proto:lint',
-      'pnpm generated:all',
-      'pnpm proto:breaking',
-      'pnpm build:prepared',
-      'pnpm test:matrix:check',
-      'pnpm test:design-gap',
-      'pnpm test:tooling',
-      'pnpm test:unit',
-      'pnpm collaboration-runtime:check',
-      'node --test scripts/local/foundation-trusted-grpc-atomic-group.spec.mjs',
-      'pnpm test:l2'
-    ],
-    testInventory: [
-      ...unit.flatMap((entry) => entry.specs.map((spec) => `unit:${entry.name}:${spec}`)),
-      ...l2.flatMap((entry) => entry.specs.map((spec) => `l2:${entry.name}:${spec}`))
-    ],
+    commandInventory: CI_COMMAND_INVENTORY,
+    testInventory: ciTestInventory(repositoryRoot),
     lockfileDigest: fileDigest(path.join(repositoryRoot, 'pnpm-lock.yaml')),
     toolchain: {
       node: process.version,
-      pnpm: environment.OES_PNPM_VERSION || '10.33.0',
-      buf: environment.OES_BUF_VERSION || 'buf-action-v1'
+      pnpm: environment.OES_PNPM_VERSION || command(repositoryRoot, 'pnpm', ['--version']),
+      buf: environment.OES_BUF_VERSION || command(repositoryRoot, 'buf', ['--version'])
     },
     cacheDisposition: environment.OES_CACHE_DISPOSITION || 'UNKNOWN',
-    workflowRevision: digest(
-      workflowFiles.map((file) => [file, fileDigest(path.join(repositoryRoot, file))])
-    ),
+    workflowRevision: ciWorkflowRevision(repositoryRoot),
     eventTopology: environment.GITHUB_EVENT_NAME || 'local',
     shardStrategy:
       mode === 'LEGACY_CONTROL' ? 'legacy-static-plus-single-l2' : 'weighted-unit-2-l2-3-v1',
@@ -121,6 +117,35 @@ export function generateCiPerformanceEvidence(
   process.stdout.write(`CI_EXECUTION_FINGERPRINT=${evidence.executionFingerprint}\n`)
   process.stdout.write(`CI_EXECUTION_MODE=${mode}\n`)
   return evidence
+}
+
+/** Recomputes the complete ordered unit/L2 inventory used by both evidence and main verification. */
+export function ciTestInventory(repositoryRoot) {
+  const unit = validateMatrix(repositoryRoot)
+  const l2 = discoverL2Packages(repositoryRoot)
+  return [
+    ...unit.flatMap((entry) => entry.specs.map((spec) => `unit:${entry.name}:${spec}`)),
+    ...l2.flatMap((entry) => entry.specs.map((spec) => `l2:${entry.name}:${spec}`))
+  ].sort()
+}
+
+/** Hashes every workflow/script input that can change prepared or verified CI behavior. */
+export function ciWorkflowRevision(repositoryRoot) {
+  for (const file of CI_WORKFLOW_INPUTS)
+    if (!fs.existsSync(path.join(repositoryRoot, file)))
+      throw new Error(`CI_EVIDENCE_WORKFLOW_INPUT_MISSING file=${file}`)
+  return digest(
+    CI_WORKFLOW_INPUTS.map((file) => [file, fileDigest(path.join(repositoryRoot, file))])
+  )
+}
+
+/** Derives the frozen risk class from the exact changed-path inventory. */
+export function ciRiskClass(changedPaths) {
+  return changedPaths.some((file) =>
+    /^(src\/common|docs\/architecture|docs\/adr|scripts\/collaboration-runtime)/.test(file)
+  )
+    ? 'HIGH'
+    : 'STANDARD'
 }
 
 /** Returns a deterministic lowercase SHA-256 for one JSON value. */
@@ -155,6 +180,15 @@ function git(repositoryRoot, args) {
 function gitAllowFailure(repositoryRoot, args) {
   const result = spawnSync('git', args, { cwd: repositoryRoot, encoding: 'utf8' })
   return result.status === 0 ? result.stdout.trim() : ''
+}
+
+/** Captures one successful toolchain scalar. */
+function command(repositoryRoot, executable, args) {
+  const result = spawnSync(executable, args, { cwd: repositoryRoot, encoding: 'utf8' })
+  if (result.error) throw result.error
+  if (result.status !== 0)
+    throw new Error(`CI_EVIDENCE_COMMAND_FAILED command=${executable} exit=${result.status}`)
+  return result.stdout.trim()
 }
 
 /** Checks one full Git object id supplied by event context. */

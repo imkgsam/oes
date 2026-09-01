@@ -3,6 +3,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import {
+  CI_COMMAND_INVENTORY,
+  ciRiskClass,
+  ciTestInventory,
+  ciWorkflowRevision
+} from './ci-performance-evidence.mjs'
 
 /** Proves a merged main tree exactly reuses the successful PR shadow artifact and inputs. */
 export function verifyCiMainEquivalence({
@@ -10,7 +16,11 @@ export function verifyCiMainEquivalence({
   evidencePath,
   archivePath,
   checksumPath,
-  pnpmVersion = command(repositoryRoot, 'pnpm', ['--version'])
+  pnpmVersion = command(repositoryRoot, 'pnpm', ['--version']),
+  bufVersion = command(repositoryRoot, 'buf', ['--version']),
+  expectedCommandInventory = CI_COMMAND_INVENTORY,
+  expectedTestInventory = ciTestInventory(repositoryRoot),
+  expectedWorkflowRevision = ciWorkflowRevision(repositoryRoot)
 }) {
   const evidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8'))
   if (evidence.schemaVersion !== 1 || evidence.kind !== 'OES_CI_PERFORMANCE_EVIDENCE') {
@@ -31,12 +41,18 @@ export function verifyCiMainEquivalence({
     .slice(1)
   if (parents.length !== 2) throw new Error(`CI_MAIN_MERGE_PARENT_COUNT actual=${parents.length}`)
   const [baseSha, headSha] = parents
+  const mainSha = command(repositoryRoot, 'git', ['rev-parse', 'HEAD'])
   const treeSha = command(repositoryRoot, 'git', ['rev-parse', 'HEAD^{tree}'])
   if (evidence.workload.baseSha !== baseSha) throw new Error('CI_MAIN_BASE_SHA_MISMATCH')
   if (evidence.workload.acceptedSourceIdentity !== headSha) {
     throw new Error('CI_MAIN_ACCEPTED_HEAD_MISMATCH')
   }
   if (evidence.workload.sourceTreeSha !== treeSha) throw new Error('CI_MAIN_TREE_MISMATCH')
+  if (
+    evidence.workload.sourceSha !== mainSha ||
+    evidence.workload.acceptedResultIdentity !== mainSha
+  )
+    throw new Error('CI_MAIN_ACCEPTED_RESULT_MISMATCH')
   if (
     evidence.workload.lockfileDigest !== fileDigest(path.join(repositoryRoot, 'pnpm-lock.yaml'))
   ) {
@@ -48,6 +64,30 @@ export function verifyCiMainEquivalence({
   if (evidence.workload.toolchain?.pnpm !== pnpmVersion) {
     throw new Error('CI_MAIN_PNPM_VERSION_MISMATCH')
   }
+  if (evidence.workload.toolchain?.buf !== bufVersion) {
+    throw new Error('CI_MAIN_BUF_VERSION_MISMATCH')
+  }
+  const changedPaths = command(repositoryRoot, 'git', ['diff', '--name-only', baseSha, mainSha])
+    .split('\n')
+    .filter(Boolean)
+    .sort()
+  if (canonical(evidence.workload.changedPaths) !== canonical(changedPaths))
+    throw new Error('CI_MAIN_CHANGED_PATH_INVENTORY_MISMATCH')
+  if (evidence.workload.riskClass !== ciRiskClass(changedPaths))
+    throw new Error('CI_MAIN_RISK_CLASS_MISMATCH')
+  if (canonical(evidence.workload.commandInventory) !== canonical(expectedCommandInventory))
+    throw new Error('CI_MAIN_COMMAND_INVENTORY_MISMATCH')
+  if (canonical(evidence.workload.testInventory) !== canonical(expectedTestInventory))
+    throw new Error('CI_MAIN_TEST_INVENTORY_MISMATCH')
+  if (evidence.execution.workflowRevision !== expectedWorkflowRevision)
+    throw new Error('CI_MAIN_WORKFLOW_REVISION_MISMATCH')
+  if (
+    evidence.execution.eventTopology !== 'pull_request' ||
+    evidence.execution.shardStrategy !== 'weighted-unit-2-l2-3-v1' ||
+    evidence.execution.cacheStrategy !== 'exact-pnpm-lockfile-key' ||
+    evidence.execution.artifactStrategy !== 'content-addressed-prepared-build-v1'
+  )
+    throw new Error('CI_MAIN_EXECUTION_MANIFEST_MISMATCH')
 
   const expectedDigest = fs.readFileSync(checksumPath, 'utf8').trim().split(/\s+/)[0]
   if (!/^[0-9a-f]{64}$/.test(expectedDigest)) throw new Error('CI_MAIN_CHECKSUM_INVALID')
@@ -56,19 +96,7 @@ export function verifyCiMainEquivalence({
   if (evidence.execution.artifactDigest !== archiveDigest) {
     throw new Error('CI_MAIN_ARTIFACT_EVIDENCE_MISMATCH')
   }
-  if (
-    !Array.isArray(evidence.workload.commandInventory) ||
-    evidence.workload.commandInventory.length === 0
-  ) {
-    throw new Error('CI_MAIN_COMMAND_INVENTORY_EMPTY')
-  }
-  if (
-    !Array.isArray(evidence.workload.testInventory) ||
-    evidence.workload.testInventory.length === 0
-  ) {
-    throw new Error('CI_MAIN_TEST_INVENTORY_EMPTY')
-  }
-  const result = Object.freeze({ archiveDigest, baseSha, headSha, treeSha })
+  const result = Object.freeze({ archiveDigest, baseSha, headSha, mainSha, treeSha })
   process.stdout.write(
     `CI_MAIN_EQUIVALENCE=PASS base=${baseSha} head=${headSha} tree=${treeSha} artifact=${archiveDigest}\n`
   )
