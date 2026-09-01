@@ -3,7 +3,7 @@
 featureKey: tenant-web-auth-fixture-seeding
 truthCommit: 8915ef163dd1a210dcd5b936dbf176e95e6b5f79
 baseSha: 8915ef163dd1a210dcd5b936dbf176e95e6b5f79
-integrationBranch: codex/tenant-web-auth-fixture-seed
+integrationBranch: codex/feature/tenant-web-auth-fixture-seeding-v2
 worktreeKey: 9d4f
 pullRequest: none (local follow-up candidate)
 priorMergeSha: cad78c03508ed046f0053e16d05ab08a301e9dc4
