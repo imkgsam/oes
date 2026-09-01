@@ -166,9 +166,13 @@ test('projects exact Gateway Web journey HUMAN_OBO targets without wildcard', as
   const runtimeAuth = await readProjectedRuntimeAuthPolicies(54250)
   const gateway = runtimeAuth.find((entry) => entry.spiffeId.endsWith('/api-gateway'))
   assert.ok(gateway)
+  assert.ok(gateway.audiences.includes('urn:oes:service:browser-activity-service'))
   assert.ok(gateway.audiences.includes('urn:oes:service:identity-service'))
+  assert.ok(gateway.audiences.includes('urn:oes:service:hr-service'))
+  assert.ok(gateway.audiences.includes('urn:oes:service:crm-service'))
   assert.ok(gateway.audiences.includes('urn:oes:service:collaboration-service'))
   assert.ok(gateway.audiences.includes('urn:oes:service:public-entry-service'))
+  assert.ok(gateway.audiences.includes('urn:oes:service:site-service'))
   assert.ok(gateway.audiences.includes('urn:oes:service:tenant-org-service'))
   assert.deepEqual(gateway.humanObo?.targetAudiences, [
     'urn:oes:service:identity-service',
@@ -179,6 +183,13 @@ test('projects exact Gateway Web journey HUMAN_OBO targets without wildcard', as
   ])
   assert.equal(gateway.humanObo?.selfAudience, 'urn:oes:service:api-gateway')
   assert.ok(gateway.humanObo?.targetAudiences.every((audience) => !audience.includes('*')))
+  assert.equal(
+    gateway.humanObo?.targetAudiences.includes('urn:oes:service:browser-activity-service'),
+    false
+  )
+  assert.equal(gateway.humanObo?.targetAudiences.includes('urn:oes:service:hr-service'), false)
+  assert.equal(gateway.humanObo?.targetAudiences.includes('urn:oes:service:crm-service'), false)
+  assert.equal(gateway.humanObo?.targetAudiences.includes('urn:oes:service:site-service'), false)
 })
 
 test('projects only the frozen Public Entry ingress and foundation target audiences', async () => {

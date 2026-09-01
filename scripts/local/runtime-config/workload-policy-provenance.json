@@ -9,6 +9,38 @@
   },
   "additions": [
     {
+      "workload": "api-gateway",
+      "audience": "urn:oes:service:browser-activity-service",
+      "code": "browser_activity.overview.read",
+      "source": "docs/architecture/services/browser-activity-service.md#51-trusted-grpc-entry",
+      "selectorEntry": "api-gateway",
+      "selectorVersion": "2"
+    },
+    {
+      "workload": "api-gateway",
+      "audience": "urn:oes:service:crm-service",
+      "code": "crm.account.read",
+      "source": "docs/architecture/services/crm-service.md#13-trusted-grpc-15-rpc-contract-frozen",
+      "selectorEntry": "api-gateway",
+      "selectorVersion": "2"
+    },
+    {
+      "workload": "api-gateway",
+      "audience": "urn:oes:service:hr-service",
+      "code": "hr.employee.list",
+      "source": "docs/architecture/services/hr-service.md#11-trusted-grpc-17-rpc-contractfrozen",
+      "selectorEntry": "api-gateway",
+      "selectorVersion": "2"
+    },
+    {
+      "workload": "api-gateway",
+      "audience": "urn:oes:service:site-service",
+      "code": "site.management.read",
+      "source": "docs/architecture/services/site-service.md#222-frozen-admin-rpc-authorization-map",
+      "selectorEntry": "api-gateway",
+      "selectorVersion": "2"
+    },
+    {
       "workload": "auth-service",
       "audience": "urn:oes:service:identity-service",
       "code": "identity.internal.auth_login_account.resolve",

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import {
   renderWorkloadPolicyEnvironment,
@@ -6,13 +7,44 @@ import {
   WORKLOAD_POLICY_VERSION
 } from './workload-policy-profile.mjs'
 
+const provenance = JSON.parse(
+  readFileSync(new URL('./runtime-config/workload-policy-provenance.json', import.meta.url), 'utf8')
+)
+
+const GATEWAY_RUNTIME_ADDITIONS = Object.freeze([
+  Object.freeze({
+    audience: 'urn:oes:service:browser-activity-service',
+    code: 'browser_activity.overview.read',
+    source: 'docs/architecture/services/browser-activity-service.md#51-trusted-grpc-entry'
+  }),
+  Object.freeze({
+    audience: 'urn:oes:service:crm-service',
+    code: 'crm.account.read',
+    source: 'docs/architecture/services/crm-service.md#13-trusted-grpc-15-rpc-contract-frozen'
+  }),
+  Object.freeze({
+    audience: 'urn:oes:service:hr-service',
+    code: 'hr.employee.list',
+    source: 'docs/architecture/services/hr-service.md#11-trusted-grpc-17-rpc-contractfrozen'
+  }),
+  Object.freeze({
+    audience: 'urn:oes:service:site-service',
+    code: 'site.management.read',
+    source: 'docs/architecture/services/site-service.md#222-frozen-admin-rpc-authorization-map'
+  })
+])
+
 test('composes the preserved Gateway tuple and exact Auth owner-fact additions', () => {
   const output = renderWorkloadPolicyEnvironment()
   assert.match(output, /api-gateway/)
   assert.match(output, /urn:oes:service:auth-service/)
+  assert.match(output, /urn:oes:service:browser-activity-service/)
+  assert.match(output, /urn:oes:service:crm-service/)
+  assert.match(output, /urn:oes:service:hr-service/)
   assert.match(output, /urn:oes:service:item-master-service/)
   assert.match(output, /public-entry-service/)
   assert.match(output, /urn:oes:service:public-entry-service/)
+  assert.match(output, /urn:oes:service:site-service/)
   assert.match(output, /auth-service[^\n]+urn:oes:service:auth-service/)
   assert.match(output, /identity\.internal\.auth_login_account\.resolve/)
   assert.match(output, /hr\.internal\.auth_login_employee\.resolve/)
@@ -24,6 +56,28 @@ test('composes the preserved Gateway tuple and exact Auth owner-fact additions',
   assert.match(output, /permission\.internal\.account_access_summary\.resolve/)
   assert.match(output, /permission\.internal\.account_navigation\.resolve/)
   assert.doesNotMatch(output, /password|secret|token=/i)
+})
+
+test('binds each added Gateway audience to exact selector-v2 provenance', () => {
+  const gatewayAdditions = provenance.additions
+    .filter(({ workload }) => workload === 'api-gateway')
+    .map(({ audience, code, source, selectorEntry, selectorVersion }) => ({
+      audience,
+      code,
+      source,
+      selectorEntry,
+      selectorVersion
+    }))
+
+  assert.deepEqual(
+    gatewayAdditions,
+    GATEWAY_RUNTIME_ADDITIONS.map((addition) => ({
+      ...addition,
+      selectorEntry: 'api-gateway',
+      selectorVersion: '2'
+    }))
+  )
+  assert.equal(JSON.stringify(gatewayAdditions).includes('*'), false)
 })
 
 test('rejects wildcard, duplicate, tenant and unregistered authority', () => {
