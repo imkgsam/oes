@@ -8,7 +8,7 @@ worktreeKey: 917a
 pullRequest: pending
 mergeSha: pending
 cleanup: HOLD
-state: CANDIDATE
+state: ACCEPTED
 
 ## Objective
 
@@ -37,10 +37,10 @@ review: local-ri ACCEPTED exact 58e72653ec79efc78e89172ccb67641269e107f4; findin
 
 ### runtime-gateway-first-hop-audiences
 
-state: CANDIDATE
+state: ACCEPTED
 candidate: 4fb04d0d25029b2eac67c792522c8adbcef12b3c
-review: repair pending same Feature RI `01a05313-01f8-7243-bc19-3c7d31be6f3f`; exact
-  `080417c4fa77f5f0811232c0b91bd395d1d28def` rejected for stale CRM provenance fragment
+review: same Feature RI `01a05313-01f8-7243-bc19-3c7d31be6f3f` ACCEPTED exact
+  `4fb04d0d25029b2eac67c792522c8adbcef12b3c`; findings none
 
 - Scope: add only the four proven Gateway workload audiences for Browser Activity, CRM, HR and
   Site, with exact stable-truth provenance and runtime projection tests.
