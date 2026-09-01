@@ -1,6 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import {
+  appendFileSync,
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync
+} from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { canonicalJson, sha256 } from '../src/canonical.ts'
@@ -9,6 +16,7 @@ import {
   classifyCapabilityIssue,
   credentialReferenceKeys,
   defaultDeliveryCapabilities,
+  effectivePermissionSandboxFingerprint,
   loadRemoteTrustRootsFromProfileReport,
   planProfileRepair,
   readApprovalTelemetry,
@@ -17,7 +25,14 @@ import {
   verifyEffectiveProfileReport,
   type PreflightProbeAdapter
 } from '../src/profile-preflight.ts'
+import {
+  approvalPair,
+  renderOwnerProfileLaunch,
+  type OwnerProfileRenderRequest,
+  type OwnerProfileRenderResult
+} from '../src/profile-policy.ts'
 import type {
+  ApprovalMode,
   ApprovalTelemetry,
   CapabilityName,
   CapabilityObservation,
@@ -27,6 +42,12 @@ import type {
 const effectiveProfileSchema = JSON.parse(
   readFileSync(
     join(import.meta.dirname, '..', 'schemas', 'effective-profile-report.schema.json'),
+    'utf8'
+  )
+) as Record<string, unknown>
+const profileLaunchReceiptSchema = JSON.parse(
+  readFileSync(
+    join(import.meta.dirname, '..', 'schemas', 'profile-launch-receipt.schema.json'),
     'utf8'
   )
 ) as Record<string, unknown>
@@ -62,19 +83,57 @@ class PassingProbe implements PreflightProbeAdapter {
     }
   }
 
-  async approvalTelemetry(): Promise<ApprovalTelemetry> {
-    return readApprovalTelemetry(this.telemetryPath)
+  async approvalTelemetry(expectation: {
+    approvalMode: ApprovalMode
+    expectedEffectivePermissionSandboxFingerprint: string
+  }): Promise<ApprovalTelemetry> {
+    return readApprovalTelemetry(this.telemetryPath, expectation)
   }
 }
 
-function telemetry(root: string): string {
+const MANAGED_PERMISSION = {
+  permission_profile: {
+    type: 'managed',
+    name: 'oes-project-owner',
+    file_system: { type: 'restricted', entries: [] },
+    network: 'restricted'
+  },
+  sandbox_policy: { type: 'workspace-write' },
+  file_system_sandbox_policy: { kind: 'restricted', entries: [] },
+  active_permission_profile: { id: 'oes-project-owner' }
+}
+
+/** Returns the mode-independent managed/restricted permission fingerprint used by fixtures. */
+function managedFingerprint(): string {
+  return effectivePermissionSandboxFingerprint(MANAGED_PERMISSION)
+}
+
+/** Persists complete rollout contexts for one closed approval mode. */
+function telemetry(root: string, approvalMode: ApprovalMode = 'ON_REQUEST_AUTO_REVIEW'): string {
   const path = join(root, 'rollout.jsonl')
+  const pair = approvalPair(approvalMode)
   writeFileSync(
     path,
     [
       JSON.stringify({
+        ordinal: 1,
         type: 'turn_context',
-        payload: { approval_policy: 'on-request', approvals_reviewer: 'auto_review' }
+        payload: {
+          turn_id: 'turn-1',
+          approval_policy: pair.approvalPolicy,
+          approvals_reviewer: pair.approvalsReviewer,
+          ...MANAGED_PERMISSION
+        }
+      }),
+      JSON.stringify({
+        ordinal: 2,
+        type: 'turn_context',
+        payload: {
+          turn_id: 'turn-2',
+          approval_policy: pair.approvalPolicy,
+          approvals_reviewer: pair.approvalsReviewer,
+          ...MANAGED_PERMISSION
+        }
       }),
       JSON.stringify({ type: 'event_msg', payload: { type: 'agent_message' } })
     ].join('\n')
@@ -82,36 +141,74 @@ function telemetry(root: string): string {
   return path
 }
 
-/** Renders the immutable owner/transition identity fields used by profile-report readback. */
-function profileIdentity(ownerTaskId: string, transitionId: string, prefix: string[] = []): string {
-  return [
-    ...prefix,
-    '[collaboration_runtime]',
-    `owner_task_id = ${JSON.stringify(ownerTaskId)}`,
-    `transition_id = ${JSON.stringify(transitionId)}`,
-    ''
-  ].join('\n')
+/** Renders one complete v2 installed profile and launch receipt fixture. */
+function renderedProfile(
+  root: string,
+  ownerTaskId: string,
+  transitionId: string,
+  approvalMode: ApprovalMode = 'ON_REQUEST_AUTO_REVIEW',
+  profileGeneration = 1,
+  predecessorLaunchReceipt: OwnerProfileRenderResult['launchReceipt'] | null = null
+): OwnerProfileRenderResult {
+  const installedRoot = join(root, 'installed')
+  const values = {
+    OWNER_PATH: join(root, 'owner'),
+    ARTIFACT_PATH: join(root, 'artifacts'),
+    TASK_TEMP_PATH: join(root, 'task-temp'),
+    REPOSITORY_ROOT: process.cwd(),
+    TRUSTED_AUTHORIZATION_ROOT: join(installedRoot, 'trusted-authorizations'),
+    SERIAL_ADMISSION_ROOT: join(root, 'serial-admission'),
+    OWNER_GIT_DIRECTORY: join(root, 'owner', '.git'),
+    USER_GIT_CONFIG: join(root, 'user.gitconfig'),
+    CREDENTIAL_STORE_PATH: join(root, 'credential-store'),
+    PACKAGE_CACHE_PATH: join(root, 'package-cache'),
+    RESOURCE_TOPOLOGY_VERSION: 'pre-cutover-v1',
+    OWNER_RESOURCE_BINDING_PATH: '',
+    OWNER_RESOURCE_BINDING_SHA256: '',
+    OWNER_RESOURCE_BINDING_FINGERPRINT: ''
+  }
+  for (const value of [
+    values.OWNER_PATH,
+    values.ARTIFACT_PATH,
+    values.TASK_TEMP_PATH,
+    values.CREDENTIAL_STORE_PATH,
+    values.TRUSTED_AUTHORIZATION_ROOT,
+    values.SERIAL_ADMISSION_ROOT,
+    values.PACKAGE_CACHE_PATH
+  ])
+    mkdirSync(value, { recursive: true })
+  writeFileSync(values.USER_GIT_CONFIG, '[credential]\n\thelper =\n')
+  return renderOwnerProfileLaunch({
+    approvalMode,
+    ownerTaskId,
+    transitionId,
+    profileGeneration,
+    predecessorLaunchReceipt,
+    expectedEffectivePermissionSandboxFingerprint: managedFingerprint(),
+    templatePath: join(import.meta.dirname, '..', 'profile', 'oes-project-owner.config.toml'),
+    installedProfilePath: join(installedRoot, `profile-${profileGeneration}.toml`),
+    launchReceiptPath: join(installedRoot, `launch-receipt-${profileGeneration}.json`),
+    templateValues: values
+  })
 }
 
 test('actual probe adapter records and verifies every delivery capability with zero normal prompts', async () => {
   const root = mkdtempSync(join(tmpdir(), 'oes-profile-test-'))
   const telemetryPath = telemetry(root)
-  const profilePath = join(root, 'profile.toml')
-  writeFileSync(
-    profilePath,
-    profileIdentity('/root/fl', 'handoff:1', ['approval_policy="on-request"'])
-  )
+  const rendered = renderedProfile(root, '/root/fl', 'handoff:1')
   const report = await runEffectiveProfilePreflight(
     {
       ownerTaskId: '/root/fl',
       transitionId: 'handoff:1',
+      approvalMode: 'ON_REQUEST_AUTO_REVIEW',
+      launchReceipt: rendered.launchReceipt,
       expectedState: 'HANDOFF_PENDING',
       declaredCapabilities: defaultDeliveryCapabilities(),
       profile: {
         name: 'oes-profile',
         permission: 'oes-owner',
-        path: profilePath,
-        sha256: sha256(readFileSync(profilePath))
+        path: rendered.installedProfile.path,
+        sha256: rendered.installedProfile.sha256
       },
       resultPath: join(root, 'profile-report.json')
     },
@@ -129,30 +226,249 @@ test('actual probe adapter records and verifies every delivery capability with z
     )
 })
 
-test('profile verification reopens evidence, profile bytes, and telemetry', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'oes-profile-reopen-test-'))
-  const telemetryPath = telemetry(root)
-  const profilePath = join(root, 'profile.toml')
-  const profile = profileIdentity('/root/fl', 'handoff:2', ['profile=true'])
-  writeFileSync(profilePath, profile)
+test('v2 writer supports NEVER_USER with zero approval events and executable schema readback', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'oes-profile-never-test-'))
+  const telemetryPath = telemetry(root, 'NEVER_USER')
+  const rendered = renderedProfile(root, '/root/fl', 'handoff:never', 'NEVER_USER')
   const report = await runEffectiveProfilePreflight(
     {
       ownerTaskId: '/root/fl',
-      transitionId: 'handoff:2',
+      transitionId: 'handoff:never',
+      approvalMode: 'NEVER_USER',
+      launchReceipt: rendered.launchReceipt,
       expectedState: 'HANDOFF_PENDING',
       declaredCapabilities: ['filesystemWrite'],
       profile: {
         name: 'oes-profile',
         permission: 'oes-owner',
-        path: profilePath,
-        sha256: sha256(profile)
+        path: rendered.installedProfile.path,
+        sha256: rendered.installedProfile.sha256
+      },
+      resultPath: join(root, 'profile-report.json')
+    },
+    new PassingProbe(root, telemetryPath)
+  )
+  assert.equal(report.schemaVersion, 2)
+  assert.equal(report.approvalMode, 'NEVER_USER')
+  assert.equal(report.telemetry.approvalPolicy, 'never')
+  assert.equal(report.telemetry.approvalsReviewer, 'user')
+  assert.equal(report.telemetry.approvalEventCount, 0)
+  assert.equal(report.telemetry.contexts?.length, 2)
+  validateJsonSchema(effectiveProfileSchema, report)
+})
+
+test('all v2 contexts reject permission drift, unmanaged access, and NEVER_USER approval events', () => {
+  const root = mkdtempSync(join(tmpdir(), 'oes-profile-context-drift-test-'))
+  const pair = approvalPair('NEVER_USER')
+  const base = {
+    approval_policy: pair.approvalPolicy,
+    approvals_reviewer: pair.approvalsReviewer,
+    ...MANAGED_PERMISSION
+  }
+  const expectation = {
+    approvalMode: 'NEVER_USER' as const,
+    expectedEffectivePermissionSandboxFingerprint: managedFingerprint()
+  }
+  const driftPath = join(root, 'drift.jsonl')
+  writeFileSync(
+    driftPath,
+    [
+      JSON.stringify({ ordinal: 1, type: 'turn_context', payload: { turn_id: 'a', ...base } }),
+      JSON.stringify({
+        ordinal: 2,
+        type: 'turn_context',
+        payload: {
+          turn_id: 'b',
+          ...base,
+          active_permission_profile: { id: 'drifted-profile' }
+        }
+      })
+    ].join('\n')
+  )
+  assert.throws(
+    () => readApprovalTelemetry(driftPath, expectation),
+    /EFFECTIVE_PERMISSION_SANDBOX_FINGERPRINT_MISMATCH/
+  )
+
+  const unmanagedPath = join(root, 'unmanaged.jsonl')
+  writeFileSync(
+    unmanagedPath,
+    JSON.stringify({
+      ordinal: 1,
+      type: 'turn_context',
+      payload: {
+        turn_id: 'a',
+        ...base,
+        permission_profile: { type: 'disabled' },
+        sandbox_policy: { type: 'danger-full-access' }
+      }
+    })
+  )
+  assert.throws(
+    () => readApprovalTelemetry(unmanagedPath, expectation),
+    /EFFECTIVE_PERMISSION_SANDBOX_UNMANAGED/
+  )
+
+  const approvalPath = telemetry(root, 'NEVER_USER')
+  writeFileSync(
+    approvalPath,
+    `${readFileSync(approvalPath, 'utf8')}\n${JSON.stringify({ type: 'event_msg', payload: { type: 'exec_approval_request' } })}`
+  )
+  assert.throws(
+    () => readApprovalTelemetry(approvalPath, expectation),
+    /NEVER_USER_APPROVAL_EVENT_FORBIDDEN/
+  )
+})
+
+test('effective fingerprint normalizes only the launcher arg0 filename', () => {
+  const withPrompt = (path: string) => ({
+    ...MANAGED_PERMISSION,
+    permission_profile: {
+      ...MANAGED_PERMISSION.permission_profile,
+      file_system: {
+        type: 'restricted',
+        entries: [
+          { access: 'read', path: { type: 'path', path } },
+          { access: 'write', path: { type: 'path', path: '/owner' } }
+        ]
+      }
+    },
+    file_system_sandbox_policy: {
+      kind: 'restricted',
+      entries: [{ access: 'read', path: { type: 'path', path } }]
+    }
+  })
+  assert.equal(
+    effectivePermissionSandboxFingerprint(withPrompt('/codex-home/tmp/arg0/codex-arg0AAA')),
+    effectivePermissionSandboxFingerprint(withPrompt('/codex-home/tmp/arg0/codex-arg0BBB'))
+  )
+  assert.notEqual(
+    effectivePermissionSandboxFingerprint(withPrompt('/codex-home/tmp/other/codex-arg0AAA')),
+    effectivePermissionSandboxFingerprint(withPrompt('/codex-home/tmp/other/codex-arg0BBB'))
+  )
+})
+
+test('renderer derives pairs atomically and enforces monotonic same-owner successors', () => {
+  const root = mkdtempSync(join(tmpdir(), 'oes-profile-successor-test-'))
+  const first = renderedProfile(root, '/root/fl', 'profile:1')
+  const second = renderedProfile(
+    root,
+    '/root/fl',
+    'profile:2',
+    'NEVER_USER',
+    2,
+    first.launchReceipt
+  )
+  validateJsonSchema(
+    profileLaunchReceiptSchema,
+    JSON.parse(readFileSync(second.launchReceipt.path, 'utf8'))
+  )
+  assert.equal(second.approvalPolicy, 'never')
+  assert.equal(second.approvalsReviewer, 'user')
+  const invariantLines = (path: string) =>
+    readFileSync(path, 'utf8')
+      .split(/\r?\n/)
+      .filter(
+        (line) =>
+          !/^(approval_policy|approvals_reviewer|transition_id|approval_mode)\s*=/.test(line.trim())
+      )
+  assert.deepEqual(
+    invariantLines(first.installedProfile.path),
+    invariantLines(second.installedProfile.path)
+  )
+  assert.throws(
+    () => renderedProfile(root, '/root/fl', 'profile:4', 'NEVER_USER', 4, first.launchReceipt),
+    /PROFILE_RENDER_SUCCESSOR_NOT_MONOTONIC/
+  )
+  const invalidRequest = {
+    approvalMode: 'NEVER_USER',
+    ownerTaskId: '/root/fl',
+    transitionId: 'profile:3',
+    profileGeneration: 3,
+    predecessorLaunchReceipt: second.launchReceipt,
+    expectedEffectivePermissionSandboxFingerprint: managedFingerprint(),
+    templatePath: join(import.meta.dirname, '..', 'profile', 'oes-project-owner.config.toml'),
+    installedProfilePath: join(root, 'installed', 'profile-3.toml'),
+    launchReceiptPath: join(root, 'installed', 'launch-receipt-3.json'),
+    templateValues: {},
+    approvalPolicy: 'never'
+  } as unknown as OwnerProfileRenderRequest
+  assert.throws(
+    () => renderOwnerProfileLaunch(invalidRequest),
+    /PROFILE_RENDER_REQUEST_FIELDS_INVALID/
+  )
+})
+
+test('v1 reader remains frozen to on-request auto-review and v2 fields stay forbidden', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'oes-profile-v1-reader-test-'))
+  const telemetryPath = telemetry(root)
+  const rendered = renderedProfile(root, '/root/fl', 'legacy:source')
+  const v2 = await runEffectiveProfilePreflight(
+    {
+      ownerTaskId: '/root/fl',
+      transitionId: 'legacy:source',
+      approvalMode: 'ON_REQUEST_AUTO_REVIEW',
+      launchReceipt: rendered.launchReceipt,
+      expectedState: 'HANDOFF_PENDING',
+      declaredCapabilities: ['filesystemWrite'],
+      profile: {
+        name: 'oes-profile',
+        permission: 'oes-owner',
+        path: rendered.installedProfile.path,
+        sha256: rendered.installedProfile.sha256
+      },
+      resultPath: join(root, 'v2.json')
+    },
+    new PassingProbe(root, telemetryPath)
+  )
+  const {
+    approvalMode: _mode,
+    launchReceipt: _receipt,
+    effectivePermissionSandboxFingerprint: _effective,
+    telemetry: v2Telemetry,
+    ...common
+  } = v2
+  const {
+    approvalMode: _telemetryMode,
+    effectivePermissionSandboxFingerprint: _telemetryEffective,
+    contexts: _contexts,
+    ...legacyTelemetry
+  } = v2Telemetry
+  const v1: EffectiveProfileReport = { ...common, schemaVersion: 1, telemetry: legacyTelemetry }
+  assert.equal(verifyEffectiveProfileReport(v1).schemaVersion, 1)
+  validateJsonSchema(effectiveProfileSchema, v1)
+  assert.throws(
+    () => validateJsonSchema(effectiveProfileSchema, { ...v1, approvalMode: 'NEVER_USER' }),
+    /not/
+  )
+  const neverPath = telemetry(root, 'NEVER_USER')
+  assert.throws(() => readApprovalTelemetry(neverPath), /APPROVAL_TELEMETRY_PROFILE_MISMATCH/)
+})
+
+test('profile verification reopens evidence, profile bytes, and telemetry', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'oes-profile-reopen-test-'))
+  const telemetryPath = telemetry(root)
+  const rendered = renderedProfile(root, '/root/fl', 'handoff:2')
+  const report = await runEffectiveProfilePreflight(
+    {
+      ownerTaskId: '/root/fl',
+      transitionId: 'handoff:2',
+      approvalMode: 'ON_REQUEST_AUTO_REVIEW',
+      launchReceipt: rendered.launchReceipt,
+      expectedState: 'HANDOFF_PENDING',
+      declaredCapabilities: ['filesystemWrite'],
+      profile: {
+        name: 'oes-profile',
+        permission: 'oes-owner',
+        path: rendered.installedProfile.path,
+        sha256: rendered.installedProfile.sha256
       },
       resultPath: join(root, 'report.json')
     },
     new PassingProbe(root, telemetryPath)
   )
   writeFileSync(report.telemetry.eventSource, '')
-  assert.throws(() => verifyEffectiveProfileReport(report), /APPROVAL_TELEMETRY_PROFILE_MISMATCH/)
+  assert.throws(() => verifyEffectiveProfileReport(report), /APPROVAL_TELEMETRY_CONTEXT_MISSING/)
 })
 
 test('effective profile schema pairs stable topology with one sealed owner binding', () => {
@@ -265,6 +581,28 @@ test('telemetry is derived from persisted context and credential output retains 
   ])
 })
 
+test('system adapter snapshots live telemetry before sealing the effective report', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'oes-telemetry-snapshot-test-'))
+  const livePath = telemetry(root, 'NEVER_USER')
+  const adapter = new SystemPreflightProbeAdapter({
+    repositoryRoot: process.cwd(),
+    smokeRoot: root,
+    telemetryEventSource: livePath
+  })
+  const expectation = {
+    approvalMode: 'NEVER_USER' as const,
+    expectedEffectivePermissionSandboxFingerprint: managedFingerprint()
+  }
+  const sealed = await adapter.approvalTelemetry(expectation)
+  assert.notEqual(sealed.eventSource, livePath)
+  appendFileSync(
+    livePath,
+    `${JSON.stringify({ type: 'exec_approval_request', payload: { reason: 'late event' } })}\n`
+  )
+  assert.equal(readApprovalTelemetry(sealed.eventSource, expectation).approvalEventCount, 0)
+  assert.equal(sha256(readFileSync(sealed.eventSource)), sealed.eventSourceSha256)
+})
+
 test('system adapter performs actual filesystem, SQLite, and telemetry probes', async () => {
   const root = mkdtempSync(join(tmpdir(), 'oes-system-probe-test-'))
   const adapter = new SystemPreflightProbeAdapter({
@@ -277,7 +615,10 @@ test('system adapter performs actual filesystem, SQLite, and telemetry probes', 
     'taskOwnedDatabase',
     'approvalTelemetry'
   ] as CapabilityName[]) {
-    const observation = await adapter.observe(capability)
+    const observation = await adapter.observe(capability, {
+      approvalMode: 'ON_REQUEST_AUTO_REVIEW',
+      expectedEffectivePermissionSandboxFingerprint: managedFingerprint()
+    })
     assert.equal(observation.result, 'PASS')
     assert.equal(observation.exitCode, 0)
     assert.equal(sha256(readFileSync(observation.evidencePath)), observation.evidenceSha256)
@@ -300,40 +641,48 @@ test('standard git credential fill keeps only approved reference keys', async ()
   })
   const observation = await adapter.observe('credentialReference')
   assert.equal(observation.result, 'PASS')
+  assert.doesNotMatch(observation.literalOutput, /fixture|redacted/)
   assert.deepEqual((await adapter.credentialReference()).keys, ['password', 'username'])
+})
+
+test('failed system probes preserve combined stdout and stderr diagnostics', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'oes-probe-diagnostics-test-'))
+  const fakeNode = join(root, 'node')
+  writeFileSync(
+    fakeNode,
+    '#!/bin/sh\nprintf "STDOUT_DIAGNOSTIC\\n"\nprintf "STDERR_DIAGNOSTIC\\n" >&2\nexit 7\n'
+  )
+  chmodSync(fakeNode, 0o700)
+  const adapter = new SystemPreflightProbeAdapter({
+    repositoryRoot: process.cwd(),
+    smokeRoot: root,
+    telemetryEventSource: telemetry(root),
+    node: fakeNode
+  })
+  const observation = await adapter.observe('standardBuildTest')
+  assert.equal(observation.result, 'FAIL')
+  assert.match(observation.literalOutput, /STDOUT_DIAGNOSTIC/)
+  assert.match(observation.literalOutput, /STDERR_DIAGNOSTIC/)
+  assert.match(observation.literalOutput, /\[7\]/)
 })
 
 test('caller-writable profile reports cannot select remote trust roots', async () => {
   const root = mkdtempSync(join(tmpdir(), 'oes-runtime-trust-profile-test-'))
-  const authorizationRoot = join(root, 'trusted-authorizations')
-  const admissionRoot = join(root, 'serial-admission')
-  mkdirSync(authorizationRoot)
-  mkdirSync(admissionRoot)
   const telemetryPath = telemetry(root)
-  const profilePath = join(root, 'installed-profile.toml')
-  const profile = [
-    '[collaboration_runtime]',
-    'owner_task_id = "/root/fl"',
-    'transition_id = "delivery:1"',
-    `trusted_authorization_root = ${JSON.stringify(authorizationRoot)}`,
-    `serial_admission_root = ${JSON.stringify(admissionRoot)}`,
-    '[permissions.owner.filesystem]',
-    `${JSON.stringify(authorizationRoot)} = "read"`,
-    `${JSON.stringify(admissionRoot)} = "write"`,
-    ''
-  ].join('\n')
-  writeFileSync(profilePath, profile)
+  const rendered = renderedProfile(root, '/root/fl', 'delivery:1')
   const report = await runEffectiveProfilePreflight(
     {
       ownerTaskId: '/root/fl',
       transitionId: 'delivery:1',
+      approvalMode: 'ON_REQUEST_AUTO_REVIEW',
+      launchReceipt: rendered.launchReceipt,
       expectedState: 'DELIVERY_ACTIVE',
       declaredCapabilities: defaultDeliveryCapabilities(),
       profile: {
         name: 'installed',
         permission: 'owner',
-        path: profilePath,
-        sha256: sha256(profile)
+        path: rendered.installedProfile.path,
+        sha256: rendered.installedProfile.sha256
       },
       resultPath: join(root, 'report.json')
     },

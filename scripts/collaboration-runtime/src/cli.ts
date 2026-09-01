@@ -15,6 +15,7 @@ import { RuntimeContractError, fail } from './errors.ts'
 import { GitHubRemoteAdapter, SpawnCommandRunner } from './github-adapter.ts'
 import { LocalMainController, type LocalMainSyncBinding } from './local-main.ts'
 import { proposalQueueView, type ProposalHistoryEvent } from './proposal-queue.ts'
+import { renderOwnerProfileLaunch, type OwnerProfileRenderRequest } from './profile-policy.ts'
 import {
   SystemPreflightProbeAdapter,
   loadRemoteTrustRootsFromProfileReport,
@@ -105,6 +106,10 @@ async function main(args: string[]): Promise<void> {
     )
     return
   }
+  if (command === 'profile-render') {
+    emit(renderOwnerProfileLaunch(readJson<OwnerProfileRenderRequest>(flag(args, '--input'))))
+    return
+  }
   if (command === 'schema-validate') {
     const schema = readJson<Record<string, unknown>>(flag(args, '--schema'))
     const value = readJson<unknown>(flag(args, '--input'))
@@ -119,6 +124,8 @@ async function main(args: string[]): Promise<void> {
     emit({
       status: 'PROFILE_VERIFIED',
       ownerTaskId: report.ownerTaskId,
+      schemaVersion: report.schemaVersion,
+      approvalMode: report.approvalMode ?? 'ON_REQUEST_AUTO_REVIEW_LEGACY',
       normalPermissionPromptCount: 0
     })
     return

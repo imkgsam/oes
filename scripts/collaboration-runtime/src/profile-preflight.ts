@@ -5,7 +5,6 @@ import {
   openSync,
   readFileSync,
   realpathSync,
-  rmSync,
   statSync,
   unlinkSync,
   writeFileSync
@@ -18,14 +17,22 @@ import { DatabaseSync } from 'node:sqlite'
 import { assertPathWithin, canonicalJson, sha256, writeJsonAtomic } from './canonical.ts'
 import { validateProfileReportEnvelope } from './binding.ts'
 import { fail } from './errors.ts'
+import {
+  approvalPair,
+  loadProfileLaunchReceipt,
+  readInstalledProfilePolicy
+} from './profile-policy.ts'
 import { readInstalledProfileResourceTopology } from './resource-topology.ts'
 import {
   CAPABILITY_NAMES,
+  type ApprovalMode,
   type ApprovalTelemetry,
   type CapabilityName,
   type CapabilityObservation,
+  type EffectivePermissionContext,
   type EffectiveProfileReport,
-  type RemoteTrustRoots
+  type RemoteTrustRoots,
+  type TrustedAuthorizationReference
 } from './types.ts'
 
 export type CapabilityFailureRoute =
@@ -49,18 +56,28 @@ export interface ProfileRepairPlan {
 }
 
 export interface PreflightProbeAdapter {
-  observe(name: CapabilityName): Promise<CapabilityObservation>
+  observe(
+    name: CapabilityName,
+    telemetryExpectation?: ApprovalTelemetryExpectation
+  ): Promise<CapabilityObservation>
   credentialReference(): Promise<EffectiveProfileReport['credentialReference']>
-  approvalTelemetry(): Promise<ApprovalTelemetry>
+  approvalTelemetry(expectation: ApprovalTelemetryExpectation): Promise<ApprovalTelemetry>
 }
 
 export interface PreflightRequest {
   ownerTaskId: string
   transitionId: string
+  approvalMode: ApprovalMode
+  launchReceipt: TrustedAuthorizationReference
   expectedState: EffectiveProfileReport['expectedState']
   declaredCapabilities: CapabilityName[]
   profile: EffectiveProfileReport['profile']
   resultPath: string
+}
+
+export interface ApprovalTelemetryExpectation {
+  approvalMode: ApprovalMode
+  expectedEffectivePermissionSandboxFingerprint: string
 }
 
 export interface SystemProbeOptions {
@@ -68,7 +85,7 @@ export interface SystemProbeOptions {
   smokeRoot: string
   telemetryEventSource: string
   git?: string
-  pnpm?: string
+  node?: string
 }
 
 interface InstalledProfileIdentity {
@@ -155,13 +172,54 @@ export function credentialReferenceKeys(output: string): string[] {
   ].sort()
 }
 
-/** Reads Codex rollout telemetry and counts approval events and normal user prompts. */
-export function readApprovalTelemetry(eventSource: string): ApprovalTelemetry {
+/** Removes only launcher-generated prompt filenames while preserving every exact parent root. */
+function normalizedPermissionState(value: unknown): unknown {
+  const normalized = structuredClone(value)
+  const visit = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      for (const child of node) visit(child)
+      return
+    }
+    if (!node || typeof node !== 'object') return
+    for (const [key, child] of Object.entries(node as Record<string, unknown>)) {
+      if (key === 'path' && typeof child === 'string')
+        (node as Record<string, unknown>)[key] = child.replace(
+          /\/tmp\/arg0\/codex-arg0[^/]+$/u,
+          '/tmp/arg0/<CODEX_ARG0>'
+        )
+      else visit(child)
+    }
+  }
+  visit(normalized)
+  return normalized
+}
+
+/** Hashes the authority-bearing effective permission/sandbox state of one turn context. */
+export function effectivePermissionSandboxFingerprint(payload: Record<string, unknown>): string {
+  return sha256(
+    canonicalJson({
+      permissionProfile: normalizedPermissionState(payload.permission_profile ?? null),
+      sandboxPolicy: normalizedPermissionState(payload.sandbox_policy ?? null),
+      fileSystemSandboxPolicy: normalizedPermissionState(
+        payload.file_system_sandbox_policy ?? null
+      ),
+      activePermissionProfile: normalizedPermissionState(payload.active_permission_profile ?? null)
+    })
+  )
+}
+
+/** Reads every Codex turn context and enforces either frozen v1 or exact v2 telemetry. */
+export function readApprovalTelemetry(
+  eventSource: string,
+  expectation?: ApprovalTelemetryExpectation
+): ApprovalTelemetry {
   const bytes = readFileSync(eventSource)
-  let approvalPolicy: string | undefined
-  let approvalsReviewer: string | undefined
   let approvalEventCount = 0
   let normalPermissionPromptCount = 0
+  const contexts: EffectivePermissionContext[] = []
+  const legacyPairs: { approvalPolicy: string; approvalsReviewer: string }[] = []
+  const turnFingerprints = new Map<string, string>()
+  let contextIndex = 0
   for (const line of bytes.toString('utf8').split(/\r?\n/)) {
     if (!line) continue
     let event: Record<string, unknown>
@@ -175,8 +233,59 @@ export function readApprovalTelemetry(eventSource: string): ApprovalTelemetry {
         ? (event.payload as Record<string, unknown>)
         : undefined
     if (event.type === 'turn_context' && payload) {
-      approvalPolicy = String(payload.approval_policy)
-      approvalsReviewer = String(payload.approvals_reviewer)
+      const approvalPolicy = String(payload.approval_policy)
+      const approvalsReviewer = String(payload.approvals_reviewer)
+      legacyPairs.push({ approvalPolicy, approvalsReviewer })
+      if (expectation) {
+        const permissionProfile =
+          payload.permission_profile && typeof payload.permission_profile === 'object'
+            ? (payload.permission_profile as Record<string, unknown>)
+            : null
+        const sandboxPolicy =
+          payload.sandbox_policy && typeof payload.sandbox_policy === 'object'
+            ? (payload.sandbox_policy as Record<string, unknown>)
+            : null
+        const activePermissionProfile =
+          payload.active_permission_profile && typeof payload.active_permission_profile === 'object'
+            ? (payload.active_permission_profile as Record<string, unknown>)
+            : null
+        const permissionProfileType = String(permissionProfile?.type ?? '')
+        const permissionFileSystem =
+          permissionProfile?.file_system && typeof permissionProfile.file_system === 'object'
+            ? (permissionProfile.file_system as Record<string, unknown>)
+            : null
+        const sandboxPolicyType = String(sandboxPolicy?.type ?? '')
+        const activePermissionProfileId = activePermissionProfile
+          ? String(activePermissionProfile.id ?? '') || null
+          : null
+        if (
+          permissionProfileType !== 'managed' ||
+          String(permissionFileSystem?.type ?? '') !== 'restricted' ||
+          !sandboxPolicyType ||
+          ['danger-full-access', 'unrestricted'].includes(sandboxPolicyType)
+        )
+          fail(
+            'EFFECTIVE_PERMISSION_SANDBOX_UNMANAGED',
+            `${permissionProfileType}/${String(permissionFileSystem?.type ?? '')}/${sandboxPolicyType}/${activePermissionProfileId ?? 'none'}`
+          )
+        const fingerprint = effectivePermissionSandboxFingerprint(payload)
+        const turnId = String(payload.turn_id ?? '')
+        if (!turnId) fail('TURN_CONTEXT_ID_REQUIRED', String(contextIndex))
+        const prior = turnFingerprints.get(turnId)
+        if (prior && prior !== fingerprint) fail('TURN_CONTEXT_PERMISSION_DRIFT', turnId)
+        turnFingerprints.set(turnId, fingerprint)
+        contexts.push({
+          ordinal: Number.isSafeInteger(event.ordinal) ? Number(event.ordinal) : contextIndex,
+          turnId,
+          approvalPolicy: approvalPolicy as EffectivePermissionContext['approvalPolicy'],
+          approvalsReviewer: approvalsReviewer as EffectivePermissionContext['approvalsReviewer'],
+          permissionProfileType,
+          sandboxPolicyType,
+          activePermissionProfileId,
+          permissionSandboxFingerprint: fingerprint
+        })
+      }
+      contextIndex += 1
     }
     const payloadType = payload?.type
     if (
@@ -188,15 +297,45 @@ export function readApprovalTelemetry(eventSource: string): ApprovalTelemetry {
     if (['request_user_input', 'user_approval_request'].includes(String(payloadType)))
       normalPermissionPromptCount += 1
   }
-  if (approvalPolicy !== 'on-request' || approvalsReviewer !== 'auto_review')
-    fail('APPROVAL_TELEMETRY_PROFILE_MISMATCH', `${approvalPolicy}/${approvalsReviewer}`)
-  return {
+  if (!legacyPairs.length) fail('APPROVAL_TELEMETRY_CONTEXT_MISSING', eventSource)
+  const pair = expectation
+    ? approvalPair(expectation.approvalMode)
+    : { approvalPolicy: 'on-request' as const, approvalsReviewer: 'auto_review' as const }
+  const mismatch = legacyPairs.find(
+    (context) =>
+      context.approvalPolicy !== pair.approvalPolicy ||
+      context.approvalsReviewer !== pair.approvalsReviewer
+  )
+  if (mismatch)
+    fail(
+      'APPROVAL_TELEMETRY_PROFILE_MISMATCH',
+      `${mismatch.approvalPolicy}/${mismatch.approvalsReviewer}`
+    )
+  const base: ApprovalTelemetry = {
     eventSource,
     eventSourceSha256: sha256(bytes),
-    approvalPolicy: 'on-request',
-    approvalsReviewer: 'auto_review',
+    approvalPolicy: pair.approvalPolicy,
+    approvalsReviewer: pair.approvalsReviewer,
     approvalEventCount,
     normalPermissionPromptCount
+  }
+  if (!expectation) return base
+  if (!contexts.length) fail('EFFECTIVE_PERMISSION_CONTEXT_MISSING', eventSource)
+  const drift = contexts.find(
+    (context) =>
+      context.permissionSandboxFingerprint !==
+      expectation.expectedEffectivePermissionSandboxFingerprint
+  )
+  if (drift)
+    fail('EFFECTIVE_PERMISSION_SANDBOX_FINGERPRINT_MISMATCH', drift.permissionSandboxFingerprint)
+  if (expectation.approvalMode === 'NEVER_USER' && approvalEventCount !== 0)
+    fail('NEVER_USER_APPROVAL_EVENT_FORBIDDEN', String(approvalEventCount))
+  return {
+    ...base,
+    approvalMode: expectation.approvalMode,
+    effectivePermissionSandboxFingerprint:
+      expectation.expectedEffectivePermissionSandboxFingerprint,
+    contexts
   }
 }
 
@@ -276,17 +415,60 @@ export function verifyEffectiveProfileReport(
     canonicalJson(credentialKeys) !== canonicalJson(['password', 'username'])
   )
     fail('CREDENTIAL_REFERENCE_INVALID', report.credentialReference.reference)
-  const actualTelemetry = readApprovalTelemetry(report.telemetry.eventSource)
+  let telemetryExpectation: ApprovalTelemetryExpectation | undefined
+  if (report.schemaVersion === 2) {
+    if (
+      !report.approvalMode ||
+      !report.launchReceipt ||
+      !report.effectivePermissionSandboxFingerprint
+    )
+      fail('PROFILE_V2_BINDING_REQUIRED', report.ownerTaskId)
+    const receipt = loadProfileLaunchReceipt(report.launchReceipt)
+    const installedPolicy = readInstalledProfilePolicy(report.profile.path)
+    if (
+      receipt.ownerTaskId !== report.ownerTaskId ||
+      receipt.transitionId !== report.transitionId ||
+      receipt.approvalMode !== report.approvalMode ||
+      receipt.installedProfile.path !== report.profile.path ||
+      receipt.installedProfile.sha256 !== report.profile.sha256 ||
+      receipt.expectedEffectivePermissionSandboxFingerprint !==
+        report.effectivePermissionSandboxFingerprint ||
+      installedPolicy.approvalMode !== report.approvalMode ||
+      installedPolicy.expectedEffectivePermissionSandboxFingerprint !==
+        report.effectivePermissionSandboxFingerprint ||
+      canonicalJson(receipt.resourceTopology) !== canonicalJson(installedTopology)
+    )
+      fail('PROFILE_V2_INSTALLED_LAUNCH_EFFECTIVE_DRIFT', report.ownerTaskId)
+    telemetryExpectation = {
+      approvalMode: report.approvalMode,
+      expectedEffectivePermissionSandboxFingerprint: report.effectivePermissionSandboxFingerprint
+    }
+  }
+  const actualTelemetry = readApprovalTelemetry(report.telemetry.eventSource, telemetryExpectation)
   const telemetryExtras = Object.keys(report.telemetry).filter(
     (key) =>
-      ![
-        'eventSource',
-        'eventSourceSha256',
-        'approvalPolicy',
-        'approvalsReviewer',
-        'approvalEventCount',
-        'normalPermissionPromptCount'
-      ].includes(key)
+      !(
+        report.schemaVersion === 2
+          ? [
+              'eventSource',
+              'eventSourceSha256',
+              'approvalPolicy',
+              'approvalsReviewer',
+              'approvalEventCount',
+              'normalPermissionPromptCount',
+              'approvalMode',
+              'effectivePermissionSandboxFingerprint',
+              'contexts'
+            ]
+          : [
+              'eventSource',
+              'eventSourceSha256',
+              'approvalPolicy',
+              'approvalsReviewer',
+              'approvalEventCount',
+              'normalPermissionPromptCount'
+            ]
+      ).includes(key)
   )
   if (
     telemetryExtras.length ||
@@ -426,11 +608,25 @@ export async function runEffectiveProfilePreflight(
   request: PreflightRequest,
   adapter: PreflightProbeAdapter
 ): Promise<EffectiveProfileReport> {
+  const receipt = loadProfileLaunchReceipt(request.launchReceipt)
+  if (
+    receipt.ownerTaskId !== request.ownerTaskId ||
+    receipt.transitionId !== request.transitionId ||
+    receipt.approvalMode !== request.approvalMode ||
+    receipt.installedProfile.path !== request.profile.path ||
+    receipt.installedProfile.sha256 !== request.profile.sha256
+  )
+    fail('PROFILE_PREFLIGHT_LAUNCH_BINDING_MISMATCH', request.ownerTaskId)
+  const telemetryExpectation = {
+    approvalMode: request.approvalMode,
+    expectedEffectivePermissionSandboxFingerprint:
+      receipt.expectedEffectivePermissionSandboxFingerprint
+  }
   const observations: CapabilityObservation[] = []
   for (const capability of request.declaredCapabilities)
-    observations.push(await adapter.observe(capability))
+    observations.push(await adapter.observe(capability, telemetryExpectation))
   const report: EffectiveProfileReport = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     kind: 'OES_EFFECTIVE_PROFILE_REPORT',
     ownerTaskId: request.ownerTaskId,
     transitionId: request.transitionId,
@@ -439,8 +635,11 @@ export async function runEffectiveProfilePreflight(
     profile: request.profile,
     observations,
     credentialReference: await adapter.credentialReference(),
-    telemetry: await adapter.approvalTelemetry(),
-    resourceTopology: readInstalledProfileResourceTopology(request.profile.path)
+    telemetry: await adapter.approvalTelemetry(telemetryExpectation),
+    resourceTopology: readInstalledProfileResourceTopology(request.profile.path),
+    approvalMode: request.approvalMode,
+    launchReceipt: request.launchReceipt,
+    effectivePermissionSandboxFingerprint: receipt.expectedEffectivePermissionSandboxFingerprint
   }
   verifyEffectiveProfileReport(report)
   writeJsonAtomic(request.resultPath, report)
@@ -453,10 +652,13 @@ export class SystemPreflightProbeAdapter implements PreflightProbeAdapter {
   private credentialKeys: string[] | null = null
 
   constructor(options: SystemProbeOptions) {
-    this.options = { ...options, git: options.git ?? 'git', pnpm: options.pnpm ?? 'pnpm' }
+    this.options = { ...options, git: options.git ?? 'git', node: options.node ?? process.execPath }
   }
 
-  async observe(name: CapabilityName): Promise<CapabilityObservation> {
+  async observe(
+    name: CapabilityName,
+    telemetryExpectation?: ApprovalTelemetryExpectation
+  ): Promise<CapabilityObservation> {
     await mkdir(this.options.smokeRoot, { recursive: true })
     try {
       let command = ''
@@ -468,12 +670,8 @@ export class SystemPreflightProbeAdapter implements PreflightProbeAdapter {
         literalOutput = readFileSync(path, 'utf8').trim()
       } else if (name === 'gitSwitchAddCommit') {
         const clone = await mkdtemp(join(this.options.smokeRoot, 'git-probe-'))
-        command = 'git clone --no-local; switch; add; commit'
-        this.run(
-          this.options.git,
-          ['clone', '--no-local', '--no-hardlinks', this.options.repositoryRoot, clone],
-          this.options.smokeRoot
-        )
+        command = 'git init; switch; add; commit'
+        this.run(this.options.git, ['init'], clone)
         this.run(this.options.git, ['switch', '-c', 'codex/runtime-profile-probe'], clone)
         this.run(this.options.git, ['config', 'user.name', 'OES Runtime Probe'], clone)
         this.run(this.options.git, ['config', 'user.email', 'runtime-probe@oes.local'], clone)
@@ -481,19 +679,33 @@ export class SystemPreflightProbeAdapter implements PreflightProbeAdapter {
         this.run(this.options.git, ['add', 'runtime-profile-probe.txt'], clone)
         this.run(this.options.git, ['commit', '-m', 'test: runtime profile git probe'], clone)
         literalOutput = `commit=${this.run(this.options.git, ['rev-parse', 'HEAD'], clone).trim()};status=${JSON.stringify(this.run(this.options.git, ['status', '--porcelain'], clone))}`
-        rmSync(clone, { recursive: true })
       } else if (name === 'standardBuildTest') {
-        command =
-          'pnpm proto:lint; proto:gen; --filter @oes/common build; collaboration-runtime:check'
+        command = 'node tsc --noEmit; node profile-preflight.test.ts; node static-check.mjs'
         const outputs = [
-          this.run(this.options.pnpm, ['proto:lint'], this.options.repositoryRoot),
-          this.run(this.options.pnpm, ['proto:gen'], this.options.repositoryRoot),
           this.run(
-            this.options.pnpm,
-            ['--filter', '@oes/common', 'build'],
+            this.options.node,
+            [
+              'node_modules/typescript/bin/tsc',
+              '-p',
+              'scripts/collaboration-runtime/tsconfig.json',
+              '--noEmit'
+            ],
             this.options.repositoryRoot
           ),
-          this.run(this.options.pnpm, ['collaboration-runtime:check'], this.options.repositoryRoot)
+          this.run(
+            this.options.node,
+            [
+              '--experimental-strip-types',
+              '--test',
+              'scripts/collaboration-runtime/test/profile-preflight.test.ts'
+            ],
+            this.options.repositoryRoot
+          ),
+          this.run(
+            this.options.node,
+            ['scripts/collaboration-runtime/test/static-check.mjs'],
+            this.options.repositoryRoot
+          )
         ]
         literalOutput = outputs.map((output) => output.trim()).join('\n---\n')
       } else if (name === 'taskOwnedDatabase') {
@@ -532,7 +744,11 @@ export class SystemPreflightProbeAdapter implements PreflightProbeAdapter {
         literalOutput = `keys=${this.credentialKeys.join(',')};valuesRecorded=false`
       } else {
         command = `read telemetry ${this.options.telemetryEventSource}`
-        const telemetry = readApprovalTelemetry(this.options.telemetryEventSource)
+        if (!telemetryExpectation) fail('PROFILE_V2_TELEMETRY_EXPECTATION_REQUIRED', name)
+        const telemetry = readApprovalTelemetry(
+          this.options.telemetryEventSource,
+          telemetryExpectation
+        )
         literalOutput = `policy=${telemetry.approvalPolicy};reviewer=${telemetry.approvalsReviewer};normalPermissionPromptCount=${telemetry.normalPermissionPromptCount}`
       }
       return this.persistObservation({ name, command, literalOutput, exitCode: 0, result: 'PASS' })
@@ -553,31 +769,56 @@ export class SystemPreflightProbeAdapter implements PreflightProbeAdapter {
     return { reference: 'git-credential:https://github.com', keys, secretValuesRecorded: false }
   }
 
-  async approvalTelemetry(): Promise<ApprovalTelemetry> {
-    return readApprovalTelemetry(this.options.telemetryEventSource)
+  async approvalTelemetry(expectation: ApprovalTelemetryExpectation): Promise<ApprovalTelemetry> {
+    await mkdir(this.options.smokeRoot, { recursive: true })
+    const sourceBytes = readFileSync(this.options.telemetryEventSource)
+    const snapshotPath = join(
+      this.options.smokeRoot,
+      `approval-telemetry-${sha256(sourceBytes)}.jsonl`
+    )
+    try {
+      writeFileSync(snapshotPath, sourceBytes, { flag: 'wx' })
+    } catch (error) {
+      if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error
+      if (!readFileSync(snapshotPath).equals(sourceBytes))
+        fail('APPROVAL_TELEMETRY_SNAPSHOT_COLLISION', snapshotPath)
+    }
+    return readApprovalTelemetry(snapshotPath, expectation)
   }
 
   /** Executes one exact subprocess and returns combined non-secret output. */
   private run(command: string, args: string[], cwd: string): string {
-    const result = spawnSync(command, args, {
-      cwd,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe']
-    })
+    const result = spawnSync(
+      '/bin/sh',
+      ['-c', 'exec "$@"', 'oes-profile-command', command, ...args],
+      {
+        cwd,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe']
+      }
+    )
+    const literalOutput = `${result.stdout ?? ''}${result.stderr ?? ''}`.trim()
     if (result.status !== 0)
-      throw new Error(
-        `${command} ${args.join(' ')} [${result.status ?? 1}] ${(result.stderr ?? '').trim()}`
-      )
+      throw new Error(`${command} ${args.join(' ')} [${result.status ?? 1}] ${literalOutput}`)
     return `${result.stdout ?? ''}${result.stderr ?? ''}`
   }
 
-  /** Reads credential helper output in memory and immediately retains field names only. */
+  /** Runs the credential helper behind a key-only pipe so secret values never enter this process. */
   private readCredentialKeys(): string[] {
-    const result = spawnSync(this.options.git, ['credential', 'fill'], {
-      encoding: 'utf8',
-      input: 'protocol=https\nhost=github.com\n\n',
-      stdio: ['pipe', 'pipe', 'pipe']
-    })
+    const result = spawnSync(
+      '/bin/sh',
+      [
+        '-c',
+        `set -o pipefail
+printf 'protocol=https\\nhost=github.com\\n\\n' | "$1" credential fill | sed 's/=.*//'`,
+        'oes-credential-probe',
+        this.options.git
+      ],
+      {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe']
+      }
+    )
     if (result.status !== 0) throw new Error(`git credential fill [${result.status ?? 1}]`)
     return credentialReferenceKeys(result.stdout ?? '')
   }

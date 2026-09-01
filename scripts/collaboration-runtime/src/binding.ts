@@ -536,25 +536,42 @@ export function loadRemoteBinding(path: string, trust: RemoteTrustRoots): Remote
 export function validateProfileReportEnvelope(
   report: EffectiveProfileReport
 ): EffectiveProfileReport {
+  if (![1, 2].includes(report.schemaVersion) || report.kind !== 'OES_EFFECTIVE_PROFILE_REPORT')
+    fail('INVALID_PROFILE_REPORT_KIND', `${report.schemaVersion}:${report.kind}`)
   requireExactKeys(
     report,
-    [
-      'schemaVersion',
-      'kind',
-      'ownerTaskId',
-      'transitionId',
-      'expectedState',
-      'declaredCapabilities',
-      'profile',
-      'observations',
-      'credentialReference',
-      'telemetry',
-      'resourceTopology'
-    ],
+    report.schemaVersion === 2
+      ? [
+          'schemaVersion',
+          'kind',
+          'ownerTaskId',
+          'transitionId',
+          'expectedState',
+          'declaredCapabilities',
+          'profile',
+          'observations',
+          'credentialReference',
+          'telemetry',
+          'resourceTopology',
+          'approvalMode',
+          'launchReceipt',
+          'effectivePermissionSandboxFingerprint'
+        ]
+      : [
+          'schemaVersion',
+          'kind',
+          'ownerTaskId',
+          'transitionId',
+          'expectedState',
+          'declaredCapabilities',
+          'profile',
+          'observations',
+          'credentialReference',
+          'telemetry',
+          'resourceTopology'
+        ],
     'profileReport'
   )
-  if (report.schemaVersion !== 1 || report.kind !== 'OES_EFFECTIVE_PROFILE_REPORT')
-    fail('INVALID_PROFILE_REPORT_KIND', report.kind)
   requireString(report.ownerTaskId, 'ownerTaskId')
   requireString(report.transitionId, 'transitionId')
   if (!['HANDOFF_PENDING', 'DELIVERY_ACTIVE'].includes(report.expectedState))
@@ -562,6 +579,19 @@ export function validateProfileReportEnvelope(
   requireExactKeys(report.profile, ['name', 'permission', 'path', 'sha256'], 'profile')
   requireString(report.profile.path, 'profile.path')
   requireFingerprint(report.profile.sha256, 'profile.sha256')
+  if (report.schemaVersion === 2) {
+    if (!['ON_REQUEST_AUTO_REVIEW', 'NEVER_USER'].includes(String(report.approvalMode)))
+      fail('INVALID_PROFILE_APPROVAL_MODE', String(report.approvalMode))
+    if (!report.launchReceipt) fail('PROFILE_LAUNCH_RECEIPT_REQUIRED', report.ownerTaskId)
+    requireExactKeys(report.launchReceipt, ['path', 'sha256', 'fingerprint'], 'launchReceipt')
+    requireString(report.launchReceipt.path, 'launchReceipt.path')
+    requireFingerprint(report.launchReceipt.sha256, 'launchReceipt.sha256')
+    requireFingerprint(report.launchReceipt.fingerprint, 'launchReceipt.fingerprint')
+    requireFingerprint(
+      report.effectivePermissionSandboxFingerprint,
+      'effectivePermissionSandboxFingerprint'
+    )
+  }
   if (new Set(report.declaredCapabilities).size !== report.declaredCapabilities.length)
     fail('DUPLICATE_DECLARED_CAPABILITY', report.ownerTaskId)
   for (const capability of report.declaredCapabilities)

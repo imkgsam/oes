@@ -254,17 +254,55 @@ export interface CapabilityObservation {
   result: 'PASS' | 'FAIL'
 }
 
+export const APPROVAL_MODES = ['ON_REQUEST_AUTO_REVIEW', 'NEVER_USER'] as const
+export type ApprovalMode = (typeof APPROVAL_MODES)[number]
+export type ApprovalPolicy = 'on-request' | 'never'
+export type ApprovalsReviewer = 'auto_review' | 'user'
+
+export interface EffectivePermissionContext {
+  ordinal: number
+  turnId: string
+  approvalPolicy: ApprovalPolicy
+  approvalsReviewer: ApprovalsReviewer
+  permissionProfileType: string
+  sandboxPolicyType: string
+  activePermissionProfileId: string | null
+  permissionSandboxFingerprint: string
+}
+
 export interface ApprovalTelemetry {
   eventSource: string
   eventSourceSha256: string
-  approvalPolicy: 'on-request'
-  approvalsReviewer: 'auto_review'
+  approvalPolicy: ApprovalPolicy
+  approvalsReviewer: ApprovalsReviewer
   approvalEventCount: number
   normalPermissionPromptCount: number
+  approvalMode?: ApprovalMode
+  effectivePermissionSandboxFingerprint?: string
+  contexts?: EffectivePermissionContext[]
+}
+
+export interface ProfileLaunchReceipt {
+  schemaVersion: 1
+  kind: 'OES_PROFILE_LAUNCH_RECEIPT'
+  receiptFingerprint: string
+  ownerTaskId: string
+  transitionId: string
+  profileGeneration: number
+  predecessorLaunchReceipt: TrustedAuthorizationReference | null
+  approvalMode: ApprovalMode
+  approvalPolicy: ApprovalPolicy
+  approvalsReviewer: ApprovalsReviewer
+  installedProfile: {
+    path: string
+    sha256: string
+  }
+  expectedEffectivePermissionSandboxFingerprint: string
+  resourceTopology: import('./resource-topology.types.ts').EffectiveOwnerResourceTopology
 }
 
 export interface EffectiveProfileReport {
-  schemaVersion: 1
+  schemaVersion: 1 | 2
   kind: 'OES_EFFECTIVE_PROFILE_REPORT'
   ownerTaskId: string
   transitionId: string
@@ -283,6 +321,9 @@ export interface EffectiveProfileReport {
     secretValuesRecorded: false
   }
   telemetry: ApprovalTelemetry
+  approvalMode?: ApprovalMode
+  launchReceipt?: TrustedAuthorizationReference
+  effectivePermissionSandboxFingerprint?: string
 }
 
 export interface EvidenceKeyInput {
