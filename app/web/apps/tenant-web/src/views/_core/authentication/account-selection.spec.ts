@@ -15,7 +15,8 @@ const authStoreMock = reactive({
     tenantId?: null | string;
     tenantName?: null | string;
   }>,
-  authBlockReason: null as null | 'MFA_FACTOR_UNAVAILABLE',
+  authBlockReason: null as 'MFA_FACTOR_UNAVAILABLE' | null,
+  hasPendingAccountSelection: false,
   loginLoading: false,
   submitAccountSelection: vi.fn(),
 });
@@ -47,6 +48,7 @@ describe('AccountSelection view', () => {
     replaceMock.mockReset();
     authStoreMock.accountSelectionOptions = [];
     authStoreMock.authBlockReason = null;
+    authStoreMock.hasPendingAccountSelection = false;
     authStoreMock.loginLoading = false;
     authStoreMock.submitAccountSelection.mockReset();
   });
@@ -62,6 +64,38 @@ describe('AccountSelection view', () => {
     await flushPromises();
 
     expect(replaceMock).toHaveBeenCalledWith({ name: 'Login' });
+    expect(wrapper.find('.space-y-5').exists()).toBe(false);
+  });
+
+  it('renders and submits a valid pending tenant option without redirecting', async () => {
+    authStoreMock.accountSelectionOptions = [
+      {
+        accountId: 'account-1',
+        displayName: 'Tenant Admin',
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1',
+        tenantName: 'Tenant 1',
+      },
+      {
+        accountId: 'account-2',
+        displayName: 'System Admin',
+        scopeLevel: 'SYSTEM',
+      },
+    ];
+    authStoreMock.hasPendingAccountSelection = true;
+    const view = await import('./account-selection.vue');
+    wrapper = mount(view.default);
+
+    expect(wrapper.text()).toContain('Tenant 1');
+    expect(wrapper.text()).toContain('租户账号');
+    expect(wrapper.text()).toContain('System Admin');
+    expect(wrapper.text()).toContain('平台账号');
+    await wrapper.get('button').trigger('click');
+
+    expect(authStoreMock.submitAccountSelection).toHaveBeenCalledWith(
+      'account-1',
+    );
+    expect(replaceMock).not.toHaveBeenCalled();
   });
 
   it('does not override the dedicated unavailable-mfa redirect while auth blocking is in progress', async () => {
@@ -74,10 +108,12 @@ describe('AccountSelection view', () => {
         tenantName: 'Tenant 1',
       },
     ];
+    authStoreMock.hasPendingAccountSelection = true;
     const view = await import('./account-selection.vue');
     wrapper = mount(view.default);
     authStoreMock.authBlockReason = 'MFA_FACTOR_UNAVAILABLE';
     authStoreMock.accountSelectionOptions = [];
+    authStoreMock.hasPendingAccountSelection = false;
     await flushPromises();
 
     expect(replaceMock).not.toHaveBeenCalled();
