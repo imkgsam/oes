@@ -151,6 +151,18 @@ async function clickCrmRowAction(wrapper: any, crmAccountId: string, actionTestI
 
 // Verifies the CRM P1 workspace uses the tenant-scoped account BFF and exposes no Archive runtime.
 describe('customer management CRM P1 workspace', () => {
+  it('keeps the rendered archive and import labels in the canonical Chinese locale bundle', () => {
+    const locale = JSON.parse(
+      readFileSync('apps/tenant-web/src/locales/langs/zh-CN/page.json', 'utf8')
+    )
+
+    expect(locale.crm.customerManagement).toMatchObject({
+      archive: '归档',
+      importLead: '导入 Lead',
+      stageMyArchived: '我的归档'
+    })
+  })
+
   beforeEach(() => {
     document.body.innerHTML = ''
     archiveCrmAccountApi.mockReset()
