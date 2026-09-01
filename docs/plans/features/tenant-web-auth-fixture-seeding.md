@@ -8,7 +8,7 @@ worktreeKey: 9d4f
 pullRequest: none (local follow-up candidate)
 priorMergeSha: cad78c03508ed046f0053e16d05ab08a301e9dc4
 cleanup: HOLD
-state: IMPLEMENTING
+state: REVIEWING
 
 ## Objective
 
@@ -31,8 +31,8 @@ The first five groups remain explicit design gaps because current navigation fou
 
 ### task-bound-seed-orchestration
 
-state: IMPLEMENTING
-candidate: pending
+state: REVIEWING
+candidate: 87325835bc09de073b045ed9be6426f806c1a5fb
 review: same feature-ri `01a052d7-1611-7001-8e91-e6d6e70b2fb5`
 
 - Scope: local database lifecycle orchestration; seven exact task database bindings; dedicated recovery-grant, MFA-required/scenario, first-login setup, bounded PolicyInstance preview, Item Master detail/create dependency, and MES navigation fixtures; credential-redacted output; focused tooling and real-page verification.
