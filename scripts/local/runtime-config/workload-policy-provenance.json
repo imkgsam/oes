@@ -20,7 +20,7 @@
       "workload": "api-gateway",
       "audience": "urn:oes:service:crm-service",
       "code": "crm.account.read",
-      "source": "docs/architecture/services/crm-service.md#13-trusted-grpc-15-rpc-contract-frozen",
+      "source": "docs/architecture/services/crm-service.md#18-trusted-grpc-inbound-boundary",
       "selectorEntry": "api-gateway",
       "selectorVersion": "2"
     },
