@@ -19,7 +19,7 @@ state: CANDIDATE_READY
 ### stage-merge-runtime
 
 state: CANDIDATE_READY
-candidate: 165262e4061d391616cdda64b0efab3f4d134521
+candidate: ab1a2d289a72ae044895b667d4856786d5e1c3b8
 review: Feature RI exact integration candidate pending
 
 - Scope: Stage merge 卡完整性、有序逐项 admission、实际 Merge Commit 一方父链绑定、健康前缀保留、失败后缀停止、main 漂移技术等价且 feature head 仅快进修订。
@@ -30,7 +30,7 @@ review: Feature RI exact integration candidate pending
 ### cleanup-archive-runtime
 
 state: CANDIDATE_READY
-candidate: 165262e4061d391616cdda64b0efab3f4d134521
+candidate: ab1a2d289a72ae044895b667d4856786d5e1c3b8
 review: Feature RI exact integration candidate pending
 
 - Scope: cleanup 意图触发的完整 roster 盘点、受 execution-profile trust root 与当前 Stage cleanup authorization 双重绑定的 authority/inventory/result receipt、partial retry、依赖序自动 archive。
@@ -41,7 +41,7 @@ review: Feature RI exact integration candidate pending
 ### optimized-ci-shadow
 
 state: CANDIDATE_READY
-candidate: 165262e4061d391616cdda64b0efab3f4d134521
+candidate: ab1a2d289a72ae044895b667d4856786d5e1c3b8
 review: Feature RI exact integration candidate pending
 
 - Scope: PR stale-run cancellation、确定性测试 inventory/sharding、generated/Prisma artifact 单次构建复用与相同 Prisma engine 单副本传输、L2 单次启动 Postgres/NATS、单次迁移全部 L2 数据库、三个内部加权车道及共享 NATS conflict group 串行化、main tree-result exact-equivalence fast smoke/full fallback、独立 cleanup、受保护 GitHub readback paired fingerprint evidence、non-required optimized shadow。
@@ -59,6 +59,7 @@ review: Feature RI exact integration candidate pending
 ## Candidate evidence
 
 - implementation ancestor: `165262e4061d391616cdda64b0efab3f4d134521`
+- hardened implementation candidate: `ab1a2d289a72ae044895b667d4856786d5e1c3b8`
 - shared-setup optimization implementation: `c83fe9f0050fc7823b279a853e545512a59a410d`
 - full prepared build, proto compatibility, design-gap, risk/unit and collaboration runtime gates: exit `0`
 - shared-setup unit execution: two internal weighted lanes, complete `8 packages / 452 suites / 2,088 tests` in two passes (`42.78s`, exact committed-code rerun `63.92s`)
