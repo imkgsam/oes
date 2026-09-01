@@ -16,7 +16,7 @@ export const PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_DEFINITIONS = {
       description: '查看员工数字名片',
       kind: 'BUSINESS',
       assignableTo: ['HUMAN', 'MACHINE'],
-      allowedScopeLevels: ['TENANT'],
+      allowedScopeLevels: ['SYSTEM', 'TENANT'],
       externalApiEligible: false
     },
     [PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES.MANAGE]: {

@@ -43,10 +43,19 @@ const TENANT_ONLY_TARGETS = [
   [TenantOrgManagementGrpcController, 'archiveOrgUnit', 'tenant_org.org_unit.archive']
 ] as const
 
+const INTERNAL_SYSTEM_TARGETS = [
+  [
+    TenantOrgQueryGrpcController,
+    'resolvePublicBusinessCardOrganization',
+    'tenant_org.internal.public_business_card_organization.resolve'
+  ]
+] as const
+
 /** Creates the query application double used to prove guard-before-application ordering. */
 function queryService() {
   return {
     getTenantById: jest.fn(async () => undefined),
+    resolvePublicBusinessCardOrganization: jest.fn(async () => ({ available: false })),
     listTenants: jest.fn(),
     getOrgTreeByTenantId: jest.fn(),
     getOrgUnitById: jest.fn(),
@@ -151,6 +160,30 @@ describe('Tenant Org tenant-target adoption', () => {
     }
   )
 
+  it.each(INTERNAL_SYSTEM_TARGETS)(
+    'declares %p.%s as exact dedicated INTERNAL SYSTEM target for %s',
+    (controller, method, code) => {
+      expect(targetDeclaration(controller, method)).toEqual({
+        kind: 'TENANT_ORG_SYSTEM_TARGET',
+        methodReference: targetMethodReference(controller, method),
+        selectorField: 'tenantId',
+        tenantAuthority: 'TOKEN_TENANT_EQUALITY',
+        systemAuthority: 'DEDICATED',
+        gatewayWorkloadConfigKey: 'TENANT_ORG_GATEWAY_SPIFFE_ID',
+        machineWorkloadConfigKeys: ['TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID'],
+        permissionCode: code,
+        range: 'ALL'
+      })
+      expect(getRpcAuthorizationModeDeclaration(controller.prototype, method)).toEqual({
+        mode: 'INTERNAL',
+        permissions: { all: [code] }
+      })
+      expect(methodGuards(controller, method)).toEqual(
+        expect.arrayContaining([TenantOrgTenantTargetAdmissionGuard])
+      )
+    }
+  )
+
   it('admits exact TENANT equality and keeps the private admitted selector authoritative', async () => {
     const service = queryService()
     const controller = new TenantOrgQueryGrpcController(service as never)
@@ -184,15 +217,9 @@ describe('Tenant Org tenant-target adoption', () => {
       TEST_TENANT_ORG_AUTH_SPIFFE_ID
     ],
     [
-      'public-entry-service tenant read',
-      'getTenantById',
-      'tenant_org.tenant.get_by_id',
-      TEST_TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID
-    ],
-    [
-      'public-entry-service org reference read',
-      'getOrgReferenceSummary',
-      'tenant_org.org_unit.list_tree',
+      'public-entry-service owner-fact read',
+      'resolvePublicBusinessCardOrganization',
+      'tenant_org.internal.public_business_card_organization.resolve',
       TEST_TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID
     ]
   ] as const)(
@@ -214,6 +241,28 @@ describe('Tenant Org tenant-target adoption', () => {
       )
 
       expect(service[method]).toHaveBeenCalled()
+    }
+  )
+
+  it.each([
+    ['getTenantById', 'tenant_org.tenant.get_by_id'],
+    ['getOrgReferenceSummary', 'tenant_org.org_unit.list_tree']
+  ] as const)(
+    'rejects the removed public-entry-service BUSINESS exception on %s',
+    async (method, code) => {
+      await expect(
+        admitTenantTargetRequest(
+          TenantOrgQueryGrpcController,
+          method,
+          { tenantId: 'Tenant-Machine', orgUnitId: 'org-1' },
+          {
+            principalType: 'MACHINE',
+            subjectScope: 'SYSTEM',
+            permissionCodes: [code],
+            workloadIdentity: TEST_TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID
+          }
+        )
+      ).rejects.toMatchObject({ definition: { code: 'APP_AUTH_002', rpcStatus: 7 } })
     }
   )
 
@@ -524,9 +573,9 @@ function targetMethodReference(controller: Function, method: string): string {
 function machineWorkloadConfigKeys(controller: Function, method: string): readonly string[] {
   if (controller !== TenantOrgQueryGrpcController) return []
   if (method === 'getTenantById') {
-    return ['TENANT_ORG_AUTH_SPIFFE_ID', 'TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID']
+    return ['TENANT_ORG_AUTH_SPIFFE_ID']
   }
-  return method === 'getOrgReferenceSummary' ? ['TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID'] : []
+  return []
 }
 
 /** Reads the exact singleton BUSINESS Code bound to one target handler. */

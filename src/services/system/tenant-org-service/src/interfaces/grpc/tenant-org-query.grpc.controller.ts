@@ -9,6 +9,7 @@ import {
 } from '@oes/common/authorization'
 import { TenantOrgFoundationTrustedExecutionGuard } from '../../modules/tenant-org-trusted-execution.module'
 import {
+  DeclareTenantOrgInternalTargetRpc,
   DeclareTenantOrgTargetRpc,
   type TenantOrgTargetWorkloadConfigKey,
   TenantOrgTenantTargetAdmissionGuard
@@ -30,6 +31,8 @@ import {
   ListTenantsResponse,
   ResolveAuthSessionTenantLifecycleRequest,
   ResolveAuthSessionTenantLifecycleResponse,
+  ResolvePublicBusinessCardOrganizationRequest,
+  ResolvePublicBusinessCardOrganizationResponse,
   TenantOrgQueryServiceController,
   TenantOrgQueryServiceControllerMethods,
   ValidateOrgReferenceRequest,
@@ -52,6 +55,30 @@ export class TenantOrgQueryGrpcController implements TenantOrgQueryServiceContro
     const tenant = await this.tenantOrgQueryService.getTenantById(request.tenantId ?? '')
     if (tenant.id !== request.tenantId) return {}
     return { tenantId: tenant.id, lifecycleStatus: String(tenant.status) }
+  }
+
+  async resolvePublicBusinessCardOrganization(
+    request: ResolvePublicBusinessCardOrganizationRequest
+  ): Promise<ResolvePublicBusinessCardOrganizationResponse> {
+    const tenantId = requireAdmittedTenantTarget(request).selector
+    try {
+      const result = await this.tenantOrgQueryService.resolvePublicBusinessCardOrganization({
+        tenantId,
+        orgUnitId: request.orgUnitId || null
+      })
+      if (!result.available) return { available: false, reasonCode: result.reasonCode }
+      return {
+        available: true,
+        tenantId: result.tenantId,
+        companyDisplayName: result.companyDisplayName,
+        websiteUrl: result.websiteUrl ?? '',
+        orgUnitId: result.orgUnitId ?? '',
+        orgUnitDisplayName: result.orgUnitDisplayName ?? '',
+        reasonCode: ''
+      }
+    } catch {
+      return { available: false, reasonCode: 'OWNER_FACT_UNAVAILABLE' }
+    }
   }
 
   async getTenantById(
@@ -248,18 +275,32 @@ function applyTenantOrgSystemTargetDeclaration(
 }
 
 applyTenantOrgSystemTargetDeclaration('getTenantById', 'tenant_org.tenant.get_by_id', [
-  'TENANT_ORG_AUTH_SPIFFE_ID',
-  'TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID'
+  'TENANT_ORG_AUTH_SPIFFE_ID'
 ])
 applyTenantOrgBusinessDeclaration('listTenants', 'tenant_org.tenant.list')
 applyTenantOrgSystemTargetDeclaration('getOrgTreeByTenantId', 'tenant_org.org_unit.list_tree')
 applyTenantOrgSystemTargetDeclaration('listAncestorOrgUnits', 'tenant_org.org_unit.list_tree')
 applyTenantOrgSystemTargetDeclaration('listDescendantOrgUnits', 'tenant_org.org_unit.list_tree')
 applyTenantOrgSystemTargetDeclaration('validateOrgReference', 'tenant_org.org_unit.list_tree')
-applyTenantOrgSystemTargetDeclaration('getOrgReferenceSummary', 'tenant_org.org_unit.list_tree', [
-  'TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID'
-])
+applyTenantOrgSystemTargetDeclaration('getOrgReferenceSummary', 'tenant_org.org_unit.list_tree')
 applyTenantOrgSystemTargetDeclaration('getOrgUnitById', 'tenant_org.org_unit.get_by_id')
+
+{
+  const method = 'resolvePublicBusinessCardOrganization'
+  const descriptor = Object.getOwnPropertyDescriptor(TenantOrgQueryGrpcController.prototype, method)
+  if (!descriptor) throw new Error(`TenantOrg handler is missing: ${method}`)
+  DeclareTenantOrgInternalTargetRpc({
+    methodReference:
+      'tenant-org-service/TenantOrgQueryService/ResolvePublicBusinessCardOrganization',
+    permissionCode: 'tenant_org.internal.public_business_card_organization.resolve',
+    machineWorkloadConfigKeys: ['TENANT_ORG_PUBLIC_ENTRY_SPIFFE_ID']
+  })(TenantOrgQueryGrpcController.prototype, method, descriptor)
+  UseGuards(TenantOrgTenantTargetAdmissionGuard)(
+    TenantOrgQueryGrpcController.prototype,
+    method,
+    descriptor
+  )
+}
 
 /** Converts one controller method name to its frozen protobuf RPC method name. */
 function toRpcMethodName(method: string): string {

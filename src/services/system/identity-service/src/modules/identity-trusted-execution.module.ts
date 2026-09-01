@@ -29,7 +29,11 @@ import {
 
 export const IDENTITY_AUDIENCE = 'urn:oes:service:identity-service'
 export const IDENTITY_MACHINE_BOOTSTRAP_KEY = 'oes:identity:machine-bootstrap'
-export const AuthorizeIdentityMachineBootstrap = () => SetMetadata(IDENTITY_MACHINE_BOOTSTRAP_KEY, true)
+export const IDENTITY_PUBLIC_ENTRY_OWNER_FACT_KEY = 'oes:identity:public-entry-owner-fact'
+export const AuthorizeIdentityMachineBootstrap = () =>
+  SetMetadata(IDENTITY_MACHINE_BOOTSTRAP_KEY, true)
+export const AuthorizeIdentityPublicEntryOwnerFact = () =>
+  SetMetadata(IDENTITY_PUBLIC_ENTRY_OWNER_FACT_KEY, true)
 const runtime = createLazyTrustedExecutionRuntime(IDENTITY_AUDIENCE)
 const CALLERS = new Set([
   'api-gateway',
@@ -76,6 +80,23 @@ export class IdentityFoundationTrustedExecutionGuard
       context.switchToRpc().getData()
     )?.verifiedExecutionToken
     const workload = readWorkloadName(token?.clientId ?? '')
+    const publicEntryOwnerFact = this.authReflector.getAllAndOverride<boolean>(
+      IDENTITY_PUBLIC_ENTRY_OWNER_FACT_KEY,
+      [context.getHandler(), context.getClass()]
+    )
+    if (
+      publicEntryOwnerFact &&
+      !(
+        token?.principalType === 'MACHINE' &&
+        token.tenantId === undefined &&
+        token.orgId === undefined &&
+        workload === 'public-entry-service'
+      )
+    ) {
+      throw new ForbiddenException(
+        'Identity public-card owner fact requires exact Public Entry workload'
+      )
+    }
     if (!CALLERS.has(workload))
       throw new ForbiddenException('Identity caller workload is not permitted')
     if (token?.principalType === 'HUMAN' && token.sessionTerminal !== 'WEB')
@@ -87,13 +108,16 @@ export class IdentityFoundationTrustedExecutionGuard
       throw new ForbiddenException('Identity SYSTEM MACHINE caller is not permitted')
     return true
   }
-
 }
 
 /** Binds generic Identity INTERNAL owner resolvers to the Identity audience. */
 @Injectable()
 export class IdentityAudienceTrustedInternalExecutionGuard extends TrustedInternalExecutionGuard {
-  constructor(reflector: Reflector, verifier: ExecutionTokenVerifier, identity: GrpcWorkloadIdentityProvider) {
+  constructor(
+    reflector: Reflector,
+    verifier: ExecutionTokenVerifier,
+    identity: GrpcWorkloadIdentityProvider
+  ) {
     super(reflector, verifier, identity, IDENTITY_AUDIENCE)
   }
 }

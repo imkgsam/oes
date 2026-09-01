@@ -91,3 +91,77 @@ describe('TenantOrgQueryService', () => {
     expect(service.setAccountPrimaryOrg).toBeUndefined()
   })
 })
+
+describe('TenantOrgQueryService Public Business Card owner fact', () => {
+  it('returns active company and same-tenant active department projection', async () => {
+    const tenants = createTenantRepositoryMock()
+    const orgs = createOrgUnitRepositoryMock()
+    tenants.findById.mockResolvedValue({
+      id: 'tenant-1',
+      name: 'OES Manufacturing',
+      status: TenantStatus.ACTIVE,
+      websiteUrl: 'https://oes.example'
+    })
+    orgs.findById.mockResolvedValue({
+      id: 'org-1',
+      tenantId: 'tenant-1',
+      name: 'Enterprise Sales',
+      status: OrgUnitStatus.ACTIVE
+    })
+    const service = new TenantOrgQueryService(tenants as never, orgs as never)
+    await expect(
+      service.resolvePublicBusinessCardOrganization({ tenantId: 'tenant-1', orgUnitId: 'org-1' })
+    ).resolves.toEqual({
+      available: true,
+      tenantId: 'tenant-1',
+      companyDisplayName: 'OES Manufacturing',
+      websiteUrl: 'https://oes.example',
+      orgUnitId: 'org-1',
+      orgUnitDisplayName: 'Enterprise Sales',
+      reasonCode: ''
+    })
+  })
+
+  it('allows an absent optional department selector', async () => {
+    const tenants = createTenantRepositoryMock()
+    const orgs = createOrgUnitRepositoryMock()
+    tenants.findById.mockResolvedValue({
+      id: 'tenant-1',
+      name: 'OES Manufacturing',
+      status: TenantStatus.ACTIVE
+    })
+    const service = new TenantOrgQueryService(tenants as never, orgs as never)
+    await expect(
+      service.resolvePublicBusinessCardOrganization({ tenantId: 'tenant-1' })
+    ).resolves.toMatchObject({ available: true, orgUnitId: null, orgUnitDisplayName: null })
+    expect(orgs.findById).not.toHaveBeenCalled()
+  })
+
+  it('fails closed for inactive tenant or a supplied cross-tenant org selector', async () => {
+    const tenants = createTenantRepositoryMock()
+    const orgs = createOrgUnitRepositoryMock()
+    tenants.findById.mockResolvedValue({
+      id: 'tenant-1',
+      name: 'OES Manufacturing',
+      status: TenantStatus.ACTIVE
+    })
+    orgs.findById.mockResolvedValue({
+      id: 'org-1',
+      tenantId: 'tenant-2',
+      name: 'Foreign org',
+      status: OrgUnitStatus.ACTIVE
+    })
+    const service = new TenantOrgQueryService(tenants as never, orgs as never)
+    await expect(
+      service.resolvePublicBusinessCardOrganization({ tenantId: 'tenant-1', orgUnitId: 'org-1' })
+    ).resolves.toEqual({ available: false, reasonCode: 'ORG_UNIT_UNAVAILABLE' })
+    tenants.findById.mockResolvedValue({
+      id: 'tenant-1',
+      name: 'OES Manufacturing',
+      status: TenantStatus.SUSPENDED
+    })
+    await expect(
+      service.resolvePublicBusinessCardOrganization({ tenantId: 'tenant-1' })
+    ).resolves.toEqual({ available: false, reasonCode: 'TENANT_UNAVAILABLE' })
+  })
+})

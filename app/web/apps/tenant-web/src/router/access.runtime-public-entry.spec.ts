@@ -1,32 +1,44 @@
 import { createMemoryHistory, createRouter } from 'vue-router';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const getAllMenusApiMock = vi.fn();
+const listNavigationEntriesApiMock = vi.fn();
+
 const localStorageMock = {
   getItem: vi.fn(() => null),
   removeItem: vi.fn(),
   setItem: vi.fn(),
 };
+const defaultVisibleEntries = [
+  'workbench.home',
+  'admin.auth-session-management',
+  'admin.role-management',
+  'admin.account-management',
+  'admin.permission-management',
+  'admin.terminal-device-management',
+  'tenant-settings.org-structure',
+  'tenant-settings.employee-employment',
+  'tenant-settings.login-mfa',
+  'master-data.customer-management',
+  'public-entry.business-cards',
+  'public-entry.short-links',
+];
 const authContextStoreMock = {
-  visibleEntries: [
-    'workbench.home',
-    'admin.auth-session-management',
-    'admin.role-management',
-    'admin.account-management',
-    'admin.terminal-device-management',
-    'tenant-settings.org-structure',
-    'tenant-settings.employee-employment',
-    'tenant-settings.login-mfa',
-    'master-data.customer-management',
-    'public-entry.business-cards',
-    'public-entry.short-links',
-  ],
+  visibleEntries: [...defaultVisibleEntries],
+};
+const preferencesMock = {
+  app: {
+    accessMode: 'frontend',
+  },
 };
 
 vi.stubGlobal('localStorage', localStorageMock);
 
+vi.mock('@vben/preferences', () => ({
+  preferences: preferencesMock,
+}));
+
 vi.mock('#/api', () => ({
-  getAllMenusApi: getAllMenusApiMock,
+  listNavigationEntriesApi: listNavigationEntriesApiMock,
 }));
 
 vi.mock('ant-design-vue', () => ({
@@ -50,8 +62,13 @@ vi.mock('#/store', () => ({
 
 // Verifies the real access generator keeps public touchpoint menus on canonical paths while preserving legacy redirects.
 describe('runtime public-entry route generation', () => {
-  it('registers public-entry routes and legacy redirects when menu endpoint falls back to local routes', async () => {
-    getAllMenusApiMock.mockRejectedValueOnce(new Error('missing menu endpoint'));
+  beforeEach(() => {
+    authContextStoreMock.visibleEntries = [...defaultVisibleEntries];
+    listNavigationEntriesApiMock.mockReset();
+    preferencesMock.app.accessMode = 'frontend';
+  });
+
+  it('registers public-entry routes and legacy redirects from local Web mappings', async () => {
     const { generateAccess } = await import('./access');
     const { accessRoutes, routes } = await import('./routes');
     const router = createRouter({
@@ -72,25 +89,31 @@ describe('runtime public-entry route generation', () => {
     expect(serializedMenus).toContain('/public-entry/short-links');
     expect(serializedMenus).not.toContain('/admin/business-cards');
     expect(serializedMenus).not.toContain('/admin/public-entry-short-links');
-    expect(router.resolve('/public-entry/business-cards').matched.at(-1)?.name).toBe(
-      'AdminBusinessCards',
-    );
+    expect(
+      router.resolve('/public-entry/business-cards').matched.at(-1)?.name,
+    ).toBe('AdminBusinessCards');
     expect(router.resolve('/admin/business-cards').matched.at(-1)?.name).toBe(
       'AdminBusinessCardsLegacyRedirect',
     );
-    expect(router.resolve('/public-entry/short-links').matched.at(-1)?.name).toBe(
-      'AdminPublicEntryShortLinks',
+    const businessCardLegacyRoute = accessRoutes.find(
+      (route) => route.name === 'AdminBusinessCardsLegacyRedirect',
     );
-    expect(router.resolve('/admin/public-entry-short-links').matched.at(-1)?.name).toBe(
-      'AdminPublicEntryShortLinksLegacyRedirect',
+    expect(businessCardLegacyRoute?.redirect).toBe(
+      '/settings/employee-employment/business-cards',
     );
+    expect(businessCardLegacyRoute?.meta?.entryKey).toBe(
+      'tenant-settings.employee-employment',
+    );
+    expect(
+      router.resolve('/public-entry/short-links').matched.at(-1)?.name,
+    ).toBe('AdminPublicEntryShortLinks');
+    expect(
+      router.resolve('/admin/public-entry-short-links').matched.at(-1)?.name,
+    ).toBe('AdminPublicEntryShortLinksLegacyRedirect');
   });
 
   it('removes employee-scoped BusinessCard management when employee management is not visible', async () => {
-    authContextStoreMock.visibleEntries = [
-      'workbench.home',
-    ];
-    getAllMenusApiMock.mockRejectedValueOnce(new Error('missing menu endpoint'));
+    authContextStoreMock.visibleEntries = ['workbench.home'];
     const { generateAccess } = await import('./access');
     const { accessRoutes, routes } = await import('./routes');
     const router = createRouter({
@@ -114,4 +137,50 @@ describe('runtime public-entry route generation', () => {
     expect(serializedRoutes).not.toContain('TenantEmployeeBusinessCards');
     expect(serializedRoutes).not.toContain('AdminBusinessCardsLegacyRedirect');
   });
+
+  it.each(['frontend', 'mixed', 'backend'])(
+    'keeps SYSTEM and TENANT local route components in %s preference mode',
+    async (accessMode) => {
+      preferencesMock.app.accessMode = accessMode;
+      authContextStoreMock.visibleEntries = [
+        'admin.permission-management',
+        'tenant-settings.org-structure',
+      ];
+      listNavigationEntriesApiMock.mockResolvedValue({
+        entries: [
+          { entryKey: 'admin.permission-management' },
+          { entryKey: 'tenant-settings.org-structure' },
+        ],
+        page: 1,
+        pageSize: 100,
+        total: 2,
+      });
+      const { generateAccess } = await import('./access');
+      const { accessRoutes, routes } = await import('./routes');
+      const router = createRouter({
+        history: createMemoryHistory(),
+        routes,
+      });
+
+      const result = await generateAccess({
+        roles: ['system.admin', 'tenant.admin'],
+        router,
+        routes: accessRoutes,
+      });
+      const generatedRoutes = router.getRoutes();
+      const systemRoute = generatedRoutes.find(
+        (route) => route.name === 'AdminPermissionManagement',
+      );
+      const tenantRoute = generatedRoutes.find(
+        (route) => route.name === 'TenantOrgStructureManagement',
+      );
+
+      expect(result.accessibleRoutes.length).toBeGreaterThan(0);
+      expect(systemRoute?.components?.default).toBeTypeOf('function');
+      expect(tenantRoute?.components?.default).toBeTypeOf('function');
+      expect(listNavigationEntriesApiMock).toHaveBeenCalledTimes(
+        accessMode === 'frontend' ? 0 : 1,
+      );
+    },
+  );
 });

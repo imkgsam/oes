@@ -7,6 +7,7 @@ option java_package = "com.oes.tenantorg.v1";
 
 service TenantOrgQueryService {
   rpc ResolveAuthSessionTenantLifecycle(ResolveAuthSessionTenantLifecycleRequest) returns (ResolveAuthSessionTenantLifecycleResponse);
+  rpc ResolvePublicBusinessCardOrganization(ResolvePublicBusinessCardOrganizationRequest) returns (ResolvePublicBusinessCardOrganizationResponse);
   rpc GetTenantById(GetTenantByIdRequest) returns (GetTenantByIdResponse);
   rpc ListTenants(ListTenantsRequest) returns (ListTenantsResponse);
   rpc GetOrgTreeByTenantId(GetOrgTreeByTenantIdRequest) returns (GetOrgTreeByTenantIdResponse);
@@ -24,6 +25,21 @@ message ResolveAuthSessionTenantLifecycleRequest {
 message ResolveAuthSessionTenantLifecycleResponse {
   string tenant_id = 1;
   string lifecycle_status = 2;
+}
+
+message ResolvePublicBusinessCardOrganizationRequest {
+  string tenant_id = 1;
+  string org_unit_id = 2;
+}
+
+message ResolvePublicBusinessCardOrganizationResponse {
+  bool available = 1;
+  string tenant_id = 2;
+  string company_display_name = 3;
+  string website_url = 4;
+  string org_unit_id = 5;
+  string org_unit_display_name = 6;
+  string reason_code = 7;
 }
 
 service TenantOrgManagementService {

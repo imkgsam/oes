@@ -90,10 +90,7 @@ describe('HrQueryService L1', () => {
         endedReason: null
       }
     })
-    expect(employeeRepository.findByTenantAndEmployeeCode).toHaveBeenCalledWith(
-      'tenant-1',
-      '0001'
-    )
+    expect(employeeRepository.findByTenantAndEmployeeCode).toHaveBeenCalledWith('tenant-1', '0001')
     expect(employmentRepository.findActiveByEmployeeId).toHaveBeenCalledWith(
       'tenant-1',
       'employee-1'
@@ -286,8 +283,13 @@ describe('HrQueryService L1', () => {
     employmentRepository.findActiveByEmployeeId.mockResolvedValue(null)
     const service = createHrQueryService(employeeRepository, employmentRepository)
 
-    await expect(service.getActiveEmployment('employee-1')).rejects.toBeInstanceOf(NotFoundException)
-    expect(employmentRepository.findActiveByEmployeeId).toHaveBeenCalledWith('tenant-1', 'employee-1')
+    await expect(service.getActiveEmployment('employee-1')).rejects.toBeInstanceOf(
+      NotFoundException
+    )
+    expect(employmentRepository.findActiveByEmployeeId).toHaveBeenCalledWith(
+      'tenant-1',
+      'employee-1'
+    )
   })
 
   it('ListEmployments / should map the optional employment status filter without changing other inputs', async () => {
@@ -313,5 +315,84 @@ describe('HrQueryService L1', () => {
       'employee-1',
       EmploymentStatus.ENDED
     )
+  })
+})
+
+describe('HrQueryService Public Business Card owner fact', () => {
+  it('returns only the active employee/current-employment public projection', async () => {
+    const employees = createEmployeeRepositoryMock()
+    const employments = createEmploymentRepositoryMock()
+    employees.findById.mockResolvedValue({
+      id: 'employee-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: 'party-1',
+      employeeCode: '0001',
+      lifecycleStatus: EmployeeLifecycleStatus.ACTIVE,
+      officialPhotoUrl: 'https://assets.example/official.jpg'
+    })
+    employments.findActiveByEmployeeId.mockResolvedValue({
+      id: 'employment-1',
+      tenantId: 'tenant-1',
+      employeeId: 'employee-1',
+      orgUnitId: 'org-1',
+      positionName: 'Sales Manager',
+      status: EmploymentStatus.ACTIVE
+    })
+    const service = createHrQueryService(employees, employments)
+
+    await expect(
+      service.resolvePublicBusinessCardEmployee({ tenantId: 'tenant-1', employeeId: 'employee-1' })
+    ).resolves.toEqual({
+      available: true,
+      reasonCode: '',
+      employeeId: 'employee-1',
+      lifecycleStatus: EmployeeLifecycleStatus.ACTIVE,
+      activeEmploymentId: 'employment-1',
+      orgUnitId: 'org-1',
+      positionName: 'Sales Manager',
+      officialPhotoUrl: 'https://assets.example/official.jpg'
+    })
+  })
+
+  it.each([
+    [
+      'wrong tenant',
+      { tenantId: 'tenant-2', lifecycleStatus: EmployeeLifecycleStatus.ACTIVE },
+      'EMPLOYEE_UNAVAILABLE'
+    ],
+    [
+      'inactive employee',
+      { tenantId: 'tenant-1', lifecycleStatus: EmployeeLifecycleStatus.OFFBOARDED },
+      'EMPLOYEE_INACTIVE'
+    ]
+  ])('fails closed for %s', async (_, employee, reasonCode) => {
+    const employees = createEmployeeRepositoryMock()
+    const employments = createEmploymentRepositoryMock()
+    employees.findById.mockResolvedValue({
+      id: 'employee-1',
+      tenantPartyId: 'party-1',
+      employeeCode: '0001',
+      ...employee
+    })
+    const service = createHrQueryService(employees, employments)
+    await expect(
+      service.resolvePublicBusinessCardEmployee({ tenantId: 'tenant-1', employeeId: 'employee-1' })
+    ).resolves.toEqual({ available: false, reasonCode })
+    expect(employments.findActiveByEmployeeId).not.toHaveBeenCalled()
+  })
+
+  it('fails closed without a current active employment', async () => {
+    const employees = createEmployeeRepositoryMock()
+    const employments = createEmploymentRepositoryMock()
+    employees.findById.mockResolvedValue({
+      id: 'employee-1',
+      tenantId: 'tenant-1',
+      lifecycleStatus: EmployeeLifecycleStatus.ACTIVE
+    })
+    employments.findActiveByEmployeeId.mockResolvedValue(null)
+    const service = createHrQueryService(employees, employments)
+    await expect(
+      service.resolvePublicBusinessCardEmployee({ tenantId: 'tenant-1', employeeId: 'employee-1' })
+    ).resolves.toEqual({ available: false, reasonCode: 'EMPLOYMENT_UNAVAILABLE' })
   })
 })

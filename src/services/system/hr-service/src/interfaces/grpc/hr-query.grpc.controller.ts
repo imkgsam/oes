@@ -26,11 +26,14 @@ import {
   ListEmploymentsRequest,
   ListEmploymentsResponse,
   ResolveAuthLoginEmployeeRequest,
-  ResolveAuthLoginEmployeeResponse
+  ResolveAuthLoginEmployeeResponse,
+  ResolvePublicBusinessCardEmployeeRequest,
+  ResolvePublicBusinessCardEmployeeResponse
 } from '@oes/common/generated/hr_service'
 import { HrQueryService } from '../../application/services'
 import { EmployeeLifecycleStatus, EmploymentStatus } from '../../domain/value-objects'
 import { mapEmployee, mapEmployment } from './hr-management.grpc.controller'
+import { AuthorizeHrPublicEntryOwnerFact } from '../../modules/hr-trusted-execution.module'
 
 interface ResolveActiveEmployeeByCodeRequest {
   tenantId?: string
@@ -67,6 +70,32 @@ export class HrQueryGrpcController implements HrQueryServiceController {
     return {
       employeeId: result.employee.id,
       activeEmploymentId: result.activeEmployment.id
+    }
+  }
+
+  @AuthorizeHrPublicEntryOwnerFact()
+  @AuthorizeInternalCall({ all: ['hr.internal.public_business_card_employee.resolve'] })
+  async resolvePublicBusinessCardEmployee(
+    request: ResolvePublicBusinessCardEmployeeRequest
+  ): Promise<ResolvePublicBusinessCardEmployeeResponse> {
+    try {
+      const result = await this.hrQueryService.resolvePublicBusinessCardEmployee({
+        tenantId: request.tenantId ?? '',
+        employeeId: request.employeeId ?? ''
+      })
+      if (!result.available) return { available: false, reasonCode: result.reasonCode }
+      return {
+        available: true,
+        employeeId: result.employeeId,
+        lifecycleStatus: ProtoEmployeeLifecycleStatus.EMPLOYEE_LIFECYCLE_STATUS_ACTIVE,
+        activeEmploymentId: result.activeEmploymentId,
+        orgUnitId: result.orgUnitId ?? '',
+        positionName: result.positionName ?? '',
+        officialPhotoUrl: result.officialPhotoUrl ?? '',
+        reasonCode: ''
+      }
+    } catch {
+      return { available: false, reasonCode: 'OWNER_FACT_UNAVAILABLE' }
     }
   }
 
