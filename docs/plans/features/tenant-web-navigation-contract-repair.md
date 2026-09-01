@@ -44,6 +44,28 @@ review: local-ri
   - frontend, mixed, and backend preference modes all keep local lazy route components because the Gateway does not return Web component paths
   - no tenant-web runtime call site references `/menu/all`
 
+### page-050-refresh-rematch
+state: CANDIDATE_READY
+candidate: 7bb9a6e4057fbcd520b8573e8aacdee811f62205
+review: same-feature-ri-pending
+
+- Scope:
+  - `app/web/apps/tenant-web/src/router/guard.ts`
+  - `app/web/apps/tenant-web/src/router/guard.spec.ts`
+- Protected scope:
+  - PAGE-038 account-selection behavior
+  - PAGE-053 through PAGE-075 behavior and page implementations
+  - API Gateway, permission-service, session, navigation-registry, and route-visibility contracts
+- Base:
+  - append-only integration of exact `origin/main` candidate `8ddfc73cd16e88703e8205cefa56a63366a226a3`
+- Acceptance:
+  - persisted access refresh rematches a visible dynamic target when its first match was the fallback route
+  - persisted access refresh rematches a visible target whose matched route-record identities were replaced
+  - a target that remains invisible after refresh stays on the fallback route
+  - unchanged core and public matches do not rematch; first-generation route installation behavior remains intact
+  - rematch uses `replace` and terminates on the next guard pass without a navigation loop
+  - direct navigation and browser refresh of `/master-data/items` render the item-management page without a blank or loading-only shell and issue its primary APIs successfully
+
 ## Request / response mapping truth table
 
 | Gateway result | Session visibility | Tenant-web mapping |
