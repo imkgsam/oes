@@ -345,7 +345,7 @@ main前进本身不使授权失效。无关变化自动集成并复用证据；�
 
 1. Focused：changed module、direct unit、lint/typecheck；
 2. Affected：受影响依赖、关键集成、兼容与恢复；
-3. Full Gate：PR merge前、Stage exit、main merge后。
+3. Authoritative Full Gate：在merge前对latest main上的exact prospective result运行完整validation surface；无native Merge Queue时由已整合latest main的exact PR head承载，有queue时由exact `merge_group`承载。Stage exit确认每个item均有对应authoritative evidence；`push main`只运行9.4定义的exact-equivalence/integrity与快速smoke，只有equivalence证明缺失或不等价时才fail-closed升级Full Gate。
 
 证据只在candidate、依赖、输入、环境或命令版本改变时失效。RI只补验缺失或受影响风险，不重复owner已证明且输入未变的完整矩阵。
 
@@ -371,7 +371,11 @@ authoritative full gate使用受版本控制的deterministic inventory和风险�
 
 `pull_request`使用按PR identity分组的`cancel-in-progress`，新head产生后旧run必须在一分钟内取消；`main`和已admit的`merge_group`不得被无关run取消。CI infrastructure failure只允许same SHA重跑failed job一次；测试结果反转计入flaky rerun而不视为基础设施恢复，重复flaky必须作为阻塞缺陷治理，不允许skip、quarantine或降低assertion代替修复。
 
-以GitHub workflow/check facts和每个run的普通artifact计算性能，不建立repository CI账本或第二状态库。2026-08-31T03:33:37Z至2026-09-01T03:17:51Z的现行三job拓扑基线为24个成功run：16个PR的wall-clock P95为379秒、每run job-minutes中位数为10.78；8个main push的P95为377秒、每run job-minutes中位数为11.05。follow-on implementation在matched workload上必须同时达到：authoritative candidate P95不超过5分钟、main smoke P95不超过2分钟、重复完整main gate为0、superseded PR CI一分钟内取消、PR加main总job-minutes至少降低35%、多PR Stage从merge确认到最终main验证至少降低50%，flaky rerun率低于2%。样本不足时保持legacy full gate并继续采样，不以推算值宣告cutover。
+以GitHub workflow/check facts和每个run的普通artifact计算性能，不建立repository CI账本或第二状态库。dated baseline与observed result只保存在当前Proposal或implementation verification evidence，不进入canonical Governance。一个matched workload由event topology、changed-path/risk class、Stage PR count/order、workflow revision、command manifest、test inventory、lockfile、toolchain和cache disposition的exact fingerprint标识；PR与main只通过accepted head和merge parents关联，不能按时间邻近推测配对。
+
+cutover sample从第一个完整新拓扑run开始连续收集，到满足全部最小量或30个calendar days为止，不得排除失败、取消、retry或较慢run。最小量为20个accepted PR/main exact pairs、其中至少5个cold-cache authoritative candidates，10个自然或受控的superseded PR run pairs、5个每组至少3个PR的matched Stage sequences，以及50个authoritative test attempts；P95使用nearest-rank，job-minutes包含样本内全部attempt，flaky rerun指source、dependency、environment、command与SHA均未变化时test result反转。matched baseline使用同一fingerprint和同一统计规则保存在task-local evidence。
+
+follow-on implementation只有在上述sample同时证明authoritative candidate P95不超过5分钟、main smoke P95不超过2分钟、重复完整main gate为0、superseded PR CI一分钟内取消、PR加main总job-minutes较matched baseline至少降低35%、多PR Stage从merge确认到最终main验证至少降低50%，且flaky rerun率低于2%时才完成性能cutover。30天内样本不足或任一目标未满足时继续legacy full gate并报告当前样本，不以推算值、选择性窗口或未配对run宣告cutover。
 
 ### 9.5 Collaboration runtime最小不变量
 
@@ -405,7 +409,7 @@ standalone Human确认一个exact PR/head；Stage Human只确认一张有序Stag
 
 每个实际mutation边界都重新读取base/head/checks/reviews和latest remote `main`。当前没有native Merge Queue时使用有界`serial-latest-main` admission；未来只有ruleset和API readback都证明native Merge Queue可用时才逐项使用queue。无论哪种模式，都必须在latest main上的exact prospective result通过本拓扑authoritative `Baseline Checks`后才能Merge Commit。Stage一次最多admit一个item，因此失败时没有尚未验证的同Stage后续item留在queue。串行lock只保护当前mutation/recovery临界区，完成或安全失败即释放，不形成持久调度中心、全局任务状态或后台queue owner。
 
-main漂移但PR patch/content、Stage集合与顺序、confirmed scope和risk均未变化时，owner自动计算equivalence revision、只运行drift/affected matrix并在新的mutation边界绑定当前exact head/base；纯integration-base/head刷新沿用原Stage confirmation。PR业务内容、Stage集合、顺序、scope或risk任一变化时整张旧Stage卡失效，所有尚未合并items准备完成后只刷新一张Stage卡；已合并健康前缀保持原审计与授权，不重新确认或回滚。
+main漂移但PR patch/content、Stage集合与顺序、confirmed scope和risk均未变化时，drift/affected matrix只用于证明原Stage confirmation仍可沿用，不能代替authoritative gate。当前无native Merge Queue时，owner在bounded serial admission内以append-only merge commit把latest main整合进candidate，证明相对各自base的patch/content fingerprint不变，fast-forward更新同一PR head，并等待完整`pull_request` `Baseline Checks`在该exact refreshed head成功；mutation前main再次变化则从新的latest main重新执行本过程。新的exact head/base通过technical equivalence revision绑定原Stage confirmation。native Merge Queue启用时由exact `merge_group` Full Gate完成同一prospective证明。PR业务内容、Stage集合、顺序、scope或risk任一变化时整张旧Stage卡失效，所有尚未合并items准备完成后只刷新一张Stage卡；已合并健康前缀保持原审计与授权，不重新确认或回滚。
 
 每个merge后验证：`origin/main`等于该项merge SHA、merge具有exact两个parents、accepted candidate为merge祖先、authoritative candidate equivalence与required main workflow成功、protected resources保持不变。验证成功才进入下一项。任一Stage item的admission、CI、merge或main验证失败，立即停止尚未合并的同Stage后续项并返回exact owner；已合并健康前缀保留，其他Design、standalone FL和其他SL继续。修复后只重验失败项及其受影响后缀，不重复健康前缀、完整Feature RI或无关CI。
 
