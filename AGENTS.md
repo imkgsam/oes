@@ -60,7 +60,7 @@ OES 默认从普通讨论开始；只读讨论不创建角色或资源。有状�
 - Direct：一个 owner 闭合一个无稳定设计变化的小型 Change Set；根据实际写入对象选择 repository delivery 或 host-local operation；
 - Design Owner：研究稳定设计，先展示完整只读 Proposal Preview，Human确认后形成local-only Proposal并提交exact global UD；
 - Global Unified Design（UD）：全局唯一canonical writer、串行设计审核者和Design remote owner；
-- Stage Lead（SL）：协调多个独立FL、依赖、WIP、moving-main和Stage Review，不写feature产品代码、不建立总产品PR；纯本地运维Stage不为协调本身创建Git资源；
+- Stage Lead（SL）：协调多个独立FL、依赖、WIP、moving-main、Stage Review、Stage批量merge确认与全Stage cleanup，不写feature产品代码、不建立总产品PR；纯本地运维Stage不为协调本身创建Git资源；
 - Feature Lead（FL）：独立拥有一个feature结果；repository delivery拥有Packet、branch/worktree、candidate、Feature RI和Draft PR，host-local operation拥有精确本地资源范围、当前操作证据和验收结果但默认没有Git交付资源；
 - Implementation Task（IT）：实现一个slice，通常是FL的bounded subagent；
 - Review & Integration（RI）：执行Feature或Stage的独立风险审核，默认只读exact candidate。
@@ -77,7 +77,7 @@ Human默认只看到`讨论中、设计审核中、实现中、审核中、等�
 
 完整owner转移、Design/UD、moving-main、三层验证、remote driver、merge、cleanup、failure recovery和Human命令以`docs/governance/codex-execution-model.md`为准。
 
-任何remote push、PR、`main` merge、post-merge验证和Git资源清理必须遵循该文件。禁止direct push `main`；Design remote mutation只由exact UD发起或由UD预先绑定的机械host transport执行；每次main merge继续使用Merge Commit、required CI和Human确认。
+任何remote push、PR、`main` merge、post-merge验证和Git资源清理必须遵循该文件。禁止direct push `main`；Design remote mutation只由exact UD发起或由UD预先绑定的机械host transport执行；每次main merge继续使用Merge Commit与required CI，standalone PR逐项确认，有parent SL的Stage由一张确认卡绑定全部exact PR heads、集合和顺序后逐项执行。
 
 任何有状态work item同时只有一个current owner和artifact owner。通知不转移owner；replacement必须在旧owner终止并验证后创建。不得恢复全局调度中心、task registry、watchdog、heartbeat、pull inbox或历史状态账本。
 
@@ -91,6 +91,8 @@ Planner只重读现有canonical truth、可见task与GitHub状态生成非canoni
 - 创建有状态task前先独立判断是否写repository、是否需要candidate/PR、是否操作host-local资源以及是否需跨turn可见owner；只有repository写入才允许worktree provisioning。纯host-local任务默认先只读盘点，任何破坏性host操作必须通过绑定精确资源和保护清单的Human确认。
 - Human确认exact Preview后才形成Proposal并提交exact global UD；该确认授权UD推进到`DESIGN_PR_READY`，Design PR merge、NEW_DESIGN delivery activation和cleanup分别确认。
 - delivery中发现design gap时只暂停affected lane并保留原SL/FL资源；truth merge后UD自动返回exact original owner，原owner更新latest `origin/main`、只重验受影响范围并继续，不创建replacement或把实现路由到祖先task。
+- `REPOSITORY_DELIVERY` Stage只有在全部FL、Feature RI与Stage RI完成后才进入merge；Stage内逐PR按latest-main串行admission，已合并健康前缀不因后续失败回滚，其他Stage、独立FL与Design继续。
+- 用户表达Stage cleanup意图时先自动只读盘点全部owner、task与资源，再显示一张exact卡；一次确认执行全部owner cleanup，部分成功不重复，unknown、shared、active、dirty或mismatch资源保留并报告，terminal roster核对后按依赖顺序自动archive，长期UD保持可见。
 - Planner的月、周、日规划默认只保存在Planner task消息中；日计划必须关联周目标、周目标必须关联月度里程碑，未满足依赖或无法在时间盒内验收的事项不进入推荐组合。
 - Proposal、Packet和验证只保存当前必要状态；Git、task history或最终记录可重建的中间事实不另建长期receipt、ledger或重复manifest。
 - canonical cutover前已存在的合法task、owner和资源保持exact binding到terminal/cleanup；新规则只约束cutover后新建role。当前Collaboration Runtime Cutover及其现有FL/RI保持暂停和资源不变，设计合并后优先same-id恢复Human可见性，再由原SL继续。
