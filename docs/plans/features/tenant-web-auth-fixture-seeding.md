@@ -8,7 +8,7 @@ worktreeKey: 9d4f
 pullRequest: none (local follow-up candidate)
 priorMergeSha: cad78c03508ed046f0053e16d05ab08a301e9dc4
 cleanup: HOLD
-state: REVIEWING
+state: ACCEPTED
 
 ## Objective
 
@@ -31,7 +31,7 @@ The first five groups remain explicit design gaps because current navigation fou
 
 ### task-bound-seed-orchestration
 
-state: REVIEWING
+state: ACCEPTED
 candidate: b5629347d2230868b89e87f8d236a4cdceee3785
 review: same feature-ri `01a052d7-1611-7001-8e91-e6d6e70b2fb5`
 
@@ -60,7 +60,7 @@ review: same feature-ri `01a052d7-1611-7001-8e91-e6d6e70b2fb5`
 - Latest-main focused verification: exact append-only merge candidate `b5629347` passes all 70 Node tests and 51 tenant-web Vitest tests across Auth, Policy preview, Item Model Create, and latest-main Role Management coverage.
 - Latest-main lifecycle verification: initial rollback read back zero task containers, volumes, networks, and state; fresh `up`/`health`/21-database migration, fresh seed, repeat seed, and verify all passed on live PostgreSQL port `59336`.
 - Latest-main remap/drift/failure recovery: an injected stale state port `51229` plus snapshot-only factor count `3` produced `POSTGRES_PORT_REFRESH before=51229 after=59336`, nonzero verify, persisted live port, and exact `VERIFY_FAILED`. The first official seed then produced the expected `SEED_NOT_IDEMPOTENT`, `SEED_FAILED`, and null snapshot; the second seed plus 21-database verify restored factor count `4` and `VERIFIED`. Final rollback again read back zero task containers, volumes, networks, and state.
-- Same Feature RI `01a052d7-1611-7001-8e91-e6d6e70b2fb5` is being rebound to exact latest-main candidate `b5629347d2230868b89e87f8d236a4cdceee3785`; remote publication and execution-profile preparation remain out of scope while the governing design is under review.
+- Same Feature RI `01a052d7-1611-7001-8e91-e6d6e70b2fb5` accepted exact latest-main candidate `b5629347d2230868b89e87f8d236a4cdceee3785` with no findings after independently rerunning Node 70/70 and tenant-web 51/51 and reopening the fresh/repeat/21-database, remap/drift failure, two-seed recovery, zero-resource rollback, and four-artifact evidence. Remote publication and execution-profile preparation remain out of scope while the governing design is under review.
 
 ## Feature acceptance
 
