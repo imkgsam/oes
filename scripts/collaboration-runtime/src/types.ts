@@ -254,17 +254,97 @@ export interface CapabilityObservation {
   result: 'PASS' | 'FAIL'
 }
 
+export const APPROVAL_MODES = ['ON_REQUEST_AUTO_REVIEW', 'NEVER_USER'] as const
+export type ApprovalMode = (typeof APPROVAL_MODES)[number]
+export type ApprovalPolicy = 'on-request' | 'never'
+export type ApprovalsReviewer = 'auto_review' | 'user'
+
+export interface EffectivePermissionContext {
+  ordinal: number
+  turnId: string
+  approvalPolicy: ApprovalPolicy
+  approvalsReviewer: ApprovalsReviewer
+  permissionProfileType: string
+  sandboxPolicyType: string
+  fileSystemSandboxPolicyKind: string
+  activePermissionProfileId: string | null
+  permissionSandboxFingerprint: string
+}
+
 export interface ApprovalTelemetry {
   eventSource: string
   eventSourceSha256: string
-  approvalPolicy: 'on-request'
-  approvalsReviewer: 'auto_review'
+  eventSourceFingerprint?: string
+  snapshotRecord?: TrustedAuthorizationReference
+  probeAttemptId?: string
+  probeDraftFingerprint?: string
+  probeRequestFingerprint?: string
+  rolloutSessionId?: string
+  completedTurnId?: string
+  approvalPolicy: ApprovalPolicy
+  approvalsReviewer: ApprovalsReviewer
   approvalEventCount: number
   normalPermissionPromptCount: number
+  approvalMode?: ApprovalMode
+  effectivePermissionSandboxFingerprint?: string
+  contexts?: EffectivePermissionContext[]
+}
+
+export interface ApprovalTelemetrySnapshotRecord {
+  schemaVersion: 1
+  kind: 'OES_APPROVAL_TELEMETRY_SNAPSHOT_RECORD'
+  snapshotRecordFingerprint: string
+  ownerTaskId: string
+  transitionId: string
+  profileGeneration: number
+  launchReceiptFingerprint: string
+  probeAttemptFingerprint: string
+  probeAttemptId: string
+  probeDraftFingerprint: string
+  probeRequestFingerprint: string
+  rolloutSessionId: string
+  completedTurnId: string
+  snapshot: TrustedAuthorizationReference
+}
+
+export interface ProfileProbeAttemptRecord {
+  schemaVersion: 1
+  kind: 'OES_PROFILE_PROBE_ATTEMPT'
+  probeAttemptFingerprint: string
+  status: 'ISSUED'
+  issuedBeforeProbe: true
+  issuerTaskId: string
+  ownerTaskId: string
+  transitionId: string
+  profileGeneration: number
+  launchReceiptFingerprint: string
+  probeAttemptId: string
+  expectedRolloutSessionId: string
+  requestContractFingerprint: string
+  snapshotRecordPath: string
+}
+
+export interface ProfileLaunchReceipt {
+  schemaVersion: 1
+  kind: 'OES_PROFILE_LAUNCH_RECEIPT'
+  receiptFingerprint: string
+  ownerTaskId: string
+  transitionId: string
+  profileGeneration: number
+  predecessorLaunchReceipt: TrustedAuthorizationReference | null
+  approvalMode: ApprovalMode
+  approvalPolicy: ApprovalPolicy
+  approvalsReviewer: ApprovalsReviewer
+  installedProfile: {
+    path: string
+    sha256: string
+  }
+  expectedEffectivePermissionSandboxFingerprint: string
+  resourceTopology: import('./resource-topology.types.ts').EffectiveOwnerResourceTopology
 }
 
 export interface EffectiveProfileReport {
-  schemaVersion: 1
+  schemaVersion: 1 | 2
   kind: 'OES_EFFECTIVE_PROFILE_REPORT'
   ownerTaskId: string
   transitionId: string
@@ -283,6 +363,10 @@ export interface EffectiveProfileReport {
     secretValuesRecorded: false
   }
   telemetry: ApprovalTelemetry
+  approvalMode?: ApprovalMode
+  launchReceipt?: TrustedAuthorizationReference
+  effectivePermissionSandboxFingerprint?: string
+  probeAttempt?: TrustedAuthorizationReference
 }
 
 export interface EvidenceKeyInput {

@@ -15,10 +15,12 @@ import { RuntimeContractError, fail } from './errors.ts'
 import { GitHubRemoteAdapter, SpawnCommandRunner } from './github-adapter.ts'
 import { LocalMainController, type LocalMainSyncBinding } from './local-main.ts'
 import { proposalQueueView, type ProposalHistoryEvent } from './proposal-queue.ts'
+import { renderOwnerProfileLaunch, type OwnerProfileRenderRequest } from './profile-policy.ts'
 import {
   SystemPreflightProbeAdapter,
+  finalizeEffectiveProfilePreflight,
   loadRemoteTrustRootsFromProfileReport,
-  runEffectiveProfilePreflight,
+  runEffectiveProfileProbePhase,
   verifyEffectiveProfileReport,
   type PreflightRequest,
   type SystemProbeOptions
@@ -93,16 +95,38 @@ async function main(args: string[]): Promise<void> {
     emit(await new RemoteDriver(new GitHubRemoteAdapter(), trust).run(binding))
     return
   }
-  if (command === 'profile-preflight') {
-    const input = readJson<{ request: PreflightRequest; systemProbe: SystemProbeOptions }>(
-      flag(args, '--input')
-    )
+  if (command === 'profile-preflight-probe') {
+    const input = readJson<{
+      request: PreflightRequest
+      systemProbe: SystemProbeOptions
+      draftPath: string
+    }>(flag(args, '--input'))
     emit(
-      await runEffectiveProfilePreflight(
+      await runEffectiveProfileProbePhase(
         input.request,
-        new SystemPreflightProbeAdapter(input.systemProbe)
+        new SystemPreflightProbeAdapter(input.systemProbe),
+        input.draftPath
       )
     )
+    return
+  }
+  if (command === 'profile-preflight-finalize') {
+    const input = readJson<{
+      request: PreflightRequest
+      systemProbe: SystemProbeOptions
+      draftPath: string
+    }>(flag(args, '--input'))
+    emit(
+      await finalizeEffectiveProfilePreflight(
+        input.request,
+        new SystemPreflightProbeAdapter(input.systemProbe),
+        input.draftPath
+      )
+    )
+    return
+  }
+  if (command === 'profile-render') {
+    emit(renderOwnerProfileLaunch(readJson<OwnerProfileRenderRequest>(flag(args, '--input'))))
     return
   }
   if (command === 'schema-validate') {
@@ -119,6 +143,8 @@ async function main(args: string[]): Promise<void> {
     emit({
       status: 'PROFILE_VERIFIED',
       ownerTaskId: report.ownerTaskId,
+      schemaVersion: report.schemaVersion,
+      approvalMode: report.approvalMode ?? 'ON_REQUEST_AUTO_REVIEW_LEGACY',
       normalPermissionPromptCount: 0
     })
     return

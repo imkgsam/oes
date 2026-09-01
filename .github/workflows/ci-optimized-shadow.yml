@@ -94,13 +94,14 @@ jobs:
       - name: Upload immutable prepared build and shadow evidence
         uses: actions/upload-artifact@v7
         with:
-          name: optimized-shadow-prepare-${{ github.run_id }}-${{ github.run_attempt }}
+          name: optimized-shadow-prepare-${{ github.run_id }}
           path: |
             .tmp/ci-shadow/prepared-build.tar.gz
             .tmp/ci-shadow/prepared-build.sha256
             .tmp/ci-shadow/optimized-shadow.json
           if-no-files-found: error
           retention-days: 30
+          overwrite: true
 
   risk-core:
     name: Optimized Shadow / Risk Core
@@ -125,7 +126,7 @@ jobs:
       - name: Restore and verify exact prepared build
         uses: actions/download-artifact@v8
         with:
-          name: optimized-shadow-prepare-${{ github.run_id }}-${{ github.run_attempt }}
+          name: optimized-shadow-prepare-${{ github.run_id }}
           path: .tmp/ci-shadow
       - run: |
           expected="$(cut -d' ' -f1 .tmp/ci-shadow/prepared-build.sha256)"
@@ -160,7 +161,7 @@ jobs:
       - name: Restore and verify exact prepared build
         uses: actions/download-artifact@v8
         with:
-          name: optimized-shadow-prepare-${{ github.run_id }}-${{ github.run_attempt }}
+          name: optimized-shadow-prepare-${{ github.run_id }}
           path: .tmp/ci-shadow
       - run: |
           expected="$(cut -d' ' -f1 .tmp/ci-shadow/prepared-build.sha256)"
@@ -192,7 +193,7 @@ jobs:
       - name: Restore exact prepared build
         uses: actions/download-artifact@v8
         with:
-          name: optimized-shadow-prepare-${{ github.run_id }}-${{ github.run_attempt }}
+          name: optimized-shadow-prepare-${{ github.run_id }}
           path: .tmp/ci-shadow
       - name: Verify and extract exact prepared build
         run: |
@@ -280,7 +281,7 @@ jobs:
                 run_id: run.id,
                 per_page: 100
               })
-              const name = `optimized-shadow-prepare-${run.id}-${run.run_attempt}`
+              const name = `optimized-shadow-prepare-${run.id}`
               const artifact = artifacts.artifacts.find(
                 (item) => item.name === name && !item.expired
               )

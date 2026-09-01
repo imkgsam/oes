@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/profile-launch-receipt-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "receiptFingerprint",
+    "ownerTaskId",
+    "transitionId",
+    "profileGeneration",
+    "predecessorLaunchReceipt",
+    "approvalMode",
+    "approvalPolicy",
+    "approvalsReviewer",
+    "installedProfile",
+    "expectedEffectivePermissionSandboxFingerprint",
+    "resourceTopology"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "OES_PROFILE_LAUNCH_RECEIPT" },
+    "receiptFingerprint": { "$ref": "#/$defs/sha256" },
+    "ownerTaskId": { "type": "string", "minLength": 1 },
+    "transitionId": { "type": "string", "minLength": 1 },
+    "profileGeneration": { "type": "integer", "minimum": 1 },
+    "predecessorLaunchReceipt": {
+      "type": ["object", "null"],
+      "allOf": [{ "if": { "type": "object" }, "then": { "$ref": "#/$defs/reference" } }]
+    },
+    "approvalMode": { "enum": ["ON_REQUEST_AUTO_REVIEW", "NEVER_USER"] },
+    "approvalPolicy": { "enum": ["on-request", "never"] },
+    "approvalsReviewer": { "enum": ["auto_review", "user"] },
+    "installedProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^/" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "expectedEffectivePermissionSandboxFingerprint": { "$ref": "#/$defs/sha256" },
+    "resourceTopology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resourceTopologyVersion", "ownerResourceBinding"],
+      "properties": {
+        "resourceTopologyVersion": { "enum": ["pre-cutover-v1", "stable-owner-exclusive-v1"] },
+        "ownerResourceBinding": {
+          "type": ["object", "null"],
+          "allOf": [{ "if": { "type": "object" }, "then": { "$ref": "#/$defs/reference" } }]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "resourceTopologyVersion": { "const": "stable-owner-exclusive-v1" } }
+          },
+          "then": { "properties": { "ownerResourceBinding": { "$ref": "#/$defs/reference" } } }
+        },
+        {
+          "if": { "properties": { "resourceTopologyVersion": { "const": "pre-cutover-v1" } } },
+          "then": { "properties": { "ownerResourceBinding": { "const": null } } }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "approvalMode": { "const": "ON_REQUEST_AUTO_REVIEW" } } },
+      "then": {
+        "properties": {
+          "approvalPolicy": { "const": "on-request" },
+          "approvalsReviewer": { "const": "auto_review" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "approvalMode": { "const": "NEVER_USER" } } },
+      "then": {
+        "properties": {
+          "approvalPolicy": { "const": "never" },
+          "approvalsReviewer": { "const": "user" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "fingerprint"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^/" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "fingerprint": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}
