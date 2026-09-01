@@ -1,13 +1,16 @@
-approval_policy = "on-request"
-approvals_reviewer = "auto_review"
+approval_policy = "{{APPROVAL_POLICY}}"
+approvals_reviewer = "{{APPROVALS_REVIEWER}}"
 default_permissions = "oes-project-owner"
 
 [shell_environment_policy.set]
 NPM_CONFIG_SHELL_EMULATOR = "true"
+TMPDIR = "{{TASK_TEMP_PATH}}"
 
 [collaboration_runtime]
 owner_task_id = "{{OWNER_TASK_ID}}"
 transition_id = "{{TRANSITION_ID}}"
+approval_mode = "{{APPROVAL_MODE}}"
+expected_effective_permission_sandbox_fingerprint = "{{EXPECTED_EFFECTIVE_PERMISSION_SANDBOX_FINGERPRINT}}"
 trusted_authorization_root = "{{TRUSTED_AUTHORIZATION_ROOT}}"
 serial_admission_root = "{{SERIAL_ADMISSION_ROOT}}"
 resource_topology_version = "{{RESOURCE_TOPOLOGY_VERSION}}"
@@ -30,6 +33,8 @@ description = "Rendered per OES owner; placeholders are replaced before fingerpr
 ":minimal" = "read"
 "{{REPOSITORY_ROOT}}" = "read"
 "{{OWNER_GIT_DIRECTORY}}" = "write"
+"{{USER_GIT_CONFIG}}" = "read"
+"{{CREDENTIAL_STORE_PATH}}" = "read"
 "{{TRUSTED_AUTHORIZATION_ROOT}}" = "read"
 "{{SERIAL_ADMISSION_ROOT}}" = "write"
 "{{PACKAGE_CACHE_PATH}}" = "write"

@@ -2181,10 +2181,6 @@ onBeforeUnmount(() => {
                 </div>
               </div>
               <Dropdown
-                v-access:code="[
-                  'permission.role_instance.create_from_template',
-                  'permission.role_instance.create',
-                ]"
                 v-if="canCreateRole"
                 trigger="click"
               >

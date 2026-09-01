@@ -34,6 +34,8 @@ class ScenarioRunner implements CommandRunner {
   pullBody = 'Exact candidate'
   failPush = false
   failPatch = false
+  checkRuns: Array<Record<string, unknown>> = []
+  readonly annotationsByCheckId = new Map<number, Array<Record<string, unknown>>>()
   readonly nonAncestorHeads = new Set<string>()
 
   constructor(candidate: string, main: string, ruleset: Record<string, unknown> = rulesetDetail()) {
@@ -122,8 +124,15 @@ class ScenarioRunner implements CommandRunner {
             allow_auto_merge: false
           })
         )
-      if (endpoint.includes('/check-runs/') && endpoint.includes('/annotations')) return ok('[]')
-      if (endpoint.includes('/check-runs')) return ok(JSON.stringify({ check_runs: [] }))
+      const annotationMatch = endpoint.match(/\/check-runs\/(\d+)\/annotations/)
+      if (annotationMatch) {
+        const values = this.annotationsByCheckId.get(Number(annotationMatch[1])) ?? []
+        const page = Number(new URL(`https://fixture.invalid/${endpoint}`).searchParams.get('page'))
+        const start = (page - 1) * 100
+        return ok(JSON.stringify(values.slice(start, start + 100)))
+      }
+      if (endpoint.includes('/check-runs'))
+        return ok(JSON.stringify({ check_runs: this.checkRuns }))
       if (endpoint.includes('/comments?') || endpoint.includes('/reviews?')) return ok('[]')
       if (args.includes('graphql'))
         return ok(
@@ -623,6 +632,92 @@ test('a required check without a positive authoritative run id fails closed', as
   )
   assert.equal(result.passed, false)
   assert.equal(result.status, 'PR_CI_PENDING')
+})
+
+test('review gate counts annotations only from the newest authoritative required check', async () => {
+  const binding = remoteBinding({
+    action: 'verify-pr',
+    pullRequest: {
+      baseRef: 'main',
+      draft: true,
+      number: 12,
+      requiredChecks: ['Baseline Checks'],
+      title: 'Runtime',
+      body: 'Exact candidate'
+    }
+  })
+  const runner = new ScenarioRunner(binding.candidateSha, binding.integrationBase)
+  runner.pullExists = true
+  runner.checkRuns = [
+    {
+      id: 10,
+      name: 'Baseline Checks',
+      status: 'completed',
+      conclusion: 'failure'
+    },
+    {
+      id: 11,
+      name: 'Baseline Checks',
+      status: 'completed',
+      conclusion: 'success'
+    },
+    {
+      id: 20,
+      name: 'Optimized Shadow (non-required)',
+      status: 'completed',
+      conclusion: 'failure'
+    }
+  ]
+  runner.annotationsByCheckId.set(10, [{ annotation_level: 'failure' }])
+  runner.annotationsByCheckId.set(11, [{ annotation_level: 'warning' }])
+  runner.annotationsByCheckId.set(20, [{ annotation_level: 'failure' }])
+
+  const truth = await new GitHubRemoteAdapter(runner).readTruth(binding)
+
+  assert.equal(truth.reviewGate.annotations, 1)
+  assert.equal(
+    runner.commands.some((command) => command.includes('/check-runs/10/annotations')),
+    false
+  )
+  assert.equal(
+    runner.commands.some((command) => command.includes('/check-runs/11/annotations')),
+    true
+  )
+  assert.equal(
+    runner.commands.some((command) => command.includes('/check-runs/20/annotations')),
+    false
+  )
+})
+
+test('review gate reads required-check annotations through the final page', async () => {
+  const binding = remoteBinding({
+    action: 'verify-pr',
+    pullRequest: {
+      baseRef: 'main',
+      draft: true,
+      number: 12,
+      requiredChecks: ['Baseline Checks'],
+      title: 'Runtime',
+      body: 'Exact candidate'
+    }
+  })
+  const runner = new ScenarioRunner(binding.candidateSha, binding.integrationBase)
+  runner.pullExists = true
+  runner.checkRuns = [
+    { id: 11, name: 'Baseline Checks', status: 'completed', conclusion: 'success' }
+  ]
+  runner.annotationsByCheckId.set(11, [
+    ...Array.from({ length: 100 }, () => ({ annotation_level: 'notice' })),
+    { annotation_level: 'failure' }
+  ])
+
+  const truth = await new GitHubRemoteAdapter(runner).readTruth(binding)
+
+  assert.equal(truth.reviewGate.annotations, 1)
+  assert.equal(
+    runner.commands.some((command) => command.includes('/annotations?per_page=100&page=2')),
+    true
+  )
 })
 
 test('protect-main ruleset must target exactly the default main ref', async () => {
