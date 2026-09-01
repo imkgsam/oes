@@ -14,7 +14,7 @@ describe('policy instance preview page', () => {
     evaluatePolicyInstancePreviewApi.mockReset();
     evaluatePolicyInstancePreviewApi.mockResolvedValue({
       allowed: true,
-      matchedPolicyIds: ['preview-policy-1'],
+      matchedPolicyIds: ['00000000-0000-4000-8000-000000000999'],
       reasonCode: 'POLICY_ALLOW_MATCHED',
       scope: {
         field: 'categoryId',
@@ -37,11 +37,16 @@ describe('policy instance preview page', () => {
       expect.objectContaining({
         mode: 'QUERY_SCOPE',
         permissionCode: 'procurement.purchase_request.create',
+        subject: {
+          accountId: '00000000-0000-4000-8000-000000000901',
+          tenantId: '00000000-0000-4000-8000-000000000001',
+          roleIds: [],
+        },
         policyInstances: [
           expect.objectContaining({
             templateCode: 'resource-field-in-set',
             params: {
-              allowedValues: ['raw-material', 'packaging'],
+              allowedValues: ['00000000-0000-4000-8000-000000000996'],
               field: 'categoryId',
             },
           }),

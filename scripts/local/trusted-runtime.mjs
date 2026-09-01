@@ -19,6 +19,7 @@ const envSource = resolve(
 )
 const inventoryPath = join(root, 'docker/grpc-trust/workloads.txt')
 const command = process.argv[2] || 'check'
+export const DOCKER_PORT_INSPECTION_TIMEOUT_MS = 30_000
 
 /** Reads the frozen listener inventory and rejects duplicate identities, ports, and sources. */
 export async function readInventory(text) {
@@ -43,12 +44,18 @@ export async function readInventory(text) {
 /** Creates one deterministic, task-owned host profile without embedding credential values in its manifest. */
 export async function generateProfile({
   basePort = Number(process.env.OES_TRUSTED_RUNTIME_BASE_PORT || 52050),
-  requireInfrastructure = false
+  requireInfrastructure = false,
+  selectorProfilePath = join(
+    root,
+    '.tmp/oes-database-lifecycle',
+    taskKey,
+    'machine-selectors-v2.json'
+  )
 } = {}) {
   const inventory = await readInventory()
   const sourceEnvironment = parseEnv(await readFile(envSource, 'utf8'))
-  const runtimePolicies = await runtimePolicyEnvironment()
-  const runtimeSelectors = await runtimeSelectorEnvironment()
+  const runtimePolicies = await runtimePolicyEnvironment(selectorProfilePath)
+  const runtimeSelectors = await runtimeSelectorEnvironment(selectorProfilePath)
   const nacosPort =
     process.env.OES_NACOS_HOST_PORT?.trim() ||
     sourceEnvironment.NACOS_HOST_PORT ||
@@ -216,14 +223,8 @@ export async function generateProfile({
 }
 
 /** Projects only provisioner-owned opaque selector references into their exact host process. */
-async function runtimeSelectorEnvironment() {
-  const profilePath = join(
-    root,
-    '.tmp/oes-database-lifecycle',
-    taskKey,
-    'machine-selectors-v2.json'
-  )
-  const profile = JSON.parse(await readFile(profilePath, 'utf8'))
+async function runtimeSelectorEnvironment(selectorProfilePath) {
+  const profile = JSON.parse(await readFile(selectorProfilePath, 'utf8'))
   const selectors = new Map(profile.selectors.map((item) => [item.inventoryEntryKey, item]))
   const mappings = {
     'api-gateway': ['GATEWAY'],
@@ -257,7 +258,7 @@ async function runtimeSelectorEnvironment() {
 }
 
 /** Projects the versioned trust registries directly so a retained lifecycle env cannot stale runtime admission. */
-async function runtimePolicyEnvironment() {
+async function runtimePolicyEnvironment(selectorProfilePath) {
   const [authSource, permission] = await Promise.all([
     readFile(
       join(root, 'scripts/local/runtime-config/auth-execution-workload-policies.json'),
@@ -269,12 +270,7 @@ async function runtimePolicyEnvironment() {
     )
   ])
   const auth = JSON.parse(authSource)
-  const selectorProfile = JSON.parse(
-    await readFile(
-      join(root, '.tmp/oes-database-lifecycle', taskKey, 'machine-selectors-v2.json'),
-      'utf8'
-    )
-  )
+  const selectorProfile = JSON.parse(await readFile(selectorProfilePath, 'utf8'))
   const gatewaySelector = selectorProfile.selectors.find(
     (entry) => entry.inventoryEntryKey === 'api-gateway'
   )
@@ -811,7 +807,7 @@ function resolveInfrastructurePort(service, containerPort) {
   const container = `oes_${taskKey}-${service}-1`
   const result = spawnSync('docker', ['port', container, `${containerPort}/tcp`], {
     encoding: 'utf8',
-    timeout: 5_000
+    timeout: DOCKER_PORT_INSPECTION_TIMEOUT_MS
   })
   if (result.status !== 0)
     throw new Error(`TRUSTED_RUNTIME_INFRA_PORT_UNAVAILABLE_${service.toUpperCase()}`)
@@ -824,7 +820,7 @@ function resolveInfrastructurePort(service, containerPort) {
 function resolvePublishedPort(container, containerPort) {
   const result = spawnSync('docker', ['port', container, `${containerPort}/tcp`], {
     encoding: 'utf8',
-    timeout: 5_000
+    timeout: DOCKER_PORT_INSPECTION_TIMEOUT_MS
   })
   const match = result.stdout.trim().match(/:(\d+)$/u)
   if (result.status !== 0 || !match) throw new Error('TRUSTED_RUNTIME_PUBLISHED_PORT_INVALID')

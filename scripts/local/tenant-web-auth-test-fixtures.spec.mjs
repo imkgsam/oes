@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   AUTH_ACCEPTANCE_FIXTURES,
   DEFAULT_PASSWORD,
+  PAGE_ACCEPTANCE_FIXTURES,
   SEEDED_TENANT_ROLE_PERMISSION_CODES,
   SYSTEM_ADMIN_ACCOUNT_IDS,
   TENANT_SYSTEM_ADMIN_ACCOUNT_ROLE_BINDINGS,
@@ -35,6 +36,109 @@ test('auth acceptance fixtures stay dedicated and task-resettable', () => {
   assert.equal(fixtures.mfa.tenantTerminalMfaPolicy.loginMfaRequired, true)
   assert.deepEqual(fixtures.mfa.tenantTerminalMfaPolicy.allowedFactors, ['TOTP'])
   assert.equal(fixtures.passwordSetup.requirement.required, true)
+  assert.equal(fixtures.passwordRecovery.grant.id, '00000000-0000-4000-8000-000000000820')
+  assert.equal(fixtures.passwordRecovery.grant.expiresAt.getUTCFullYear(), 2099)
+  assert.deepEqual(
+    [
+      fixtures.passwordRecovery.accountTerminalAccessOverride,
+      fixtures.passwordSetup.accountTerminalAccessOverride,
+      fixtures.mfa.accountTerminalAccessOverride
+    ].map((override) => ({
+      accountId: override.accountId,
+      scopeLevel: override.scopeLevel,
+      tenantId: override.tenantId,
+      allowedTerminals: override.allowedTerminals
+    })),
+    [
+      {
+        accountId: fixtures.passwordRecovery.accountId,
+        scopeLevel: 'TENANT',
+        tenantId: '00000000-0000-4000-8000-000000000001',
+        allowedTerminals: ['WEB']
+      },
+      {
+        accountId: fixtures.passwordSetup.accountId,
+        scopeLevel: 'TENANT',
+        tenantId: '00000000-0000-4000-8000-000000000002',
+        allowedTerminals: ['WEB']
+      },
+      {
+        accountId: fixtures.mfa.accountId,
+        scopeLevel: 'TENANT',
+        tenantId: '00000000-0000-4000-8000-000000000003',
+        allowedTerminals: ['WEB']
+      }
+    ]
+  )
+  assert.deepEqual(fixtures.mfa.tenantScenarioPolicy, {
+    scenario: 'LOGIN',
+    required: true,
+    updatedBy: 'seed:tenant-web-auth'
+  })
+  assert.deepEqual(fixtures.mfa.tenantFactorPolicies, [
+    { factor: 'TOTP', enabled: true, priority: 1, updatedBy: 'seed:tenant-web-auth' },
+    { factor: 'EMAIL_OTP', enabled: false, priority: 2, updatedBy: 'seed:tenant-web-auth' },
+    { factor: 'SMS_OTP', enabled: false, priority: 3, updatedBy: 'seed:tenant-web-auth' },
+    { factor: 'BACKUP_CODE', enabled: false, priority: 4, updatedBy: 'seed:tenant-web-auth' }
+  ])
+})
+
+test('page acceptance fixtures preserve exact route ids and Item Master dependencies', () => {
+  const fixtures = PAGE_ACCEPTANCE_FIXTURES
+  assert.equal(fixtures.policyPreview.tenantId, '00000000-0000-4000-8000-000000000001')
+  assert.equal(fixtures.policyPreview.accountId, '00000000-0000-4000-8000-000000000901')
+  assert.equal(fixtures.policyPreview.policyInstance.id, '00000000-0000-4000-8000-000000000999')
+  assert.deepEqual(fixtures.policyPreview.policyInstance.params.allowedValues, [
+    fixtures.itemMaster.category.id
+  ])
+  assert.equal(
+    fixtures.itemMaster.attributeOption.attributeDefinitionId,
+    fixtures.itemMaster.attributeDefinition.id
+  )
+  assert.equal(fixtures.itemMaster.itemModel.primaryCategoryId, fixtures.itemMaster.category.id)
+  assert.equal(
+    fixtures.itemMaster.itemModelAttributeRule.itemModelId,
+    fixtures.itemMaster.itemModel.id
+  )
+  assert.deepEqual(fixtures.itemMaster.item.lockedAttributeOptionIds, [
+    fixtures.itemMaster.attributeOption.id
+  ])
+  assert.equal(fixtures.itemMaster.item.itemModelId, fixtures.itemMaster.itemModel.id)
+})
+
+test('full-page acceptance account receives only the canonical MES navigation role addition', () => {
+  const roles = buildSeedTenantRoles()
+  const bindings = buildSeedAccountRoleBindings()
+  const mesRole = roles.find(
+    (role) =>
+      role.tenantId === '00000000-0000-4000-8000-000000000001' &&
+      role.code === 'mes.forming_workshop.supervisor'
+  )
+
+  assert.deepEqual(
+    roles.filter((role) => role.code === 'mes.forming_workshop.supervisor').map((role) => role.tenantId),
+    ['00000000-0000-4000-8000-000000000001']
+  )
+  assert.equal(mesRole.id, '00000000-0000-4000-8000-000000001050')
+  assert.ok(
+    bindings.some(
+      (binding) =>
+        binding.accountId === '00000000-0000-4000-8000-000000000901' &&
+        binding.roleId === mesRole.id
+    )
+  )
+  assert.deepEqual(SEEDED_TENANT_ROLE_PERMISSION_CODES.get(mesRole.code), [
+    'mes.production_spec.read',
+    'mes.production_spec.manage',
+    'mes.mold_design.read',
+    'mes.mold_design.manage',
+    'mes.production_mold.read',
+    'mes.production_mold.manage',
+    'mes.tooling_installation.read',
+    'mes.tooling_installation.manage',
+    'mes.mold_usage.record',
+    'mes.mold_life.manage'
+  ])
 })
 
 test('pda login smoke seed targets one tenant account with PDA terminal access and home navigation', () => {

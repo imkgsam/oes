@@ -531,12 +531,12 @@ export const useAuthStore = defineStore('auth', () => {
   ) {
     accessStore.setAccessToken(result.session!.accessToken);
     accessStore.setRefreshToken(result.session!.refreshToken);
-    const userInfo = await hydrateSessionContext(
-      identifier,
-      result.operator ?? null,
-    );
-    requiresPasswordSetup.value =
-      result.passwordSetupRequired === true
+    const passwordSetupRequired = result.passwordSetupRequired === true;
+    // Routes a server-declared first-login setup before permission-dependent session hydration.
+    const userInfo = passwordSetupRequired
+      ? buildUserInfo(identifier, result.operator ?? null)
+      : await hydrateSessionContext(identifier, result.operator ?? null);
+    requiresPasswordSetup.value = passwordSetupRequired
       || authContextStore.sessionContext?.passwordSetupRequired === true;
     userStore.setUserInfo(userInfo);
     resetPendingAuthFlow();

@@ -13,6 +13,7 @@ import {
   assertPinnedComposeImages,
   assertResourceOwnershipRecord,
   assertRollbackBinding,
+  baselineCheckpointResumeAction,
   baselinePlanFingerprint,
   composeEnvironment,
   DATABASE_LIFECYCLE_INIT_SERVICES,
@@ -245,6 +246,7 @@ test('ordinary database seed invokes the official tenant-web auth fixture with e
     'AUTH_DATABASE_URL',
     'IDENTITY_DATABASE_URL',
     'PERMISSION_DATABASE_URL',
+    'ITEM_MASTER_DATABASE_URL',
     'TENANT_ORG_DATABASE_URL',
     'PARTY_DATABASE_URL',
     'HR_DATABASE_URL'
@@ -276,14 +278,22 @@ test('database seed stops at the first failed command and never records later wo
 
 test('database seed snapshot requires every dedicated auth acceptance fixture', () => {
   const valid = {
-    authAcceptanceRecoveryGrantCount: 0,
+    authAcceptanceRecoveryGrantCount: 1,
     authAcceptanceRecoveryLoginMethodCount: 2,
     authAcceptanceRecoveryEmailMethodCount: 1,
     authAcceptanceRecoveryPhoneMethodCount: 1,
     authAcceptanceMfaBindingCount: 1,
     authAcceptanceMfaWebPolicyCount: 1,
+    authAcceptanceMfaScenarioPolicyCount: 1,
+    authAcceptanceMfaFactorPolicyCount: 4,
     authAcceptancePasswordSetupCount: 1,
-    identityAuthAcceptanceUserCount: 3
+    identityAuthAcceptanceUserCount: 3,
+    permissionAuthAcceptanceWebAccessCount: 3,
+    policyPreviewFixtureCount: 1,
+    mesAcceptanceNavigationCount: 1,
+    itemMasterAttributeDefinitionFixtureCount: 1,
+    itemMasterItemModelFixtureCount: 1,
+    itemMasterItemFixtureCount: 1
   }
   assert.doesNotThrow(() => assertTenantWebAuthSeedSnapshot(valid))
   assert.throws(
@@ -297,6 +307,18 @@ test('database seed snapshot requires every dedicated auth acceptance fixture', 
   assert.throws(
     () => assertTenantWebAuthSeedSnapshot({ ...valid, authAcceptanceRecoveryPhoneMethodCount: 0 }),
     /TENANT_WEB_AUTH_SEED_INCOMPLETE.*authAcceptanceRecoveryPhoneMethodCount/
+  )
+  assert.throws(
+    () => assertTenantWebAuthSeedSnapshot({ ...valid, permissionAuthAcceptanceWebAccessCount: 2 }),
+    /TENANT_WEB_AUTH_SEED_INCOMPLETE.*permissionAuthAcceptanceWebAccessCount/
+  )
+  assert.throws(
+    () => assertTenantWebAuthSeedSnapshot({ ...valid, mesAcceptanceNavigationCount: 0 }),
+    /TENANT_WEB_AUTH_SEED_INCOMPLETE.*mesAcceptanceNavigationCount/
+  )
+  assert.throws(
+    () => assertTenantWebAuthSeedSnapshot({ ...valid, itemMasterItemFixtureCount: 0 }),
+    /TENANT_WEB_AUTH_SEED_INCOMPLETE.*itemMasterItemFixtureCount/
   )
 })
 
@@ -362,6 +384,29 @@ test('baseline resolution checkpoint binds task, database identity, plan, and ex
         expected
       ),
     /CHECKPOINT_MISMATCH/
+  )
+})
+
+test('baseline checkpoint recovery distinguishes empty baseline replay from post-baseline deploy', () => {
+  assert.equal(
+    baselineCheckpointResumeAction({ mode: 'EMPTY_BASELINE' }, 0),
+    'REAPPLY_EMPTY_BASELINE'
+  )
+  assert.equal(
+    baselineCheckpointResumeAction({ mode: 'EMPTY_BASELINE' }, 8),
+    'VERIFY_BASELINE_INVARIANTS'
+  )
+  assert.equal(
+    baselineCheckpointResumeAction({ mode: 'LEGACY_ADOPTION' }, 8),
+    'VERIFY_CURRENT_SCHEMA'
+  )
+  assert.throws(
+    () => baselineCheckpointResumeAction({ mode: 'UNKNOWN' }, 8),
+    /CHECKPOINT_MODE_INVALID/
+  )
+  assert.throws(
+    () => baselineCheckpointResumeAction({ mode: 'EMPTY_BASELINE' }, -1),
+    /TABLE_COUNT_INVALID/
   )
 })
 

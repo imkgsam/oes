@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import {
   AUTH_ACCEPTANCE_FIXTURES,
+  PAGE_ACCEPTANCE_FIXTURES,
   buildSeedAccounts,
   buildSeedHrEmployees,
   buildSeedIdentityEmployeeBindings,
@@ -59,6 +60,7 @@ test('tenant-web auth seed defines independent recovery, MFA, and password-setup
     3
   )
   assert.deepEqual(fixtures.passwordRecovery.expectedChannels, ['EMAIL', 'PHONE'])
+  assert.equal(fixtures.passwordRecovery.grant.id, '00000000-0000-4000-8000-000000000820')
   assert.deepEqual(fixtures.mfa.tenantTerminalMfaPolicy, {
     terminal: 'WEB',
     loginMfaRequired: true,
@@ -66,6 +68,20 @@ test('tenant-web auth seed defines independent recovery, MFA, and password-setup
     allowedFactors: ['TOTP'],
     factorPriority: ['TOTP']
   })
+  assert.equal(fixtures.mfa.tenantScenarioPolicy.required, true)
+  assert.deepEqual(
+    fixtures.mfa.tenantFactorPolicies.map((policy) => [
+      policy.factor,
+      policy.enabled,
+      policy.priority
+    ]),
+    [
+      ['TOTP', true, 1],
+      ['EMAIL_OTP', false, 2],
+      ['SMS_OTP', false, 3],
+      ['BACKUP_CODE', false, 4]
+    ]
+  )
   assert.equal(fixtures.mfa.binding.type, 'TOTP')
   assert.equal(fixtures.mfa.binding.enabled, true)
   assert.deepEqual(fixtures.passwordSetup.requirement, {
@@ -87,6 +103,48 @@ test('tenant-web auth seed resets stale grants before rebuilding dedicated accep
   assert.match(source, /passwordSetupRequirement\.deleteMany/)
   assert.match(source, /passwordSetupRequirement\.create/)
   assert.match(source, /tenantTerminalMfaPolicy\.upsert/)
+  assert.match(source, /passwordRecoveryGrant\.create/)
+  assert.match(source, /tenantMfaScenarioPolicy\.upsert/)
+  assert.match(source, /tenantMfaFactorPolicy\.upsert/)
+  assert.match(source, /AUTH_ACCEPTANCE_TERMINAL_ACCESS_OVERRIDES/)
+  assert.match(source, /accountTerminalAccessOverride\.createMany/)
+})
+
+test('tenant-web seed upserts bounded policy preview and Item Master page fixtures', () => {
+  assert.equal(PAGE_ACCEPTANCE_FIXTURES.itemMaster.item.id, '00000000-0000-4000-8000-000000000999')
+  assert.match(source, /policyInstance\.upsert/)
+  assert.match(source, /async function seedItemMaster/)
+  assert.match(source, /itemCategory\.upsert/)
+  assert.match(source, /attributeDefinition\.upsert/)
+  assert.match(source, /attributeOption\.upsert/)
+  assert.match(source, /itemModel\.upsert/)
+  assert.match(source, /itemModelAttributeRule\.upsert/)
+  assert.match(source, /item\.upsert/)
+})
+
+test('tenant-web seed releases its Permission pool before the second foundation writer', () => {
+  const itemMasterSeed = source.indexOf('await seedItemMaster(itemMaster)')
+  const release = source.indexOf('await permission.$disconnect()', itemMasterSeed)
+  const secondFoundationSync = source.indexOf(
+    'syncPermissionFoundationForLocalSystemAccount()',
+    release
+  )
+  const postFoundationClient = source.indexOf(
+    'const postFoundationPermission = new PermissionPrismaClient',
+    secondFoundationSync
+  )
+  assert.ok(itemMasterSeed < release)
+  assert.ok(release < secondFoundationSync)
+  assert.ok(secondFoundationSync < postFoundationClient)
+})
+
+test('tenant-web seed gives task-owned transactions one explicit bounded maintenance window', () => {
+  assert.match(
+    source,
+    /SEED_TRANSACTION_OPTIONS = Object\.freeze\(\{ maxWait: 30_000, timeout: 180_000 \}\)/
+  )
+  assert.equal((source.match(/await runSeedTransaction\(/g) ?? []).length, 9)
+  assert.doesNotMatch(source, /\.\$transaction\(async/)
 })
 
 test('tenant-web auth seed keeps identity account and HR employee tenantPartyId aligned', () => {

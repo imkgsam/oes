@@ -9,6 +9,7 @@ import {
 
 import {
   AUTH_ACCEPTANCE_FIXTURES,
+  PAGE_ACCEPTANCE_FIXTURES,
   buildSeedAccountRoleBindings,
   buildSeedAccounts,
   buildBrowserExtensionDesignerDemoSeed,
@@ -45,6 +46,7 @@ const DATABASE_URLS = resolveTenantWebAuthSeedDatabaseUrls();
 const AUTH_DB_URL = DATABASE_URLS.get('AUTH_DATABASE_URL');
 const IDENTITY_DB_URL = DATABASE_URLS.get('IDENTITY_DATABASE_URL');
 const PERMISSION_DB_URL = DATABASE_URLS.get('PERMISSION_DATABASE_URL');
+const ITEM_MASTER_DB_URL = DATABASE_URLS.get('ITEM_MASTER_DATABASE_URL');
 const TENANT_ORG_DB_URL = DATABASE_URLS.get('TENANT_ORG_DATABASE_URL');
 const PARTY_DB_URL = DATABASE_URLS.get('PARTY_DATABASE_URL');
 const HR_DB_URL = DATABASE_URLS.get('HR_DATABASE_URL');
@@ -78,12 +80,23 @@ const {
 } = require(path.join(ROOT, 'src/services/system/auth-service/prisma/generated/prisma'));
 const {
   PrismaClient: PermissionPrismaClient,
+  PolicyEffect,
+  PolicyInstanceSubjectSelectorType,
   PrincipalType,
   RoleKind,
   ScopeLevel,
 } = require(path.join(
   ROOT,
   'src/services/system/permission-service/prisma/generated/prisma',
+));
+const {
+  PrismaClient: ItemMasterPrismaClient,
+  ItemModelKind,
+  ItemModelType,
+  ItemType,
+} = require(path.join(
+  ROOT,
+  'src/services/system/item-master-service/prisma/generated/prisma',
 ));
 const {
   PrismaClient: TenantOrgPrismaClient,
@@ -130,6 +143,11 @@ const SEEDED_TENANT_PARTIES = buildSeedTenantParties();
 const SEEDED_TENANT_ROLES = buildSeedTenantRoles();
 const SEEDED_USERS_DATA = buildSeedUsers();
 const SEEDED_ACCOUNT_ROLE_BINDINGS = buildSeedAccountRoleBindings();
+const AUTH_ACCEPTANCE_TERMINAL_ACCESS_OVERRIDES = [
+  AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.accountTerminalAccessOverride,
+  AUTH_ACCEPTANCE_FIXTURES.passwordSetup.accountTerminalAccessOverride,
+  AUTH_ACCEPTANCE_FIXTURES.mfa.accountTerminalAccessOverride,
+];
 const PDA_LOGIN_SMOKE_SEED = buildPdaLoginSmokeSeed();
 const BROWSER_EXTENSION_DESIGNER_DEMO_SEED = buildBrowserExtensionDesignerDemoSeed();
 const SEEDED_USER_IDENTIFIERS = {
@@ -137,6 +155,12 @@ const SEEDED_USER_IDENTIFIERS = {
   emails: SEEDED_USERS_DATA.map((user) => user.email).filter(Boolean),
   phones: SEEDED_USERS_DATA.map((user) => user.phone).filter(Boolean),
 };
+const SEED_TRANSACTION_OPTIONS = Object.freeze({ maxWait: 30_000, timeout: 180_000 });
+
+// Runs one task-owned fixture transaction within an explicit bounded local-maintenance window.
+function runSeedTransaction(client, operation) {
+  return client.$transaction(operation, SEED_TRANSACTION_OPTIONS);
+}
 
 // Runs the permission and navigation foundation sync so built-in tenant admin instances stay authoritative.
 function syncPermissionFoundationForLocalSystemAccount() {
@@ -161,7 +185,7 @@ function syncPermissionFoundationForLocalSystemAccount() {
 
 // Rebuilds tenant, org, account, and employee binding facts in identity-service for the manual tenant entry flows.
 async function seedIdentity(identity) {
-  await identity.$transaction(async (tx) => {
+  await runSeedTransaction(identity, async (tx) => {
     const staleUsers = await tx.user.findMany({
       where: {
         OR: [
@@ -282,7 +306,8 @@ async function seedIdentity(identity) {
 
 // Rebuilds the managed local auth login methods, credentials, and OTP fixtures in auth-service.
 async function seedAuth(auth, passwordHash) {
-  await auth.$transaction(async (tx) => {
+  await runSeedTransaction(auth, async (tx) => {
+    let recoveryLoginMethodId = '';
     await tx.passwordRecoveryGrant.deleteMany({
       where: { userId: { in: MANAGED_USER_IDS } },
     });
@@ -330,6 +355,10 @@ async function seedAuth(auth, passwordHash) {
         },
       });
 
+      if (user.id === AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.userId) {
+        recoveryLoginMethodId = emailMethod.id;
+      }
+
       await tx.credential.createMany({
         data: [
           {
@@ -347,6 +376,21 @@ async function seedAuth(auth, passwordHash) {
         ],
       });
     }
+
+    if (!recoveryLoginMethodId) {
+      throw new Error('Password recovery acceptance login method is missing.');
+    }
+
+    await tx.passwordRecoveryGrant.create({
+      data: {
+        id: AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.grant.id,
+        userId: AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.userId,
+        loginMethodId: recoveryLoginMethodId,
+        challengeId: AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.grant.challengeId,
+        expiresAt: AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.grant.expiresAt,
+        verifiedAt: AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.grant.verifiedAt,
+      },
+    });
 
     await tx.oTP.deleteMany({
       where: {
@@ -419,6 +463,48 @@ async function seedAuth(auth, passwordHash) {
         updatedBy: 'seed:auth-mfa-acceptance',
       },
     });
+
+    await tx.tenantMfaScenarioPolicy.upsert({
+      where: {
+        tenantId_scenario: {
+          tenantId: AUTH_ACCEPTANCE_FIXTURES.mfa.tenantId,
+          scenario: AUTH_ACCEPTANCE_FIXTURES.mfa.tenantScenarioPolicy.scenario,
+        },
+      },
+      update: {
+        required: AUTH_ACCEPTANCE_FIXTURES.mfa.tenantScenarioPolicy.required,
+        updatedBy: AUTH_ACCEPTANCE_FIXTURES.mfa.tenantScenarioPolicy.updatedBy,
+      },
+      create: {
+        tenantId: AUTH_ACCEPTANCE_FIXTURES.mfa.tenantId,
+        scenario: AUTH_ACCEPTANCE_FIXTURES.mfa.tenantScenarioPolicy.scenario,
+        required: AUTH_ACCEPTANCE_FIXTURES.mfa.tenantScenarioPolicy.required,
+        updatedBy: AUTH_ACCEPTANCE_FIXTURES.mfa.tenantScenarioPolicy.updatedBy,
+      },
+    });
+
+    for (const factorPolicy of AUTH_ACCEPTANCE_FIXTURES.mfa.tenantFactorPolicies) {
+      await tx.tenantMfaFactorPolicy.upsert({
+        where: {
+          tenantId_factor: {
+            tenantId: AUTH_ACCEPTANCE_FIXTURES.mfa.tenantId,
+            factor: MfaType[factorPolicy.factor],
+          },
+        },
+        update: {
+          enabled: factorPolicy.enabled,
+          priority: factorPolicy.priority,
+          updatedBy: factorPolicy.updatedBy,
+        },
+        create: {
+          tenantId: AUTH_ACCEPTANCE_FIXTURES.mfa.tenantId,
+          factor: MfaType[factorPolicy.factor],
+          enabled: factorPolicy.enabled,
+          priority: factorPolicy.priority,
+          updatedBy: factorPolicy.updatedBy,
+        },
+      });
+    }
 
     await tx.terminalLoginPolicy.upsert({
       where: { terminal: PDA_LOGIN_SMOKE_SEED.terminalLoginPolicy.terminal },
@@ -500,7 +586,7 @@ async function seedAuth(auth, passwordHash) {
 
 // Rebuilds tenant-scoped role instances and bindings while leaving system/template roles to the permission foundation.
 async function seedPermission(permission) {
-  await permission.$transaction(async (tx) => {
+  await runSeedTransaction(permission, async (tx) => {
     const systemAdminRole = await tx.role.findFirst({
       where: {
         code: 'system.admin',
@@ -664,13 +750,130 @@ async function seedPermission(permission) {
         })),
       });
     }
+
+    // Grants the three dedicated browser-auth fixtures exactly WEB login access without broadening role defaults.
+    await tx.accountTerminalAccessOverride.deleteMany({
+      where: {
+        accountId: {
+          in: AUTH_ACCEPTANCE_TERMINAL_ACCESS_OVERRIDES.map((override) => override.accountId),
+        },
+      },
+    });
+    await tx.accountTerminalAccessOverride.createMany({
+      data: AUTH_ACCEPTANCE_TERMINAL_ACCESS_OVERRIDES.map((override) => ({
+        id: override.id,
+        accountId: override.accountId,
+        scopeLevel: ScopeLevel[override.scopeLevel],
+        tenantId: override.tenantId,
+        allowedTerminals: override.allowedTerminals,
+      })),
+    });
+
+    const preview = PAGE_ACCEPTANCE_FIXTURES.policyPreview;
+    const previewPermission = await tx.permission.findUnique({
+      where: { code: preview.permissionCode },
+      select: { code: true },
+    });
+    if (!previewPermission) {
+      throw new Error(`Missing policy preview permission: ${preview.permissionCode}`);
+    }
+    await tx.policyInstance.upsert({
+      where: { id: preview.policyInstance.id },
+      update: {
+        tenantId: preview.tenantId,
+        subjectSelectorType:
+          PolicyInstanceSubjectSelectorType[preview.policyInstance.subjectSelectorType],
+        subjectSelectorValue: preview.policyInstance.subjectSelectorValue,
+        permissionCode: preview.permissionCode,
+        resourceType: preview.resourceType,
+        templateCode: preview.policyInstance.templateCode,
+        effect: PolicyEffect[preview.policyInstance.effect],
+        params: preview.policyInstance.params,
+        priority: preview.policyInstance.priority,
+        isEnabled: preview.policyInstance.isEnabled,
+        updatedBy: preview.policyInstance.updatedBy,
+      },
+      create: {
+        id: preview.policyInstance.id,
+        tenantId: preview.tenantId,
+        subjectSelectorType:
+          PolicyInstanceSubjectSelectorType[preview.policyInstance.subjectSelectorType],
+        subjectSelectorValue: preview.policyInstance.subjectSelectorValue,
+        permissionCode: preview.permissionCode,
+        resourceType: preview.resourceType,
+        templateCode: preview.policyInstance.templateCode,
+        effect: PolicyEffect[preview.policyInstance.effect],
+        params: preview.policyInstance.params,
+        priority: preview.policyInstance.priority,
+        isEnabled: preview.policyInstance.isEnabled,
+        createdBy: preview.policyInstance.createdBy,
+        updatedBy: preview.policyInstance.updatedBy,
+      },
+    });
+  });
+}
+
+// Upserts only the exact tenant-web page fixtures owned by the task-bound Item Master database.
+async function seedItemMaster(itemMaster) {
+  const fixture = PAGE_ACCEPTANCE_FIXTURES.itemMaster;
+  const tenantId = fixture.tenantId;
+
+  await runSeedTransaction(itemMaster, async (tx) => {
+    await tx.itemCategory.upsert({
+      where: { id: fixture.category.id },
+      update: { ...fixture.category, tenantId },
+      create: { ...fixture.category, tenantId },
+    });
+    await tx.attributeDefinition.upsert({
+      where: { id: fixture.attributeDefinition.id },
+      update: { ...fixture.attributeDefinition, tenantId },
+      create: { ...fixture.attributeDefinition, tenantId },
+    });
+    await tx.attributeOption.upsert({
+      where: { id: fixture.attributeOption.id },
+      update: { ...fixture.attributeOption, tenantId },
+      create: { ...fixture.attributeOption, tenantId },
+    });
+    await tx.itemModel.upsert({
+      where: { id: fixture.itemModel.id },
+      update: {
+        ...fixture.itemModel,
+        tenantId,
+        modelKind: ItemModelKind[fixture.itemModel.modelKind],
+        modelType: ItemModelType[fixture.itemModel.modelType],
+      },
+      create: {
+        ...fixture.itemModel,
+        tenantId,
+        modelKind: ItemModelKind[fixture.itemModel.modelKind],
+        modelType: ItemModelType[fixture.itemModel.modelType],
+      },
+    });
+    await tx.itemModelAttributeRule.upsert({
+      where: { id: fixture.itemModelAttributeRule.id },
+      update: { ...fixture.itemModelAttributeRule, tenantId },
+      create: { ...fixture.itemModelAttributeRule, tenantId },
+    });
+    await tx.item.upsert({
+      where: { id: fixture.item.id },
+      update: {
+        ...fixture.item,
+        tenantId,
+        itemType: ItemType[fixture.item.itemType],
+      },
+      create: {
+        ...fixture.item,
+        tenantId,
+        itemType: ItemType[fixture.item.itemType],
+      },
+    });
   });
 }
 
 // Ensures the local PDA smoke account can log in only after the device is enrolled to its tenant.
 async function seedPdaLoginSmokeAccess(permission) {
   const smoke = PDA_LOGIN_SMOKE_SEED;
-  await permission.$transaction(async (tx) => {
+  await runSeedTransaction(permission, async (tx) => {
     const navigationEntry = await tx.navigationEntry.findUnique({
       where: { entryKey: smoke.roleNavigationVisibility.entryKey },
       select: { entryKey: true },
@@ -737,7 +940,7 @@ async function seedPdaLoginSmokeAccess(permission) {
 // Ensures the local browser-extension designer demo account can enter only the plugin workspace.
 async function seedBrowserExtensionDesignerDemoAccess(permission) {
   const demo = BROWSER_EXTENSION_DESIGNER_DEMO_SEED;
-  await permission.$transaction(async (tx) => {
+  await runSeedTransaction(permission, async (tx) => {
     const navigationEntry = await tx.navigationEntry.findUnique({
       where: { entryKey: demo.roleNavigationVisibility.entryKey },
       select: { entryKey: true },
@@ -811,7 +1014,7 @@ async function seedBrowserExtensionDesignerDemoAccess(permission) {
 
 // Rebuilds tenant and org-unit truth in tenant-org-service for the organization workspace tree.
 async function seedTenantOrg(tenantOrg) {
-  await tenantOrg.$transaction(async (tx) => {
+  await runSeedTransaction(tenantOrg, async (tx) => {
     await tx.orgUnit.deleteMany({});
     await tx.tenant.deleteMany({});
 
@@ -845,7 +1048,7 @@ async function seedTenantOrg(tenantOrg) {
 
 // Rebuilds party-service tenant-scoped subject facts so names come from the proper owner.
 async function seedParty(party) {
-  await party.$transaction(async (tx) => {
+  await runSeedTransaction(party, async (tx) => {
     await tx.partyRegistrationIdempotency.deleteMany({});
     await tx.tenantPartyIdentifier.deleteMany({});
     await tx.tenantParty.deleteMany({});
@@ -868,7 +1071,7 @@ async function seedParty(party) {
 
 // Rebuilds employee, employment, and onboarding-access truth in hr-service for member testing scenarios.
 async function seedHr(hr) {
-  await hr.$transaction(async (tx) => {
+  await runSeedTransaction(hr, async (tx) => {
     await tx.employeeOnboardingAccess.deleteMany({});
     await tx.employment.deleteMany({});
     await tx.employee.deleteMany({});
@@ -944,6 +1147,11 @@ async function main() {
       db: { url: PERMISSION_DB_URL },
     },
   });
+  const itemMaster = new ItemMasterPrismaClient({
+    datasources: {
+      db: { url: ITEM_MASTER_DB_URL },
+    },
+  });
   const tenantOrg = new TenantOrgPrismaClient({
     datasources: {
       db: { url: TENANT_ORG_DB_URL },
@@ -970,15 +1178,27 @@ async function main() {
     await seedAuth(auth, passwordHash);
     syncPermissionFoundationForLocalSystemAccount();
     await seedPermission(permission);
+    await seedItemMaster(itemMaster);
+    await permission.$disconnect();
     syncPermissionFoundationForLocalSystemAccount();
-    await seedPdaLoginSmokeAccess(permission);
-    await seedBrowserExtensionDesignerDemoAccess(permission);
+    const postFoundationPermission = new PermissionPrismaClient({
+      datasources: {
+        db: { url: PERMISSION_DB_URL },
+      },
+    });
+    try {
+      await seedPdaLoginSmokeAccess(postFoundationPermission);
+      await seedBrowserExtensionDesignerDemoAccess(postFoundationPermission);
+    } finally {
+      await postFoundationPermission.$disconnect();
+    }
     printSummary();
   } finally {
     await Promise.allSettled([
       identity.$disconnect(),
       auth.$disconnect(),
       permission.$disconnect(),
+      itemMaster.$disconnect(),
       tenantOrg.$disconnect(),
       party.$disconnect(),
       hr.$disconnect(),

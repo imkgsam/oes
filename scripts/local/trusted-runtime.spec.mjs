@@ -1,8 +1,51 @@
 import assert from 'node:assert/strict'
-import test from 'node:test'
-import { generateProfile, readInventory, selectRestartService } from './trusted-runtime.mjs'
-import { readFile, stat } from 'node:fs/promises'
+import test, { after } from 'node:test'
+import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+
+const testStateRoot = await mkdtemp(join(tmpdir(), 'oes-trusted-runtime-spec-'))
+const taskEnvironmentPath = join(testStateRoot, 'compose.env')
+const selectorProfilePath = join(testStateRoot, 'machine-selectors-v2.json')
+await writeFile(taskEnvironmentPath, 'NACOS_HOST_PORT=8848\n', { mode: 0o600 })
+await writeFile(
+  selectorProfilePath,
+  JSON.stringify({
+    selectors: [
+      'api-gateway',
+      'auth-service',
+      'collaboration-service',
+      'crm-service',
+      'hr-service',
+      'identity-service',
+      'public-entry-service',
+      'srm-service',
+      'tenant-org-service'
+    ].map((inventoryEntryKey) => ({
+      inventoryEntryKey,
+      machinePrincipalId: `principal-${inventoryEntryKey}`,
+      machineWorkloadBindingId: `binding-${inventoryEntryKey}`,
+      machineWorkloadBindingVersion: '1'
+    }))
+  }),
+  { mode: 0o600 }
+)
+process.env.OES_TASK_ENV = taskEnvironmentPath
+process.env.OES_TRUSTED_RUNTIME_STATE = join(testStateRoot, 'runtime')
+const {
+  DOCKER_PORT_INSPECTION_TIMEOUT_MS,
+  generateProfile: generateProfileFromFixture,
+  readInventory,
+  selectRestartService
+} = await import('./trusted-runtime.mjs')
+
+/** Generates a profile from test-owned task inputs rather than shared lifecycle residue. */
+const generateProfile = (options) =>
+  generateProfileFromFixture({ ...options, selectorProfilePath })
+
+after(async () => {
+  await rm(testStateRoot, { recursive: true, force: true })
+})
 
 test('inventory has exactly 21 unique listeners and canonical Collaboration port', async () => {
   const entries = await readInventory()
@@ -11,6 +54,10 @@ test('inventory has exactly 21 unique listeners and canonical Collaboration port
     entries.find((entry) => entry.workload === 'collaboration-service')?.canonicalPort,
     50068
   )
+})
+
+test('task Docker port inspection tolerates bounded local daemon latency', () => {
+  assert.equal(DOCKER_PORT_INSPECTION_TIMEOUT_MS, 30_000)
 })
 
 test('local trust leaves use workload-scoped DNS names rather than IP identity', async () => {

@@ -310,6 +310,46 @@ describe('tenant-web auth store logout', () => {
     expect(getSessionContextApiMock).not.toHaveBeenCalled()
   })
 
+  it('routes server-declared first-login password setup before session hydration', async () => {
+    loginApiMock.mockResolvedValue({
+      accountOptions: [],
+      nextStep: 'SET_PASSWORD_REQUIRED',
+      operator: {
+        accountId: 'account-setup',
+        displayName: 'Password Setup Acceptance',
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-setup',
+        userId: 'user-setup'
+      },
+      passwordSetupRequired: true,
+      session: {
+        accessToken: 'setup-access-token',
+        expiresIn: 900,
+        refreshToken: 'setup-refresh-token'
+      },
+      status: 'SUCCESS'
+    })
+
+    const { useAuthStore } = await import('./auth')
+    const store = useAuthStore()
+
+    await store.authLogin({
+      username: 'setup@example.com',
+      password: 'secret-1'
+    })
+
+    expect(getSessionContextApiMock).not.toHaveBeenCalled()
+    expect(getSessionAccessSummaryApiMock).not.toHaveBeenCalled()
+    expect(userStoreMock.setUserInfo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        realName: 'Password Setup Acceptance',
+        userId: 'user-setup',
+        username: 'setup@example.com'
+      })
+    )
+    expect(pushMock).toHaveBeenCalledWith({ name: 'FirstLoginPasswordSetup' })
+  })
+
   it('stores the default MFA factor without treating email OTP as sent before an explicit challenge request', async () => {
     loginApiMock.mockResolvedValue({
       status: 'MFA_REQUIRED',

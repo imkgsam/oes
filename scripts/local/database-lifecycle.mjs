@@ -9,7 +9,10 @@ import {
   parseEnvironmentFile
 } from './worktree-env.mjs'
 import { buildTenantWebAuthSeedEnvironment } from './tenant-web-auth-seed-environment.mjs'
-import { AUTH_ACCEPTANCE_FIXTURES } from './tenant-web-auth-test-fixtures.mjs'
+import {
+  AUTH_ACCEPTANCE_FIXTURES,
+  PAGE_ACCEPTANCE_FIXTURES
+} from './tenant-web-auth-test-fixtures.mjs'
 import {
   EXPECTED_PRISMA_SERVICE_COUNT,
   defaultRepositoryRoot,
@@ -887,6 +890,43 @@ function resolveFailureAfter() {
   return value
 }
 
+/** Chooses the fail-closed recovery action for a persisted baseline-resolution checkpoint. */
+export function baselineCheckpointResumeAction(checkpoint, tables) {
+  if (!Number.isInteger(tables) || tables < 0) {
+    throw new Error('BASELINE_RESOLUTION_TABLE_COUNT_INVALID')
+  }
+  if (checkpoint.mode === 'LEGACY_ADOPTION') return 'VERIFY_CURRENT_SCHEMA'
+  if (checkpoint.mode !== 'EMPTY_BASELINE') {
+    throw new Error('BASELINE_RESOLUTION_CHECKPOINT_MODE_INVALID')
+  }
+  return tables === 0 ? 'REAPPLY_EMPTY_BASELINE' : 'VERIFY_BASELINE_INVARIANTS'
+}
+
+/** Applies the exact migration file bound by one empty-database baseline plan. */
+function applyEmptyBaseline(context, service, databaseUrl) {
+  const baselineFile = path.join(
+    service.directory,
+    'prisma',
+    'migrations',
+    service.baselinePlan.baselineMigration,
+    'migration.sql'
+  )
+  run(
+    'pnpm',
+    [
+      'exec',
+      'prisma',
+      'db',
+      'execute',
+      '--file',
+      repositoryRelative(context.repositoryRoot, baselineFile),
+      '--schema',
+      repositoryRelative(context.repositoryRoot, service.schema)
+    ],
+    { cwd: context.repositoryRoot, env: { ...process.env, DATABASE_URL: databaseUrl } }
+  )
+}
+
 /** Applies or adopts one complete baseline while preserving every legacy migration ID and byte. */
 function prepareBaseline(context, environmentPath, service, databaseUrl) {
   const plan = service.baselinePlan
@@ -917,35 +957,21 @@ function prepareBaseline(context, environmentPath, service, databaseUrl) {
 
   const tables = userTableCount(context, environmentPath, service)
   if (checkpoint) {
-    assertSchemaMatches(context, service, databaseUrl)
+    const resumeAction = baselineCheckpointResumeAction(checkpoint, tables)
+    if (resumeAction === 'VERIFY_CURRENT_SCHEMA') {
+      assertSchemaMatches(context, service, databaseUrl)
+    } else if (resumeAction === 'REAPPLY_EMPTY_BASELINE') {
+      applyEmptyBaseline(context, service, databaseUrl)
+      process.stdout.write('BASELINE_REAPPLIED_EMPTY service=' + service.name + '\n')
+    }
     verifyDatabaseInvariants(context, environmentPath, service)
     process.stdout.write(
       'BASELINE_RESOLUTION_RESUMED service=' + service.name + ' applied=' + applied.length +
-        ' remaining=' + (missing.length + 1) + '\n'
+        ' remaining=' + (missing.length + 1) + ' action=' + resumeAction + '\n'
     )
   } else if (tables === 0) {
     checkpoint = writeBaselineResolutionCheckpoint(context, service, expected, 'EMPTY_BASELINE')
-    const baselineFile = path.join(
-      service.directory,
-      'prisma',
-      'migrations',
-      plan.baselineMigration,
-      'migration.sql'
-    )
-    run(
-      'pnpm',
-      [
-        'exec',
-        'prisma',
-        'db',
-        'execute',
-        '--file',
-        repositoryRelative(context.repositoryRoot, baselineFile),
-        '--schema',
-        repositoryRelative(context.repositoryRoot, service.schema)
-      ],
-      { cwd: context.repositoryRoot, env: { ...process.env, DATABASE_URL: databaseUrl } }
-    )
+    applyEmptyBaseline(context, service, databaseUrl)
     process.stdout.write('BASELINE_APPLIED_EMPTY service=' + service.name + '\n')
   } else {
     assertSchemaMatches(context, service, databaseUrl)
@@ -1068,6 +1094,7 @@ function seedSnapshot(context, environmentPath) {
   const auth = context.services.find((service) => service.name === 'auth-service')
   const identity = context.services.find((service) => service.name === 'identity-service')
   const permission = context.services.find((service) => service.name === 'permission-service')
+  const itemMaster = context.services.find((service) => service.name === 'item-master-service')
   const collaboration = context.services.find((service) => service.name === 'collaboration-service')
   const mfaSecretDigest = crypto
     .createHash('md5')
@@ -1084,7 +1111,7 @@ function seedSnapshot(context, environmentPath) {
         context,
         environmentPath,
         auth.database,
-        `SELECT count(*) FROM "PasswordRecoveryGrant" WHERE "userId" = '${AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.userId}'`
+        `SELECT count(*) FROM "PasswordRecoveryGrant" g JOIN "LoginMethod" m ON m."id" = g."loginMethodId" WHERE g."id" = '${AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.grant.id}' AND g."userId" = '${AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.userId}' AND g."challengeId" = '${AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.grant.challengeId}' AND g."consumedAt" IS NULL AND g."expiresAt" = '${AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.grant.expiresAt.toISOString()}'::timestamptz AND m."userId" = g."userId" AND m."verified" = true AND m."enabled" = true`
       )
     ),
     authAcceptanceRecoveryLoginMethodCount: Number(
@@ -1127,6 +1154,22 @@ function seedSnapshot(context, environmentPath) {
         `SELECT count(*) FROM "TenantTerminalMfaPolicy" WHERE "tenantId" = '${AUTH_ACCEPTANCE_FIXTURES.mfa.tenantId}' AND "terminal" = 'WEB' AND "loginMfaRequired" = true AND "newDeviceMfaRequired" = false AND "allowedFactors" = '["TOTP"]'::jsonb AND "factorPriority" = '["TOTP"]'::jsonb`
       )
     ),
+    authAcceptanceMfaScenarioPolicyCount: Number(
+      postgresExec(
+        context,
+        environmentPath,
+        auth.database,
+        `SELECT count(*) FROM "TenantMfaScenarioPolicy" WHERE "tenantId" = '${AUTH_ACCEPTANCE_FIXTURES.mfa.tenantId}' AND "scenario" = 'LOGIN' AND "required" = true AND "updatedBy" = '${AUTH_ACCEPTANCE_FIXTURES.mfa.tenantScenarioPolicy.updatedBy}'`
+      )
+    ),
+    authAcceptanceMfaFactorPolicyCount: Number(
+      postgresExec(
+        context,
+        environmentPath,
+        auth.database,
+        `SELECT count(*) FROM "TenantMfaFactorPolicy" WHERE "tenantId" = '${AUTH_ACCEPTANCE_FIXTURES.mfa.tenantId}' AND (("factor" = 'TOTP' AND "enabled" = true AND "priority" = 1) OR ("factor" = 'EMAIL_OTP' AND "enabled" = false AND "priority" = 2) OR ("factor" = 'SMS_OTP' AND "enabled" = false AND "priority" = 3) OR ("factor" = 'BACKUP_CODE' AND "enabled" = false AND "priority" = 4)) AND "updatedBy" = '${AUTH_ACCEPTANCE_FIXTURES.mfa.tenantFactorPolicies[0].updatedBy}'`
+      )
+    ),
     authAcceptancePasswordSetupCount: Number(
       postgresExec(
         context,
@@ -1142,6 +1185,66 @@ function seedSnapshot(context, environmentPath) {
         identity.database,
         `SELECT count(*) FROM "User" WHERE "id" IN ('${AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.userId}', '${AUTH_ACCEPTANCE_FIXTURES.passwordSetup.userId}', '${AUTH_ACCEPTANCE_FIXTURES.mfa.userId}') AND "isActive" = true`
       )
+    ),
+    permissionAuthAcceptanceWebAccessCount: Number(
+      postgresExec(
+        context,
+        environmentPath,
+        permission.database,
+        `SELECT count(*) FROM "AccountTerminalAccessOverride" WHERE ("id", "accountId", "tenantId") IN (('${AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.accountTerminalAccessOverride.id}', '${AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.accountId}', '${AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.accountTerminalAccessOverride.tenantId}'), ('${AUTH_ACCEPTANCE_FIXTURES.passwordSetup.accountTerminalAccessOverride.id}', '${AUTH_ACCEPTANCE_FIXTURES.passwordSetup.accountId}', '${AUTH_ACCEPTANCE_FIXTURES.passwordSetup.accountTerminalAccessOverride.tenantId}'), ('${AUTH_ACCEPTANCE_FIXTURES.mfa.accountTerminalAccessOverride.id}', '${AUTH_ACCEPTANCE_FIXTURES.mfa.accountId}', '${AUTH_ACCEPTANCE_FIXTURES.mfa.accountTerminalAccessOverride.tenantId}')) AND "scopeLevel" = 'TENANT' AND "allowedTerminals" = ARRAY['WEB']::text[]`
+      )
+    ),
+    policyPreviewFixtureCount: Number(
+      postgresExec(
+        context,
+        environmentPath,
+        permission.database,
+        `SELECT count(*) FROM "PolicyInstance" WHERE "id" = '${PAGE_ACCEPTANCE_FIXTURES.policyPreview.policyInstance.id}' AND "tenantId" = '${PAGE_ACCEPTANCE_FIXTURES.policyPreview.tenantId}' AND "subjectSelectorType" = 'ACCOUNT' AND "subjectSelectorValue" = '${PAGE_ACCEPTANCE_FIXTURES.policyPreview.accountId}' AND "permissionCode" = '${PAGE_ACCEPTANCE_FIXTURES.policyPreview.permissionCode}' AND "resourceType" = '${PAGE_ACCEPTANCE_FIXTURES.policyPreview.resourceType}' AND "templateCode" = 'resource-field-in-set' AND "effect" = 'ALLOW' AND "params" = '${JSON.stringify(PAGE_ACCEPTANCE_FIXTURES.policyPreview.policyInstance.params)}'::jsonb AND "priority" = 100 AND "isEnabled" = true`
+      )
+    ),
+    mesAcceptanceNavigationCount: Number(
+      postgresExec(
+        context,
+        environmentPath,
+        permission.database,
+        `SELECT count(*) FROM "Role" r JOIN "PrincipalRoleBinding" b ON b."roleId" = r."id" JOIN "RoleNavigationVisibility" v ON v."roleId" = r."id" WHERE r."id" = '00000000-0000-4000-8000-000000001050' AND r."tenantId" = '${PAGE_ACCEPTANCE_FIXTURES.itemMaster.tenantId}' AND r."code" = 'mes.forming_workshop.supervisor' AND b."principalType" = 'HUMAN' AND b."principalId" = '${PAGE_ACCEPTANCE_FIXTURES.policyPreview.accountId}' AND b."tenantId" = r."tenantId" AND v."entryKey" = 'mes.mold-management' AND v."terminal" = 'DEFAULT' AND v."enabled" = true`
+      )
+    ),
+    itemMasterAttributeDefinitionFixtureCount: Number(
+      postgresExec(
+        context,
+        environmentPath,
+        itemMaster.database,
+        `SELECT count(*) FROM "AttributeDefinition" WHERE "id" = '${PAGE_ACCEPTANCE_FIXTURES.itemMaster.attributeDefinition.id}' AND "tenantId" = '${PAGE_ACCEPTANCE_FIXTURES.itemMaster.tenantId}' AND "attributeCode" = '${PAGE_ACCEPTANCE_FIXTURES.itemMaster.attributeDefinition.attributeCode}' AND "active" = true`
+      )
+    ),
+    itemMasterItemModelFixtureCount: Number(
+      postgresExec(
+        context,
+        environmentPath,
+        itemMaster.database,
+        `SELECT count(*) FROM "ItemModel" WHERE "id" = '${PAGE_ACCEPTANCE_FIXTURES.itemMaster.itemModel.id}' AND "tenantId" = '${PAGE_ACCEPTANCE_FIXTURES.itemMaster.tenantId}' AND "modelCode" = '${PAGE_ACCEPTANCE_FIXTURES.itemMaster.itemModel.modelCode}' AND "primaryCategoryId" = '${PAGE_ACCEPTANCE_FIXTURES.itemMaster.category.id}' AND "active" = true`
+      )
+    ),
+    itemMasterItemFixtureCount: Number(
+      postgresExec(
+        context,
+        environmentPath,
+        itemMaster.database,
+        `SELECT count(*) FROM "Item" WHERE "id" = '${PAGE_ACCEPTANCE_FIXTURES.itemMaster.item.id}' AND "tenantId" = '${PAGE_ACCEPTANCE_FIXTURES.itemMaster.tenantId}' AND "itemModelId" = '${PAGE_ACCEPTANCE_FIXTURES.itemMaster.itemModel.id}' AND "itemCode" = '${PAGE_ACCEPTANCE_FIXTURES.itemMaster.item.itemCode}' AND "lockedAttributeOptionIds" = ARRAY['${PAGE_ACCEPTANCE_FIXTURES.itemMaster.attributeOption.id}']::text[] AND "variantKey" = '${PAGE_ACCEPTANCE_FIXTURES.itemMaster.item.variantKey}' AND "active" = true`
+      )
+    ),
+    pageAcceptancePermissionDigest: digest(
+      permission.database,
+      `SELECT COALESCE((SELECT (to_jsonb(t) - 'createdAt' - 'updatedAt')::text FROM "PolicyInstance" t WHERE t."id" = '${PAGE_ACCEPTANCE_FIXTURES.policyPreview.policyInstance.id}'), '{}')`
+    ),
+    authAcceptanceTerminalAccessDigest: digest(
+      permission.database,
+      `SELECT COALESCE(jsonb_agg(to_jsonb(t) - 'createdAt' - 'updatedAt' ORDER BY t."id")::text, '[]') FROM "AccountTerminalAccessOverride" t WHERE t."id" IN ('${AUTH_ACCEPTANCE_FIXTURES.passwordRecovery.accountTerminalAccessOverride.id}', '${AUTH_ACCEPTANCE_FIXTURES.passwordSetup.accountTerminalAccessOverride.id}', '${AUTH_ACCEPTANCE_FIXTURES.mfa.accountTerminalAccessOverride.id}')`
+    ),
+    pageAcceptanceItemMasterDigest: digest(
+      itemMaster.database,
+      `SELECT jsonb_build_object('category', COALESCE((SELECT to_jsonb(t) - 'createdAt' - 'updatedAt' FROM "ItemCategory" t WHERE t."id" = '${PAGE_ACCEPTANCE_FIXTURES.itemMaster.category.id}'), '{}'::jsonb), 'definition', COALESCE((SELECT to_jsonb(t) - 'createdAt' - 'updatedAt' FROM "AttributeDefinition" t WHERE t."id" = '${PAGE_ACCEPTANCE_FIXTURES.itemMaster.attributeDefinition.id}'), '{}'::jsonb), 'option', COALESCE((SELECT to_jsonb(t) - 'createdAt' - 'updatedAt' FROM "AttributeOption" t WHERE t."id" = '${PAGE_ACCEPTANCE_FIXTURES.itemMaster.attributeOption.id}'), '{}'::jsonb), 'model', COALESCE((SELECT to_jsonb(t) - 'createdAt' - 'updatedAt' FROM "ItemModel" t WHERE t."id" = '${PAGE_ACCEPTANCE_FIXTURES.itemMaster.itemModel.id}'), '{}'::jsonb), 'rule', COALESCE((SELECT to_jsonb(t) - 'createdAt' - 'updatedAt' FROM "ItemModelAttributeRule" t WHERE t."id" = '${PAGE_ACCEPTANCE_FIXTURES.itemMaster.itemModelAttributeRule.id}'), '{}'::jsonb), 'item', COALESCE((SELECT to_jsonb(t) - 'createdAt' - 'updatedAt' FROM "Item" t WHERE t."id" = '${PAGE_ACCEPTANCE_FIXTURES.itemMaster.item.id}'), '{}'::jsonb))::text`
     ),
     collaborationTaskCount: Number(
       postgresExec(
@@ -1180,14 +1283,22 @@ function seedSnapshot(context, environmentPath) {
 /** Verifies the ordinary seed produced every dedicated tenant-web auth acceptance state. */
 export function assertTenantWebAuthSeedSnapshot(snapshot) {
   const expected = {
-    authAcceptanceRecoveryGrantCount: 0,
+    authAcceptanceRecoveryGrantCount: 1,
     authAcceptanceRecoveryLoginMethodCount: 2,
     authAcceptanceRecoveryEmailMethodCount: 1,
     authAcceptanceRecoveryPhoneMethodCount: 1,
     authAcceptanceMfaBindingCount: 1,
     authAcceptanceMfaWebPolicyCount: 1,
+    authAcceptanceMfaScenarioPolicyCount: 1,
+    authAcceptanceMfaFactorPolicyCount: 4,
     authAcceptancePasswordSetupCount: 1,
-    identityAuthAcceptanceUserCount: 3
+    identityAuthAcceptanceUserCount: 3,
+    permissionAuthAcceptanceWebAccessCount: 3,
+    policyPreviewFixtureCount: 1,
+    mesAcceptanceNavigationCount: 1,
+    itemMasterAttributeDefinitionFixtureCount: 1,
+    itemMasterItemModelFixtureCount: 1,
+    itemMasterItemFixtureCount: 1
   }
   for (const [field, value] of Object.entries(expected)) {
     if (snapshot[field] !== value) {
@@ -1288,6 +1399,7 @@ function seed(context, environmentPath) {
       'collaboration-service',
       'hr-service',
       'identity-service',
+      'item-master-service',
       'party-service',
       'permission-service',
       'tenant-org-service'
