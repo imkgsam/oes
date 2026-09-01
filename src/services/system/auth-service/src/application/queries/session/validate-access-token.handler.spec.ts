@@ -57,6 +57,46 @@ function createSessionFixture(input: {
 }
 
 describe('ValidateAccessTokenHandler', () => {
+  it('rejects a token whose tenant selector differs from persisted session truth before lifecycle lookup', async () => {
+    const session = createSessionFixture({
+      id: 'session-1',
+      userId: 'user-1',
+      accountId: 'account-1',
+      tenantId: 'tenant-1'
+    })
+    const jwtService = {
+      verifyAsync: jest.fn().mockResolvedValue({
+        sub: 'user-1',
+        aid: 'account-1',
+        tid: 'tenant-other',
+        sid: 'session-1',
+        scopeLevel: 'TENANT',
+        tokenType: 'access'
+      })
+    } as unknown as CommonJwtService
+    const sessionRepository = {
+      findById: jest.fn().mockResolvedValue(session),
+      save: jest.fn(),
+      delete: jest.fn()
+    } as any
+    const tenantSessionAccessService = {
+      assertSessionCanContinue: jest.fn()
+    }
+    const handler = new ValidateAccessTokenHandler(
+      jwtService,
+      sessionRepository,
+      { markTrustedDeviceSeen: jest.fn() } as unknown as TrustedDeviceService,
+      tenantSessionAccessService as any
+    )
+
+    await expect(
+      runFromGateway(() => handler.execute(new ValidateAccessTokenQuery('token-mismatch')))
+    ).rejects.toBeDefined()
+
+    expect(tenantSessionAccessService.assertSessionCanContinue).not.toHaveBeenCalled()
+    expect(sessionRepository.save).not.toHaveBeenCalled()
+  })
+
   it('rejects access tokens for tenant-scope sessions when the tenant is no longer active', async () => {
     const session = createSessionFixture({
       id: 'session-1',

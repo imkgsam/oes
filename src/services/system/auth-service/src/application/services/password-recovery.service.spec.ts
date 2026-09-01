@@ -1,6 +1,7 @@
 import { LoginMethodType, OTP_TYPES, OTP_USAGES } from '../../common/constants'
 import { OneTimeToken } from '../../domain/aggregates/otp.aggregate'
 import { LoginMethod } from '../../domain/aggregates/loginmethod.aggregate'
+import { PasswordRecoveryGrant } from '../../domain/entities/password-recovery-grant.entity'
 import { PasswordRecoveryService } from './password-recovery.service'
 
 describe('PasswordRecoveryService', () => {
@@ -307,7 +308,68 @@ describe('PasswordRecoveryService', () => {
     expect(result.verified).toBe(true)
     expect(result.resetToken).toBeTruthy()
   })
+
+  it('rejects an expired password recovery grant before mutating it', async () => {
+    const grant = buildRecoveryGrant({ expiresAt: new Date(Date.now() - 1000) })
+    const passwordRecoveryGrantRepository = {
+      findById: jest.fn().mockResolvedValue(grant),
+      save: jest.fn()
+    }
+    const service = new PasswordRecoveryService(
+      {} as any,
+      {} as any,
+      passwordRecoveryGrantRepository as any,
+      {} as any,
+      {} as any,
+      auditService as any
+    )
+
+    await expect(service.consumeGrant(grant.id)).rejects.toThrow(
+      'Password recovery grant has expired'
+    )
+    expect(passwordRecoveryGrantRepository.save).not.toHaveBeenCalled()
+    expect(grant.isConsumed()).toBe(false)
+  })
+
+  it('rejects replay of an already consumed password recovery grant', async () => {
+    const grant = buildRecoveryGrant({
+      consumedAt: new Date(),
+      expiresAt: new Date(Date.now() + 60_000)
+    })
+    const passwordRecoveryGrantRepository = {
+      findById: jest.fn().mockResolvedValue(grant),
+      save: jest.fn()
+    }
+    const service = new PasswordRecoveryService(
+      {} as any,
+      {} as any,
+      passwordRecoveryGrantRepository as any,
+      {} as any,
+      {} as any,
+      auditService as any
+    )
+
+    await expect(service.consumeGrant(grant.id)).rejects.toThrow(
+      'Password recovery grant is invalid'
+    )
+    expect(passwordRecoveryGrantRepository.save).not.toHaveBeenCalled()
+  })
 })
+
+function buildRecoveryGrant(input: { consumedAt?: Date; expiresAt: Date }) {
+  const now = new Date()
+  return new PasswordRecoveryGrant(
+    'reset-token-1',
+    'user-1',
+    'method-email',
+    'challenge-1',
+    input.expiresAt,
+    now,
+    input.consumedAt ?? null,
+    now,
+    now
+  )
+}
 
 function buildLoginMethod(input: {
   enabled: boolean

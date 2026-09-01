@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  AUTH_ACCEPTANCE_FIXTURES,
   DEFAULT_PASSWORD,
   SEEDED_TENANT_ROLE_PERMISSION_CODES,
   SYSTEM_ADMIN_ACCOUNT_IDS,
@@ -12,6 +13,29 @@ import {
   buildSeedTenantRoles,
   buildPdaLoginSmokeSeed
 } from './tenant-web-auth-test-fixtures.mjs'
+
+test('auth acceptance fixtures stay dedicated and task-resettable', () => {
+  const fixtures = AUTH_ACCEPTANCE_FIXTURES
+  assert.equal(
+    new Set([
+      fixtures.passwordRecovery.userId,
+      fixtures.passwordSetup.userId,
+      fixtures.mfa.userId
+    ]).size,
+    3
+  )
+  assert.equal(
+    new Set([
+      fixtures.passwordRecovery.accountId,
+      fixtures.passwordSetup.accountId,
+      fixtures.mfa.accountId
+    ]).size,
+    3
+  )
+  assert.equal(fixtures.mfa.tenantTerminalMfaPolicy.loginMfaRequired, true)
+  assert.deepEqual(fixtures.mfa.tenantTerminalMfaPolicy.allowedFactors, ['TOTP'])
+  assert.equal(fixtures.passwordSetup.requirement.required, true)
+})
 
 test('pda login smoke seed targets one tenant account with PDA terminal access and home navigation', () => {
   const seed = buildPdaLoginSmokeSeed()

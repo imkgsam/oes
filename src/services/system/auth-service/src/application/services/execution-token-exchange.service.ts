@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import { ExecutionTokenSigningPort } from '../../domain/ports/execution-token-signing.port'
 import { ExecutionTokenRegistry } from '../../domain/services/execution-token-registry'
+import {
+  HumanOboSubjectScope,
+  requireHumanOboSubjectScope
+} from '../../domain/services/human-obo-subject-scope'
 
 export interface VerifiedExecutionWorkload {
   readonly spiffeId: string
@@ -20,7 +24,11 @@ export interface TrustedExecutionContext {
   readonly delegationId?: string
   readonly actor?: unknown
   readonly sourceTokenId?: string
+  readonly sourceAudience?: string
   readonly sourceExpiresAt?: number
+  readonly requestId?: string
+  readonly traceId?: string
+  readonly spanId?: string
 }
 
 /** Carries only Permission's authoritative, request-bound issuance upper bound into the signing gate. */
@@ -73,11 +81,15 @@ export class ExecutionTokenExchangeService {
         sourceTokenId: string
         targetTokenId: string
         subject: string
+        subjectScope: 'SYSTEM' | 'TENANT'
         tenantId?: string
         actor: unknown
         workload: string
         audience: string
         decisionReference: string
+        requestId: string
+        traceId: string
+        spanId: string
       }): Promise<void>
     }
   ) {}
@@ -86,7 +98,7 @@ export class ExecutionTokenExchangeService {
   async exchange(input: ExchangeExecutionTokenInput): Promise<IssuedExecutionToken> {
     const permissions = normalizePermissionCodes(input.requestedPermissionCodes)
     const now = this.now()
-    this.assertTrustedContext(input, permissions, now)
+    const humanOboScope = this.assertTrustedContext(input, permissions, now)
     const signingKey = await this.signer.currentSigningKey()
     assertSigningKeyEligible(signingKey, now)
 
@@ -123,17 +135,23 @@ export class ExecutionTokenExchangeService {
     const signingInput = `${header}.${claims}`
     const signature = await this.signer.sign(signingKey.kid, Buffer.from(signingInput, 'utf8'))
     if (input.execution.sourceTokenId) {
-      if (!input.execution.actor || !this.audit)
+      if (!input.execution.actor || !humanOboScope || !this.audit)
         throw new Error('execution token OBO audit is unavailable')
       await this.audit.appendOboLink({
         sourceTokenId: input.execution.sourceTokenId,
         targetTokenId,
         subject: input.execution.subject,
-        tenantId: input.execution.tenantId,
+        subjectScope: humanOboScope.subjectScope,
+        ...(humanOboScope.optionalTenantId === undefined
+          ? {}
+          : { tenantId: humanOboScope.optionalTenantId }),
         actor: input.execution.actor,
         workload: input.workloadIdentity.spiffeId,
         audience: input.targetAudience,
-        decisionReference: input.authorizationDecision.decisionReference
+        decisionReference: input.authorizationDecision.decisionReference,
+        requestId: input.execution.requestId as string,
+        traceId: input.execution.traceId as string,
+        spanId: input.execution.spanId as string
       })
     }
 
@@ -153,7 +171,7 @@ export class ExecutionTokenExchangeService {
     input: ExchangeExecutionTokenInput,
     permissionCodes: readonly string[],
     now: number
-  ): void {
+  ): HumanOboSubjectScope | undefined {
     if (
       !input.workloadIdentity.spiffeId.startsWith('spiffe://') ||
       !isThumbprint(input.workloadIdentity.certificateThumbprint) ||
@@ -162,19 +180,41 @@ export class ExecutionTokenExchangeService {
     ) {
       throw new Error('execution token exchange lacks an authoritative Permission decision')
     }
+    let humanOboScope: HumanOboSubjectScope | undefined
     if (input.execution.sourceTokenId !== undefined) {
+      let expectedActorId: string
+      try {
+        humanOboScope = requireHumanOboSubjectScope(
+          input.execution.scopeLevel,
+          input.execution.tenantId
+        )
+        expectedActorId = this.registry.resolveHumanOboActor(
+          input.workloadIdentity.spiffeId,
+          input.execution.sourceAudience as string,
+          input.targetAudience
+        ).actorMachinePrincipalId
+      } catch {
+        throw new Error('execution token HUMAN OBO context is invalid')
+      }
       if (
         !isExact(input.execution.sourceTokenId) ||
+        !isExact(input.execution.sourceAudience) ||
         input.execution.principalType !== 'HUMAN' ||
-        !isExact(input.execution.tenantId) ||
         !isExact(input.execution.sessionId) ||
-        !isDirectSystemMachineActor(input.execution.actor) ||
+        !isDirectSystemMachineActor(input.execution.actor, expectedActorId) ||
         !Number.isInteger(input.execution.sourceExpiresAt) ||
-        (input.execution.sourceExpiresAt as number) <= now
+        (input.execution.sourceExpiresAt as number) <= now ||
+        !isExact(input.execution.requestId) ||
+        !isTraceId(input.execution.traceId) ||
+        !isSpanId(input.execution.spanId) ||
+        !this.audit
       ) {
         throw new Error('execution token HUMAN OBO context is invalid')
       }
-    } else if (input.execution.sourceExpiresAt !== undefined) {
+    } else if (
+      input.execution.sourceAudience !== undefined ||
+      input.execution.sourceExpiresAt !== undefined
+    ) {
       throw new Error('execution token HUMAN OBO context is invalid')
     }
     if (input.authorizationDecision.kind === 'SELF_SERVICE' && permissionCodes.length === 0) {
@@ -182,16 +222,17 @@ export class ExecutionTokenExchangeService {
     } else {
       this.registry.assertIssuanceAllowed(input.workloadIdentity.spiffeId, input.targetAudience)
     }
+    return humanOboScope
   }
 }
 
 /** Accepts only one direct registry-selected SYSTEM MACHINE actor and no caller-built actor chain. */
-function isDirectSystemMachineActor(actor: unknown): boolean {
+function isDirectSystemMachineActor(actor: unknown, expectedActorId: string): boolean {
   if (!actor || typeof actor !== 'object' || Array.isArray(actor)) return false
   const value = actor as Record<string, unknown>
   return (
     Object.keys(value).length === 3 &&
-    isExact(value.sub) &&
+    value.sub === expectedActorId &&
     value.principal_type === 'MACHINE' &&
     value.scope_level === 'SYSTEM'
   )
@@ -290,4 +331,14 @@ function encodeSegment(value: Record<string, unknown>): string {
 /** Validates the standard SHA-256 base64url certificate-thumbprint representation. */
 function isThumbprint(value: string): boolean {
   return /^[A-Za-z0-9_-]{43}$/.test(value)
+}
+
+/** Validates the canonical lowercase-or-uppercase 128-bit W3C trace identifier. */
+function isTraceId(value: unknown): value is string {
+  return typeof value === 'string' && /^[0-9a-f]{32}$/i.test(value) && !/^0{32}$/.test(value)
+}
+
+/** Validates the canonical lowercase-or-uppercase 64-bit W3C span identifier. */
+function isSpanId(value: unknown): value is string {
+  return typeof value === 'string' && /^[0-9a-f]{16}$/i.test(value) && !/^0{16}$/.test(value)
 }

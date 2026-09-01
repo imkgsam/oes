@@ -183,6 +183,7 @@ function buildCacheKey(
   return {
     subject: context.subject,
     principalType: context.principalType,
+    subjectScope: context.tenantId === undefined ? 'SYSTEM' : 'TENANT',
     ...(context.actor === undefined ? {} : { actor: context.actor }),
     ...(context.delegationId === undefined ? {} : { delegationId: context.delegationId }),
     ...(context.tenantId === undefined ? {} : { tenantId: context.tenantId }),

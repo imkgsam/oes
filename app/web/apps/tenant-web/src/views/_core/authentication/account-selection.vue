@@ -2,7 +2,7 @@
 import { computed, watchEffect } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { Empty, Tag } from 'ant-design-vue';
+import { Tag } from 'ant-design-vue';
 
 import { useAuthStore } from '#/store';
 
@@ -16,7 +16,11 @@ const accountCountText = computed(() => `${options.value.length} 个可用账号
 
 // Returns users to login when the in-memory post-auth account selection state is no longer available.
 watchEffect(() => {
-  if (options.value.length === 0 && authStore.authBlockReason !== 'MFA_FACTOR_UNAVAILABLE') {
+  if (
+    !authStore.hasPendingAccountSelection
+    && !authStore.loginLoading
+    && authStore.authBlockReason !== 'MFA_FACTOR_UNAVAILABLE'
+  ) {
     void router.replace({ name: 'Login' });
   }
 });
@@ -50,7 +54,7 @@ function getContextMeta(option: {
 </script>
 
 <template>
-  <div class="space-y-5">
+  <div v-if="authStore.hasPendingAccountSelection" class="space-y-5">
     <div class="space-y-2 text-center">
       <div class="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-lg font-semibold text-primary">
         O
@@ -63,13 +67,7 @@ function getContextMeta(option: {
       </div>
     </div>
 
-    <Empty
-      v-if="options.length === 0"
-      class="py-8"
-      description="当前没有可用账号，请返回登录页重试。"
-    />
-
-    <div v-else class="space-y-3">
+    <div class="space-y-3">
       <div class="flex items-center justify-between text-xs text-muted-foreground">
         <span>{{ accountCountText }}</span>
         <span>可在登录后继续切换</span>

@@ -408,8 +408,6 @@ export class FormApi {
     const validateResult = await form.validate(opts);
 
     if (Object.keys(validateResult?.errors ?? {}).length > 0) {
-      console.error('validate error', validateResult?.errors);
-
       if (this.state?.scrollToFirstError) {
         this.scrollToFirstError(validateResult.errors);
       }
@@ -434,8 +432,6 @@ export class FormApi {
     const validateResult = await form.validateField(fieldName, opts);
 
     if (Object.keys(validateResult?.errors ?? {}).length > 0) {
-      console.error('validate error', validateResult?.errors);
-
       if (this.state?.scrollToFirstError) {
         this.scrollToFirstError(fieldName);
       }

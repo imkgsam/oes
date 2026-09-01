@@ -255,6 +255,7 @@ describe('trusted execution token runtime', () => {
     const key = {
       subject: 'machine-123',
       principalType: 'MACHINE' as const,
+      subjectScope: 'TENANT' as const,
       tenantId: 'tenant-123',
       targetAudience: AUDIENCE,
       permissionCodes: ['asset.write', 'asset.read'],
@@ -272,6 +273,32 @@ describe('trusted execution token runtime', () => {
       cache.get({ ...key, workloadIdentity: 'spiffe://local.oes/ns/oes/sa/other' })
     ).toBeUndefined()
     expect(cache.get({ ...key, permissionCodes: ['asset.read'] })).toBeUndefined()
+  })
+
+  it('separates SYSTEM and TENANT subject scope and rejects inconsistent cache pairs', () => {
+    const cache = new CertificateBoundExecutionTokenCache({
+      now: () => NOW_SECONDS,
+      refreshMarginSeconds: 30
+    })
+    const shared = {
+      subject: 'human-123',
+      principalType: 'HUMAN' as const,
+      targetAudience: AUDIENCE,
+      permissionCodes: ['asset.read'],
+      workloadIdentity: SPIFFE_ID,
+      certificateThumbprint: THUMBPRINT,
+      sourceCredentialReference: 'subject-jti-1'
+    }
+    const system = { ...shared, subjectScope: 'SYSTEM' as const }
+    const tenant = { ...shared, subjectScope: 'TENANT' as const, tenantId: 'tenant-123' }
+
+    cache.set(system, { accessToken: 'system-token', expiresAt: NOW_SECONDS + 60 })
+    cache.set(tenant, { accessToken: 'tenant-token', expiresAt: NOW_SECONDS + 60 })
+
+    expect(cache.get(system)?.accessToken).toBe('system-token')
+    expect(cache.get(tenant)?.accessToken).toBe('tenant-token')
+    expect(() => cache.get({ ...system, tenantId: 'tenant-123' })).toThrow('inconsistent')
+    expect(() => cache.get({ ...shared, subjectScope: 'TENANT' })).toThrow('inconsistent')
   })
 
   it.each(['UNKNOWN', 'web', ' WEB', 'WEB '] as const)(
@@ -305,6 +332,7 @@ describe('trusted execution token runtime', () => {
           {
             subject: 'human-123',
             principalType: 'HUMAN',
+            subjectScope: 'SYSTEM',
             targetAudience: AUDIENCE,
             permissionCodes: [],
             workloadIdentity: SPIFFE_ID,

@@ -12,6 +12,8 @@ import { useAuthContextStore } from '#/store/auth-context';
 import { generateAccess } from './access';
 
 const FIRST_LOGIN_PASSWORD_ROUTE_NAME = 'FirstLoginPasswordSetup';
+const ACCOUNT_SELECTION_ROUTE_NAME = 'AccountSelection';
+const MFA_FACTOR_UNAVAILABLE_ROUTE_NAME = 'MfaFactorUnavailable';
 
 /**
  * 通用守卫配置
@@ -57,6 +59,25 @@ function setupAccessGuard(router: Router) {
     const authContextStore = useAuthContextStore();
     const requiresPasswordSetup =
       authContextStore.sessionContext?.passwordSetupRequired === true;
+
+    if (to.name === ACCOUNT_SELECTION_ROUTE_NAME) {
+      if (authStore.authBlockReason === 'MFA_FACTOR_UNAVAILABLE') {
+        return {
+          name: MFA_FACTOR_UNAVAILABLE_ROUTE_NAME,
+          replace: true,
+        };
+      }
+
+      if (!authStore.hasPendingAccountSelection) {
+        authStore.resetPendingAuthFlow();
+        return accessStore.accessToken
+          ? userStore.userInfo?.homePath || preferences.app.defaultHomePath
+          : {
+              path: LOGIN_PATH,
+              replace: true,
+            };
+      }
+    }
 
     // 基本路由，这些路由不需要进入权限拦截
     if (coreRouteNames.includes(to.name as string)) {
