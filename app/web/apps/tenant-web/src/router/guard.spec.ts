@@ -127,12 +127,21 @@ describe('createRouterGuard', () => {
     await expect(handler(publicTarget, { query: {} })).resolves.toBe(true);
     await expect(handler(publicTarget, { query: {} })).resolves.toBe(true);
     expect(fetchUserInfoMock).not.toHaveBeenCalled();
+    expect(refreshCurrentSessionAccessMock).not.toHaveBeenCalled();
     expect(generateAccessMock).not.toHaveBeenCalled();
   });
 
   it('refreshes the authenticated session once before reusing a persisted access snapshot', async () => {
     const beforeEachHandlers: Array<(to: any, from: any) => Promise<any>> = [];
     const afterEachHandlers: Array<(to: any) => void> = [];
+    const workbenchRecord = { name: 'WorkbenchHome' };
+    const targetRoute = {
+      fullPath: '/workbench/home',
+      matched: [workbenchRecord],
+      meta: {},
+      name: 'WorkbenchHome',
+      path: '/workbench/home',
+    };
     const routerMock = {
       beforeEach: (handler: (to: any, from: any) => Promise<any>) => {
         beforeEachHandlers.push(handler);
@@ -140,6 +149,7 @@ describe('createRouterGuard', () => {
       afterEach: (handler: (to: any) => void) => {
         afterEachHandlers.push(handler);
       },
+      resolve: vi.fn(() => targetRoute),
     };
 
     const { createRouterGuard } = await import('./guard');
@@ -150,13 +160,6 @@ describe('createRouterGuard', () => {
     if (!handler)
       throw new Error('Authenticated session guard was not registered');
 
-    const targetRoute = {
-      fullPath: '/workbench/home',
-      meta: {},
-      name: 'WorkbenchHome',
-      path: '/workbench/home',
-    };
-
     await expect(handler(targetRoute, { query: {} })).resolves.toBe(true);
     await expect(handler(targetRoute, { query: {} })).resolves.toBe(true);
 
@@ -164,6 +167,122 @@ describe('createRouterGuard', () => {
     expect(fetchUserInfoMock).not.toHaveBeenCalled();
     expect(generateAccessMock).not.toHaveBeenCalled();
     expect(afterEachHandlers).toHaveLength(1);
+  });
+
+  it('rematches a fallback target after persisted access refresh installs its dynamic route', async () => {
+    const beforeEachHandlers: Array<(to: any, from: any) => Promise<any>> = [];
+    const fallbackRecord = { name: 'FallbackNotFound' };
+    const rootRecord = { name: 'Root' };
+    const itemRecord = { name: 'TenantItemManagement' };
+    const refreshedTarget = {
+      fullPath: '/master-data/items',
+      matched: [rootRecord, itemRecord],
+      meta: { entryKey: 'master-data.item-management' },
+      name: 'TenantItemManagement',
+      path: '/master-data/items',
+    };
+    const routerMock = {
+      beforeEach: (handler: (to: any, from: any) => Promise<any>) => {
+        beforeEachHandlers.push(handler);
+      },
+      afterEach: vi.fn(),
+      resolve: vi.fn(() => refreshedTarget),
+    };
+
+    const { createRouterGuard } = await import('./guard');
+    createRouterGuard(routerMock as any);
+
+    const handler = beforeEachHandlers[1];
+    expect(handler).toBeTypeOf('function');
+    if (!handler) throw new Error('Access refresh guard was not registered');
+    const fallbackTarget = {
+      fullPath: '/master-data/items',
+      matched: [fallbackRecord],
+      meta: {},
+      name: 'FallbackNotFound',
+      path: '/master-data/items',
+    };
+
+    await expect(handler(fallbackTarget, { query: {} })).resolves.toMatchObject({
+      name: 'TenantItemManagement',
+      path: '/master-data/items',
+      replace: true,
+    });
+    await expect(handler(refreshedTarget, { query: {} })).resolves.toBe(true);
+
+    expect(refreshCurrentSessionAccessMock).toHaveBeenCalledTimes(1);
+    expect(routerMock.resolve).toHaveBeenCalledTimes(1);
+    expect(routerMock.resolve).toHaveBeenCalledWith('/master-data/items');
+  });
+
+  it('rematches a visible target when access refresh replaces its matched route records', async () => {
+    const beforeEachHandlers: Array<(to: any, from: any) => Promise<any>> = [];
+    const targetBeforeRefresh = {
+      fullPath: '/master-data/items',
+      matched: [{ name: 'Root' }, { name: 'TenantItemManagement' }],
+      meta: { entryKey: 'master-data.item-management' },
+      name: 'TenantItemManagement',
+      path: '/master-data/items',
+    };
+    const targetAfterRefresh = {
+      ...targetBeforeRefresh,
+      matched: [{ name: 'Root' }, { name: 'TenantItemManagement' }],
+    };
+    const routerMock = {
+      beforeEach: (handler: (to: any, from: any) => Promise<any>) => {
+        beforeEachHandlers.push(handler);
+      },
+      afterEach: vi.fn(),
+      resolve: vi.fn(() => targetAfterRefresh),
+    };
+
+    const { createRouterGuard } = await import('./guard');
+    createRouterGuard(routerMock as any);
+
+    const handler = beforeEachHandlers[1];
+    expect(handler).toBeTypeOf('function');
+    if (!handler) throw new Error('Access refresh guard was not registered');
+
+    await expect(handler(targetBeforeRefresh, { query: {} })).resolves.toMatchObject({
+      name: 'TenantItemManagement',
+      path: '/master-data/items',
+      replace: true,
+    });
+    await expect(handler(targetAfterRefresh, { query: {} })).resolves.toBe(true);
+
+    expect(refreshCurrentSessionAccessMock).toHaveBeenCalledTimes(1);
+    expect(routerMock.resolve).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps an invisible dynamic target on the fallback route after access refresh', async () => {
+    const beforeEachHandlers: Array<(to: any, from: any) => Promise<any>> = [];
+    const fallbackRecord = { name: 'FallbackNotFound' };
+    const fallbackTarget = {
+      fullPath: '/master-data/suppliers',
+      matched: [fallbackRecord],
+      meta: {},
+      name: 'FallbackNotFound',
+      path: '/master-data/suppliers',
+    };
+    const routerMock = {
+      beforeEach: (handler: (to: any, from: any) => Promise<any>) => {
+        beforeEachHandlers.push(handler);
+      },
+      afterEach: vi.fn(),
+      resolve: vi.fn(() => fallbackTarget),
+    };
+
+    const { createRouterGuard } = await import('./guard');
+    createRouterGuard(routerMock as any);
+
+    const handler = beforeEachHandlers[1];
+    expect(handler).toBeTypeOf('function');
+    if (!handler) throw new Error('Access refresh guard was not registered');
+
+    await expect(handler(fallbackTarget, { query: {} })).resolves.toBe(true);
+
+    expect(refreshCurrentSessionAccessMock).toHaveBeenCalledTimes(1);
+    expect(routerMock.resolve).toHaveBeenCalledWith('/master-data/suppliers');
   });
 
   it('refreshes persisted user info before rebuilding access routes', async () => {

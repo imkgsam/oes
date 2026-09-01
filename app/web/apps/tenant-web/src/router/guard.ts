@@ -1,4 +1,4 @@
-import type { Router } from 'vue-router';
+import type { RouteLocationNormalized, Router } from 'vue-router';
 
 import { LOGIN_PATH } from '@vben/constants';
 import { preferences } from '@vben/preferences';
@@ -14,6 +14,33 @@ import { generateAccess } from './access';
 const FIRST_LOGIN_PASSWORD_ROUTE_NAME = 'FirstLoginPasswordSetup';
 const ACCOUNT_SELECTION_ROUTE_NAME = 'AccountSelection';
 const MFA_FACTOR_UNAVAILABLE_ROUTE_NAME = 'MfaFactorUnavailable';
+const FALLBACK_NOT_FOUND_ROUTE_NAME = 'FallbackNotFound';
+
+// Rematches an exact target only when refreshed dynamic-route installation replaced its fallback or stale route records.
+function resolveAccessRefreshRematch(
+  router: Router,
+  to: RouteLocationNormalized,
+) {
+  const refreshedTarget = router.resolve(to.fullPath);
+  const refreshedIsFallback =
+    refreshedTarget.name === FALLBACK_NOT_FOUND_ROUTE_NAME;
+  const currentIsFallback = to.name === FALLBACK_NOT_FOUND_ROUTE_NAME;
+  const currentMatchIsStale =
+    to.matched.length !== refreshedTarget.matched.length ||
+    to.matched.some((record, index) => record !== refreshedTarget.matched[index]);
+
+  if (
+    refreshedIsFallback ||
+    (!currentIsFallback && !currentMatchIsStale)
+  ) {
+    return true;
+  }
+
+  return {
+    ...refreshedTarget,
+    replace: true,
+  };
+}
 
 /**
  * 通用守卫配置
@@ -138,6 +165,7 @@ function setupAccessGuard(router: Router) {
       if (!hasRevalidatedCheckedAccess) {
         hasRevalidatedCheckedAccess = true;
         await authStore.refreshCurrentSessionAccess();
+        return resolveAccessRefreshRematch(router, to);
       }
       return true;
     }
