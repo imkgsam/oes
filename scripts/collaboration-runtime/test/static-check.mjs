@@ -47,6 +47,19 @@ assert.match(shadowWorkflow, /--parallel-shards 3/)
 assert.match(shadowWorkflow, /--prepared/)
 assert.match(shadowWorkflow, /actions\/upload-artifact@v7/)
 assert.match(shadowWorkflow, /actions\/download-artifact@v8/)
+assert.equal(
+  (shadowWorkflow.match(/name: optimized-shadow-prepare-\$\{\{ github\.run_id \}\}/g) ?? []).length,
+  4
+)
+assert.doesNotMatch(
+  shadowWorkflow,
+  /name: optimized-shadow-prepare-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/
+)
+assert.match(
+  shadowWorkflow,
+  /name: optimized-shadow-prepare-\$\{\{ github\.run_id \}\}\n\s+path:[\s\S]*?overwrite: true/
+)
+assert.match(shadowWorkflow, /const name = `optimized-shadow-prepare-\$\{run\.id\}`/)
 assert.match(shadowWorkflow, /tar --sort=name --mtime='UTC 1970-01-01'/)
 assert.match(shadowWorkflow, /\*\/prisma\/generated\/prisma/)
 assert.match(shadowWorkflow, /ci-prepared-artifact\.mjs stage/)

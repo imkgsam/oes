@@ -701,18 +701,9 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
   ): RemoteTruth['reviewGate'] {
     const cwd = binding.repositoryRoot
     let annotations = 0
-    const checkRaw = JSON.parse(
-      checked(
-        this.runner,
-        this.gh,
-        [
-          'api',
-          `repos/${binding.repositorySlug}/commits/${checks[0]?.sha ?? binding.candidateSha}/check-runs?per_page=100`
-        ],
-        cwd
-      )
-    ) as { check_runs?: Array<Record<string, unknown>> }
-    for (const check of checkRaw.check_runs ?? []) {
+    const checkSha = checks[0]?.sha ?? binding.candidateSha
+    const authoritativeChecks = this.currentRequiredChecks(binding, checks, checkSha) ?? []
+    for (const check of authoritativeChecks) {
       const values = JSON.parse(
         checked(
           this.runner,
@@ -798,23 +789,37 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
     return { annotations, issueComments, reviewComments, blockingReviews, unresolvedThreads }
   }
 
-  /** Requires the authoritative newest run for every bound context to pass on the exact SHA. */
-  private requiredChecksPass(
+  /** Selects one newest, uniquely identified check run for every required context. */
+  private currentRequiredChecks(
     binding: RemoteDriverBinding,
     checks: RequiredCheckTruth[],
     sha: string
-  ): boolean {
-    return binding.pullRequest.requiredChecks.every((name) => {
+  ): RequiredCheckTruth[] | null {
+    const current: RequiredCheckTruth[] = []
+    for (const name of binding.pullRequest.requiredChecks) {
       const matches = checks.filter((check) => check.sha === sha && check.name === name)
       if (
         matches.length === 0 ||
         matches.some((check) => !Number.isSafeInteger(check.id) || Number(check.id) < 1) ||
         new Set(matches.map((check) => check.id)).size !== matches.length
       )
-        return false
-      const current = [...matches].sort((left, right) => Number(right.id) - Number(left.id))[0]
-      return current.status === 'completed' && current.conclusion === 'success'
-    })
+        return null
+      current.push([...matches].sort((left, right) => Number(right.id) - Number(left.id))[0])
+    }
+    return current
+  }
+
+  /** Requires the authoritative newest run for every bound context to pass on the exact SHA. */
+  private requiredChecksPass(
+    binding: RemoteDriverBinding,
+    checks: RequiredCheckTruth[],
+    sha: string
+  ): boolean {
+    const current = this.currentRequiredChecks(binding, checks, sha)
+    return (
+      current !== null &&
+      current.every((check) => check.status === 'completed' && check.conclusion === 'success')
+    )
   }
 
   /** Requires all review and annotation counters to be clear. */
