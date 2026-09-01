@@ -276,6 +276,7 @@ export interface ApprovalTelemetry {
   eventSourceSha256: string
   eventSourceFingerprint?: string
   snapshotRecord?: TrustedAuthorizationReference
+  probeAttemptId?: string
   probeDraftFingerprint?: string
   probeRequestFingerprint?: string
   rolloutSessionId?: string
@@ -297,11 +298,30 @@ export interface ApprovalTelemetrySnapshotRecord {
   transitionId: string
   profileGeneration: number
   launchReceiptFingerprint: string
+  probeAttemptFingerprint: string
+  probeAttemptId: string
   probeDraftFingerprint: string
   probeRequestFingerprint: string
   rolloutSessionId: string
   completedTurnId: string
   snapshot: TrustedAuthorizationReference
+}
+
+export interface ProfileProbeAttemptRecord {
+  schemaVersion: 1
+  kind: 'OES_PROFILE_PROBE_ATTEMPT'
+  probeAttemptFingerprint: string
+  status: 'ISSUED'
+  issuedBeforeProbe: true
+  issuerTaskId: string
+  ownerTaskId: string
+  transitionId: string
+  profileGeneration: number
+  launchReceiptFingerprint: string
+  probeAttemptId: string
+  expectedRolloutSessionId: string
+  requestContractFingerprint: string
+  snapshotRecordPath: string
 }
 
 export interface ProfileLaunchReceipt {
@@ -346,6 +366,7 @@ export interface EffectiveProfileReport {
   approvalMode?: ApprovalMode
   launchReceipt?: TrustedAuthorizationReference
   effectivePermissionSandboxFingerprint?: string
+  probeAttempt?: TrustedAuthorizationReference
 }
 
 export interface EvidenceKeyInput {

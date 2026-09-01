@@ -96,6 +96,7 @@
         "eventSourceSha256": { "$ref": "#/$defs/sha256" },
         "eventSourceFingerprint": { "$ref": "#/$defs/sha256" },
         "snapshotRecord": { "$ref": "#/$defs/reference" },
+        "probeAttemptId": { "type": "string", "minLength": 8 },
         "probeDraftFingerprint": { "$ref": "#/$defs/sha256" },
         "probeRequestFingerprint": { "$ref": "#/$defs/sha256" },
         "rolloutSessionId": { "type": "string", "minLength": 1 },
@@ -164,7 +165,8 @@
     },
     "approvalMode": { "$ref": "#/$defs/approvalMode" },
     "launchReceipt": { "$ref": "#/$defs/reference" },
-    "effectivePermissionSandboxFingerprint": { "$ref": "#/$defs/sha256" }
+    "effectivePermissionSandboxFingerprint": { "$ref": "#/$defs/sha256" },
+    "probeAttempt": { "$ref": "#/$defs/reference" }
   },
   "allOf": [
     {
@@ -173,7 +175,8 @@
         "allOf": [
           { "not": { "required": ["approvalMode"] } },
           { "not": { "required": ["launchReceipt"] } },
-          { "not": { "required": ["effectivePermissionSandboxFingerprint"] } }
+          { "not": { "required": ["effectivePermissionSandboxFingerprint"] } },
+          { "not": { "required": ["probeAttempt"] } }
         ],
         "properties": {
           "telemetry": {
@@ -183,6 +186,7 @@
               { "not": { "required": ["eventSourceFingerprint"] } },
               { "not": { "required": ["contexts"] } },
               { "not": { "required": ["snapshotRecord"] } },
+              { "not": { "required": ["probeAttemptId"] } },
               { "not": { "required": ["probeDraftFingerprint"] } },
               { "not": { "required": ["probeRequestFingerprint"] } },
               { "not": { "required": ["rolloutSessionId"] } },
@@ -203,7 +207,8 @@
           "approvalMode",
           "launchReceipt",
           "effectivePermissionSandboxFingerprint",
-          "resourceTopology"
+          "resourceTopology",
+          "probeAttempt"
         ],
         "properties": {
           "telemetry": {
@@ -213,6 +218,7 @@
               "eventSourceFingerprint",
               "contexts",
               "snapshotRecord",
+              "probeAttemptId",
               "probeDraftFingerprint",
               "probeRequestFingerprint",
               "rolloutSessionId",

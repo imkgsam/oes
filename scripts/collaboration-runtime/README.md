@@ -6,7 +6,7 @@ This directory is the repository-owned implementation of the reliability rules f
 
 - `profile/`: exact-owner project profile template. It seals the owner/transition identity, separates the owner-exclusive Git directory from shared metadata, keeps the action-authorization root read-only, and grants only the protocol's shared serial-admission directory.
 - `src/profile-policy.ts`: closed approval-mode rendering, installed-profile/launch-receipt sealing, and monotonic same-owner successor transitions.
-- `src/profile-preflight.ts`: mandatory two-phase production capability probes, v1 read compatibility, v2-only writing, exact draft/session/turn-bound issuer telemetry records, all-context managed/restricted telemetry hashing, zero-normal-prompt acceptance, and bounded defect/repair routing.
+- `src/profile-preflight.ts`: mandatory two-phase production capability probes, v1 read compatibility, v2-only writing, fixed current-attempt plus exact draft/session/turn-bound issuer telemetry records, all-context managed/restricted telemetry hashing, zero-normal-prompt acceptance, and bounded defect/repair routing.
 - `src/resource-topology.ts`: sealed stable-owner resource bindings, physical owner-namespaced scratch roots, private Git/common-directory observation, durable Packet/evidence/checkpoint verification, duplicate-transition detection, and exact-path recovery planning.
 - `src/remote-driver.ts`: monotonic remote transaction state, result-loss reconstruction, and read-after-write recovery.
 - `src/github-adapter.ts`: exact Git/GitHub implementation for `preflight`, `publish-pr`, `verify-pr`, `merge-pr`, `verify-main`, and `cleanup`, including repository rules, review, annotation, merge-group, and merge-parent gates.
@@ -32,7 +32,8 @@ node --experimental-strip-types scripts/collaboration-runtime/src/cli.ts \
 node --experimental-strip-types scripts/collaboration-runtime/src/cli.ts \
   profile-preflight-probe --input exact-profile-probe.json
 
-# After that target turn completes and its rollout plus exact snapshot record are issuer-sealed:
+# After the issuer selects the fixed current attempt, and that target turn completes with its
+# attempt-scoped rollout snapshot record sealed:
 node --experimental-strip-types scripts/collaboration-runtime/src/cli.ts \
   profile-preflight-finalize --input exact-profile-finalize.json
 

@@ -39,6 +39,7 @@ import {
   type CapabilityObservation,
   type EffectivePermissionContext,
   type EffectiveProfileReport,
+  type ProfileProbeAttemptRecord,
   type RemoteTrustRoots,
   type TrustedAuthorizationReference
 } from './types.ts'
@@ -92,6 +93,8 @@ export interface EffectiveProfileProbeDraft {
   kind: 'OES_EFFECTIVE_PROFILE_PROBE_DRAFT'
   draftFingerprint: string
   requestFingerprint: string
+  probeAttemptFingerprint: string
+  probeAttemptId: string
   ownerTaskId: string
   transitionId: string
   declaredCapabilities: CapabilityName[]
@@ -104,6 +107,12 @@ export interface ApprovalTelemetryExpectation {
   expectedEffectivePermissionSandboxFingerprint: string
   expectedActivePermissionProfileId: string
   trustedAuthorizationRoot: string
+}
+
+interface PreparedProfilePreflight {
+  telemetryExpectation: ApprovalTelemetryExpectation
+  probeAttempt: ProfileProbeAttemptRecord
+  probeAttemptReference: TrustedAuthorizationReference
 }
 
 export interface SystemProbeOptions {
@@ -125,6 +134,8 @@ interface InstalledProfileRuntimeAuthority {
 }
 
 const ACCEPTED_RUNTIME_SANDBOX_POLICY_TYPES = new Set(['workspace-write'])
+const CURRENT_PROFILE_PROBE_ATTEMPT = 'current-profile-probe-attempt.json'
+const PROBE_ATTEMPT_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{7,127}$/u
 
 /** Reads the profile-sealed permission identity and issuer-owned telemetry trust root. */
 function readInstalledProfileRuntimeAuthority(
@@ -163,8 +174,8 @@ function telemetrySourceFingerprint(eventSource: string, eventSourceSha256: stri
   return sha256(canonicalJson({ eventSource, eventSourceSha256 }))
 }
 
-/** Hashes only authority-bearing request semantics so result-path relocation cannot rebind a probe. */
-export function profilePreflightRequestFingerprint(request: PreflightRequest): string {
+/** Hashes the exact pre-authorized probe contract independently of its output location. */
+export function profilePreflightRequestContractFingerprint(request: PreflightRequest): string {
   return sha256(
     canonicalJson({
       ownerTaskId: request.ownerTaskId,
@@ -174,6 +185,19 @@ export function profilePreflightRequestFingerprint(request: PreflightRequest): s
       expectedState: request.expectedState,
       declaredCapabilities: request.declaredCapabilities,
       profile: request.profile
+    })
+  )
+}
+
+/** Binds request semantics to one issuer-issued probe attempt. */
+export function profilePreflightRequestFingerprint(
+  request: PreflightRequest,
+  probeAttemptFingerprint: string
+): string {
+  return sha256(
+    canonicalJson({
+      requestContractFingerprint: profilePreflightRequestContractFingerprint(request),
+      probeAttemptFingerprint
     })
   )
 }
@@ -532,7 +556,6 @@ export function verifyEffectiveProfileReport(
       `${report.ownerTaskId}:${report.transitionId}`
     )
   const installedTopology = readInstalledProfileResourceTopology(report.profile.path)
-  const runtimeAuthority = readInstalledProfileRuntimeAuthority(report.profile.path)
   if (report.resourceTopology === undefined) {
     if (installedTopology.resourceTopologyVersion !== 'pre-cutover-v1')
       fail('STABLE_PROFILE_REPORT_TOPOLOGY_MISSING', report.ownerTaskId)
@@ -565,11 +588,14 @@ export function verifyEffectiveProfileReport(
   )
     fail('CREDENTIAL_REFERENCE_INVALID', report.credentialReference.reference)
   let telemetryExpectation: ApprovalTelemetryExpectation | undefined
+  let reconstructedRequest: PreflightRequest | undefined
+  let prepared: PreparedProfilePreflight | undefined
   if (report.schemaVersion === 2) {
     if (
       !report.approvalMode ||
       !report.launchReceipt ||
-      !report.effectivePermissionSandboxFingerprint
+      !report.effectivePermissionSandboxFingerprint ||
+      !report.probeAttempt
     )
       fail('PROFILE_V2_BINDING_REQUIRED', report.ownerTaskId)
     const receipt = loadProfileLaunchReceipt(report.launchReceipt)
@@ -588,50 +614,7 @@ export function verifyEffectiveProfileReport(
       canonicalJson(receipt.resourceTopology) !== canonicalJson(installedTopology)
     )
       fail('PROFILE_V2_INSTALLED_LAUNCH_EFFECTIVE_DRIFT', report.ownerTaskId)
-    telemetryExpectation = {
-      approvalMode: report.approvalMode,
-      expectedEffectivePermissionSandboxFingerprint: report.effectivePermissionSandboxFingerprint,
-      expectedActivePermissionProfileId: runtimeAuthority.defaultPermissionProfileId,
-      trustedAuthorizationRoot: runtimeAuthority.trustedAuthorizationRoot
-    }
-  }
-  const actualTelemetry = readApprovalTelemetry(report.telemetry.eventSource, telemetryExpectation)
-  if (report.schemaVersion === 2 && telemetryExpectation) {
-    const reference = report.telemetry.snapshotRecord
-    if (
-      !reference ||
-      !report.telemetry.probeDraftFingerprint ||
-      !report.telemetry.probeRequestFingerprint ||
-      !report.telemetry.rolloutSessionId ||
-      !report.telemetry.completedTurnId ||
-      !report.launchReceipt ||
-      !report.approvalMode
-    )
-      fail('PROFILE_V2_TELEMETRY_SNAPSHOT_BINDING_REQUIRED', report.ownerTaskId)
-    const raw = verifyTrustedReference(
-      reference,
-      telemetryExpectation.trustedAuthorizationRoot,
-      'snapshotRecordFingerprint'
-    )
-    const recordKeys = [
-      'schemaVersion',
-      'kind',
-      'snapshotRecordFingerprint',
-      'ownerTaskId',
-      'transitionId',
-      'profileGeneration',
-      'launchReceiptFingerprint',
-      'probeDraftFingerprint',
-      'probeRequestFingerprint',
-      'rolloutSessionId',
-      'completedTurnId',
-      'snapshot'
-    ]
-    if (canonicalJson(Object.keys(raw).sort()) !== canonicalJson(recordKeys.sort()))
-      fail('PROFILE_V2_TELEMETRY_SNAPSHOT_RECORD_FIELDS_INVALID', reference.path)
-    const record = raw as unknown as ApprovalTelemetrySnapshotRecord
-    const receipt = loadProfileLaunchReceipt(report.launchReceipt)
-    const reconstructedRequest: PreflightRequest = {
+    reconstructedRequest = {
       ownerTaskId: report.ownerTaskId,
       transitionId: report.transitionId,
       approvalMode: report.approvalMode,
@@ -641,41 +624,42 @@ export function verifyEffectiveProfileReport(
       profile: report.profile,
       resultPath: ''
     }
+    prepared = prepareProfilePreflight(reconstructedRequest)
+    if (canonicalJson(report.probeAttempt) !== canonicalJson(prepared.probeAttemptReference))
+      fail('PROFILE_V2_CURRENT_PROBE_ATTEMPT_MISMATCH', report.ownerTaskId)
+    telemetryExpectation = prepared.telemetryExpectation
+  }
+  const actualTelemetry = readApprovalTelemetry(report.telemetry.eventSource, telemetryExpectation)
+  if (report.schemaVersion === 2 && telemetryExpectation && reconstructedRequest && prepared) {
+    const reference = report.telemetry.snapshotRecord
     if (
-      !record.snapshot ||
-      typeof record.snapshot.path !== 'string' ||
-      typeof record.snapshot.sha256 !== 'string' ||
-      typeof record.snapshot.fingerprint !== 'string' ||
-      typeof record.rolloutSessionId !== 'string' ||
-      typeof record.completedTurnId !== 'string' ||
-      canonicalJson(Object.keys(record.snapshot).sort()) !==
-        canonicalJson(['path', 'sha256', 'fingerprint'].sort()) ||
-      record.schemaVersion !== 1 ||
-      record.kind !== 'OES_APPROVAL_TELEMETRY_SNAPSHOT_RECORD' ||
-      record.ownerTaskId !== report.ownerTaskId ||
-      record.transitionId !== report.transitionId ||
-      record.profileGeneration !== receipt.profileGeneration ||
-      record.launchReceiptFingerprint !== receipt.receiptFingerprint ||
-      record.probeDraftFingerprint !== report.telemetry.probeDraftFingerprint ||
-      record.probeRequestFingerprint !== report.telemetry.probeRequestFingerprint ||
-      record.probeRequestFingerprint !== profilePreflightRequestFingerprint(reconstructedRequest) ||
-      record.rolloutSessionId !== report.telemetry.rolloutSessionId ||
-      record.completedTurnId !== report.telemetry.completedTurnId ||
-      canonicalJson(record.snapshot) !==
-        canonicalJson({
-          path: report.telemetry.eventSource,
-          sha256: report.telemetry.eventSourceSha256,
-          fingerprint: report.telemetry.eventSourceFingerprint
-        })
+      !reference ||
+      !report.telemetry.probeAttemptId ||
+      !report.telemetry.probeDraftFingerprint ||
+      !report.telemetry.probeRequestFingerprint ||
+      !report.telemetry.rolloutSessionId ||
+      !report.telemetry.completedTurnId ||
+      !report.launchReceipt ||
+      !report.approvalMode
+    )
+      fail('PROFILE_V2_TELEMETRY_SNAPSHOT_BINDING_REQUIRED', report.ownerTaskId)
+    const snapshot = loadApprovalTelemetrySnapshotRecord(
+      reconstructedRequest,
+      {
+        draftFingerprint: report.telemetry.probeDraftFingerprint,
+        requestFingerprint: report.telemetry.probeRequestFingerprint
+      },
+      prepared
+    )
+    const record = snapshot.record
+    if (
+      canonicalJson(reference) !== canonicalJson(snapshot.reference) ||
+      report.telemetry.probeAttemptId !== prepared.probeAttempt.probeAttemptId
     )
       fail('PROFILE_V2_TELEMETRY_SNAPSHOT_BINDING_MISMATCH', report.ownerTaskId)
-    const trusted = readTrustedTelemetrySource(
-      record.snapshot.path,
-      telemetryExpectation.trustedAuthorizationRoot
-    )
-    verifyTelemetrySnapshotIdentity(trusted.bytes, record.rolloutSessionId, record.completedTurnId)
     Object.assign(actualTelemetry, {
       snapshotRecord: reference,
+      probeAttemptId: record.probeAttemptId,
       probeDraftFingerprint: record.probeDraftFingerprint,
       probeRequestFingerprint: record.probeRequestFingerprint,
       rolloutSessionId: record.rolloutSessionId,
@@ -698,6 +682,7 @@ export function verifyEffectiveProfileReport(
               'effectivePermissionSandboxFingerprint',
               'contexts',
               'snapshotRecord',
+              'probeAttemptId',
               'probeDraftFingerprint',
               'probeRequestFingerprint',
               'rolloutSessionId',
@@ -846,8 +831,70 @@ export function loadRemoteTrustRootsFromProfileReport(
   }
 }
 
-/** Reopens one launch binding and derives the only accepted telemetry expectation. */
-function prepareProfilePreflight(request: PreflightRequest): ApprovalTelemetryExpectation {
+/** Reopens the issuer-controlled current probe-attempt pointer at its profile-derived path. */
+function loadCurrentProfileProbeAttempt(
+  request: PreflightRequest,
+  trustedAuthorizationRoot: string
+): {
+  record: ProfileProbeAttemptRecord
+  reference: TrustedAuthorizationReference
+} {
+  const path = join(trustedAuthorizationRoot, CURRENT_PROFILE_PROBE_ATTEMPT)
+  const bytes = readFileSync(path)
+  const untrusted = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>
+  const fingerprint = String(untrusted.probeAttemptFingerprint ?? '')
+  const reference = { path, sha256: sha256(bytes), fingerprint }
+  const raw = verifyTrustedReference(reference, trustedAuthorizationRoot, 'probeAttemptFingerprint')
+  const keys = [
+    'schemaVersion',
+    'kind',
+    'probeAttemptFingerprint',
+    'status',
+    'issuedBeforeProbe',
+    'issuerTaskId',
+    'ownerTaskId',
+    'transitionId',
+    'profileGeneration',
+    'launchReceiptFingerprint',
+    'probeAttemptId',
+    'expectedRolloutSessionId',
+    'requestContractFingerprint',
+    'snapshotRecordPath'
+  ]
+  if (canonicalJson(Object.keys(raw).sort()) !== canonicalJson(keys.sort()))
+    fail('PROFILE_PROBE_ATTEMPT_FIELDS_INVALID', path)
+  const record = raw as unknown as ProfileProbeAttemptRecord
+  const receipt = loadProfileLaunchReceipt(request.launchReceipt)
+  if (
+    record.schemaVersion !== 1 ||
+    record.kind !== 'OES_PROFILE_PROBE_ATTEMPT' ||
+    record.status !== 'ISSUED' ||
+    record.issuedBeforeProbe !== true ||
+    typeof record.issuerTaskId !== 'string' ||
+    !record.issuerTaskId.trim() ||
+    typeof record.probeAttemptId !== 'string' ||
+    !PROBE_ATTEMPT_ID.test(record.probeAttemptId) ||
+    typeof record.expectedRolloutSessionId !== 'string' ||
+    !record.expectedRolloutSessionId.trim() ||
+    record.ownerTaskId !== request.ownerTaskId ||
+    record.transitionId !== request.transitionId ||
+    record.profileGeneration !== receipt.profileGeneration ||
+    record.launchReceiptFingerprint !== receipt.receiptFingerprint ||
+    record.requestContractFingerprint !== profilePreflightRequestContractFingerprint(request) ||
+    record.snapshotRecordPath !==
+      join(
+        trustedAuthorizationRoot,
+        'profile-probe-attempts',
+        record.probeAttemptId,
+        'snapshot-record.json'
+      )
+  )
+    fail('PROFILE_PROBE_ATTEMPT_BINDING_MISMATCH', path)
+  return { record, reference }
+}
+
+/** Reopens launch and current-attempt bindings and derives the telemetry expectation. */
+function prepareProfilePreflight(request: PreflightRequest): PreparedProfilePreflight {
   const receipt = loadProfileLaunchReceipt(request.launchReceipt)
   const runtimeAuthority = readInstalledProfileRuntimeAuthority(request.profile.path)
   if (
@@ -858,25 +905,43 @@ function prepareProfilePreflight(request: PreflightRequest): ApprovalTelemetryEx
     receipt.installedProfile.sha256 !== request.profile.sha256
   )
     fail('PROFILE_PREFLIGHT_LAUNCH_BINDING_MISMATCH', request.ownerTaskId)
+  const currentAttempt = loadCurrentProfileProbeAttempt(
+    request,
+    runtimeAuthority.trustedAuthorizationRoot
+  )
   return {
-    approvalMode: request.approvalMode,
-    expectedEffectivePermissionSandboxFingerprint:
-      receipt.expectedEffectivePermissionSandboxFingerprint,
-    expectedActivePermissionProfileId: runtimeAuthority.defaultPermissionProfileId,
-    trustedAuthorizationRoot: runtimeAuthority.trustedAuthorizationRoot
+    telemetryExpectation: {
+      approvalMode: request.approvalMode,
+      expectedEffectivePermissionSandboxFingerprint:
+        receipt.expectedEffectivePermissionSandboxFingerprint,
+      expectedActivePermissionProfileId: runtimeAuthority.defaultPermissionProfileId,
+      trustedAuthorizationRoot: runtimeAuthority.trustedAuthorizationRoot
+    },
+    probeAttempt: currentAttempt.record,
+    probeAttemptReference: currentAttempt.reference
   }
 }
 
 /** Reopens the issuer record that binds one exact probe draft to one completed rollout snapshot. */
 function loadApprovalTelemetrySnapshotRecord(
-  reference: TrustedAuthorizationReference,
   request: PreflightRequest,
-  draft: EffectiveProfileProbeDraft,
-  trustedAuthorizationRoot: string
-): ApprovalTelemetrySnapshotRecord {
+  binding: { draftFingerprint: string; requestFingerprint: string },
+  prepared: PreparedProfilePreflight
+): {
+  record: ApprovalTelemetrySnapshotRecord
+  reference: TrustedAuthorizationReference
+} {
+  const path = prepared.probeAttempt.snapshotRecordPath
+  const bytes = readFileSync(path)
+  const untrusted = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>
+  const reference = {
+    path,
+    sha256: sha256(bytes),
+    fingerprint: String(untrusted.snapshotRecordFingerprint ?? '')
+  }
   const raw = verifyTrustedReference(
     reference,
-    trustedAuthorizationRoot,
+    prepared.telemetryExpectation.trustedAuthorizationRoot,
     'snapshotRecordFingerprint'
   )
   const keys = [
@@ -887,6 +952,8 @@ function loadApprovalTelemetrySnapshotRecord(
     'transitionId',
     'profileGeneration',
     'launchReceiptFingerprint',
+    'probeAttemptFingerprint',
+    'probeAttemptId',
     'probeDraftFingerprint',
     'probeRequestFingerprint',
     'rolloutSessionId',
@@ -912,9 +979,13 @@ function loadApprovalTelemetrySnapshotRecord(
     record.transitionId !== request.transitionId ||
     record.profileGeneration !== receipt.profileGeneration ||
     record.launchReceiptFingerprint !== receipt.receiptFingerprint ||
-    record.probeDraftFingerprint !== draft.draftFingerprint ||
-    record.probeRequestFingerprint !== draft.requestFingerprint ||
-    record.probeRequestFingerprint !== profilePreflightRequestFingerprint(request)
+    record.probeAttemptFingerprint !== prepared.probeAttempt.probeAttemptFingerprint ||
+    record.probeAttemptId !== prepared.probeAttempt.probeAttemptId ||
+    record.probeDraftFingerprint !== binding.draftFingerprint ||
+    record.probeRequestFingerprint !== binding.requestFingerprint ||
+    record.probeRequestFingerprint !==
+      profilePreflightRequestFingerprint(request, prepared.probeAttempt.probeAttemptFingerprint) ||
+    record.rolloutSessionId !== prepared.probeAttempt.expectedRolloutSessionId
   )
     fail('APPROVAL_TELEMETRY_SNAPSHOT_RECORD_BINDING_MISMATCH', reference.path)
   if (!record.rolloutSessionId.trim() || !record.completedTurnId.trim())
@@ -925,20 +996,24 @@ function loadApprovalTelemetrySnapshotRecord(
       canonicalJson(['path', 'sha256', 'fingerprint'].sort())
   )
     fail('APPROVAL_TELEMETRY_SNAPSHOT_REFERENCE_INVALID', reference.path)
-  const trusted = readTrustedTelemetrySource(record.snapshot.path, trustedAuthorizationRoot)
+  const trusted = readTrustedTelemetrySource(
+    record.snapshot.path,
+    prepared.telemetryExpectation.trustedAuthorizationRoot
+  )
   if (
     sha256(trusted.bytes) !== record.snapshot.sha256 ||
     trusted.fingerprint !== record.snapshot.fingerprint
   )
     fail('APPROVAL_TELEMETRY_SNAPSHOT_REFERENCE_MISMATCH', record.snapshot.path)
   verifyTelemetrySnapshotIdentity(trusted.bytes, record.rolloutSessionId, record.completedTurnId)
-  return record
+  return { record, reference }
 }
 
 /** Reopens and validates one exact completed probe phase before telemetry finalization. */
 function loadEffectiveProfileProbeDraft(
   draftPath: string,
-  request: PreflightRequest
+  request: PreflightRequest,
+  probeAttempt: ProfileProbeAttemptRecord
 ): EffectiveProfileProbeDraft {
   const draft = readJson<EffectiveProfileProbeDraft>(draftPath)
   const keys = [
@@ -946,6 +1021,8 @@ function loadEffectiveProfileProbeDraft(
     'kind',
     'draftFingerprint',
     'requestFingerprint',
+    'probeAttemptFingerprint',
+    'probeAttemptId',
     'ownerTaskId',
     'transitionId',
     'declaredCapabilities',
@@ -960,7 +1037,10 @@ function loadEffectiveProfileProbeDraft(
     draft.kind !== 'OES_EFFECTIVE_PROFILE_PROBE_DRAFT' ||
     draft.draftFingerprint !==
       objectFingerprint(draft as unknown as Record<string, unknown>, 'draftFingerprint') ||
-    draft.requestFingerprint !== profilePreflightRequestFingerprint(request) ||
+    draft.requestFingerprint !==
+      profilePreflightRequestFingerprint(request, probeAttempt.probeAttemptFingerprint) ||
+    draft.probeAttemptFingerprint !== probeAttempt.probeAttemptFingerprint ||
+    draft.probeAttemptId !== probeAttempt.probeAttemptId ||
     draft.ownerTaskId !== request.ownerTaskId ||
     draft.transitionId !== request.transitionId ||
     canonicalJson(draft.declaredCapabilities) !== canonicalJson(request.declaredCapabilities)
@@ -986,7 +1066,7 @@ export async function runEffectiveProfileProbePhase(
   adapter: PreflightProbeAdapter,
   draftPath: string
 ): Promise<EffectiveProfileProbeDraft> {
-  prepareProfilePreflight(request)
+  const prepared = prepareProfilePreflight(request)
   const observations: CapabilityObservation[] = []
   for (const capability of request.declaredCapabilities) {
     if (capability !== 'approvalTelemetry') observations.push(await adapter.observe(capability))
@@ -995,7 +1075,12 @@ export async function runEffectiveProfileProbePhase(
     schemaVersion: 1,
     kind: 'OES_EFFECTIVE_PROFILE_PROBE_DRAFT',
     draftFingerprint: '',
-    requestFingerprint: profilePreflightRequestFingerprint(request),
+    requestFingerprint: profilePreflightRequestFingerprint(
+      request,
+      prepared.probeAttempt.probeAttemptFingerprint
+    ),
+    probeAttemptFingerprint: prepared.probeAttempt.probeAttemptFingerprint,
+    probeAttemptId: prepared.probeAttempt.probeAttemptId,
     ownerTaskId: request.ownerTaskId,
     transitionId: request.transitionId,
     declaredCapabilities: [...request.declaredCapabilities],
@@ -1007,24 +1092,24 @@ export async function runEffectiveProfileProbePhase(
     'draftFingerprint'
   )
   writeJsonAtomic(draftPath, draft)
-  return loadEffectiveProfileProbeDraft(draftPath, request)
+  return loadEffectiveProfileProbeDraft(draftPath, request, prepared.probeAttempt)
 }
 
 /** Finalizes an earlier target-turn probe after the issuer seals that completed turn's telemetry. */
 export async function finalizeEffectiveProfilePreflight(
   request: PreflightRequest,
   adapter: PreflightProbeAdapter,
-  draftPath: string,
-  snapshotRecordReference: TrustedAuthorizationReference
+  draftPath: string
 ): Promise<EffectiveProfileReport> {
-  const telemetryExpectation = prepareProfilePreflight(request)
-  const draft = loadEffectiveProfileProbeDraft(draftPath, request)
-  const snapshotRecord = loadApprovalTelemetrySnapshotRecord(
-    snapshotRecordReference,
+  const prepared = prepareProfilePreflight(request)
+  const telemetryExpectation = prepared.telemetryExpectation
+  const draft = loadEffectiveProfileProbeDraft(draftPath, request, prepared.probeAttempt)
+  const snapshot = loadApprovalTelemetrySnapshotRecord(
     request,
-    draft,
-    telemetryExpectation.trustedAuthorizationRoot
+    { draftFingerprint: draft.draftFingerprint, requestFingerprint: draft.requestFingerprint },
+    prepared
   )
+  const snapshotRecord = snapshot.record
   const telemetryEventSource = snapshotRecord.snapshot.path
   const observations = [...draft.observations]
   if (request.declaredCapabilities.includes('approvalTelemetry'))
@@ -1033,7 +1118,8 @@ export async function finalizeEffectiveProfilePreflight(
     )
   const telemetry = await adapter.approvalTelemetry(telemetryExpectation, telemetryEventSource)
   Object.assign(telemetry, {
-    snapshotRecord: snapshotRecordReference,
+    snapshotRecord: snapshot.reference,
+    probeAttemptId: prepared.probeAttempt.probeAttemptId,
     probeDraftFingerprint: draft.draftFingerprint,
     probeRequestFingerprint: draft.requestFingerprint,
     rolloutSessionId: snapshotRecord.rolloutSessionId,
@@ -1053,6 +1139,7 @@ export async function finalizeEffectiveProfilePreflight(
     resourceTopology: readInstalledProfileResourceTopology(request.profile.path),
     approvalMode: request.approvalMode,
     launchReceipt: request.launchReceipt,
+    probeAttempt: prepared.probeAttemptReference,
     effectivePermissionSandboxFingerprint:
       telemetryExpectation.expectedEffectivePermissionSandboxFingerprint
   }

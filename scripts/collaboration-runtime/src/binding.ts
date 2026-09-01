@@ -555,7 +555,8 @@ export function validateProfileReportEnvelope(
           'resourceTopology',
           'approvalMode',
           'launchReceipt',
-          'effectivePermissionSandboxFingerprint'
+          'effectivePermissionSandboxFingerprint',
+          'probeAttempt'
         ]
       : [
           'schemaVersion',
@@ -591,6 +592,11 @@ export function validateProfileReportEnvelope(
       report.effectivePermissionSandboxFingerprint,
       'effectivePermissionSandboxFingerprint'
     )
+    if (!report.probeAttempt) fail('PROFILE_PROBE_ATTEMPT_REQUIRED', report.ownerTaskId)
+    requireExactKeys(report.probeAttempt, ['path', 'sha256', 'fingerprint'], 'probeAttempt')
+    requireString(report.probeAttempt.path, 'probeAttempt.path')
+    requireFingerprint(report.probeAttempt.sha256, 'probeAttempt.sha256')
+    requireFingerprint(report.probeAttempt.fingerprint, 'probeAttempt.fingerprint')
   }
   if (new Set(report.declaredCapabilities).size !== report.declaredCapabilities.length)
     fail('DUPLICATE_DECLARED_CAPABILITY', report.ownerTaskId)

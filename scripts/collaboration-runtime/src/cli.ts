@@ -115,14 +115,12 @@ async function main(args: string[]): Promise<void> {
       request: PreflightRequest
       systemProbe: SystemProbeOptions
       draftPath: string
-      snapshotRecord: TrustedAuthorizationReference
     }>(flag(args, '--input'))
     emit(
       await finalizeEffectiveProfilePreflight(
         input.request,
         new SystemPreflightProbeAdapter(input.systemProbe),
-        input.draftPath,
-        input.snapshotRecord
+        input.draftPath
       )
     )
     return

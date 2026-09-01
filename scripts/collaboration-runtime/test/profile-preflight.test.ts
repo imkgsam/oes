@@ -26,6 +26,7 @@ import {
   finalizeEffectiveProfilePreflight,
   loadRemoteTrustRootsFromProfileReport,
   planProfileRepair,
+  profilePreflightRequestContractFingerprint,
   readApprovalTelemetry,
   runEffectiveProfileProbePhase,
   SystemPreflightProbeAdapter,
@@ -47,6 +48,7 @@ import type {
   CapabilityObservation,
   EffectiveProfileReport,
   ProfileLaunchReceipt,
+  ProfileProbeAttemptRecord,
   TrustedAuthorizationReference
 } from '../src/types.ts'
 import type { EffectiveProfileProbeDraft, PreflightRequest } from '../src/profile-preflight.ts'
@@ -174,6 +176,45 @@ function telemetry(root: string, approvalMode: ApprovalMode = 'ON_REQUEST_AUTO_R
   return path
 }
 
+/** Emulates the issuer's pre-probe atomic current-attempt record. */
+function issueProbeAttempt(
+  request: PreflightRequest,
+  probeAttemptId = `attempt-${sha256(request.transitionId).slice(0, 16)}`,
+  expectedRolloutSessionId = 'session-1'
+): ProfileProbeAttemptRecord {
+  const receipt = readJson<ProfileLaunchReceipt>(request.launchReceipt.path)
+  const authorizationRoot = join(dirname(request.profile.path), 'trusted-authorizations')
+  const snapshotRecordPath = join(
+    authorizationRoot,
+    'profile-probe-attempts',
+    probeAttemptId,
+    'snapshot-record.json'
+  )
+  mkdirSync(dirname(snapshotRecordPath), { recursive: true })
+  const record: ProfileProbeAttemptRecord = {
+    schemaVersion: 1,
+    kind: 'OES_PROFILE_PROBE_ATTEMPT',
+    probeAttemptFingerprint: '',
+    status: 'ISSUED',
+    issuedBeforeProbe: true,
+    issuerTaskId: '/root/issuer',
+    ownerTaskId: request.ownerTaskId,
+    transitionId: request.transitionId,
+    profileGeneration: receipt.profileGeneration,
+    launchReceiptFingerprint: receipt.receiptFingerprint,
+    probeAttemptId,
+    expectedRolloutSessionId,
+    requestContractFingerprint: profilePreflightRequestContractFingerprint(request),
+    snapshotRecordPath
+  }
+  record.probeAttemptFingerprint = objectFingerprint(
+    record as unknown as Record<string, unknown>,
+    'probeAttemptFingerprint'
+  )
+  writeJsonAtomic(join(authorizationRoot, 'current-profile-probe-attempt.json'), record)
+  return record
+}
+
 /** Emulates the external issuer by sealing one immutable draft/session/turn snapshot record. */
 function sealSnapshotRecord(
   request: PreflightRequest,
@@ -183,6 +224,13 @@ function sealSnapshotRecord(
   completedTurnId = 'turn-2'
 ): TrustedAuthorizationReference {
   const receipt = readJson<ProfileLaunchReceipt>(request.launchReceipt.path)
+  const attempt = readJson<ProfileProbeAttemptRecord>(
+    join(
+      dirname(request.profile.path),
+      'trusted-authorizations',
+      'current-profile-probe-attempt.json'
+    )
+  )
   const snapshotSha256 = sha256(readFileSync(snapshotPath))
   const snapshot = {
     path: snapshotPath,
@@ -199,6 +247,8 @@ function sealSnapshotRecord(
     transitionId: request.transitionId,
     profileGeneration: receipt.profileGeneration,
     launchReceiptFingerprint: receipt.receiptFingerprint,
+    probeAttemptFingerprint: attempt.probeAttemptFingerprint,
+    probeAttemptId: attempt.probeAttemptId,
     probeDraftFingerprint: draft.draftFingerprint,
     probeRequestFingerprint: draft.requestFingerprint,
     rolloutSessionId,
@@ -209,7 +259,7 @@ function sealSnapshotRecord(
     record as unknown as Record<string, unknown>,
     'snapshotRecordFingerprint'
   )
-  const path = join(dirname(snapshotPath), `snapshot-record-${draft.draftFingerprint}.json`)
+  const path = attempt.snapshotRecordPath
   writeJsonAtomic(path, record)
   return {
     path,
@@ -227,9 +277,10 @@ async function runTwoPhaseFixture(
     dirname(request.resultPath),
     `draft-${request.transitionId.replace(/[^a-z0-9]/giu, '-')}.json`
   )
+  issueProbeAttempt(request)
   const draft = await runEffectiveProfileProbePhase(request, adapter, draftPath)
-  const snapshotRecord = sealSnapshotRecord(request, draft, adapter.telemetryPath)
-  return finalizeEffectiveProfilePreflight(request, adapter, draftPath, snapshotRecord)
+  sealSnapshotRecord(request, draft, adapter.telemetryPath)
+  return finalizeEffectiveProfilePreflight(request, adapter, draftPath)
 }
 
 /** Renders one complete v2 installed profile and launch receipt fixture. */
@@ -577,6 +628,7 @@ test('v1 reader remains frozen to on-request auto-review and v2 fields stay forb
     approvalMode: _mode,
     launchReceipt: _receipt,
     effectivePermissionSandboxFingerprint: _effective,
+    probeAttempt: _probeAttempt,
     telemetry: v2Telemetry,
     ...common
   } = v2
@@ -586,6 +638,7 @@ test('v1 reader remains frozen to on-request auto-review and v2 fields stay forb
     eventSourceFingerprint: _telemetrySource,
     contexts: _contexts,
     snapshotRecord: _snapshotRecord,
+    probeAttemptId: _probeAttemptId,
     probeDraftFingerprint: _probeDraftFingerprint,
     probeRequestFingerprint: _probeRequestFingerprint,
     rolloutSessionId: _rolloutSessionId,
@@ -802,6 +855,7 @@ test('two-phase preflight finalizes only after the completed target turn is issu
     resultPath: join(root, 'profile-report.json')
   }
   const draftPath = join(root, 'probe-draft.json')
+  issueProbeAttempt(request)
   const draft = await runEffectiveProfileProbePhase(
     request,
     new PassingProbe(root, issuerSnapshot),
@@ -811,30 +865,29 @@ test('two-phase preflight finalizes only after the completed target turn is issu
     draft.observations.map(({ name }) => name),
     ['filesystemWrite']
   )
-  const snapshotRecord = sealSnapshotRecord(request, draft, issuerSnapshot)
+  sealSnapshotRecord(request, draft, issuerSnapshot)
 
   const report = await finalizeEffectiveProfilePreflight(
     request,
     new PassingProbe(root, issuerSnapshot),
-    draftPath,
-    snapshotRecord
+    draftPath
   )
   assert.deepEqual(
     report.observations.map(({ name }) => name),
     ['filesystemWrite', 'approvalTelemetry']
   )
   assert.equal(report.telemetry.eventSource, issuerSnapshot)
+  issueProbeAttempt(request, 'attempt-successor-current')
+  assert.throws(
+    () => verifyEffectiveProfileReport(report),
+    /PROFILE_V2_CURRENT_PROBE_ATTEMPT_MISMATCH/
+  )
 
   const changed = JSON.parse(readFileSync(draftPath, 'utf8')) as Record<string, unknown>
   changed.transitionId = 'handoff:rebound'
   writeFileSync(draftPath, `${canonicalJson(changed)}\n`)
   await assert.rejects(
-    finalizeEffectiveProfilePreflight(
-      request,
-      new PassingProbe(root, issuerSnapshot),
-      draftPath,
-      snapshotRecord
-    ),
+    finalizeEffectiveProfilePreflight(request, new PassingProbe(root, issuerSnapshot), draftPath),
     /PROFILE_PROBE_DRAFT_BINDING_INVALID/
   )
 })
@@ -867,40 +920,36 @@ test('finalizer rejects an older safe snapshot record and inspects the bad curre
     },
     resultPath: join(root, 'profile-report.json')
   }
-  const oldSmoke = join(root, 'old-smoke')
-  const currentSmoke = join(root, 'current-smoke')
-  mkdirSync(oldSmoke)
-  mkdirSync(currentSmoke)
+  const identicalSmoke = join(root, 'identical-smoke')
+  mkdirSync(identicalSmoke)
   const oldDraftPath = join(root, 'old-draft.json')
   const currentDraftPath = join(root, 'current-draft.json')
+  issueProbeAttempt(request, 'attempt-identical-output')
   const oldDraft = await runEffectiveProfileProbePhase(
     request,
-    new PassingProbe(oldSmoke, safeSnapshot),
+    new PassingProbe(identicalSmoke, safeSnapshot),
     oldDraftPath
   )
   const oldRecord = sealSnapshotRecord(request, oldDraft, safeSnapshot)
   const currentDraft = await runEffectiveProfileProbePhase(
     request,
-    new PassingProbe(currentSmoke, badSnapshot),
+    new PassingProbe(identicalSmoke, badSnapshot),
     currentDraftPath
   )
+  assert.equal(currentDraft.draftFingerprint, oldDraft.draftFingerprint)
   const currentRecord = sealSnapshotRecord(request, currentDraft, badSnapshot)
+  assert.notEqual(currentRecord.sha256, oldRecord.sha256)
 
+  const legacyCallerSelectedRecord = finalizeEffectiveProfilePreflight as unknown as (
+    ...args: unknown[]
+  ) => Promise<EffectiveProfileReport>
+  assert.equal(finalizeEffectiveProfilePreflight.length, 3)
   await assert.rejects(
-    finalizeEffectiveProfilePreflight(
+    legacyCallerSelectedRecord(
       request,
-      new PassingProbe(currentSmoke, safeSnapshot),
+      new PassingProbe(identicalSmoke, safeSnapshot),
       currentDraftPath,
       oldRecord
-    ),
-    /APPROVAL_TELEMETRY_SNAPSHOT_RECORD_BINDING_MISMATCH/
-  )
-  await assert.rejects(
-    finalizeEffectiveProfilePreflight(
-      request,
-      new PassingProbe(currentSmoke, safeSnapshot),
-      currentDraftPath,
-      currentRecord
     ),
     /NEVER_USER_APPROVAL_EVENT_FORBIDDEN/
   )
