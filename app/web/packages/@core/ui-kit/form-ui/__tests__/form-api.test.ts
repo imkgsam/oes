@@ -125,6 +125,53 @@ describe('formApi', () => {
     expect(validateMock).toHaveBeenCalled();
     expect(isValid).toBe(true);
   });
+
+  it('should return expected validation errors without logging them as runtime failures', async () => {
+    const validationResult = {
+      errors: { name: 'Name is required' },
+      valid: false,
+    };
+    const validateMock = vi.fn().mockResolvedValue(validationResult);
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    const formActions: any = {
+      meta: {},
+      validate: validateMock,
+    };
+
+    await formApi.mount(formActions);
+
+    await expect(formApi.validate()).resolves.toEqual(validationResult);
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('should bind a field validation error without logging it as a runtime failure', async () => {
+    const validationResult = {
+      errors: ['Email is invalid'],
+      valid: false,
+    };
+    const validateFieldMock = vi.fn().mockResolvedValue(validationResult);
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    const formActions: any = {
+      meta: {},
+      validateField: validateFieldMock,
+    };
+
+    await formApi.mount(formActions);
+
+    await expect(formApi.validateField('email')).resolves.toEqual(
+      validationResult,
+    );
+    expect(validateFieldMock).toHaveBeenCalledWith('email', undefined);
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+
+    consoleErrorSpy.mockRestore();
+  });
 });
 
 describe('updateSchema', () => {

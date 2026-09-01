@@ -2,7 +2,7 @@
 import type { VbenFormSchema } from '@vben/common-ui';
 import type { Recordable } from '@vben/types';
 
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, markRaw, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { AuthenticationCodeLogin, z } from '@vben/common-ui';
@@ -63,11 +63,6 @@ const routeIdentifier = computed(() => {
     : `${preference.phoneNumber ?? ''}`.trim();
 });
 
-// Converts rejected OTP login attempts into user-facing feedback without leaking unhandled promise errors.
-function handleCodeLoginError() {
-  return;
-}
-
 const formSchema = computed((): VbenFormSchema[] => {
   const codeField: VbenFormSchema = {
     component: 'VbenPinInput',
@@ -83,6 +78,16 @@ const formSchema = computed((): VbenFormSchema[] => {
       placeholder: $t('authentication.code'),
       handleSendCode: async () => {
         const formApi = formRef.value?.getFormApi();
+        if (!formApi) {
+          return false;
+        }
+
+        const identifierField = isEmailMode.value ? 'email' : 'phoneNumber';
+        const { valid } = await formApi.validateField(identifierField);
+        if (!valid) {
+          return false;
+        }
+
         const values = await formApi?.getValues?.();
         if (isEmailMode.value) {
           const email = `${values?.email ?? ''}`.trim();
@@ -108,7 +113,7 @@ const formSchema = computed((): VbenFormSchema[] => {
 
   const phoneSchema: VbenFormSchema[] = [
     {
-      component: PhoneNumberInput,
+      component: markRaw(PhoneNumberInput),
       componentProps: {
         placeholder: '请输入手机号',
       },
@@ -154,9 +159,8 @@ async function handleLogin(values: Recordable<any>) {
     });
     try {
       await authStore.authEmailCodeLogin(values);
-      return;
     } catch {
-      handleCodeLoginError();
+      // The auth store owns controlled login failure feedback.
     }
     return;
   }
@@ -171,7 +175,7 @@ async function handleLogin(values: Recordable<any>) {
       phoneNumber: values.phoneNumber,
     });
   } catch {
-    handleCodeLoginError();
+    // The auth store owns controlled login failure feedback.
   }
 }
 

@@ -144,7 +144,7 @@
     "db:rollback": "node scripts/local/database-lifecycle.mjs rollback",
     "db:cycle": "node scripts/local/database-lifecycle.mjs cycle",
     "identity:machine-inventory": "node scripts/local/machine-workload-inventory.mjs",
-    "test:database-lifecycle": "node --test scripts/local/database-lifecycle.spec.mjs",
+    "test:database-lifecycle": "node --test scripts/local/database-lifecycle.spec.mjs scripts/local/tenant-web-auth-seed-environment.spec.mjs scripts/local/seed-tenant-web-auth-test-data.spec.mjs scripts/local/tenant-web-auth-test-fixtures.spec.mjs",
     "test:matrix:check": "node scripts/local/test-matrix.mjs check && node scripts/local/l2-test-runner.mjs check",
     "test:tooling": "node --test scripts/local/worktree-env.spec.mjs scripts/local/reproducible-build-check.spec.mjs scripts/local/database-lifecycle.spec.mjs scripts/local/workload-policy-profile.spec.mjs scripts/local/machine-workload-inventory-lib.spec.mjs scripts/local/test-matrix.spec.mjs scripts/local/l2-test-runner.spec.mjs scripts/local/proto-breaking.spec.mjs",
     "test:unit": "node scripts/local/test-matrix.mjs unit",

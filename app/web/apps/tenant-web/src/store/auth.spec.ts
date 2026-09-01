@@ -143,7 +143,8 @@ vi.mock('#/utils/auth-device', () => ({
 vi.mock('ant-design-vue', () => ({
   message: {
     error: vi.fn(),
-    success: vi.fn()
+    success: vi.fn(),
+    warning: vi.fn()
   },
   notification: {
     success: vi.fn(),
@@ -543,6 +544,191 @@ describe('tenant-web auth store logout', () => {
     })
   })
 
+  it('requires the complete option, user, and login-method tuple for pending selection', async () => {
+    const { useAuthStore } = await import('./auth')
+    const store = useAuthStore()
+
+    store.accountSelectionOptions = [
+      {
+        accountId: 'account-1',
+        displayName: 'Tenant Admin',
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1',
+        tenantName: 'Tenant 1'
+      }
+    ]
+    expect(store.hasPendingAccountSelection).toBe(false)
+
+    store.pendingUserId = 'user-1'
+    expect(store.hasPendingAccountSelection).toBe(false)
+
+    store.pendingLoginMethod = 'EMAIL_PASSWORD'
+    expect(store.hasPendingAccountSelection).toBe(true)
+
+    store.resetPendingAuthFlow()
+    expect(store.hasPendingAccountSelection).toBe(false)
+  })
+
+  it('consumes account-selection state when the selected account advances to MFA', async () => {
+    selectAccountApiMock.mockResolvedValue({
+      status: 'MFA_REQUIRED',
+      challenge: {
+        availableFactors: [
+          { label: '认证器 App', priority: 1, type: 'TOTP' }
+        ],
+        challengeId: 'challenge-1',
+        defaultFactor: 'TOTP',
+        scenario: 'LOGIN'
+      }
+    })
+
+    const { useAuthStore } = await import('./auth')
+    const store = useAuthStore()
+    store.accountSelectionOptions = [
+      {
+        accountId: 'account-1',
+        displayName: 'Tenant Admin',
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1',
+        tenantName: 'Tenant 1'
+      }
+    ]
+    store.pendingUserId = 'user-1'
+    store.pendingLoginMethod = 'EMAIL_PASSWORD'
+
+    await store.submitAccountSelection('account-1')
+
+    expect(store.hasPendingAccountSelection).toBe(false)
+    expect(store.pendingChallengeId).toBe('challenge-1')
+    expect(store.pendingLoginMethod).toBe('EMAIL_PASSWORD')
+    expect(pushMock).toHaveBeenCalledWith({ name: 'CompleteMfa' })
+  })
+
+  it('bounds an expired or consumed server selection response to one login restart', async () => {
+    selectAccountApiMock.mockRejectedValue({
+      response: {
+        data: {
+          code: 'AUTH_ACCOUNT_NOT_FOUND'
+        },
+        status: 409
+      }
+    })
+
+    const { useAuthStore } = await import('./auth')
+    const store = useAuthStore()
+    store.accountSelectionOptions = [
+      {
+        accountId: 'account-1',
+        displayName: 'Tenant Admin',
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1',
+        tenantName: 'Tenant 1'
+      }
+    ]
+    store.pendingUserId = 'user-1'
+    store.pendingLoginMethod = 'EMAIL_PASSWORD'
+
+    await expect(store.submitAccountSelection('account-1')).resolves.toEqual({
+      userInfo: null
+    })
+
+    expect(store.hasPendingAccountSelection).toBe(false)
+    expect(replaceMock).toHaveBeenCalledWith({ name: 'Login' })
+  })
+
+  it.each([401, 409])(
+    'preserves pending selection and propagates an unknown %s response',
+    async (status) => {
+      const conflict = {
+        response: {
+          data: {
+            code: 'UNRELATED_SELECTION_CONFLICT'
+          },
+          status
+        }
+      }
+      selectAccountApiMock.mockRejectedValue(conflict)
+
+      const { useAuthStore } = await import('./auth')
+      const store = useAuthStore()
+      store.accountSelectionOptions = [
+        {
+          accountId: 'account-1',
+          displayName: 'Tenant Admin',
+          scopeLevel: 'TENANT',
+          tenantId: 'tenant-1',
+          tenantName: 'Tenant 1'
+        }
+      ]
+      store.pendingUserId = 'user-1'
+      store.pendingLoginMethod = 'EMAIL_PASSWORD'
+
+      await expect(store.submitAccountSelection('account-1')).rejects.toBe(
+        conflict
+      )
+
+      expect(store.hasPendingAccountSelection).toBe(true)
+      expect(replaceMock).not.toHaveBeenCalledWith({ name: 'Login' })
+    }
+  )
+
+  it('propagates post-selection session hydration conflicts without reclassifying them as stale selection', async () => {
+    const hydrationConflict = {
+      response: {
+        data: {
+          code: 'SESSION_CONTEXT_CONFLICT'
+        },
+        status: 409
+      }
+    }
+    selectAccountApiMock.mockResolvedValue({
+      operator: {
+        accountId: 'account-1',
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1',
+        userId: 'user-1'
+      },
+      session: {
+        accessToken: 'new-access-token',
+        expiresIn: 3600,
+        refreshToken: 'new-refresh-token'
+      },
+      status: 'SUCCESS'
+    })
+    getSessionContextApiMock.mockRejectedValue(hydrationConflict)
+    getSessionAccessSummaryApiMock.mockResolvedValue({
+      actionCodes: [],
+      roles: []
+    })
+
+    const { useAuthStore } = await import('./auth')
+    const store = useAuthStore()
+    store.accountSelectionOptions = [
+      {
+        accountId: 'account-1',
+        displayName: 'Tenant Admin',
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1',
+        tenantName: 'Tenant 1'
+      }
+    ]
+    store.pendingUserId = 'user-1'
+    store.pendingLoginMethod = 'EMAIL_PASSWORD'
+
+    await expect(store.submitAccountSelection('account-1')).rejects.toBe(
+      hydrationConflict
+    )
+
+    expect(accessStoreMock.setAccessToken).toHaveBeenCalledWith(
+      'new-access-token'
+    )
+    expect(accessStoreMock.setRefreshToken).toHaveBeenCalledWith(
+      'new-refresh-token'
+    )
+    expect(store.hasPendingAccountSelection).toBe(true)
+    expect(replaceMock).not.toHaveBeenCalledWith({ name: 'Login' })
+  })
+
   it('redirects to the dedicated unavailable-mfa page when account selection hits no usable MFA factor', async () => {
     selectAccountApiMock.mockRejectedValue({
       response: {
@@ -698,6 +884,6 @@ describe('tenant-web auth store logout', () => {
     expect(getSessionAccessSummaryApiMock).not.toHaveBeenCalled()
     expect(accessStoreMock.setAccessCodes).not.toHaveBeenCalled()
     expect(authContextStoreMock.setAuthContext).not.toHaveBeenCalled()
-    expect(store.fetchUserInfo()).resolves.toEqual(userStoreMock.userInfo)
+    await expect(store.fetchUserInfo()).resolves.toEqual(userStoreMock.userInfo)
   })
 })
