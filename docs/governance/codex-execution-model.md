@@ -201,15 +201,26 @@ UD只通过repository Git common directory中的`codex-runtime/ud-target.json`�
 
 ### 6.1 Profile bootstrap
 
-创建Direct、SL、FL、独立IT或RI前，creating owner必须通过支持原子profile注入的启动路径准备最小充分能力。`REPOSITORY_DELIVERY` profile覆盖owner workspace和Git metadata、标准build/test、task-owned service/database、localhost与approved network、credential reference、task evidence root，以及`on-request + auto_review`的剩余低风险平台审核。`HOST_LOCAL_OPERATION` profile只加入本次精确需要的Docker socket/CLI、数据库、模拟器、本地服务、localhost和task evidence能力；repository保持只读且不以Full Access代替精确能力。
+创建Direct、SL、FL、独立IT或RI前，creating owner必须通过支持原子profile注入的启动路径准备最小充分能力。每个profile只接受一个closed `approvalMode` discriminant，renderer和launcher必须从它原子派生以下唯一合法pair，不接受两个独立可写字段：
 
-Full Access不得作为普通owner profile的回退。
+```text
+ON_REQUEST_AUTO_REVIEW -> on-request / auto_review
+NEVER_USER            -> never      / user
+```
+
+`REPOSITORY_DELIVERY` profile覆盖owner workspace和Git metadata、标准build/test、task-owned service/database、localhost与approved network、credential reference和task evidence root；`HOST_LOCAL_OPERATION` profile只加入本次精确需要的Docker socket/CLI、数据库、模拟器、本地服务、localhost和task evidence能力，repository保持只读。两个mode除派生pair、mode标识和相应完整性摘要外的filesystem、network、credential、resource topology及其他permission bytes必须一致；mode不授予额外authority。installed profile和launch receipt同时绑定mode、完整profile SHA-256，以及预期effective permission/sandbox fingerprint。
+
+Full Access不得作为普通owner profile的回退；实际session出现`disabled`、`danger-full-access`或任何不受installed profile管理的permission/sandbox状态时，不得用手工生成的profile artifact替代实际session证明。
 
 ### 6.2 一次目标会话验证
 
-target task在第一次role-owned写入前从自己的实际session读取profile，并完成所选执行形态必要的file、Git、toolchain、local service/network smoke。`HOST_LOCAL_OPERATION`不执行无关Git remote/network smoke，并必须证明未创建worktree且执行前后的repository状态完全一致；既有dirty/untracked内容只作为protected scope保留，不要求清除。creator复核一次真实结果即可转移ownership。
+target task在第一次role-owned写入前从自己的实际session读取profile，并完成所选执行形态必要的file、Git、toolchain、local service/network smoke。preflight必须扫描该task本次rollout的全部`turn_context`，证明每个context的approval pair和effective permission/sandbox fingerprint都唯一、稳定、等于installed profile与launch receipt；只读取最后一个context或采用last-write-wins不构成证明。`HOST_LOCAL_OPERATION`不执行无关Git remote/network smoke，并必须证明未创建worktree且执行前后的repository状态完全一致；既有dirty/untracked内容只作为protected scope保留，不要求清除。creator复核一次真实结果即可转移ownership。
 
-只要task、host、repository、worktree、toolchain、credential identity和permission policy未变，后续turn复用该profile，不重复生成证明。发生真实漂移时保持原owner/candidate，自动修复同一个任务并补做一次受影响smoke。
+只有上述两个完整pair可接受。cross pair、unknown或missing mode、context间漂移、installed/launch/effective不一致，以及实际session为`disabled`或`danger-full-access`都fail closed。两个mode的`normalPermissionPromptCount`都必须为零；`NEVER_USER`还必须证明`approvalEventCount=0`，`ON_REQUEST_AUTO_REVIEW`的低风险平台审核只可由`auto_review`处理。
+
+只要task、host、repository、worktree、toolchain、credential identity、profile bytes和permission policy未变，后续turn复用该profile，不重复生成证明。mode、profile bytes或effective permission/sandbox fingerprint变化时，保持原owner、candidate和resource binding，通过同一task的monotonic successor profile transition重新安装、启动并补做受影响smoke；旧authorization、binding和smoke不得授权successor transition。其他真实漂移同样保持原owner/candidate并自动修复同一个任务。
+
+新报告使用`OES_EFFECTIVE_PROFILE_REPORT` v2并显式携带mode、完整pair、installed/launch/effective fingerprint和全context观测。v1 reader仅冻结兼容既有`on-request/auto_review`报告；v1不得表达或授权`NEVER_USER`，v2 writer不得降级生成v1。
 
 已确认范围内的普通用户permission prompt目标值为零。只有生产或共享资源、新secret、付费外部系统、host/system privilege、cross-owner/destructive operation或真实scope/capability扩大才询问Human。
 
@@ -491,6 +502,8 @@ canonical merge后按以下顺序恢复：
 
 cutover前已active或已确认的Proposal、owner、PR、Stage/standalone merge卡、cleanup卡、checkpoint与frozen binding继续按原规则到terminal/cleanup，不迁移、不扩展既有确认、不backfill新roster或重写历史。existing-delivery design gap在canonical merge后自动返回exact原owner，只恢复affected lane。required context名称`Baseline Checks`在CI内部拓扑切换前后保持不变；新workflow、inventory、aggregate、equivalence或fallback任一缺失/失败时继续运行legacy full gate并fail closed，禁止以部分新job或main smoke替代完整验证。
 
+approval-mode profile implementation完成Merge Commit、main CI和canonical verification后，只对新建owner或需要profile repair的existing owner签发v2；已经验证且未漂移的v1 `on-request/auto_review` owner保持原binding到terminal/cleanup。existing delivery切换mode时保留exact owner、candidate、receipt和remote truth，通过same-task successor profile transition恢复affected lane，不创建replacement或重做不受影响验证。cutover期间reader同时接受冻结v1和完整v2；operational rollback停止签发新的`NEVER_USER`并恢复新profile默认值为`ON_REQUEST_AUTO_REVIEW`，但保持v2 reader直到所有v2 owner terminal，禁止把既有v2 evidence改写为v1。
+
 ## 14. Human命令契约
 
 本节是Human意图、确认、merge、local-main sync与cleanup的唯一自然语言契约，版本为`OES-COLLAB-COMMANDS/v9`。
@@ -680,7 +693,7 @@ same-owner自动恢复失败且replacement确实必要时：
 5. design gap合并后恢复原owner；
 6. moving-main只重验受影响范围；
 7. host/App重启后恢复same owner和已有成果；
-8. 已确认范围内普通permission prompt为零；
+8. execution profile只存在两个closed approval mode，实际session匹配managed/restricted fingerprint，所有mode的普通permission prompt为零且`NEVER_USER`无approval event，任何Full Access或pair/context漂移都fail closed；
 9. Human可在30秒内理解状态；
 10. 多FL Stage只在全部FL/Feature RI/Stage RI完成后以一张有序卡逐PR合并，失败保留健康前缀并停止后缀；
 11. authoritative candidate保持完整validation surface，main不重复已由exact-equivalence证明的full gate；
