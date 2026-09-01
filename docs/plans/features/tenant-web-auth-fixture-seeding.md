@@ -32,7 +32,7 @@ The first five groups remain explicit design gaps because current navigation fou
 ### task-bound-seed-orchestration
 
 state: REVIEWING
-candidate: 87325835bc09de073b045ed9be6426f806c1a5fb
+candidate: 82e7d050a318f2804101128aafba373a74aee5f1
 review: same feature-ri `01a052d7-1611-7001-8e91-e6d6e70b2fb5`
 
 - Scope: local database lifecycle orchestration; seven exact task database bindings; dedicated recovery-grant, MFA-required/scenario, first-login setup, bounded PolicyInstance preview, Item Master detail/create dependency, and MES navigation fixtures; credential-redacted output; focused tooling and real-page verification.
@@ -54,7 +54,7 @@ review: same feature-ri `01a052d7-1611-7001-8e91-e6d6e70b2fb5`
 - Old-base lifecycle recovery: the expected one-to-four MFA transition first failed closed with `SEED_NOT_IDEMPOTENT`, the official retry reached `SEEDED`, repeat seed passed, and the post-transient database verification passed all 21 databases plus the tenant-web snapshot.
 - Post-main lifecycle proof: rollback removed exactly the task-owned containers, volumes, networks, and state; fresh `up`/`health` passed; migration recovered from one transient Prisma schema-engine failure; seed recovered from two transient host-routing failures; and verification detected the daemon remap with `POSTGRES_PORT_REFRESH before=56816 after=51229` before passing all 21 databases.
 - Post-main repeat/drift/recovery proof: repeat seed plus verify both passed; a task-local lifecycle snapshot-only count drift made verify fail closed with `VERIFY_SEED_SNAPSHOT_MISMATCH`; the first official seed then failed closed with `SEED_NOT_IDEMPOTENT` and cleared the stale snapshot; the second official seed plus verify restored `SEEDED`/`VERIFIED` with all 21 databases passing. No business table was directly modified for drift injection.
-- Post-main focused verification: all 69 Node tests and all 25 tenant-web Vitest tests pass on the merged tree, including the live Docker port-remap regression.
+- Post-main focused verification: all 70 Node tests and all 25 tenant-web Vitest tests pass on the merged tree, including the live Docker port-remap and verification-state regressions.
 - Feature RI finding closure: verification now records `VERIFYING` before checks and `VERIFY_FAILED` on every failure instead of preserving an earlier `VERIFIED` phase. A live port refresh is persisted immediately before migrate/seed/verify work, so later failure retains the current mapping. Combined stale-port plus snapshot-only drift proved `POSTGRES_PORT_REFRESH`, nonzero verify, `VERIFY_FAILED`, and the live port in one run; the official two-seed recovery and final 21-database verify then passed.
 
 ## Feature acceptance
