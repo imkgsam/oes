@@ -51,9 +51,9 @@ review: local-ri
 state: CANDIDATE_READY
 candidate: 7bb9a6e4057fbcd520b8573e8aacdee811f62205
 review: same-feature-ri-pass
-reviewedCandidate: c777df2458b58a447e6344fa2763f76d0979cb4f
-latestMain: 45b2a9bf0cad321819c04d59ce1025a058f4a6b1
-latestMainIntegration: c777df2458b58a447e6344fa2763f76d0979cb4f
+reviewedCandidate: 8c8dfb66b79c1ee0a14496259d1d8095c5bcef3d
+latestMain: 08bff8d53b1493506ed932e4e13d12d162a1467f
+latestMainIntegration: 8c8dfb66b79c1ee0a14496259d1d8095c5bcef3d
 
 - Scope:
   - `app/web/apps/tenant-web/src/router/guard.ts`
@@ -63,7 +63,7 @@ latestMainIntegration: c777df2458b58a447e6344fa2763f76d0979cb4f
   - PAGE-053 through PAGE-075 behavior and page implementations
   - API Gateway, permission-service, session, navigation-registry, and route-visibility contracts
 - Base:
-  - append-only integration of exact `origin/main` candidate `45b2a9bf0cad321819c04d59ce1025a058f4a6b1`
+  - append-only integration of exact `origin/main` candidate `08bff8d53b1493506ed932e4e13d12d162a1467f`
 - Acceptance:
   - persisted access refresh rematches a visible dynamic target when its first match was the fallback route
   - persisted access refresh rematches a visible target whose matched route-record identities were replaced
