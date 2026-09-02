@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   GitHubRemoteAdapter,
+  managedCommandInvocation,
   type CommandResult,
   type CommandRunner
 } from '../src/github-adapter.ts'
@@ -16,6 +17,28 @@ const emptyGate = {
   blockingReviews: 0,
   unresolvedThreads: 0
 }
+
+test('managed command invocation preserves exact executable and argument boundaries', () => {
+  const invocation = managedCommandInvocation('git', [
+    'ls-remote',
+    '--heads',
+    'origin',
+    'refs/heads/codex/feature with spaces;still-one-argument'
+  ])
+  assert.deepEqual(invocation, {
+    command: '/bin/sh',
+    args: [
+      '-c',
+      'exec "$@"',
+      'oes-remote-command',
+      'git',
+      'ls-remote',
+      '--heads',
+      'origin',
+      'refs/heads/codex/feature with spaces;still-one-argument'
+    ]
+  })
+})
 
 class ScenarioRunner implements CommandRunner {
   readonly commands: string[] = []

@@ -20,17 +20,32 @@ export interface CommandRunner {
   run(command: string, args: string[], cwd: string): CommandResult
 }
 
-/** Executes one child process without a shell and preserves literal output. */
+export interface CommandInvocation {
+  command: string
+  args: string[]
+}
+
+/** Routes a command through the managed-session-compatible POSIX process boundary. */
+export function managedCommandInvocation(command: string, args: string[]): CommandInvocation {
+  return {
+    command: '/bin/sh',
+    args: ['-c', 'exec "$@"', 'oes-remote-command', command, ...args]
+  }
+}
+
+/** Executes one child process through the managed broker boundary and preserves literal output. */
 export class SpawnCommandRunner implements CommandRunner {
   run(command: string, args: string[], cwd: string): CommandResult {
-    const result = spawnSync(command, args, {
+    const invocation = managedCommandInvocation(command, args)
+    const result = spawnSync(invocation.command, invocation.args, {
       cwd,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe']
     })
+    const spawnError = result.error?.message ?? ''
     return {
       stdout: result.stdout ?? '',
-      stderr: result.stderr ?? '',
+      stderr: [result.stderr ?? '', spawnError].filter(Boolean).join('\n'),
       exitCode: result.status ?? 1
     }
   }
