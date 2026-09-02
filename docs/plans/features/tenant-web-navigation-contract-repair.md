@@ -3,9 +3,12 @@
 featureKey: tenant-web-navigation-contract-repair
 truthCommit: 0c8adcaf382c09fb56d9790b44a02de783a63ea8
 baseSha: 0c8adcaf382c09fb56d9790b44a02de783a63ea8
-integrationBranch: codex/tenant-web-navigation-contract-repair
+integrationBranch: codex/tenant-web-page-050-refresh-rematch
 worktreeKey: a95f
 pullRequest: pending
+priorPullRequest: 49
+priorPullRequestState: MERGED
+publicationRole: PAGE-050_ACCEPTED_SUCCESSOR
 mergeSha: pending
 cleanup: HOLD
 state: CANDIDATE_READY
@@ -43,6 +46,31 @@ review: local-ri
   - unknown registry keys and local legacy redirects stay inside the documented compatibility boundary
   - frontend, mixed, and backend preference modes all keep local lazy route components because the Gateway does not return Web component paths
   - no tenant-web runtime call site references `/menu/all`
+
+### page-050-refresh-rematch
+state: CANDIDATE_READY
+candidate: 7bb9a6e4057fbcd520b8573e8aacdee811f62205
+review: same-feature-ri-pass
+reviewedCandidate: 8c8dfb66b79c1ee0a14496259d1d8095c5bcef3d
+latestMain: 08bff8d53b1493506ed932e4e13d12d162a1467f
+latestMainIntegration: 8c8dfb66b79c1ee0a14496259d1d8095c5bcef3d
+
+- Scope:
+  - `app/web/apps/tenant-web/src/router/guard.ts`
+  - `app/web/apps/tenant-web/src/router/guard.spec.ts`
+- Protected scope:
+  - PAGE-038 account-selection behavior
+  - PAGE-053 through PAGE-075 behavior and page implementations
+  - API Gateway, permission-service, session, navigation-registry, and route-visibility contracts
+- Base:
+  - append-only integration of exact `origin/main` candidate `08bff8d53b1493506ed932e4e13d12d162a1467f`
+- Acceptance:
+  - persisted access refresh rematches a visible dynamic target when its first match was the fallback route
+  - persisted access refresh rematches a visible target whose matched route-record identities were replaced
+  - a target that remains invisible after refresh stays on the fallback route
+  - unchanged core and public matches do not rematch; first-generation route installation behavior remains intact
+  - rematch uses `replace` and terminates on the next guard pass without a navigation loop
+  - direct navigation and browser refresh of `/master-data/items` render the item-management page without a blank or loading-only shell and issue its primary APIs successfully
 
 ## Request / response mapping truth table
 
