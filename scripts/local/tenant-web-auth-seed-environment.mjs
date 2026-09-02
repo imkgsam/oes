@@ -2,6 +2,7 @@ export const TENANT_WEB_AUTH_DATABASE_BINDINGS = Object.freeze([
   { envKey: 'AUTH_DATABASE_URL', service: 'auth-service' },
   { envKey: 'IDENTITY_DATABASE_URL', service: 'identity-service' },
   { envKey: 'PERMISSION_DATABASE_URL', service: 'permission-service' },
+  { envKey: 'ITEM_MASTER_DATABASE_URL', service: 'item-master-service' },
   { envKey: 'TENANT_ORG_DATABASE_URL', service: 'tenant-org-service' },
   { envKey: 'PARTY_DATABASE_URL', service: 'party-service' },
   { envKey: 'HR_DATABASE_URL', service: 'hr-service' }

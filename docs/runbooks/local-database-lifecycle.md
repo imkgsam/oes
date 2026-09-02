@@ -22,7 +22,11 @@ pnpm db:seed
 pnpm db:verify
 ```
 
-`pnpm db:seed` is the only supported host entry for repository-owned seeders. It generates clients, builds Common, applies permission and collaboration seeds, and runs the tenant-web auth fixture seeder with six explicit loopback URLs using the current task runtime PostgreSQL port. The lifecycle also passes the exact environment-key-to-database inventory and runtime port; the seeder validates every URL against that binding before loading a Prisma client. Direct seeder invocation has no service `.env` fallback and fails before database writes when the task binding is missing, foreign, merely contains the task key, duplicated, non-loopback, or uses any other port.
+`pnpm db:seed` is the only supported host entry for repository-owned seeders. It generates clients, builds Common, applies permission and collaboration seeds, and runs the tenant-web auth fixture seeder with seven explicit loopback URLs using the current task runtime PostgreSQL port. The lifecycle also passes the exact environment-key-to-database inventory and runtime port; the seeder validates every URL against that binding before loading a Prisma client. Direct seeder invocation has no service `.env` fallback and fails before database writes when the task binding is missing, foreign, merely contains the task key, duplicated, non-loopback, or uses any other port.
+
+Every host-side lifecycle command re-reads the task container's current published PostgreSQL port. If Docker Desktop restarts and remaps the dynamic port, the live mapping supersedes the persisted value, the lifecycle records `POSTGRES_PORT_REFRESH`, and the updated port is written back without discarding the current seed snapshot.
+
+Verification changes the lifecycle phase to `VERIFYING` before semantic checks. Any failed migration, schema, invariant, or seed-snapshot check records `VERIFY_FAILED`; only a complete pass records `VERIFIED`. A detected PostgreSQL port refresh is persisted before migrate, seed, or verify work begins, so later command failure cannot restore a stale port.
 
 The tenant-web auth seed output contains counts and status only. It does not print login identifiers, passwords, OTPs, TOTP secrets, or database URLs.
 

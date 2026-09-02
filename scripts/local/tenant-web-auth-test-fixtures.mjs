@@ -472,7 +472,7 @@ const ALL_SEEDED_USERS = [
     phone: '+8613900000101',
     avatarUrl: buildSeedAvatar({ accent: '#0f766e', label: 'SP' }),
     accounts: [
-      { key: 'account.chen-shuangpeng.meilong', id: makeUuid(901), scopeLevel: 'TENANT', companyKey: 'meilong', displayName: '陈双鹏', workEmail: 'csp@ml.lc', bindEmployeeKey: 'meilong.chen-shuangpeng', primaryOrgKey: 'meilong.office', roleCodes: ['tenant.admin', 'extension.designer', 'crm.sales'] },
+      { key: 'account.chen-shuangpeng.meilong', id: makeUuid(901), scopeLevel: 'TENANT', companyKey: 'meilong', displayName: '陈双鹏', workEmail: 'csp@ml.lc', bindEmployeeKey: 'meilong.chen-shuangpeng', primaryOrgKey: 'meilong.office', roleCodes: ['tenant.admin', 'extension.designer', 'crm.sales', 'mes.forming_workshop.supervisor'] },
       { key: 'account.chen-shuangpeng.system', id: makeUuid(902), scopeLevel: 'SYSTEM', contextKey: 'SYSTEM', displayName: '陈双鹏', roleCodes: ['system.admin'] },
     ],
   },
@@ -634,11 +634,31 @@ export const AUTH_ACCEPTANCE_FIXTURES = Object.freeze({
     accountId: recoveryAcceptanceUser.accounts[0].id,
     identifier: recoveryAcceptanceUser.email,
     expectedChannels: Object.freeze(['EMAIL', 'PHONE']),
+    accountTerminalAccessOverride: Object.freeze({
+      id: makeUuid(825),
+      accountId: recoveryAcceptanceUser.accounts[0].id,
+      scopeLevel: 'TENANT',
+      tenantId: companyByKey.get('meilong').id,
+      allowedTerminals: Object.freeze(['WEB']),
+    }),
+    grant: Object.freeze({
+      id: makeUuid(820),
+      challengeId: makeUuid(824),
+      expiresAt: new Date('2099-12-31T23:59:59.000Z'),
+      verifiedAt: new Date('2026-04-14T09:00:00.000Z'),
+    }),
   }),
   passwordSetup: Object.freeze({
     userId: passwordSetupAcceptanceUser.id,
     accountId: passwordSetupAcceptanceUser.accounts[0].id,
     identifier: passwordSetupAcceptanceUser.email,
+    accountTerminalAccessOverride: Object.freeze({
+      id: makeUuid(826),
+      accountId: passwordSetupAcceptanceUser.accounts[0].id,
+      scopeLevel: 'TENANT',
+      tenantId: companyByKey.get('haisheng').id,
+      allowedTerminals: Object.freeze(['WEB']),
+    }),
     requirement: Object.freeze({
       id: makeUuid(821),
       reason: 'FIRST_LOGIN',
@@ -652,6 +672,13 @@ export const AUTH_ACCEPTANCE_FIXTURES = Object.freeze({
     accountId: mfaAcceptanceUser.accounts[0].id,
     identifier: mfaAcceptanceUser.email,
     tenantId: companyByKey.get('beichen').id,
+    accountTerminalAccessOverride: Object.freeze({
+      id: makeUuid(827),
+      accountId: mfaAcceptanceUser.accounts[0].id,
+      scopeLevel: 'TENANT',
+      tenantId: companyByKey.get('beichen').id,
+      allowedTerminals: Object.freeze(['WEB']),
+    }),
     binding: Object.freeze({
       id: makeUuid(822),
       type: 'TOTP',
@@ -664,6 +691,137 @@ export const AUTH_ACCEPTANCE_FIXTURES = Object.freeze({
       newDeviceMfaRequired: false,
       allowedFactors: Object.freeze(['TOTP']),
       factorPriority: Object.freeze(['TOTP']),
+    }),
+    tenantScenarioPolicy: Object.freeze({
+      scenario: 'LOGIN',
+      required: true,
+      updatedBy: ROOT_CREATED_BY,
+    }),
+    tenantFactorPolicies: Object.freeze([
+      Object.freeze({
+        factor: 'TOTP',
+        enabled: true,
+        priority: 1,
+        updatedBy: ROOT_CREATED_BY,
+      }),
+      Object.freeze({
+        factor: 'EMAIL_OTP',
+        enabled: false,
+        priority: 2,
+        updatedBy: ROOT_CREATED_BY,
+      }),
+      Object.freeze({
+        factor: 'SMS_OTP',
+        enabled: false,
+        priority: 3,
+        updatedBy: ROOT_CREATED_BY,
+      }),
+      Object.freeze({
+        factor: 'BACKUP_CODE',
+        enabled: false,
+        priority: 4,
+        updatedBy: ROOT_CREATED_BY,
+      }),
+    ]),
+  }),
+});
+
+const PAGE_ACCEPTANCE_TENANT_ID = companyByKey.get('meilong').id;
+const PAGE_ACCEPTANCE_ACCOUNT_ID = accountByKey.get('account.chen-shuangpeng.meilong').id;
+const PAGE_ACCEPTANCE_ATTRIBUTE_DEFINITION_ID = makeUuid(999);
+const PAGE_ACCEPTANCE_ATTRIBUTE_OPTION_ID = makeUuid(998);
+const PAGE_ACCEPTANCE_ITEM_MODEL_ID = makeUuid(999);
+const PAGE_ACCEPTANCE_ITEM_ID = makeUuid(999);
+const PAGE_ACCEPTANCE_CATEGORY_ID = makeUuid(996);
+
+// Declares exact IDs and owner fields for the eight fixture-gated tenant-web acceptance pages.
+export const PAGE_ACCEPTANCE_FIXTURES = Object.freeze({
+  policyPreview: Object.freeze({
+    tenantId: PAGE_ACCEPTANCE_TENANT_ID,
+    accountId: PAGE_ACCEPTANCE_ACCOUNT_ID,
+    permissionCode: 'procurement.purchase_request.create',
+    resourceType: 'item',
+    policyInstance: Object.freeze({
+      id: makeUuid(999),
+      subjectSelectorType: 'ACCOUNT',
+      subjectSelectorValue: PAGE_ACCEPTANCE_ACCOUNT_ID,
+      templateCode: 'resource-field-in-set',
+      effect: 'ALLOW',
+      params: Object.freeze({
+        field: 'categoryId',
+        allowedValues: Object.freeze([PAGE_ACCEPTANCE_CATEGORY_ID]),
+      }),
+      priority: 100,
+      isEnabled: true,
+      createdBy: ROOT_CREATED_BY,
+      updatedBy: ROOT_CREATED_BY,
+    }),
+  }),
+  itemMaster: Object.freeze({
+    tenantId: PAGE_ACCEPTANCE_TENANT_ID,
+    category: Object.freeze({
+      id: PAGE_ACCEPTANCE_CATEGORY_ID,
+      categoryCode: 'acceptance-fixture',
+      categoryName: 'Acceptance Fixture',
+      parentCategoryId: null,
+      active: true,
+    }),
+    attributeDefinition: Object.freeze({
+      id: PAGE_ACCEPTANCE_ATTRIBUTE_DEFINITION_ID,
+      attributeCode: 'acceptance-color',
+      attributeName: 'Acceptance Color',
+      active: true,
+    }),
+    attributeOption: Object.freeze({
+      id: PAGE_ACCEPTANCE_ATTRIBUTE_OPTION_ID,
+      attributeDefinitionId: PAGE_ACCEPTANCE_ATTRIBUTE_DEFINITION_ID,
+      optionCode: 'acceptance-blue',
+      optionName: 'Acceptance Blue',
+      description: 'Task-owned tenant-web acceptance option.',
+      active: true,
+    }),
+    itemModel: Object.freeze({
+      id: PAGE_ACCEPTANCE_ITEM_MODEL_ID,
+      modelCode: 'ACCEPTANCE-MODEL-001',
+      modelName: 'Acceptance ItemModel',
+      modelKind: 'PHYSICAL',
+      modelType: 'FINISHED_PRODUCT',
+      active: true,
+      sellable: true,
+      purchasable: true,
+      stockable: true,
+      manufacturable: false,
+      assemblable: false,
+      transformable: false,
+      packable: false,
+      packaged: false,
+      primaryCategoryId: PAGE_ACCEPTANCE_CATEGORY_ID,
+    }),
+    itemModelAttributeRule: Object.freeze({
+      id: makeUuid(997),
+      itemModelId: PAGE_ACCEPTANCE_ITEM_MODEL_ID,
+      attributeDefinitionId: PAGE_ACCEPTANCE_ATTRIBUTE_DEFINITION_ID,
+      required: true,
+      allowedOptionIds: Object.freeze([PAGE_ACCEPTANCE_ATTRIBUTE_OPTION_ID]),
+    }),
+    item: Object.freeze({
+      id: PAGE_ACCEPTANCE_ITEM_ID,
+      itemModelId: PAGE_ACCEPTANCE_ITEM_MODEL_ID,
+      itemCode: 'ACCEPTANCE-ITEM-001',
+      itemName: 'Acceptance Item',
+      itemType: 'STANDARD',
+      lockedAttributeOptionIds: Object.freeze([PAGE_ACCEPTANCE_ATTRIBUTE_OPTION_ID]),
+      variantKey: `attrs:${PAGE_ACCEPTANCE_ATTRIBUTE_OPTION_ID}|pkg:`,
+      packagingSpecId: null,
+      active: true,
+      sellable: true,
+      purchasable: true,
+      stockable: true,
+      manufacturable: false,
+      assemblable: false,
+      transformable: false,
+      packable: false,
+      packaged: false,
     }),
   }),
 });
@@ -719,13 +877,27 @@ const SEEDED_TENANT_ROLE_TEMPLATES = [
   },
 ];
 
-export const SEEDED_TENANT_ROLES = SEEDED_COMPANIES.flatMap((company, companyIndex) =>
-  SEEDED_TENANT_ROLE_TEMPLATES.map((role, roleIndex) => ({
-    id: makeUuid(1001 + companyIndex * SEEDED_TENANT_ROLE_TEMPLATES.length + roleIndex),
-    companyKey: company.key,
-    ...role,
-  }))
-);
+const MES_ACCEPTANCE_ROLE = {
+  id: makeUuid(1050),
+  companyKey: 'meilong',
+  templateRoleId: '2cf72f72-e04a-4946-b8c0-22f120f82004',
+  code: 'mes.forming_workshop.supervisor',
+  name: '成型车间主管',
+  description: '本地 MES 模具管理验收角色实例。',
+  allowTenantPermissionOverride: true,
+  isProtected: false,
+};
+
+export const SEEDED_TENANT_ROLES = [
+  ...SEEDED_COMPANIES.flatMap((company, companyIndex) =>
+    SEEDED_TENANT_ROLE_TEMPLATES.map((role, roleIndex) => ({
+      id: makeUuid(1001 + companyIndex * SEEDED_TENANT_ROLE_TEMPLATES.length + roleIndex),
+      companyKey: company.key,
+      ...role,
+    }))
+  ),
+  MES_ACCEPTANCE_ROLE,
+];
 
 const TENANT_ADMIN_PERMISSION_CODES = [
   'permission.role_template.list',
@@ -826,6 +998,19 @@ const CRM_SALES_PERMISSION_CODES = [
   'crm.account.release',
 ];
 
+const MES_FORMING_WORKSHOP_SUPERVISOR_PERMISSION_CODES = [
+  'mes.production_spec.read',
+  'mes.production_spec.manage',
+  'mes.mold_design.read',
+  'mes.mold_design.manage',
+  'mes.production_mold.read',
+  'mes.production_mold.manage',
+  'mes.tooling_installation.read',
+  'mes.tooling_installation.manage',
+  'mes.mold_usage.record',
+  'mes.mold_life.manage',
+];
+
 const ACCOUNT_BASIC_PERMISSION_CODES = [
   'identity.account.self.read',
   'tenant_org.org_unit.list_tree',
@@ -839,6 +1024,7 @@ export const SEEDED_TENANT_ROLE_PERMISSION_CODES = new Map([
   ['item_master.product_data_manager', ITEM_MASTER_PRODUCT_DATA_MANAGER_PERMISSION_CODES],
   ['extension.designer', EXTENSION_DESIGNER_PERMISSION_CODES],
   ['crm.sales', CRM_SALES_PERMISSION_CODES],
+  ['mes.forming_workshop.supervisor', MES_FORMING_WORKSHOP_SUPERVISOR_PERMISSION_CODES],
 ]);
 
 function resolveSeedAccountRoleCodes(account) {
@@ -871,6 +1057,7 @@ export const EXPECTED_ROLE_CODES = new Set([
   'hr.admin',
   'account.basic',
   'item_master.product_data_manager',
+  'mes.forming_workshop.supervisor',
   'extension.designer',
 ]);
 

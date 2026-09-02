@@ -9,19 +9,19 @@ import {
 const defaultPayload: PolicyInstancePreviewApi.EvaluatePreviewRequest = {
   mode: 'QUERY_SCOPE',
   subject: {
-    accountId: 'account-1',
-    tenantId: 'tenant-1',
+    accountId: '00000000-0000-4000-8000-000000000901',
+    tenantId: '00000000-0000-4000-8000-000000000001',
     roleIds: [],
   },
   permissionCode: 'procurement.purchase_request.create',
   resourceType: 'item',
   policyInstances: [
     {
-      id: 'preview-policy-1',
-      tenantId: 'tenant-1',
+      id: '00000000-0000-4000-8000-000000000999',
+      tenantId: '00000000-0000-4000-8000-000000000001',
       subjectSelector: {
         type: 'ACCOUNT',
-        accountId: 'account-1',
+        accountId: '00000000-0000-4000-8000-000000000901',
       },
       permissionCode: 'procurement.purchase_request.create',
       resourceType: 'item',
@@ -29,7 +29,7 @@ const defaultPayload: PolicyInstancePreviewApi.EvaluatePreviewRequest = {
       effect: 'ALLOW',
       params: {
         field: 'categoryId',
-        allowedValues: ['raw-material', 'packaging'],
+        allowedValues: ['00000000-0000-4000-8000-000000000996'],
       },
       enabled: true,
       priority: 100,
