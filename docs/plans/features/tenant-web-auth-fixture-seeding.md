@@ -1,8 +1,8 @@
 # Tenant Web Auth Fixture Seeding
 
 featureKey: tenant-web-auth-fixture-seeding
-truthCommit: 8915ef163dd1a210dcd5b936dbf176e95e6b5f79
-baseSha: 8915ef163dd1a210dcd5b936dbf176e95e6b5f79
+truthCommit: 45b2a9bf0cad321819c04d59ce1025a058f4a6b1
+baseSha: 45b2a9bf0cad321819c04d59ce1025a058f4a6b1
 integrationBranch: codex/feature/tenant-web-auth-fixture-seeding-v2
 worktreeKey: 9d4f
 pullRequest: none (local follow-up candidate)
@@ -32,13 +32,13 @@ The first five groups remain explicit design gaps because current navigation fou
 ### task-bound-seed-orchestration
 
 state: ACCEPTED
-candidate: 89d375ab242c9f790cc26a1daafda83b0ebdbf84
+candidate: e22dea349f113a5bbdc74a2447c56e9c85feaeb3
 review: same feature-ri `01a052d7-1611-7001-8e91-e6d6e70b2fb5`
 
 - Scope: local database lifecycle orchestration; seven exact task database bindings; dedicated recovery-grant, MFA-required/scenario, first-login setup, bounded PolicyInstance preview, Item Master detail/create dependency, and MES navigation fixtures; credential-redacted output; focused tooling and real-page verification.
 - Protected scope: production or shared databases, legacy Docker projects, non-task-owned containers/volumes/networks, committed credentials, service business contracts, and unrelated seeders.
 - Dependencies: existing task-owned environment bootstrap, lifecycle ownership checks, official tenant-web and Permission foundation fixtures, and the seven service-owned Prisma schemas used by the seeder.
-- Moving-main revalidation: after accepted receipt `0c93caa7`, the same owner merged exact `main@8915ef16` as local append-only merge candidate `89d375ab` (parents `0c93caa7` then `8915ef16`). All 14 product paths remain byte-identical to accepted candidate `b5629347`; upstream and feature path overlap is zero. No rebase, local-main sync, owner replacement, or product reconstruction occurred.
+- Moving-main revalidation: after accepted receipt `0c93caa7`, the same owner preserved the append-only chain through exact framework-only `main@45b2a9bf`; current product merge candidate `e22dea34` has parents `4cd74bca` then `45b2a9bf`. All 14 product paths remain byte-identical to accepted candidate `b5629347`; the two-path managed remote runner delta has zero product-path or semantic overlap. No rebase, local-main sync, owner replacement, or product reconstruction occurred.
 - Acceptance: fresh/repeat/drift/failure/recovery/rollback proofs; exact fixture inventory; PAGE-003/004/006/021/044/047/051/052 and PAGE-073..075 real-page results; first five navigation groups reported as DESIGN_GAP rather than broadened; no credential material in output; Public Card and prior Auth behavior preserved.
 
 ## Current findings and evidence
@@ -62,7 +62,7 @@ review: same feature-ri `01a052d7-1611-7001-8e91-e6d6e70b2fb5`
 - Latest-main remap/drift/failure recovery: an injected stale state port `51229` plus snapshot-only factor count `3` produced `POSTGRES_PORT_REFRESH before=51229 after=59336`, nonzero verify, persisted live port, and exact `VERIFY_FAILED`. The first official seed then produced the expected `SEED_NOT_IDEMPOTENT`, `SEED_FAILED`, and null snapshot; the second seed plus 21-database verify restored factor count `4` and `VERIFIED`. Final rollback again read back zero task containers, volumes, networks, and state.
 - Same Feature RI `01a052d7-1611-7001-8e91-e6d6e70b2fb5` accepted exact latest-main candidate `b5629347d2230868b89e87f8d236a4cdceee3785` with no findings after independently rerunning Node 70/70 and tenant-web 51/51 and reopening the fresh/repeat/21-database, remap/drift failure, two-seed recovery, zero-resource rollback, and four-artifact evidence. Remote publication and execution-profile preparation remain out of scope while the governing design is under review.
 - Canonical profile cutover recovery: the exact same task accepted monotonic successor v2 report `effective-profile-report-g4.json` (`3236731d…`) with `ON_REQUEST_AUTO_REVIEW`, actual `managed/restricted` target-session telemetry, active `oes-project-owner`, 8/8 capability probes, zero normal prompts, and canonical schema/profile verification. The existing pre-cutover linked worktree remains the frozen owner binding.
-- `main@8915ef16` drift validation: exact product paths are unchanged; the seven focused Node suites pass 70/70 and the five affected tenant-web specs pass 70/70, including Auth, Policy preview, Item Model Create, Role Management, and upstream Customer Management coverage. Existing 21-database and real-page evidence is reused because product bytes, runtime inputs, and fixture contracts did not change.
+- `main@45b2a9bf` drift validation: exact product paths are unchanged and the framework delta is limited to `github-adapter.ts` plus its focused test. Canonical main validation reports `MAIN_CI_PASSED`, and same managed-session no-mutation route smoke passed with absent-ref exit `0`, exact main head `45b2a9bf`, and `remoteMutationAttempted=false`. The prior 70/70 Node, 70/70 affected tenant-web, 21-database, and real-page evidence is reused because product bytes, runtime inputs, and fixture contracts did not change.
 
 ## Feature acceptance
 
