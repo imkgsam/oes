@@ -54,6 +54,7 @@ const NAVIGATION_VISIBILITY_ENTRY_KEYS_BY_ROLE_CODE: Record<
     'admin.policy-governance',
     'admin.policy-instance-management',
     'admin.policy-instance-preview',
+    'admin.terminal-device-management',
     'admin.navigation-management',
     'public-entry.business-cards',
     'public-entry.short-links'

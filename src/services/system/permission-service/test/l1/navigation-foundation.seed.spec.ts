@@ -104,7 +104,7 @@ describe('navigation foundation seed', () => {
     ])
   })
 
-  it('publishes current-tenant terminal device management only for tenant administrators', () => {
+  it('publishes terminal device management for built-in administrator navigation', () => {
     expect(DEFAULT_NAVIGATION_ENTRIES.map((item) => item.entryKey)).toContain(
       'admin.terminal-device-management'
     )
@@ -125,18 +125,18 @@ describe('navigation foundation seed', () => {
     expect(visibility).toEqual(
       expect.arrayContaining([
         {
+          roleId: 'role-system-admin',
+          entryKey: 'admin.terminal-device-management',
+          terminal: 'DEFAULT',
+          enabled: true
+        },
+        {
           roleId: 'role-tenant-admin',
           entryKey: 'admin.terminal-device-management',
           terminal: 'DEFAULT',
           enabled: true
         }
       ])
-    )
-    expect(visibility).not.toContainEqual(
-      expect.objectContaining({
-        roleId: 'role-system-admin',
-        entryKey: 'admin.terminal-device-management'
-      })
     )
   })
 
@@ -286,6 +286,12 @@ describe('navigation foundation seed', () => {
       {
         roleId: 'role-system-admin',
         entryKey: 'admin.policy-instance-preview',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-system-admin',
+        entryKey: 'admin.terminal-device-management',
         terminal: 'DEFAULT',
         enabled: true
       },
