@@ -1,5 +1,13 @@
 import { requestClient } from '#/api/request';
 
+type TenantManagementReadConfig = Parameters<typeof requestClient.get>[1] & {
+  suppressErrorMessage?: boolean;
+};
+
+const locallyHandledOrgTreeReadConfig: TenantManagementReadConfig = {
+  suppressErrorMessage: true,
+};
+
 export namespace TenantManagementApi {
   export interface TenantSummary {
     code: string;
@@ -301,6 +309,7 @@ export async function updateManagedTenantStatusApi(
 export async function getManagedOrgTreeApi(tenantId: string) {
   return requestClient.get<TenantManagementApi.ManagedOrgTreeResult>(
     `/tenant-management/tenants/${encodeURIComponent(tenantId)}/org-tree`,
+    locallyHandledOrgTreeReadConfig,
   );
 }
 

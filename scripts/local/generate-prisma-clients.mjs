@@ -23,10 +23,12 @@ export function generatePrismaClients({
 
   output.write(`PRISMA_SCHEMA_COUNT=${services.length}\n`)
   for (const service of services) {
-    const schema = repositoryRelative(repositoryRoot, service.prismaSchema)
-    output.write(`PRISMA_GENERATE service=${service.name} schema=${schema}\n`)
+    const schema = repositoryRelative(service.directory, service.prismaSchema)
+    output.write(
+      `PRISMA_GENERATE service=${service.name} schema=${repositoryRelative(repositoryRoot, service.prismaSchema)}\n`
+    )
     const result = spawnSync('pnpm', ['exec', 'prisma', 'generate', `--schema=${schema}`], {
-      cwd: repositoryRoot,
+      cwd: service.directory,
       env: { ...process.env, CHECKPOINT_DISABLE: '1' },
       stdio: 'inherit'
     })

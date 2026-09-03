@@ -12,6 +12,8 @@ pnpm db:config
 
 `db:config` is read-only. If application Compose requires projected machine selectors, provide the current task-local selector projection before running this validation; do not reuse values from another worktree or shared stack.
 
+Host-side development uses PostgreSQL on the fixed loopback endpoint `127.0.0.1:5432`, matching every generated service `.env`. Stop any older container already publishing host port `5432` before starting this stack.
+
 ## Fresh database and ordinary seed
 
 ```bash
@@ -24,13 +26,23 @@ pnpm db:verify
 
 `pnpm db:seed` is the only supported host entry for repository-owned seeders. It generates clients, builds Common, applies permission and collaboration seeds, and runs the tenant-web auth fixture seeder with seven explicit loopback URLs using the current task runtime PostgreSQL port. The lifecycle also passes the exact environment-key-to-database inventory and runtime port; the seeder validates every URL against that binding before loading a Prisma client. Direct seeder invocation has no service `.env` fallback and fails before database writes when the task binding is missing, foreign, merely contains the task key, duplicated, non-loopback, or uses any other port.
 
-Every host-side lifecycle command re-reads the task container's current published PostgreSQL port. If Docker Desktop restarts and remaps the dynamic port, the live mapping supersedes the persisted value, the lifecycle records `POSTGRES_PORT_REFRESH`, and the updated port is written back without discarding the current seed snapshot.
+Every host-side lifecycle command re-reads the task container's published PostgreSQL port and rejects any mapping other than `5432`. A persisted value from the former dynamic-port configuration is refreshed to `5432` without discarding the current seed snapshot.
 
-Verification changes the lifecycle phase to `VERIFYING` before semantic checks. Any failed migration, schema, invariant, or seed-snapshot check records `VERIFY_FAILED`; only a complete pass records `VERIFIED`. A detected PostgreSQL port refresh is persisted before migrate, seed, or verify work begins, so later command failure cannot restore a stale port.
+Verification changes the lifecycle phase to `VERIFYING` before semantic checks. Any failed migration, schema, invariant, or seed-snapshot check records `VERIFY_FAILED`; only a complete pass records `VERIFIED`. A detected legacy PostgreSQL port refresh is persisted before migrate, seed, or verify work begins, so later command failure cannot restore a stale port.
 
 The tenant-web auth seed output contains counts and status only. It does not print login identifiers, passwords, OTPs, TOTP secrets, or database URLs.
 
 Before running the first seed command, the lifecycle replaces any older `SEEDED` or `VERIFIED` record with `SEEDING` and clears its snapshot. A command or snapshot failure records `SEED_FAILED` with no snapshot and exits non-zero; only a complete verified snapshot records `SEEDED`.
+
+## Watched backend runtime
+
+```bash
+pnpm backend
+```
+
+The backend command migrates the task databases, synchronizes the Permission foundation, reconciles the fixed machine-workload selector projection, creates task-local trust leaves, and prepares the execution signer and issuer before starting watched services. Each watcher receives its own generated trusted-runtime environment rather than relying on the minimal Prisma `.env`. Console output retains the full outer workload prefix, for example `[permission-service] [run]` and `[api-gateway] [run]`.
+
+`NATS_URL_REQUIRED`, `gRPC mTLS is required`, and `AUTH_EXECUTION_ISSUER is required` at process bootstrap mean a service bypassed this prepared runtime boundary. Do not copy those derived values into the service `.env`; rerun the backend entry so endpoints, certificates, workload identity, policy selectors, and issuer state remain one atomic task-owned profile.
 
 ## Replay and acceptance fixtures
 

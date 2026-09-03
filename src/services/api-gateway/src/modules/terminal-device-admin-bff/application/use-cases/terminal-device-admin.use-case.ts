@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common'
+import { ForbiddenException, Injectable } from '@nestjs/common'
 import { DownstreamRequestSource } from '../../../../common/grpc/gateway-downstream-source.mapper'
 import { AuthGrpcAdapter } from '../../../auth-bff/infrastructure/downstream/auth-service/auth-grpc.adapter'
 import { InMemoryPdaDeviceDiagnosticLogStore } from '../../../pda-bff/infrastructure/in-memory-pda-device-diagnostic-log.store'
@@ -226,7 +226,7 @@ export class TerminalDeviceAdminUseCase {
 function requireTenantId(source: DownstreamRequestSource): string {
   const tenantId = source.user?.tenantId ?? source.user?.tid
   if (!tenantId?.trim()) {
-    throw new UnauthorizedException('tenant context is required')
+    throw new ForbiddenException('terminal device management requires an active tenant context')
   }
   return tenantId
 }

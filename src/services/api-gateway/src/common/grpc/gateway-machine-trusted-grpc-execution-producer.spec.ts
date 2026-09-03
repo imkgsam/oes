@@ -64,4 +64,21 @@ describe('GatewayMachineTrustedGrpcExecutionProducer', () => {
       )
     ).rejects.toThrow('MACHINE_TRACE_CONTEXT_REQUIRED')
   })
+
+  it('rejects a missing traceparent with the stable trace-context error', async () => {
+    const producer = new GatewayMachineTrustedGrpcExecutionProducer(
+      { run: (_correlation, callback) => callback() } as never,
+      {} as never,
+      {} as never
+    )
+
+    await expect(
+      producer.forInternalCall(
+        'urn:oes:service:party-service',
+        'party.internal.get_tenant_party_by_id',
+        { requestId: 'request-1', traceparent: undefined } as never,
+        async () => undefined
+      )
+    ).rejects.toThrow('MACHINE_TRACE_CONTEXT_REQUIRED')
+  })
 })

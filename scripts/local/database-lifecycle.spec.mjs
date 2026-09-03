@@ -8,6 +8,7 @@ import test from 'node:test'
 import {
   assertBaselineResolutionCheckpoint,
   assertDatabaseInvariantDigest,
+  assertInfraHostPort,
   assertTenantWebAuthSeedSnapshot,
   assertExactLifecycleOwnerResources,
   assertPinnedComposeImages,
@@ -72,7 +73,7 @@ test('L2 infrastructure profile starts only Postgres and NATS dependencies', () 
   assert.throws(() => selectInfraProfile('unknown'), /DATABASE_INFRA_PROFILE_INVALID/)
 })
 
-test('live Docker PostgreSQL mapping supersedes a persisted port after daemon remap', () => {
+test('live Docker PostgreSQL mapping reports persisted-port drift before fixed-port validation', () => {
   assert.deepEqual(resolveRuntimePostgresPort(56816, 51229), {
     port: 51229,
     changed: true
@@ -85,6 +86,33 @@ test('live Docker PostgreSQL mapping supersedes a persisted port after daemon re
   assert.throws(
     () => resolveRuntimePostgresPort(Number.NaN, 51229),
     /POSTGRES_PERSISTED_PORT_INVALID/
+  )
+})
+
+test('host Postgres is fixed on 5432 while other infrastructure ports remain dynamically isolated', () => {
+  assert.doesNotThrow(() =>
+    assertInfraHostPort('postgres', { host_ip: '127.0.0.1', target: 5432, published: '5432' })
+  )
+  assert.doesNotThrow(() =>
+    assertInfraHostPort('redis', { host_ip: '127.0.0.1', target: 6379 })
+  )
+  assert.throws(
+    () =>
+      assertInfraHostPort('postgres', {
+        host_ip: '127.0.0.1',
+        target: 5432,
+        published: '50125'
+      }),
+    /COMPOSE_POSTGRES_HOST_PORT_INVALID/
+  )
+  assert.throws(
+    () =>
+      assertInfraHostPort('redis', {
+        host_ip: '127.0.0.1',
+        target: 6379,
+        published: '6379'
+      }),
+    /COMPOSE_HOST_PORT_NOT_ISOLATED/
   )
 })
 

@@ -63,6 +63,12 @@ describe('permission foundation seed', () => {
     ).toContain('identity.account.self.read')
   })
 
+  it('preserves personal-center self-read access for the login-capable SYSTEM administrator', () => {
+    expect(
+      buildBuiltInRoleSeeds().find((role) => role.code === 'system.admin')?.permissionCodes
+    ).toContain('identity.account.self.read')
+  })
+
   it('keeps every built-in role reference active and scope-compatible', () => {
     for (const role of buildBuiltInRoleSeeds()) {
       const expectedScope = role.kind === 'SYSTEM_INSTANCE' ? 'SYSTEM' : 'TENANT'

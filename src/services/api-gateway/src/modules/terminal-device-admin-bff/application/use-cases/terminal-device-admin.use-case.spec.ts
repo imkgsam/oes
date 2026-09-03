@@ -1,6 +1,24 @@
+import { ForbiddenException } from '@nestjs/common'
 import { TerminalDeviceAdminUseCase } from './terminal-device-admin.use-case'
 
 describe('TerminalDeviceAdminUseCase', () => {
+  it('rejects SYSTEM sessions before invoking a current-tenant terminal-device operation', async () => {
+    const terminalDeviceAdapter = { listDevices: jest.fn() }
+    const useCase = new TerminalDeviceAdminUseCase(
+      terminalDeviceAdapter as any,
+      {} as any,
+      diagnosticLogStoreStub() as any
+    )
+
+    expect(() =>
+      useCase.listDevices(
+        { page: 1, pageSize: 20, terminalDeviceType: 'PDA' },
+        { user: { aid: 'system-admin-1', scopeLevel: 'SYSTEM' } }
+      )
+    ).toThrow(ForbiddenException)
+    expect(terminalDeviceAdapter.listDevices).not.toHaveBeenCalled()
+  })
+
   it('creates enrollment in the current tenant through terminal-device-service', async () => {
     const terminalDeviceAdapter = {
       createEnrollment: jest.fn().mockResolvedValue({ enrollmentId: 'enr-1' })

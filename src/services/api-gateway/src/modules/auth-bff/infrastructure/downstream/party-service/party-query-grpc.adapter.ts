@@ -30,8 +30,16 @@ export class PartyQueryGrpcAdapter implements OnModuleInit {
     tenantPartyId: string,
     source: DownstreamRequestSource
   ): Promise<GetTenantPartyByIdResponse> {
-    return this.machine.forInternalCall('urn:oes:service:party-service', 'party.internal.get_tenant_party_by_id', { requestId: source.requestId, traceparent: source.traceId }, metadata =>
-      this.call('getTenantPartyById', this.svc.getTenantPartyById({ tenantPartyId }, metadata))
+    return this.machine.forInternalCall(
+      'urn:oes:service:party-service',
+      'party.internal.get_tenant_party_by_id',
+      {
+        requestId: source.requestId,
+        traceparent: source.traceparent,
+        tracestate: source.tracestate
+      },
+      (metadata) =>
+        this.call('getTenantPartyById', this.svc.getTenantPartyById({ tenantPartyId }, metadata))
     )
   }
 

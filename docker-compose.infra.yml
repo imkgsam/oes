@@ -12,7 +12,7 @@ services:
       POSTGRES_USER: ${OES_POSTGRES_USER:?OES_POSTGRES_USER is required}
       POSTGRES_PASSWORD: ${OES_POSTGRES_PASSWORD:?OES_POSTGRES_PASSWORD is required}
       POSTGRES_DB: postgres
-    ports: ['127.0.0.1::5432']
+    ports: ['127.0.0.1:5432:5432']
     volumes: [postgres_data:/var/lib/postgresql/data]
     networks: [oes_network]
     healthcheck:

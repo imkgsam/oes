@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test, { after } from 'node:test'
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { spawnSync } from 'node:child_process'
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -35,13 +36,17 @@ process.env.OES_TRUSTED_RUNTIME_STATE = join(testStateRoot, 'runtime')
 const {
   DOCKER_PORT_INSPECTION_TIMEOUT_MS,
   generateProfile: generateProfileFromFixture,
+  parseTrustedRuntimeEnvironment,
   readInventory,
-  selectRestartService
+  resolveTrustedRuntimeTaskKey,
+  selectDevelopmentDependencies,
+  selectDevelopmentService,
+  selectRestartService,
+  signerWorkDirectory
 } = await import('./trusted-runtime.mjs')
 
 /** Generates a profile from test-owned task inputs rather than shared lifecycle residue. */
-const generateProfile = (options) =>
-  generateProfileFromFixture({ ...options, selectorProfilePath })
+const generateProfile = (options) => generateProfileFromFixture({ ...options, selectorProfilePath })
 
 after(async () => {
   await rm(testStateRoot, { recursive: true, force: true })
@@ -58,6 +63,97 @@ test('inventory has exactly 21 unique listeners and canonical Collaboration port
 
 test('task Docker port inspection tolerates bounded local daemon latency', () => {
   assert.equal(DOCKER_PORT_INSPECTION_TIMEOUT_MS, 30_000)
+})
+
+test('trusted runtime resolves the generated repository task key before its legacy fallback', async () => {
+  const repositoryRoot = join(testStateRoot, 'task-root')
+  await mkdir(repositoryRoot, { recursive: true })
+  await writeFile(join(repositoryRoot, '.env'), 'OES_TASK_KEY=fixture_task\n')
+  assert.equal(resolveTrustedRuntimeTaskKey({ environment: {}, repositoryRoot }), 'fixture_task')
+  assert.equal(
+    resolveTrustedRuntimeTaskKey({
+      environment: { OES_TASK_KEY: 'explicit_task' },
+      repositoryRoot
+    }),
+    'explicit_task'
+  )
+})
+
+test('trusted runtime CLI resolves the root task key during first module initialization', () => {
+  const result = spawnSync(process.execPath, ['scripts/local/trusted-runtime.mjs', 'check'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      OES_TASK_KEY: 'fixture_task',
+      OES_TASK_ENV: taskEnvironmentPath,
+      OES_MACHINE_SELECTOR_FILE: selectorProfilePath,
+      OES_TRUSTED_RUNTIME_STATE: join(testStateRoot, 'cli-runtime')
+    }
+  })
+  assert.equal(result.status, 0, result.stderr)
+  assert.match(result.stdout, /TRUSTED_RUNTIME_PROFILE_VALID services=21/u)
+})
+
+test('foreground dev selection includes one exact Gateway and parses generated shell values', () => {
+  const gateway = { workload: 'api-gateway', envPath: 'gateway.env' }
+  const permission = { workload: 'permission-service', envPath: 'permission.env' }
+  const manifest = { services: [permission], gateway }
+  assert.equal(selectDevelopmentService(manifest, 'api-gateway'), gateway)
+  assert.equal(selectDevelopmentService(manifest, 'permission-service'), permission)
+  assert.throws(
+    () => selectDevelopmentService(manifest, 'permission-service '),
+    /DEV_WORKLOAD_INVALID/
+  )
+  assert.throws(
+    () => selectDevelopmentService(manifest, 'missing-service'),
+    /DEV_WORKLOAD_NOT_EXACT/
+  )
+  assert.deepEqual(parseTrustedRuntimeEnvironment("A='one'\nB='two'\\''s'\n"), {
+    A: 'one',
+    B: "two's"
+  })
+})
+
+test('foreground dev dependencies preserve trusted readiness groups for full and system scopes', () => {
+  const service = (workload, group, port) => ({ workload, group, port })
+  const manifest = {
+    services: [
+      service('permission-service', 1, 1),
+      service('auth-service', 2, 2),
+      service('asset-service', 3, 3),
+      service('sales-service', 4, 4),
+      service('notification-service', 5, 5)
+    ],
+    gateway: service('api-gateway', undefined, 6)
+  }
+  assert.deepEqual(
+    selectDevelopmentDependencies(manifest, 'auth-service', 'full').map((item) => item.workload),
+    ['permission-service']
+  )
+  assert.deepEqual(
+    selectDevelopmentDependencies(manifest, 'notification-service', 'system').map(
+      (item) => item.workload
+    ),
+    ['permission-service', 'auth-service', 'asset-service']
+  )
+  assert.deepEqual(
+    selectDevelopmentDependencies(manifest, 'api-gateway', 'full').map((item) => item.workload),
+    ['permission-service', 'auth-service', 'asset-service', 'sales-service', 'notification-service']
+  )
+  assert.deepEqual(selectDevelopmentDependencies(manifest, 'sales-service', 'business'), [])
+  assert.throws(
+    () => selectDevelopmentDependencies(manifest, 'sales-service', 'unknown'),
+    /DEV_SCOPE_INVALID/
+  )
+})
+
+test('signer work directories are short and isolated by exact runtime state root', () => {
+  const first = signerWorkDirectory('/a/runtime/root')
+  const second = signerWorkDirectory('/b/runtime/root')
+  assert.notEqual(first, second)
+  assert.ok(first.startsWith('/private/tmp/oes-signer-'))
+  assert.ok(Buffer.byteLength(join(first, 'signer.sock')) < 104)
 })
 
 test('local trust leaves use workload-scoped DNS names rather than IP identity', async () => {
@@ -84,6 +180,8 @@ test('offline profile validation does not require live Docker infrastructure', a
   assert.match(gatewayEnvironment, /GATEWAY_MACHINE_WORKLOAD_BINDING_VERSION=/u)
   const auth = profile.services.find((service) => service.workload === 'auth-service')
   const authEnvironment = await readFile(auth.envPath, 'utf8')
+  assert.equal(profile.authHttpPort, 52103)
+  assert.equal(readProjectedEnvironmentValue(authEnvironment, 'AUTH_HTTP_PORT'), '52103')
   assert.match(authEnvironment, /AUTH_EXECUTION_WORKLOAD_POLICIES=.*urn:oes:service:auth-service/u)
   assert.match(authEnvironment, /AUTH_FOUNDATION_MACHINE_PRINCIPAL_ID=/u)
   assert.match(authEnvironment, /AUTH_FOUNDATION_MACHINE_WORKLOAD_BINDING_ID=/u)

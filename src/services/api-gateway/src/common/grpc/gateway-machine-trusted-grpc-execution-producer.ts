@@ -29,7 +29,7 @@ export class GatewayMachineTrustedGrpcExecutionProducer {
   ): Promise<T> {
     const subject = process.env.GATEWAY_MACHINE_PRINCIPAL_ID?.trim()
     if (!subject) throw new Error('MACHINE_WORKLOAD_SOURCE_CONFIGURATION_REQUIRED')
-    if (!trace.requestId.trim() || !isTraceparent(trace.traceparent))
+    if (!(trace.requestId ?? '').trim() || !isTraceparent(trace.traceparent))
       throw new Error('MACHINE_TRACE_CONTEXT_REQUIRED')
     const trusted = createTrustedExecutionContext({
       subject,
@@ -54,7 +54,7 @@ export class GatewayMachineTrustedGrpcExecutionProducer {
   ): Promise<T> {
     const subject = process.env.GATEWAY_MACHINE_PRINCIPAL_ID?.trim()
     if (!subject) throw new Error('MACHINE_WORKLOAD_SOURCE_CONFIGURATION_REQUIRED')
-    if (!trace.requestId.trim() || !isTraceparent(trace.traceparent))
+    if (!(trace.requestId ?? '').trim() || !isTraceparent(trace.traceparent))
       throw new Error('MACHINE_TRACE_CONTEXT_REQUIRED')
     const trusted = createTrustedExecutionContext({
       subject,
@@ -72,7 +72,8 @@ export class GatewayMachineTrustedGrpcExecutionProducer {
 }
 
 /** isTraceparent accepts only an active W3C trace context supplied by verified ingress. */
-function isTraceparent(value: string): boolean {
+function isTraceparent(value: unknown): value is string {
+  if (typeof value !== 'string') return false
   const match = /^00-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$/u.exec(value.trim())
   return !!match && !/^0+$/u.test(match[1]) && !/^0+$/u.test(match[2])
 }
