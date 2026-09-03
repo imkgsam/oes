@@ -59,7 +59,11 @@ export class PartyQueryGrpcAdapter implements OnModuleInit {
     const response = await this.machine.forInternalCall(
       'urn:oes:service:party-service',
       'party.internal.get_tenant_party_by_id',
-      { requestId: source.requestId, traceparent: source.traceId },
+      {
+        requestId: source.requestId,
+        traceparent: source.traceparent,
+        tracestate: source.tracestate
+      },
       (metadata) =>
         safeGrpcCall(
           this.svc.getTenantPartyById({ tenantPartyId }, metadata),

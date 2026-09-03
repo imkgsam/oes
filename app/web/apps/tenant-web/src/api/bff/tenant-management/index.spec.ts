@@ -137,7 +137,9 @@ describe('tenant-web tenant management api', () => {
     });
     await archiveManagedOrgUnitApi('tenant-1', 'org-1');
 
-    expect(get).toHaveBeenCalledWith('/tenant-management/tenants/tenant-1/org-tree');
+    expect(get).toHaveBeenCalledWith('/tenant-management/tenants/tenant-1/org-tree', {
+      suppressErrorMessage: true,
+    });
     expect(get).toHaveBeenCalledWith('/tenant-management/tenants/tenant-1/org-units/org-1');
     expect(post).toHaveBeenCalledWith('/tenant-management/tenants/tenant-1/org-units', {
       name: 'Manufacturing',

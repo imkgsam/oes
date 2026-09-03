@@ -12,6 +12,7 @@ describe('Tenant Org verified target serialization', () => {
   const source = {
     requestId: 'request-1',
     traceparent: '00-11111111111111111111111111111111-2222222222222222-01',
+    tracestate: 'vendor=value',
     user: { aid: 'account-1', scopeLevel: 'SYSTEM' }
   }
 
@@ -142,6 +143,16 @@ describe('Tenant Org verified target serialization', () => {
     await expect(
       adapter.getOrganizationTenantPartyByVerifiedTarget(target, 'party-1', source)
     ).rejects.toBeInstanceOf(ForbiddenException)
+    expect(machine.forInternalCall).toHaveBeenCalledWith(
+      'urn:oes:service:party-service',
+      'party.internal.get_tenant_party_by_id',
+      {
+        requestId: 'request-1',
+        traceparent: source.traceparent,
+        tracestate: source.tracestate
+      },
+      expect.any(Function)
+    )
     expect(service.getTenantPartyById).toHaveBeenCalledWith({ tenantPartyId: 'party-1' }, metadata)
   })
 })

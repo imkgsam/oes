@@ -21,7 +21,7 @@ pnpm build:tenant
 
 本地联调约束：
 
-- `tenant-web` 默认通过 Vite 代理把 `/api/*` 转发到 `http://localhost:9101/api/v1/*`，因此需要源码方式启动 `api-gateway` 与其下游服务，而不只是启动 infra 容器。
+- `tenant-web` 默认通过 Vite 代理把 `/api/*` 转发到 trusted runtime 的 `http://127.0.0.1:52101/api/v1/*`，因此需要先运行根目录的 `pnpm backend`。如显式覆盖 Gateway 监听地址，使用完整的 `OES_GATEWAY_HTTP_BASE_URL`（包含 `/api/v1`）。
 - `pnpm backend:foundation:sync` 只同步当前确认过的 permission-service foundation seed；旧的 tenant-web auth/account seed 已移除，账号与租户联调数据后续按各服务 seed/reset 方案重新整理。
 
 当前保留的核心结构：

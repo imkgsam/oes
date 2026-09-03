@@ -1,4 +1,5 @@
 import {
+  GATEWAY_REQUEST_LOGGER_ROUTE,
   permissionGrpcProtoPaths,
   resolveAuthGrpcUrl,
   resolveHrGrpcUrl,
@@ -19,6 +20,12 @@ describe('permissionGrpcProtoPaths', () => {
 describe('GATEWAY_GLOBAL_PREFIX_EXCLUDES', () => {
   it('keeps the public ShortLink redirect at the root edge path', () => {
     expect(GATEWAY_GLOBAL_PREFIX_EXCLUDES).toContain('c/:shortCode')
+  })
+})
+
+describe('GATEWAY_REQUEST_LOGGER_ROUTE', () => {
+  it('uses the named path-to-regexp wildcard required by Nest 11', () => {
+    expect(GATEWAY_REQUEST_LOGGER_ROUTE).toBe('{*requestPath}')
   })
 })
 

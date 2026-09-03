@@ -465,6 +465,7 @@ describe('org management workspace', () => {
 
     tenantWrapper.unmount()
     authContextState.isPlatformScope = true
+    getManagedOrgTreeApi.mockClear()
 
     const systemWrapper = mountOrgWorkspace(view.default, {
       attachTo: document.body,
@@ -479,6 +480,8 @@ describe('org management workspace', () => {
     })
     await flushPromises()
 
+    expect(getManagedOrgTreeApi).toHaveBeenCalledTimes(1)
+    expect(getManagedOrgTreeApi).toHaveBeenCalledWith('tenant-1')
     expect(systemWrapper.findComponent(Table).props('expandedRowKeys')).toEqual([
       'org-root-1',
       'org-dept-1'

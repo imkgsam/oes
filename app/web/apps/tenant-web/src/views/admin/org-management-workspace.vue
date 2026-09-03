@@ -113,6 +113,7 @@ const activeTenantName = ref('')
 const treeRows = ref<ReturnType<typeof flattenManagedOrgTree>>([])
 const orgTreeData = ref<OrgGridRow[]>([])
 const orgTreeLoading = ref(false)
+const orgWorkspaceInitializing = ref(true)
 const expandedOrgUnitIds = ref<string[]>([])
 const internalSelectedOrgUnitId = ref('')
 const selectedOrgUnit = ref<null | TenantManagementApi.ManagedOrgUnit>(null)
@@ -867,7 +868,7 @@ function resolveErrorMessage(error: unknown, fallback: string) {
 }
 
 watch(activeTenantId, async (tenantId, previousTenantId) => {
-  if (!tenantId || tenantId === previousTenantId) {
+  if (orgWorkspaceInitializing.value || !tenantId || tenantId === previousTenantId) {
     return
   }
 
@@ -878,7 +879,11 @@ watch(activeTenantId, async (tenantId, previousTenantId) => {
   createDrawerOpen.value = false
   activeTenantName.value =
     tenantOptions.value.find((item) => item.id === tenantId)?.name || activeTenantName.value
-  await refreshOrgGrid()
+  try {
+    await refreshOrgGrid()
+  } catch (error) {
+    message.error(resolveErrorMessage(error, '组织架构加载失败'))
+  }
 })
 
 watch(createParentOrgUnitId, () => {
@@ -907,7 +912,11 @@ watch(
     const workspaceTenantChanged = activeTenantId.value !== previousActiveTenantId
 
     if (permissionBecameReadable || sessionTenantChanged || workspaceTenantChanged) {
-      await refreshOrgGrid()
+      try {
+        await refreshOrgGrid()
+      } catch (error) {
+        message.error(resolveErrorMessage(error, '组织架构加载失败'))
+      }
     }
   }
 )
@@ -932,6 +941,8 @@ onMounted(async () => {
     await refreshOrgGrid()
   } catch (error) {
     message.error(resolveErrorMessage(error, '组织架构入口初始化失败'))
+  } finally {
+    orgWorkspaceInitializing.value = false
   }
 })
 

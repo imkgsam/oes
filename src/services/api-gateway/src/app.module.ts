@@ -44,6 +44,9 @@ import { GatewayTrustedGrpcExecutionModule } from './common/grpc/gateway-trusted
 import { GatewayFoundationTrustedGrpcModule } from './infrastructure/grpc/trusted-auth.grpc.client'
 import { TrustedPermissionGrpcClient } from './infrastructure/grpc/trusted-permission.grpc.client'
 
+// path-to-regexp v8 requires a named wildcard; braces also include the prefix root.
+export const GATEWAY_REQUEST_LOGGER_ROUTE = '{*requestPath}'
+
 /** resolveTenantOrgGrpcUrl avoids localhost IPv6 ambiguity for the local tenant-org fallback endpoint. */
 export function resolveTenantOrgGrpcUrl() {
   return process.env.TENANT_ORG_SERVICE_HOST && process.env.TENANT_ORG_SERVICE_PORT
@@ -251,6 +254,6 @@ const siteGrpcLoaderOptions = { longs: String, arrays: true }
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(RequestLoggerMiddleware).forRoutes('*')
+    consumer.apply(RequestLoggerMiddleware).forRoutes(GATEWAY_REQUEST_LOGGER_ROUTE)
   }
 }

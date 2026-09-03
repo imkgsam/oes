@@ -1,15 +1,37 @@
 #!/usr/bin/env node
 import { chmod, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
-import { statSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import { spawn, spawnSync } from 'node:child_process'
 import { createConnection } from 'node:net'
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { dirname, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import process from 'node:process'
+import { projectMachineSelectors as projectMachineSelectorEnvironment } from './machine-workload-selector-env.mjs'
 
 const root = resolve(import.meta.dirname, '../..')
-const taskKey = process.env.OES_TASK_KEY?.trim() || 'tmp_31d7ce4d'
+export function resolveTrustedRuntimeTaskKey({
+  environment = process.env,
+  repositoryRoot = root
+} = {}) {
+  let taskKey = environment.OES_TASK_KEY?.trim()
+  if (!taskKey) {
+    try {
+      taskKey = parseTrustedRuntimeEnvironment(
+        readFileSync(join(repositoryRoot, '.env'), 'utf8')
+      ).OES_TASK_KEY?.trim()
+    } catch {
+      taskKey = ''
+    }
+  }
+  taskKey ||= 'tmp_31d7ce4d'
+  if (!/^[a-z0-9][a-z0-9_]{2,39}$/u.test(taskKey)) {
+    throw new Error('TRUSTED_RUNTIME_TASK_KEY_INVALID')
+  }
+  return taskKey
+}
+
+const taskKey = resolveTrustedRuntimeTaskKey()
 const stateRoot = resolve(
   process.env.OES_TRUSTED_RUNTIME_STATE || join(root, '.tmp/oes-trusted-runtime', taskKey)
 )
@@ -45,12 +67,8 @@ export async function readInventory(text) {
 export async function generateProfile({
   basePort = Number(process.env.OES_TRUSTED_RUNTIME_BASE_PORT || 52050),
   requireInfrastructure = false,
-  selectorProfilePath = join(
-    root,
-    '.tmp/oes-database-lifecycle',
-    taskKey,
-    'machine-selectors-v2.json'
-  )
+  selectorProfilePath = process.env.OES_MACHINE_SELECTOR_FILE?.trim() ||
+    join(root, '.tmp/oes-database-lifecycle', taskKey, 'machine-selectors-v2.json')
 } = {}) {
   const inventory = await readInventory()
   const sourceEnvironment = parseEnv(await readFile(envSource, 'utf8'))
@@ -87,6 +105,7 @@ export async function generateProfile({
     services: []
   }
   const issuerPort = Number(process.env.OES_TRUSTED_RUNTIME_ISSUER_PORT || 52102)
+  const authHttpPort = Number(process.env.OES_TRUSTED_RUNTIME_AUTH_HTTP_PORT || 52103)
   const issuerUrl = `https://issuer.local.oes.internal:${issuerPort}`
   const issuerResolver = join(root, 'scripts/local/runtime-config/issuer-dns.cjs')
   for (const entry of inventory) {
@@ -106,6 +125,7 @@ export async function generateProfile({
     if (entry.workload === 'terminal-device-service') {
       env.GATEWAY_TERMINAL_DEVICE_SPIFFE_ID = 'spiffe://local.oes.internal/ns/oes/sa/api-gateway'
     }
+    if (entry.workload === 'auth-service') env.AUTH_HTTP_PORT = String(authHttpPort)
     Object.assign(env, {
       MODULE_NAME: entry.workload,
       GRPC_LISTEN_HOST: '127.0.0.1',
@@ -215,6 +235,7 @@ export async function generateProfile({
     pidPath: join(stateRoot, 'pids/issuer.pid'),
     logPath: join(stateRoot, 'logs/issuer.log')
   }
+  manifest.authHttpPort = authHttpPort
   await writeFile(join(stateRoot, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n', {
     mode: 0o600
   })
@@ -339,14 +360,7 @@ async function runtimePolicyEnvironment(selectorProfilePath) {
 
 /** Starts exact built package entrypoints and records only task-owned PIDs/logs. */
 async function up() {
-  await spawnChecked(
-    join(root, 'docker/grpc-trust/bootstrap-local-trust.sh'),
-    ['--output', trustRoot],
-    { OES_TRUST_OUTPUT_DIRECTORY: trustRoot }
-  )
-  const manifest = await generateProfile({ requireInfrastructure: true })
-  await startSigner(manifest)
-  await startIssuer(manifest)
+  const manifest = await prepare()
   await spawnChecked('pnpm', ['proto:gen'])
   await spawnChecked('pnpm', ['prisma:generate:all'])
   await spawnChecked('pnpm', ['common:build'])
@@ -361,6 +375,46 @@ async function up() {
   await status(true)
 }
 
+/** Prepares exact runtime identity, trust, and environment without hiding dev process output. */
+async function prepare() {
+  await spawnChecked(
+    join(root, 'docker/grpc-trust/bootstrap-local-trust.sh'),
+    ['--output', trustRoot],
+    { OES_TRUST_OUTPUT_DIRECTORY: trustRoot }
+  )
+  await prepareMachineSelectors()
+  const manifest = await generateProfile({ requireInfrastructure: true })
+  await startSigner(manifest)
+  await startIssuer(manifest)
+  process.stdout.write(
+    `TRUSTED_RUNTIME_PREPARED taskKey=${taskKey} services=${manifest.services.length + 1}\n`
+  )
+  return manifest
+}
+
+/** Reconciles and projects the exact fixed machine inventory required by runtime policies. */
+async function prepareMachineSelectors() {
+  const output =
+    process.env.OES_MACHINE_SELECTOR_FILE?.trim() ||
+    join(root, '.tmp/oes-database-lifecycle', taskKey, 'machine-selectors-v2.json')
+  await mkdir(dirname(output), { recursive: true, mode: 0o700 })
+  await spawnChecked(process.execPath, [
+    join(root, 'scripts/local/machine-workload-inventory.mjs'),
+    '--manifest',
+    'scripts/local/runtime-config/machine-workload-inventory/v2.json',
+    '--previous-manifest',
+    'scripts/local/runtime-config/machine-workload-inventory/v1.json',
+    '--deployment-revision',
+    `local-${taskKey}`,
+    '--output',
+    output
+  ])
+  await projectMachineSelectorEnvironment({
+    selectorsPath: output,
+    environmentPath: envSource
+  })
+}
+
 /** Starts the Auth-bound HTTPS metadata publisher before any verifier can refresh JWKS. */
 async function startIssuer(manifest) {
   if (await livePid(manifest.issuer.pidPath)) return
@@ -370,7 +424,7 @@ async function startIssuer(manifest) {
     env: {
       ...process.env,
       OES_ISSUER_PORT: String(manifest.issuer.port),
-      OES_AUTH_HTTP_PORT: '50051',
+      OES_AUTH_HTTP_PORT: String(manifest.authHttpPort),
       OES_ISSUER_CERT_PATH: join(trustRoot, 'auth-service/current/cert.pem'),
       OES_ISSUER_KEY_PATH: join(trustRoot, 'auth-service/current/key.pem')
     },
@@ -448,7 +502,7 @@ async function startSigner(manifest) {
   }
   // macOS limits Unix-domain socket paths to 104 bytes, so signer state uses a
   // short task-owned root rather than the deeper generated profile directory.
-  const work = join('/private/tmp', `oes-signer-${taskKey}`)
+  const work = signerWorkDirectory(stateRoot)
   const ready = join(work, 'ready')
   const socket = join(work, 'signer.sock')
   if (await livePid(signer.pidPath)) {
@@ -499,6 +553,12 @@ async function startSigner(manifest) {
     }
   }
   throw new Error('TRUSTED_RUNTIME_SIGNER_NOT_READY')
+}
+
+/** Keeps signer sockets short on macOS while isolating equal task keys in distinct runtime roots. */
+export function signerWorkDirectory(runtimeStateRoot) {
+  const digest = createHash('sha256').update(resolve(runtimeStateRoot)).digest('hex').slice(0, 12)
+  return join('/private/tmp', `oes-signer-${digest}`)
 }
 
 async function startDockerSigner(manifest, work, ready, socket) {
@@ -652,6 +712,35 @@ export function selectRestartService(manifest, workload) {
   const matches = (manifest?.services ?? []).filter((service) => service.workload === workload)
   if (matches.length !== 1) throw new Error('TRUSTED_RUNTIME_RESTART_WORKLOAD_NOT_EXACT')
   return matches[0]
+}
+
+/** Selects one exact foreground dev workload, including the API Gateway. */
+export function selectDevelopmentService(manifest, workload) {
+  if (typeof workload !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(workload)) {
+    throw new Error('TRUSTED_RUNTIME_DEV_WORKLOAD_INVALID')
+  }
+  const candidates = [
+    ...(manifest?.services ?? []),
+    ...(manifest?.gateway ? [manifest.gateway] : [])
+  ]
+  const matches = candidates.filter((service) => service.workload === workload)
+  if (matches.length !== 1) throw new Error('TRUSTED_RUNTIME_DEV_WORKLOAD_NOT_EXACT')
+  return matches[0]
+}
+
+/** Returns only earlier selected readiness groups for one foreground dev workload. */
+export function selectDevelopmentDependencies(manifest, workload, scope = 'single') {
+  const target = selectDevelopmentService(manifest, workload)
+  if (!['single', 'system', 'business', 'full'].includes(scope)) {
+    throw new Error('TRUSTED_RUNTIME_DEV_SCOPE_INVALID')
+  }
+  if (scope === 'single' || scope === 'business') return []
+  const targetGroup = target.group ?? 6
+  return [...(manifest.services ?? [])].filter((service) => {
+    if (service.workload === workload || service.group >= targetGroup) return false
+    if (scope === 'system' && service.group === 4) return false
+    return true
+  })
 }
 
 /** Restarts one exact service from its preserved manifest, environment, and trust leaves. */
@@ -873,7 +962,7 @@ async function stableBase64Secret(path, byteLength) {
   return value
 }
 
-function parseEnv(text) {
+export function parseTrustedRuntimeEnvironment(text) {
   return Object.fromEntries(
     text
       .split(/\r?\n/u)
@@ -884,6 +973,7 @@ function parseEnv(text) {
       })
   )
 }
+const parseEnv = parseTrustedRuntimeEnvironment
 function unquote(value) {
   return value.startsWith("'") && value.endsWith("'")
     ? value.slice(1, -1).replaceAll("'\\''", "'")
@@ -939,7 +1029,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
         throw new Error('TRUSTED_RUNTIME_ENV_MODE_INVALID')
     }
     process.stdout.write(`TRUSTED_RUNTIME_PROFILE_VALID services=${manifest.services.length}\n`)
-  } else if (command === 'up') await up()
+  } else if (command === 'prepare') await prepare()
+  else if (command === 'up') await up()
   else if (command === 'status') await status(false)
   else if (command === 'down') await down()
   else if (command === 'restart') await restartService(process.argv[3])

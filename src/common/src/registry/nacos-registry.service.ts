@@ -15,7 +15,7 @@ export class NacosRegistryService implements ServiceRegistry, OnModuleInit, OnMo
   ) {
     const ip = process.env.SERVICE_REGISTRY_IP ?? getLocalIP()
     const port = resolveRegistryPort(process.env)
-    this.logger.warn(`Initializing NacosRegistryService with IP: ${ip}, Port: ${port}`)
+    this.logger.log(`Initializing NacosRegistryService with IP: ${ip}, Port: ${port}`)
     this.instance = {
       instanceId: `${ip}:${port}`,
       ip,

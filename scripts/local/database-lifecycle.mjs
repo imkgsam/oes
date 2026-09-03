@@ -656,12 +656,32 @@ export function resolveRuntimePostgresPort(persistedPort, publishedPort) {
   }
 }
 
+/** Keeps Postgres on the host-development contract while every other infra port stays isolated. */
+export function assertInfraHostPort(service, port) {
+  if (port.host_ip !== '127.0.0.1') {
+    throw new Error(`COMPOSE_HOST_PORT_NOT_ISOLATED service=${service}`)
+  }
+  const isPostgres = service === 'postgres' && Number(port.target) === 5432
+  if (isPostgres) {
+    if (Number(port.published) !== 5432) {
+      throw new Error(`COMPOSE_POSTGRES_HOST_PORT_INVALID published=${port.published}`)
+    }
+    return
+  }
+  if (port.published !== undefined) {
+    throw new Error(`COMPOSE_HOST_PORT_NOT_ISOLATED service=${service}`)
+  }
+}
+
 /** Reads and reports the exact live task-owned PostgreSQL mapping used by host-side clients. */
 function runtimePostgresPort(context, environmentPath, state) {
   const selection = resolveRuntimePostgresPort(
     state?.postgresPort,
     postgresPort(context, environmentPath)
   )
+  if (selection.port !== 5432) {
+    throw new Error(`POSTGRES_HOST_PORT_NOT_FIXED expected=5432 actual=${selection.port}`)
+  }
   if (selection.changed) {
     process.stdout.write(
       `POSTGRES_PORT_REFRESH before=${state.postgresPort} after=${selection.port}\n`
@@ -1632,9 +1652,7 @@ function config(context, environmentPath) {
       throw new Error(`COMPOSE_OWNER_LABEL_INVALID service=${name}`)
     }
     for (const port of definition.ports ?? []) {
-      if (port.host_ip !== '127.0.0.1' || port.published !== undefined) {
-        throw new Error(`COMPOSE_HOST_PORT_NOT_ISOLATED service=${name}`)
-      }
+      assertInfraHostPort(name, port)
     }
   }
   for (const [kind, resources] of [
