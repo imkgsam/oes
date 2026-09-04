@@ -232,6 +232,8 @@ jobs:
         run: |
           pnpm common:build
           pnpm --filter notification-service build
+      - name: Bootstrap task-local Unit-test environment
+        run: pnpm env:bootstrap
       - run: pnpm test:run -- --type unit --plan .tmp/change-plan.json
 
   component:

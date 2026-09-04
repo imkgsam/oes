@@ -1356,12 +1356,19 @@ describe('account management page', () => {
     );
     await clickAccountAction('基本信息');
 
-    const switchButton = document.body.querySelector(
-      '.ant-switch',
-    ) as HTMLButtonElement | null;
+    const basicInfoModal = Array.from(document.body.querySelectorAll('.ant-modal')).find((element) =>
+      element.textContent?.includes('基本信息'),
+    ) as HTMLElement | undefined;
+    expect(basicInfoModal).toBeTruthy();
+    const switchButton = basicInfoModal!.querySelector('.ant-switch') as HTMLButtonElement | null;
     expect(switchButton).toBeTruthy();
     switchButton!.click();
-    await flushPromises();
+    await vi.waitFor(
+      () => {
+        expect(switchButton!.getAttribute('aria-checked')).toBe('false');
+      },
+      { timeout: 5000 },
+    );
 
     const submitButton = findPrimaryButtonWithinModal('基本信息');
     expect(submitButton).toBeTruthy();
