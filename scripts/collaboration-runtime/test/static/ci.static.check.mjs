@@ -21,6 +21,27 @@ assert.match(workflow, /confirmation-required/)
 assert.match(workflow, /ci-full-approved-/)
 assert.match(workflow, /test:run -- --type integration/)
 assert.doesNotMatch(workflow, /test:risk|test:l2|test:design-gap|test-matrix|l2-test-runner|Shadow/)
+
+const quickSmoke = workflow.match(/^  quick-smoke:\n[\s\S]*?(?=^  baseline:)/m)?.[0]
+assert.ok(quickSmoke, 'authoritative CI must define the main quick-smoke job')
+const quickSmokeGenerated = quickSmoke.indexOf('pnpm generated:all')
+const quickSmokeCommonBuild = quickSmoke.indexOf('pnpm common:build')
+const quickSmokeSiteRuntimeBuild = quickSmoke.indexOf('pnpm --filter @oes/site-runtime-kit build')
+const quickSmokeContract = quickSmoke.indexOf('pnpm test:run -- --type contract')
+assert.ok(quickSmokeGenerated >= 0, 'quick smoke must generate compiled contracts')
+assert.ok(
+  quickSmokeCommonBuild > quickSmokeGenerated,
+  'quick smoke must build @oes/common after generation'
+)
+assert.ok(
+  quickSmokeSiteRuntimeBuild > quickSmokeCommonBuild,
+  'quick smoke must build the Site Runtime Kit after @oes/common'
+)
+assert.ok(
+  quickSmokeContract > quickSmokeSiteRuntimeBuild,
+  'quick smoke must build compiled dependencies before running Contract tests'
+)
+
 assert.equal(existsSync(new URL('.github/workflows/ci-optimized-shadow.yml', repo)), false)
 assert.equal(existsSync(new URL('scripts/local/test-matrix.mjs', repo)), false)
 assert.equal(existsSync(new URL('scripts/local/l2-test-runner.mjs', repo)), false)
