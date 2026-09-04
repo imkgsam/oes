@@ -1326,32 +1326,65 @@ describe('account management page', () => {
     await flushPromises();
 
     const statusSelect = document.body.querySelectorAll('.ant-select-selector')[2] as HTMLElement | undefined;
-    statusSelect?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    expect(statusSelect).toBeTruthy();
+    statusSelect!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     await flushPromises();
     const enabledOption = Array.from(
       document.body.querySelectorAll('.ant-select-item-option-content'),
     ).find((element) => element.textContent?.includes('启用')) as HTMLElement | undefined;
-    enabledOption?.click();
+    expect(enabledOption).toBeTruthy();
+    enabledOption!.click();
     await flushPromises();
 
     const pageButton = document.body.querySelector(
       '.mock-ant-table__page-2',
     ) as HTMLButtonElement | null;
-    pageButton?.click();
-    await flushPromises();
-
-    expect(document.body.textContent).toContain('Last Enabled Account');
+    expect(pageButton).toBeTruthy();
+    pageButton!.click();
+    await vi.waitFor(
+      () => {
+        expect(listAdminAccountsApi).toHaveBeenLastCalledWith({
+          keyword: undefined,
+          page: 2,
+          pageSize: 20,
+          scopeLevel: undefined,
+          status: 'ENABLED',
+        });
+        expect(document.body.textContent).toContain('Last Enabled Account');
+      },
+      { timeout: 5000 },
+    );
     await clickAccountAction('基本信息');
 
     const switchButton = document.body.querySelector(
       '.ant-switch',
     ) as HTMLButtonElement | null;
-    switchButton?.click();
+    expect(switchButton).toBeTruthy();
+    switchButton!.click();
     await flushPromises();
 
     const submitButton = findPrimaryButtonWithinModal('基本信息');
-    submitButton?.click();
-    await flushPromises();
+    expect(submitButton).toBeTruthy();
+    submitButton!.click();
+    await vi.waitFor(
+      () => {
+        expect(
+          listAdminAccountsApi.mock.calls.filter(
+            ([params]) => params.page === 2 && params.status === 'ENABLED',
+          ),
+        ).toHaveLength(2);
+        expect(listAdminAccountsApi.mock.calls.at(-1)?.[0]).toEqual({
+          keyword: undefined,
+          page: 1,
+          pageSize: 20,
+          scopeLevel: undefined,
+          status: 'ENABLED',
+        });
+        expect(document.body.textContent).toContain('Page One Enabled Account');
+        expect(document.body.textContent).not.toContain('Last Enabled Account');
+      },
+      { timeout: 5000 },
+    );
 
     const enabledPageTwoCalls = listAdminAccountsApi.mock.calls.filter(
       ([params]) => params.page === 2 && params.status === 'ENABLED',
@@ -1371,7 +1404,5 @@ describe('account management page', () => {
       scopeLevel: undefined,
       status: 'ENABLED',
     });
-    expect(document.body.textContent).toContain('Page One Enabled Account');
-    expect(document.body.textContent).not.toContain('Last Enabled Account');
   });
 });

@@ -214,6 +214,10 @@ jobs:
         with:
           setup_only: true
           github_token: ${{ github.token }}
+      - name: Install media validation runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ffmpeg
       - run: pnpm install --frozen-lockfile
       - uses: actions/download-artifact@v8
         with:
@@ -295,7 +299,9 @@ jobs:
         run: pnpm --dir app/pda install --frozen-lockfile
       - run: pnpm generated:all
       - name: Build compiled Contract-test dependencies
-        run: pnpm common:build
+        run: |
+          pnpm common:build
+          pnpm --filter @oes/site-runtime-kit build
       - run: pnpm test:run -- --type contract --plan .tmp/change-plan.json
 
   integration:

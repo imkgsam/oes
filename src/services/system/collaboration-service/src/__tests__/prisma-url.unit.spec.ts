@@ -34,6 +34,8 @@ describe('collaboration-service prisma URL resolution', () => {
   it('keeps Integration integration tests aligned with the task-owned service database URL', () => {
     delete process.env.COLLABORATION_DATABASE_URL
     delete process.env.DATABASE_URL
+    process.env.OES_INTEGRATION_DATABASE_URL =
+      'postgres://imkgsam:imkgsam@127.0.0.1:5432/oes_test_collaboration?schema=public'
     process.env.NODE_ENV = 'development'
 
     const url = ensureIntegrationDatabaseUrl()
