@@ -26,6 +26,10 @@ android {
         buildConfig = true
     }
 
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -34,6 +38,9 @@ android {
     sourceSets {
         getByName("main") {
             assets.srcDir("../../web/dist")
+        }
+        getByName("test") {
+            java.srcDir("../../../../tests/cross-service")
         }
     }
 }
@@ -53,6 +60,8 @@ dependencies {
     implementation("com.google.mlkit:barcode-scanning:17.3.0")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("androidx.test:core:1.6.1")
+    testImplementation("org.robolectric:robolectric:4.14.1")
 }
 
 fun resolvePdaBffBaseUrl(): String {

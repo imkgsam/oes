@@ -10,7 +10,13 @@
         "src/services/system/permission-service/**",
         "app/web/apps/tenant-web/**"
       ],
-      "consumerOwners": ["api-gateway", "auth-service", "identity-service", "permission-service", "@oes/tenant-web"],
+      "consumerOwners": [
+        "api-gateway",
+        "auth-service",
+        "identity-service",
+        "permission-service",
+        "@oes/tenant-web"
+      ],
       "journeyGlobs": ["tests/cross-service/**/web-login*.journey.spec.*"],
       "riskTags": ["auth", "permission", "tenant", "session-context"]
     },
@@ -23,7 +29,13 @@
         "src/services/system/terminal-device-service/**",
         "app/pda/**"
       ],
-      "consumerOwners": ["api-gateway", "auth-service", "permission-service", "terminal-device-service", "@oes/pda-web"],
+      "consumerOwners": [
+        "api-gateway",
+        "auth-service",
+        "permission-service",
+        "terminal-device-service",
+        "@oes/pda-web"
+      ],
       "journeyGlobs": ["tests/cross-service/**/pda-login*.journey.spec.*"],
       "riskTags": ["auth", "permission", "device-admission"]
     },
@@ -81,7 +93,8 @@
       "id": "collaboration-notification-nats",
       "triggers": [
         "src/services/system/collaboration-service/**/*.integration.spec.*",
-        "src/services/system/notification-service/**/*.integration.spec.*"
+        "src/services/system/notification-service/**/*.integration.spec.*",
+        "tests/cross-service/**/task-notification*.journey.spec.*"
       ],
       "serialGroup": "collaboration-notification-nats"
     }

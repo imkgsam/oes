@@ -338,6 +338,8 @@ jobs:
           setup_only: true
           github_token: ${{ github.token }}
       - run: pnpm install --frozen-lockfile
+      - name: Install headless Journey browser
+        run: pnpm exec playwright install --with-deps chromium
       - uses: actions/download-artifact@v8
         with:
           name: change-plan-${{ github.run_id }}-${{ github.run_attempt }}
@@ -370,10 +372,14 @@ jobs:
           setup_only: true
           github_token: ${{ github.token }}
       - run: pnpm install --frozen-lockfile
+      - name: Install headless quick-smoke browser
+        run: pnpm exec playwright install --with-deps chromium
       - uses: actions/download-artifact@v8
         with:
           name: change-plan-${{ github.run_id }}-${{ github.run_attempt }}
           path: .tmp
+      - if: ${{ needs.change-plan.outputs.needs-pda-install == 'true' }}
+        run: pnpm --dir app/pda install --frozen-lockfile
       - run: pnpm generated:all
       - run: |
           pnpm check:static -- --plan .tmp/change-plan.json
@@ -383,7 +389,19 @@ jobs:
   baseline:
     name: Baseline Checks
     if: ${{ always() }}
-    needs: [change-plan, full-confirmation, static, build, unit, component, contract, integration, journey, quick-smoke]
+    needs:
+      [
+        change-plan,
+        full-confirmation,
+        static,
+        build,
+        unit,
+        component,
+        contract,
+        integration,
+        journey,
+        quick-smoke
+      ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

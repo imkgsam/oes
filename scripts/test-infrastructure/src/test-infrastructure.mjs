@@ -3,13 +3,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import { execFileSync } from 'node:child_process'
 
-export const TEST_TYPES = Object.freeze([
-  'unit',
-  'component',
-  'contract',
-  'integration',
-  'journey'
-])
+export const TEST_TYPES = Object.freeze(['unit', 'component', 'contract', 'integration', 'journey'])
 
 /** Selects the mature package-native scripts used by each orchestration lane. */
 export function packageScriptsForKind(record, kind) {
@@ -26,8 +20,30 @@ export function packageScriptsForKind(record, kind) {
     .sort()
 }
 
-const canonicalTestPattern = /\.(unit|component|contract|integration|journey)\.spec\.(?:c|m)?(?:j|t)sx?$/
-const ordinaryTestPattern = /\.(?:spec|test)\.(?:c|m)?(?:j|t)sx?$/
+/** Resolves the concrete service owners needed by selected cross-service Journey families. */
+export function integrationOwnersForTests(tests, relationships) {
+  const owners = new Set()
+  for (const test of tests) {
+    if (test.type !== 'journey') {
+      owners.add(test.owner)
+      continue
+    }
+    const families = (relationships.journeyFamilies || []).filter((family) =>
+      (family.journeyGlobs || []).some((glob) => matchesAny(test.path, [glob]))
+    )
+    if (families.length !== 1) {
+      throw new Error(
+        `Journey must match exactly one family: ${test.path}; matches=${families.length}`
+      )
+    }
+    for (const owner of families[0].consumerOwners || []) owners.add(owner)
+  }
+  return [...owners].sort()
+}
+
+const canonicalTestPattern =
+  /\.(unit|component|contract|integration|journey)\.spec\.(?:(?:c|m)?(?:j|t)sx?|kt)$/
+const ordinaryTestPattern = /\.(?:spec|test)\.(?:(?:c|m)?(?:j|t)sx?|kt)$/
 const androidTestPattern = /\/src\/(test|androidTest)\/.*Test\.kt$/
 const ignoredDirectoryNames = new Set([
   '.git',
@@ -312,7 +328,8 @@ export function findWorkspaceRoot(root, directory) {
   let current = resolve(root, directory || '.')
   const repositoryRoot = resolve(root)
   while (current.startsWith(repositoryRoot)) {
-    if (existsSync(join(current, 'pnpm-workspace.yaml'))) return normalizePath(relative(root, current))
+    if (existsSync(join(current, 'pnpm-workspace.yaml')))
+      return normalizePath(relative(root, current))
     if (current === repositoryRoot) break
     current = dirname(current)
   }
@@ -321,6 +338,7 @@ export function findWorkspaceRoot(root, directory) {
 
 /** Ensures a file is present and regular before a CLI consumes it. */
 export function requireFile(path) {
-  if (!existsSync(path) || !statSync(path).isFile()) throw new Error(`Required file is missing: ${path}`)
+  if (!existsSync(path) || !statSync(path).isFile())
+    throw new Error(`Required file is missing: ${path}`)
   return path
 }

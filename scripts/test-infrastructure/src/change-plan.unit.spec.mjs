@@ -4,8 +4,18 @@ import { changedLockfileImporters, createChangePlan } from './change-plan.mjs'
 
 const packages = [
   { directory: 'packages/common', name: 'common', dependencies: {}, scripts: {} },
-  { directory: 'packages/service', name: 'service', dependencies: { common: 'workspace:*' }, scripts: {} },
-  { directory: 'packages/consumer', name: 'consumer', dependencies: { service: 'workspace:*' }, scripts: {} },
+  {
+    directory: 'packages/service',
+    name: 'service',
+    dependencies: { common: 'workspace:*' },
+    scripts: {}
+  },
+  {
+    directory: 'packages/consumer',
+    name: 'consumer',
+    dependencies: { service: 'workspace:*' },
+    scripts: {}
+  },
   { directory: '', name: 'root', dependencies: {}, scripts: {} }
 ]
 const files = [
@@ -59,7 +69,10 @@ test('rename and delete use the complete two-sided diff and select the renamed t
 
 test('shared library changes expand through all transitive consumers', () => {
   const result = plan([{ status: 'M', path: 'packages/common/src/value.ts' }])
-  assert.deepEqual(result.owners.map((owner) => owner.name), ['common', 'consumer', 'service'])
+  assert.deepEqual(
+    result.owners.map((owner) => owner.name),
+    ['common', 'consumer', 'service']
+  )
   assert.equal(result.selectedTestCount, 4)
 })
 
@@ -159,4 +172,89 @@ test('duplicate package identities block an ambiguous workspace graph', () => {
   assert.equal(duplicate.mode, 'FULL')
   assert.equal(duplicate.planningBlocked, true)
   assert.match(duplicate.reasons[0], /DUPLICATE_PACKAGE_NAME common/u)
+})
+
+test('five production risk families each select one unique executable Journey with no gap', () => {
+  const journeyFiles = [
+    'tests/cross-service/web-login-authorization.journey.spec.ts',
+    'tests/cross-service/pda-login-device-admission.journey.spec.kt',
+    'tests/cross-service/task-notification.journey.spec.ts',
+    'tests/cross-service/site-publish-public-view.journey.spec.ts',
+    'tests/cross-service/public-business-card.journey.spec.ts'
+  ]
+  const cases = [
+    ['src/services/api-gateway/src/login.ts', 'api-gateway', 'web-login', journeyFiles[0], 'auth'],
+    ['app/pda/web/src/login.ts', '@oes/pda-web', 'pda-login', journeyFiles[1], 'device-admission'],
+    [
+      'src/services/system/collaboration-service/src/task.ts',
+      'collaboration-service',
+      'task-notification',
+      journeyFiles[2],
+      'nats'
+    ],
+    [
+      'src/services/system/asset-service/src/media.ts',
+      'asset-service',
+      'site-publish',
+      journeyFiles[3],
+      'asset'
+    ],
+    [
+      'src/services/system/public-entry-service/src/card.ts',
+      'public-entry-service',
+      'public-card',
+      journeyFiles[4],
+      'short-link'
+    ]
+  ]
+  const familyPackages = [
+    { directory: 'src/services/api-gateway', name: 'api-gateway', dependencies: {}, scripts: {} },
+    { directory: 'app/pda/web', name: '@oes/pda-web', dependencies: {}, scripts: {} },
+    {
+      directory: 'src/services/system/collaboration-service',
+      name: 'collaboration-service',
+      dependencies: {},
+      scripts: {}
+    },
+    {
+      directory: 'src/services/system/asset-service',
+      name: 'asset-service',
+      dependencies: {},
+      scripts: {}
+    },
+    {
+      directory: 'src/services/system/public-entry-service',
+      name: 'public-entry-service',
+      dependencies: {},
+      scripts: {}
+    },
+    { directory: '', name: 'root', dependencies: {}, scripts: {} }
+  ]
+  const familyRelationships = {
+    schemaVersion: 1,
+    implicitContracts: [],
+    sharedResources: [],
+    journeyFamilies: cases.map(([trigger, owner, id, journey, risk]) => ({
+      id,
+      triggers: [trigger.replace(/\/[^/]+$/u, '/**')],
+      consumerOwners: [owner],
+      journeyGlobs: [journey],
+      riskTags: [risk]
+    }))
+  }
+
+  for (const [changedPath, _owner, _id, journey, risk] of cases) {
+    const result = createChangePlan({
+      root: process.cwd(),
+      base: 'a'.repeat(40),
+      head: 'b'.repeat(40),
+      changes: [{ status: 'M', path: changedPath }],
+      files: journeyFiles,
+      packages: familyPackages,
+      relationships: familyRelationships
+    })
+    assert.deepEqual(result.selectedTests.journey, [journey])
+    assert.deepEqual(result.journeyGaps, [])
+    assert.ok(result.risks.includes(risk))
+  }
 })

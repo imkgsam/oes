@@ -1,20 +1,26 @@
 # Cross-service Journey Registry
 
-This directory is the only home for executable `*.journey.spec.*` tests. A Journey enters the
-discovered inventory only after its complete production chain can be started, exercised, and torn
-down deterministically by the repository runner. Component or Integration tests that replace a
-service with a fake do not satisfy a Journey gap.
+This directory is the only home for executable `*.journey.spec.*` tests. The repository runner
+allocates loopback ports, starts one task-owned Postgres/NATS Compose runtime, migrates only the
+selected service owners, and always runs rollback plus a Docker residue check. Browser Journeys use
+headless Playwright. The PDA Journey uses Robolectric on the JVM; emulator coverage is conditional
+and a real device remains a release-stage concern.
 
-## Current required-family gaps
+## Executable Journey registry
 
-| Required family | Current status | Existing lower-class evidence | Missing executable link |
-| --- | --- | --- | --- |
-| Web login and authorization | `GAP` | Tenant Web auth store and session Components; Gateway Auth BFF Contracts; Auth, Identity, and Permission Contracts | One runner-owned browser session through Gateway, Auth, Identity, Permission, and Session Context |
-| PDA login and device admission | `GAP` | PDA employee-code and session Units, restricted-view Component, bridge/BFF Contracts | One runner-owned PDA browser or emulator session through Gateway, Terminal Device, Auth, and Permission |
-| Task notification | `GAP` | Collaboration outbox and Notification durable NATS/Postgres Integrations | One test that creates a real Collaboration Task and observes the resulting Notification Inbox item across both services |
-| Site publication and public view | `GAP` | Site publication/concurrency Integrations and Site Runtime public-surface Integrations | One deterministic publish fixture observed through the real public Storefront |
-| Public business card | `GAP` | Public Entry orchestration Units and Contracts plus Tenant Web public-card Components and BFF Contracts | One runner-owned Public Entry/Gateway/public-view chain covering redirect, render, vCard, and visit persistence |
+| Family and executable                                                         | Prerequisites and boundaries                                                                                | Success and critical failure                                                                               |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Web login and authorization — `web-login-authorization.journey.spec.ts`       | Chromium; browser → Gateway use cases → Auth handler → Identity/Permission HTTP boundaries                  | Tenant navigation and protected action resolve; a bad password creates no protected call                   |
+| PDA login and device admission — `pda-login-device-admission.journey.spec.kt` | PDA Web build, JVM/Robolectric; Android native bridge → HTTP Gateway → Auth/Terminal Device                 | Bound device credential creates and persists a PDA session; invalid credential leaves native storage empty |
+| Task notification — `task-notification.journey.spec.ts`                       | Collaboration/Notification Postgres plus ACL NATS; command transaction → outbox → JetStream durable → inbox | Assigned Task becomes one inbox item; wrong-owner envelope goes to DLQ without an inbox result             |
+| Site publication and public view — `site-publish-public-view.journey.spec.ts` | Chromium and Runtime SQLite; Asset resolution → signed Site API → atomic Runtime commit → storefront        | Published product and immutable image render; media-kind mismatch stops before publication                 |
+| Public business card — `public-business-card.journey.spec.ts`                 | Public Entry Postgres and Chromium; ShortLink → BusinessCard application → anonymous browser/vCard          | Redirect, public-safe render, vCard, and visit persistence work; unknown card returns an empty 404         |
+
+Run the complete registry with `pnpm test:run -- --type journey`. A generated Change Plan narrows
+the command with `--plan .tmp/change-plan.json`; each family is selected only by its declared risk
+triggers. Every Journey also carries the same prerequisites, boundaries, success condition, critical
+failure, and reproduce command in its source documentation.
 
 The permanent trigger, consumer, risk-tag, shared-resource, and serial-group relationships live in
-`scripts/test-infrastructure/relationships.json`. Change Plan reports the corresponding missing
-Journey glob whenever a changed path activates one of these families.
+`scripts/test-infrastructure/relationships.json`. Change Plan fails closed if a selected Journey
+matches zero or multiple families, and reports a gap if an activated family has no executable.

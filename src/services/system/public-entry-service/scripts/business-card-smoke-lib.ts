@@ -17,6 +17,20 @@ import { PrismaShortLinkRepository } from '../src/infrastructure/repositories/pr
 
 export type BusinessCardSmokeSeed = ReturnType<typeof createBusinessCardSmokeSeed>
 
+export interface BusinessCardSmokePublicBoundary {
+  readonly businessCardId: string
+  readonly shortCode: string
+  renderPublicCard(businessCardId?: string): Promise<any>
+  resolveVisit(input: {
+    shortCode?: string
+    userAgent?: string
+    ipAddress?: string
+    acceptLanguage?: string
+    referrer?: string
+  }): Promise<any>
+  generateVCard(businessCardId?: string): Promise<any>
+}
+
 // createBusinessCardSmokeSeed builds deterministic tenant, employee, and upstream values for one isolated smoke run.
 export function createBusinessCardSmokeSeed(timestamp = Date.now()) {
   const suffix = String(timestamp)
@@ -52,7 +66,10 @@ export function createBusinessCardSmokeSeed(timestamp = Date.now()) {
 }
 
 // runBusinessCardSmokeFlow executes the Phase 1 BusinessCard loop against the service-owned database.
-export async function runBusinessCardSmokeFlow(seed: BusinessCardSmokeSeed) {
+export async function runBusinessCardSmokeFlow(
+  seed: BusinessCardSmokeSeed,
+  exercisePublicBoundary?: (boundary: BusinessCardSmokePublicBoundary) => Promise<void>
+) {
   const previousRenderBaseUrl = process.env.PUBLIC_ENTRY_PUBLIC_RENDER_BASE_URL
   const prisma = new PrismaService()
   process.env.PUBLIC_ENTRY_PUBLIC_RENDER_BASE_URL = seed.publicRenderBaseUrl
@@ -184,6 +201,34 @@ export async function runBusinessCardSmokeFlow(seed: BusinessCardSmokeSeed) {
       orderBy: { createdAt: 'asc' }
     })
 
+    await exercisePublicBoundary?.({
+      businessCardId: ensured.businessCard.businessCardId,
+      shortCode,
+      renderPublicCard: (businessCardId = ensured.businessCard.businessCardId) =>
+        businessCardService.renderPublicCard({
+          tenantId: seed.tenantId,
+          businessCardId,
+          traceId: seed.operatorContext.traceId
+        }),
+      resolveVisit: (input) =>
+        redirectService.resolveVisit({
+          shortCode: input.shortCode ?? shortCode,
+          requestContext: {
+            userAgent: input.userAgent,
+            ipAddress: input.ipAddress,
+            acceptLanguage: input.acceptLanguage,
+            referrer: input.referrer,
+            traceId: seed.operatorContext.traceId
+          }
+        }),
+      generateVCard: (businessCardId = ensured.businessCard.businessCardId) =>
+        businessCardService.generateVCard({
+          tenantId: seed.tenantId,
+          businessCardId,
+          traceId: seed.operatorContext.traceId
+        })
+    })
+
     return {
       businessCard: detail.businessCard,
       publicRender,
@@ -217,6 +262,28 @@ function createEmployeePort(seed: BusinessCardSmokeSeed): BusinessCardEmployeePo
     title: seed.employee.title,
     department: seed.employee.department,
     officialPhotoUrl: seed.employee.officialPhotoUrl,
+    contactValues: [
+      {
+        contactActionType: 'CALL_PHONE' as const,
+        targetRefType: 'CONTACT_ASSET' as const,
+        targetRefId: seed.contactAssets.phoneAssetId,
+        contactAssetKind: 'WORK_PHONE' as const,
+        displayValue: seed.contactAssets.phone,
+        actionUrl: `tel:${seed.contactAssets.phone.replace(/[^\d+]/g, '')}`,
+        available: true,
+        includeInVCardAllowed: true
+      },
+      {
+        contactActionType: 'SEND_EMAIL' as const,
+        targetRefType: 'CONTACT_ASSET' as const,
+        targetRefId: seed.contactAssets.emailAssetId,
+        contactAssetKind: 'WORK_EMAIL' as const,
+        displayValue: seed.contactAssets.email,
+        actionUrl: `mailto:${seed.contactAssets.email}`,
+        available: true,
+        includeInVCardAllowed: true
+      }
+    ],
     status: 'ACTIVE' as const
   }
   return {

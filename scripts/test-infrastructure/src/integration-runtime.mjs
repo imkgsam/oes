@@ -17,7 +17,8 @@ function run(command, args, options = {}) {
   if (result.stderr) process.stderr.write(result.stderr)
   process.stdout.write(`RUNTIME_EXIT status=${result.status ?? 'spawn-error'}\n`)
   if (result.error) throw result.error
-  if (result.status !== 0) throw new Error(`Runtime command failed: ${command} exit=${result.status}`)
+  if (result.status !== 0)
+    throw new Error(`Runtime command failed: ${command} exit=${result.status}`)
   return result.stdout.trim()
 }
 
@@ -57,31 +58,31 @@ export function integrationEnvironmentForOwner({
   ownerName
 }) {
   const service = serviceMap.get(ownerName)
-  const databaseUrl = service
-    ? serviceDatabaseUrl(context, service, postgresPort)
-    : undefined
+  const databaseUrl = service ? serviceDatabaseUrl(context, service, postgresPort) : undefined
   const natsEnvironment =
     ownerName === 'collaboration-service'
       ? nats.collaboration
       : ownerName === 'notification-service'
         ? nats.notification
         : nats.default
+  const namedDatabaseKey = databaseUrl
+    ? `${ownerName
+        .replace(/-service$/u, '')
+        .replace(/[^a-zA-Z0-9]/g, '_')
+        .toUpperCase()}_DATABASE_URL`
+    : undefined
   return {
     NODE_ENV: 'test',
     ...(databaseUrl
       ? {
           DATABASE_URL: databaseUrl,
           OES_INTEGRATION_DATABASE_URL: databaseUrl,
-          COLLABORATION_DATABASE_URL: databaseUrl
+          [namedDatabaseKey]: databaseUrl
         }
       : {}),
     ...natsEnvironment,
-    ...(ownerName === 'collaboration-service'
-      ? { ...trust, EVENT_BUS_LIVE: 'true' }
-      : {}),
-    ...(ownerName === 'notification-service'
-      ? { NOTIFICATION_EVENT_LIVE_TEST: 'true' }
-      : {}),
+    ...(ownerName === 'collaboration-service' ? { ...trust, EVENT_BUS_LIVE: 'true' } : {}),
+    ...(ownerName === 'notification-service' ? { NOTIFICATION_EVENT_LIVE_TEST: 'true' } : {}),
     NOTIFICATION_DELIVERY_PAYLOAD_KEY: crypto
       .createHash('sha256')
       .update(`oes-integration:${context.taskKey}:${ownerName}`)
@@ -171,7 +172,8 @@ function bootstrapTaskTrust(context, root) {
     OES_WORKLOAD_SPIFFE_ID: 'spiffe://local.oes.internal/ns/oes/sa/collaboration-service'
   }
   for (const key of ['OES_GRPC_TLS_CA_PATH', 'OES_GRPC_TLS_CERT_PATH', 'OES_GRPC_TLS_KEY_PATH']) {
-    if (!fs.existsSync(environment[key])) throw new Error(`INTEGRATION_TRUST_MATERIAL_MISSING key=${key}`)
+    if (!fs.existsSync(environment[key]))
+      throw new Error(`INTEGRATION_TRUST_MATERIAL_MISSING key=${key}`)
   }
   return environment
 }
@@ -193,11 +195,19 @@ function assertNoResidue(root, taskKey, stateDirectory) {
 }
 
 /** Runs selected integration groups against one isolated, ready, migrated runtime and always tears it down. */
-export async function withIntegrationRuntime({ root, ownerNames, runTests, taskKey, adapters = {} }) {
+export async function withIntegrationRuntime({
+  root,
+  ownerNames,
+  runTests,
+  taskKey,
+  adapters = {}
+}) {
   const execute = adapters.run || run
   const loadContext = adapters.loadDatabaseContext || loadDatabaseContext
-  const readState = adapters.readState || ((context) =>
-    JSON.parse(fs.readFileSync(path.join(context.stateDirectory, 'state.json'), 'utf8')))
+  const readState =
+    adapters.readState ||
+    ((context) =>
+      JSON.parse(fs.readFileSync(path.join(context.stateDirectory, 'state.json'), 'utf8')))
   const loadNats = adapters.loadNatsEnvironment || loadNatsEnvironment
   const bootstrapTrust = adapters.bootstrapTaskTrust || bootstrapTaskTrust
   const checkResidue = adapters.assertNoResidue || assertNoResidue
@@ -222,7 +232,12 @@ export async function withIntegrationRuntime({ root, ownerNames, runTests, taskK
     if (selectedServices.length) {
       execute(
         'pnpm',
-        ['db:migrate', '--', '--services', selectedServices.map((service) => service.name).join(',')],
+        [
+          'db:migrate',
+          '--',
+          '--services',
+          selectedServices.map((service) => service.name).join(',')
+        ],
         { cwd: root }
       )
     }
@@ -231,9 +246,7 @@ export async function withIntegrationRuntime({ root, ownerNames, runTests, taskK
       throw new Error('INTEGRATION_POSTGRES_PORT_INVALID')
     }
     const nats = loadNats(context, root)
-    const trust = ownerNames.includes('collaboration-service')
-      ? bootstrapTrust(context, root)
-      : {}
+    const trust = ownerNames.includes('collaboration-service') ? bootstrapTrust(context, root) : {}
     const environmentForOwner = (ownerName) =>
       integrationEnvironmentForOwner({
         context,

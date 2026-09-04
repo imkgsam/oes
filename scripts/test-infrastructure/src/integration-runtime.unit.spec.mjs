@@ -48,9 +48,12 @@ test('integration runtime selects service inventory, enables live tests, and alw
         assert.equal(collaboration.EVENT_BUS_LIVE, 'true')
         assert.equal(collaboration.NATS_USER, 'collaboration')
         assert.match(collaboration.DATABASE_URL, /\/collaboration_test\?schema=public$/u)
+        assert.equal(collaboration.COLLABORATION_DATABASE_URL, collaboration.DATABASE_URL)
         assert.equal(notification.NOTIFICATION_EVENT_LIVE_TEST, 'true')
         assert.equal(notification.NATS_USER, 'notification')
         assert.match(notification.DATABASE_URL, /\/notification_test\?schema=public$/u)
+        assert.equal(notification.NOTIFICATION_DATABASE_URL, notification.DATABASE_URL)
+        assert.equal(notification.COLLABORATION_DATABASE_URL, undefined)
         throw failure
       },
       adapters: {

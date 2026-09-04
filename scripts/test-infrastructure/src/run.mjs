@@ -7,6 +7,7 @@ import {
   discoverTests,
   findOwner,
   findWorkspaceRoot,
+  integrationOwnersForTests,
   matchesAny,
   readJson,
   TEST_TYPES
@@ -27,6 +28,10 @@ function parseArguments(argv) {
 
 /** Finds an executable Gradle wrapper above an Android-native test. */
 function findGradleRoot(root, path) {
+  if (path.startsWith('tests/cross-service/') && path.endsWith('.kt')) {
+    const pdaRoot = resolve(root, 'app/pda/android')
+    if (existsSync(resolve(pdaRoot, 'gradlew'))) return pdaRoot
+  }
   let current = resolve(root, dirname(path))
   while (current.startsWith(root)) {
     if (existsSync(resolve(current, 'gradlew'))) return current
@@ -38,7 +43,7 @@ function findGradleRoot(root, path) {
 
 /** Chooses the mature package-native runner from package declarations and file syntax. */
 function classifyRunner(root, test, packages) {
-  if (test.path.endsWith('Test.kt')) {
+  if (test.path.endsWith('Test.kt') || test.path.endsWith('.spec.kt')) {
     const cwd = findGradleRoot(root, test.path)
     if (!cwd) throw new Error(`No Gradle wrapper owns ${test.path}`)
     return { kind: 'gradle', cwd, key: `gradle:${cwd}` }
@@ -48,7 +53,10 @@ function classifyRunner(root, test, packages) {
   const workspaceOwner = packages.find((record) => record.directory === workspaceDirectory)
   const dependencies = { ...(workspaceOwner?.dependencies || {}), ...(owner?.dependencies || {}) }
   const source = readFileSync(resolve(root, test.path), 'utf8')
-  if (test.type === 'journey' && (dependencies['@playwright/test'] || /@playwright\/test/.test(source))) {
+  if (
+    test.type === 'journey' &&
+    (dependencies['@playwright/test'] || /@playwright\/test/.test(source))
+  ) {
     const cwd = resolve(root, workspaceDirectory || owner?.directory || '.')
     return { kind: 'playwright', cwd, key: `playwright:${cwd}` }
   }
@@ -65,16 +73,18 @@ function classifyRunner(root, test, packages) {
 
 /** Converts one runner group into its exact executable and arguments. */
 function commandForGroup(root, group) {
-  const relativePaths = group.tests.map((test) => relative(group.runner.cwd, resolve(root, test.path)))
+  const relativePaths = group.tests.map((test) =>
+    relative(group.runner.cwd, resolve(root, test.path))
+  )
   switch (group.runner.kind) {
     case 'node':
       return {
         command: process.execPath,
         args: [
-          ...(group.tests.some((test) => test.path.endsWith('.ts')) ? ['--experimental-strip-types'] : []),
-          ...(group.tests.some((test) => test.type === 'journey')
-            ? ['--test-timeout=300000']
+          ...(group.tests.some((test) => test.path.endsWith('.ts'))
+            ? ['--experimental-strip-types']
             : []),
+          ...(group.tests.some((test) => test.type === 'journey') ? ['--test-timeout=300000'] : []),
           '--test',
           ...group.tests.map((test) => test.path)
         ]
@@ -98,13 +108,23 @@ function commandForGroup(root, group) {
         args: ['exec', 'playwright', 'test', '--timeout=300000', ...relativePaths]
       }
     case 'gradle':
-      return { command: './gradlew', args: ['test', '--no-daemon'] }
+      return {
+        command: './gradlew',
+        args: [
+          ':app:testDebugUnitTest',
+          '--no-daemon',
+          ...group.tests.flatMap((test) => ['--tests', gradleTestClass(root, test.path)])
+        ]
+      }
     default:
       return {
         command: 'pnpm',
         args: [
           'exec',
           'jest',
+          ...(group.tests.every((test) => test.owner === 'cross-service')
+            ? ['--config', resolve(root, 'tests/cross-service/jest.config.cjs')]
+            : []),
           '--runInBand',
           ...(group.tests.some((test) => test.type === 'journey')
             ? ['--testTimeout', '300000']
@@ -118,11 +138,35 @@ function commandForGroup(root, group) {
   }
 }
 
+/** Resolves the package and first declared class for a focused JVM Journey filter. */
+function gradleTestClass(root, testPath) {
+  const source = readFileSync(resolve(root, testPath), 'utf8')
+  const packageName = source.match(/^\s*package\s+([\w.]+)/mu)?.[1]
+  const className = source.match(/^\s*class\s+(\w+)/mu)?.[1]
+  if (!packageName || !className) throw new Error(`No JVM test class found in ${testPath}`)
+  return `${packageName}.${className}`
+}
+
 /** Assigns proven shared-resource conflicts to one serial execution group. */
 function serialGroupFor(test, relationships) {
   return (relationships.sharedResources || []).find((resource) =>
     matchesAny(test.path, resource.triggers)
   )?.serialGroup
+}
+
+/** Merges owner-specific URLs and credentials without assigning an ambiguous generic database. */
+function environmentForRunnerGroup(environmentForOwner, tests, relationships) {
+  const ownerNames = integrationOwnersForTests(tests, relationships)
+  const merged = {}
+  for (const ownerName of ownerNames) {
+    const ownerEnvironment = { ...environmentForOwner(ownerName) }
+    if (tests[0]?.type === 'journey' && ownerNames.length > 1) {
+      delete ownerEnvironment.DATABASE_URL
+      delete ownerEnvironment.OES_INTEGRATION_DATABASE_URL
+    }
+    Object.assign(merged, ownerEnvironment)
+  }
+  return merged
 }
 
 /** Runs one process while preserving its literal output and exit status. */
@@ -157,7 +201,9 @@ if (args.plan) {
   const plan = JSON.parse(readFileSync(resolve(args.plan), 'utf8'))
   paths = plan.selectedTests[type] || []
 } else paths = discovery.tests.filter((test) => test.type === type).map((test) => test.path)
-const selected = paths.map((path) => discovery.tests.find((test) => test.path === path)).filter(Boolean)
+const selected = paths
+  .map((path) => discovery.tests.find((test) => test.path === path))
+  .filter(Boolean)
 
 if (!selected.length) {
   console.log(`TEST_RUN=PASS type=${type} selected=0`)
@@ -172,14 +218,11 @@ for (const test of selected) {
   if (!groups.has(key)) groups.set(key, { runner, tests: [] })
   groups.get(key).tests.push(test)
 }
-for (const group of groups.values()) group.tests.sort((left, right) => left.path.localeCompare(right.path))
+for (const group of groups.values())
+  group.tests.sort((left, right) => left.path.localeCompare(right.path))
 
 const runId = process.env.OES_TEST_RUN_ID || `${Date.now()}_${process.pid}`
-const taskKey = resolveIntegrationTaskKey(
-  root,
-  process.env.OES_CI_TASK_KEY,
-  `test_${runId}`
-)
+const taskKey = resolveIntegrationTaskKey(root, process.env.OES_CI_TASK_KEY, `test_${runId}`)
 const environment = {
   ...process.env,
   OES_TEST_RUN_ID: runId,
@@ -201,10 +244,20 @@ async function runGroups(environmentForOwner = () => ({})) {
       }
       for (const runnerGroup of runnerGroups.values()) {
         const command = commandForGroup(root, runnerGroup)
-        const owner = runnerGroup.tests[0].owner
         const testEnvironment = {
           ...environment,
-          ...environmentForOwner(owner)
+          OES_REPOSITORY_ROOT: root,
+          ...environmentForRunnerGroup(environmentForOwner, runnerGroup.tests, relationships)
+        }
+        if (runnerGroup.runner.kind === 'gradle') {
+          const pdaBuild = await execute('pnpm', ['--dir', 'app/pda', 'build:web'], {
+            cwd: root,
+            env: testEnvironment
+          })
+          if (pdaBuild !== 0) {
+            status = pdaBuild
+            continue
+          }
         }
         const current = await execute(command.command, command.args, {
           cwd: runnerGroup.runner.cwd,
@@ -218,14 +271,16 @@ async function runGroups(environmentForOwner = () => ({})) {
 }
 
 const statuses =
-  type === 'integration'
+  type === 'integration' || type === 'journey'
     ? await withIntegrationRuntime({
         root,
-        ownerNames: selected.map((test) => test.owner),
+        ownerNames: integrationOwnersForTests(selected, relationships),
         taskKey: environment.OES_CI_TASK_KEY,
         runTests: runGroups
       })
     : await runGroups()
 const failures = statuses.filter((status) => status !== 0).length
-console.log(`TEST_RUN=${failures ? 'FAIL' : 'PASS'} type=${type} selected=${selected.length} groups=${groups.size}`)
+console.log(
+  `TEST_RUN=${failures ? 'FAIL' : 'PASS'} type=${type} selected=${selected.length} groups=${groups.size}`
+)
 if (failures) process.exitCode = 1
