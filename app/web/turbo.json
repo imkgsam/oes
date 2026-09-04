@@ -34,7 +34,7 @@
       "dependsOn": ["^build"],
       "outputs": [".nitro/**", ".output/**"]
     },
-    "test:e2e": {},
+    "test:journey": {},
     "dev": {
       "dependsOn": [],
       "outputs": [],

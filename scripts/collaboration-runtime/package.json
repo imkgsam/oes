@@ -1,5 +1,8 @@
 {
   "name": "@oes/collaboration-runtime",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
 }

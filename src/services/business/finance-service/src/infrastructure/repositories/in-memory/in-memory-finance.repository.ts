@@ -54,7 +54,7 @@ import {
 import { FinanceRepository } from '../../../domain/repositories/finance.repository'
 import { FinanceInMemoryStore } from '../../store/finance-in-memory-store'
 
-/** InMemoryFinanceRepository persists the finance phase 1A model inside a plain structured-clone store for L1 tests. */
+/** InMemoryFinanceRepository persists the finance phase 1A model inside a plain structured-clone store for Unit tests. */
 export class InMemoryFinanceRepository implements FinanceRepository {
   constructor(private readonly store: FinanceInMemoryStore) {}
 

@@ -82,7 +82,7 @@ The later implementation target is:
 
 ```text
 src/common/src/contracts/asset_service/events.ts
-src/common/src/contracts/asset_service/events.spec.ts
+src/common/test/contract/contracts/asset_service/events.contract.spec.ts
 ```
 
 It must be owned by `asset-service` and export the frozen event type, business event version, owner identity, `data` payload TypeScript type, `OesCloudEvent<AssetSiteMediaAvailabilityChangedData>` composition and runtime validation descriptor. `src/common/src/contracts/asset_service/index.ts` must re-export it.

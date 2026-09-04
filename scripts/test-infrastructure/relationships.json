@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "journeyFamilies": [
+    {
+      "id": "web-login-authorization",
+      "triggers": [
+        "src/services/api-gateway/**",
+        "src/services/system/auth-service/**",
+        "src/services/system/identity-service/**",
+        "src/services/system/permission-service/**",
+        "app/web/apps/tenant-web/**"
+      ],
+      "consumerOwners": ["api-gateway", "auth-service", "identity-service", "permission-service", "@oes/tenant-web"],
+      "journeyGlobs": ["tests/cross-service/**/web-login*.journey.spec.*"],
+      "riskTags": ["auth", "permission", "tenant", "session-context"]
+    },
+    {
+      "id": "pda-device-admission",
+      "triggers": [
+        "src/services/api-gateway/**",
+        "src/services/system/auth-service/**",
+        "src/services/system/permission-service/**",
+        "src/services/system/terminal-device-service/**",
+        "app/pda/**"
+      ],
+      "consumerOwners": ["api-gateway", "auth-service", "permission-service", "terminal-device-service", "@oes/pda-web"],
+      "journeyGlobs": ["tests/cross-service/**/pda-login*.journey.spec.*"],
+      "riskTags": ["auth", "permission", "device-admission"]
+    },
+    {
+      "id": "task-notification",
+      "triggers": [
+        "src/services/system/collaboration-service/**",
+        "src/services/system/notification-service/**",
+        "src/common/**/*event*",
+        "src/common/**/*nats*"
+      ],
+      "consumerOwners": ["collaboration-service", "notification-service"],
+      "journeyGlobs": ["tests/cross-service/**/task-notification*.journey.spec.*"],
+      "riskTags": ["outbox", "nats", "notification"]
+    },
+    {
+      "id": "site-publish-public-view",
+      "triggers": [
+        "src/services/system/site-service/**",
+        "src/services/system/asset-service/**",
+        "src/site-runtime/**"
+      ],
+      "consumerOwners": ["site-service", "asset-service", "@oes/site-runtime-kit"],
+      "journeyGlobs": ["tests/cross-service/**/site-publish*.journey.spec.*"],
+      "riskTags": ["site-publication", "asset", "public-view"]
+    },
+    {
+      "id": "public-business-card",
+      "triggers": [
+        "src/services/system/public-entry-service/**",
+        "src/services/system/site-service/**",
+        "app/web/**/business-card/**",
+        "src/site-runtime/**/business-card/**"
+      ],
+      "consumerOwners": ["public-entry-service", "site-service", "@oes/tenant-web"],
+      "journeyGlobs": ["tests/cross-service/**/public-business-card*.journey.spec.*"],
+      "riskTags": ["public-entry", "short-link", "vcard", "visit"]
+    }
+  ],
+  "implicitContracts": [
+    {
+      "id": "global-proto-event-envelope",
+      "triggers": [
+        "src/common/src/contracts/**/*envelope*",
+        "src/common/src/contracts/**/*event*",
+        "src/common/src/contracts/**/*trust*"
+      ],
+      "consumerOwners": [],
+      "riskTags": ["global-contract"],
+      "fullRequired": true
+    }
+  ],
+  "sharedResources": [
+    {
+      "id": "collaboration-notification-nats",
+      "triggers": [
+        "src/services/system/collaboration-service/**/*.integration.spec.*",
+        "src/services/system/notification-service/**/*.integration.spec.*"
+      ],
+      "serialGroup": "collaboration-notification-nats"
+    }
+  ]
+}

@@ -3,7 +3,7 @@ import { ReceiptRepository } from '../../../domain/repositories/receipt.reposito
 import { normalizeOptionalString, normalizePageInput, paginate } from '../../../application/support/wms-assertions'
 import { WmsInMemoryStore } from '../../store/wms-in-memory-store'
 
-/** InMemoryReceiptRepository provides deterministic receipt persistence for WMS L1 tests. */
+/** InMemoryReceiptRepository provides deterministic receipt persistence for WMS Unit tests. */
 export class InMemoryReceiptRepository implements ReceiptRepository {
   constructor(private readonly store: WmsInMemoryStore) {}
 

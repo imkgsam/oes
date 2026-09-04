@@ -282,9 +282,9 @@ pnpm --filter @oes/browser-extension test:unit
 pnpm --filter @oes/browser-extension typecheck
 pnpm --filter @oes/browser-extension build
 pnpm --filter api-gateway test
-pnpm --filter crm-service test:l1
-pnpm --filter crm-service test:l3
-pnpm --filter permission-service test:l1
+pnpm --filter crm-service test:unit
+pnpm --filter crm-service test:contract
+pnpm --filter permission-service test:unit
 pnpm proto:lint
 ```
 

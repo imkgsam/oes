@@ -8,7 +8,7 @@
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "test": "jest --config jest.config.js --runInBand",
+    "test": "pnpm run test:unit && pnpm run test:component && pnpm run test:contract && pnpm run test:integration",
     "build": "tsc -b",
     "dev:build": "tsc -b -w --preserveWatchOutput",
     "dev:start": "wait-on dist/main.js ../../../common/dist/index.js && nodemon --watch dist --watch ../../../common/dist --ext js,json --signal SIGTERM dist/main.js",
@@ -16,7 +16,11 @@
     "start": "node dist/main.js",
     "prisma:generate": "npx prisma generate --schema=./prisma/schema.prisma",
     "prisma:push": "npx prisma db push --schema=./prisma/schema.prisma",
-    "prisma:migrate:deploy": "prisma migrate deploy --schema=./prisma/schema.prisma"
+    "prisma:migrate:deploy": "prisma migrate deploy --schema=./prisma/schema.prisma",
+    "test:unit": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.unit\\.spec\\.ts$'",
+    "test:component": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.component\\.spec\\.ts$'",
+    "test:contract": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.contract\\.spec\\.ts$'",
+    "test:integration": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.integration\\.spec\\.ts$'"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

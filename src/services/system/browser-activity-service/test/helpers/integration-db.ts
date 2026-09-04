@@ -15,7 +15,7 @@ function parseEnvValue(raw: string): string {
   return trimmed
 }
 
-// ensureIntegrationDatabaseUrl loads browser-activity-service DATABASE_URL for L2 persistence tests.
+// ensureIntegrationDatabaseUrl loads browser-activity-service DATABASE_URL for Integration persistence tests.
 export function ensureIntegrationDatabaseUrl(): string {
   if (process.env.DATABASE_URL?.trim()) {
     return process.env.DATABASE_URL
@@ -47,13 +47,13 @@ export async function createPrismaForIntegration(): Promise<PrismaService> {
     return prisma
   } catch {
     await prisma.$disconnect().catch(() => undefined)
-    throw new Error('L2 integration tests require a reachable browser-activity-service PostgreSQL database')
+    throw new Error('Integration integration tests require a reachable browser-activity-service PostgreSQL database')
   }
 }
 
 // createTestPrefix returns a unique string for isolating integration test records.
 export function createTestPrefix(): string {
-  return `ba_l2_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  return `ba_integration_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
 
 // cleanupByPrefix deletes integration test records without touching unrelated service data.

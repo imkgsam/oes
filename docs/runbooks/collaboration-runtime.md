@@ -42,13 +42,37 @@ On interruption, rerun the same binding. A matched mutation resumes verification
 - Before each Stage item, run `stage-merge-plan --authorization CARD --results CURRENT_RESULTS --technical-revisions REVISIONS --repository-root REPOSITORY` and execute only `nextItem`. A `MERGED_VERIFIED` prefix is accepted only after live GitHub PR/head/merge-parent/main-ancestry/`Baseline Checks` readback. The first item's Merge Commit first parent must equal its authorized integration base (or the trusted revision's latest main); every later first parent must equal the immediately preceding verified merge SHA, while the second parent must equal that item's effective head. Append one exact result and plan again. `STOPPED_FAILURE` preserves `healthyPrefix` and prohibits `blockedSuffix`. If main moved, use `stage-merge-revision --repository-root REPOSITORY`; the runtime reads current remote main, both Git diffs, the refreshed PR head and its latest `Baseline Checks` itself. The refreshed head must be a descendant of both latest main and the previous feature head, so only append-only merging of main is accepted; rebase/history rewrite is not a technical refresh. Any ancestry/patch/content/scope/risk/set mismatch invalidates the remaining card instead of producing a revision.
 - At each task creation, the creating parent preserves the task-native creation receipt in `OES_STAGE_LIFECYCLE_ROSTER_AUTHORITY` beneath the installed profile's owner-read-only authorization root. When cleanup intent is detected, a task-native transport queries the complete parent/child/state roster and writes `OES_STAGE_LIFECYCLE_INVENTORY` beneath that root. `stage-lifecycle-plan` now requires `--profile-report`, the protected current Stage cleanup `--authorization`, and trusted references for `--roster-authority` and `--inventory`; caller-authored JSON has no planner entry. Every receipt binds the exact Stage cleanup authorization fingerprint and transition. Missing/extra/reparented tasks, incomplete topology, or truncated readback fail before archive. After each returned `ARCHIVE` tier is executed with the task archive API, the task-native transport writes one inventory-bound `OES_STAGE_ARCHIVE_RESULT_SET` beneath the same root; `--prior-results` accepts only its trusted reference. The planner advances IT/Feature RI → FL → Stage Design → Stage RI → SL, retries only the failed tier, and excludes Global UD.
 
-## 4. CI optimized-shadow rollout
+## 4. Authoritative CI operation
 
-`CI` stays the sole authoritative workflow and `Baseline Checks` stays its required aggregate. `CI Optimized Shadow` is non-required and performs no GitHub mutation. Both workflows emit ordinary 30-day artifacts. Pair only equal workload fingerprints on the exact accepted source/result; execution mode and topology belong only to the execution fingerprint.
+`CI / Baseline Checks` is the sole required aggregate. The Change Plan always runs and reports one of
+`DOCS`, `SCOPED`, `FULL`, or `FULL_REQUIRED`. The detailed selection contract is defined by
+[Testing And CI](../architecture/platforms/testing-and-ci.md).
 
-The shadow PR prepare job installs from the frozen lockfile, generates and builds once, then seals the exact service/common `dist`, common generated-contract, and Prisma-client roots; the artifact SHA-256 is part of the execution fingerprint. The 21 byte-identical Prisma native engines are verified against one digest, stored once with an exact target manifest, and restored as verified hard links (or same-digest cross-device copies), rather than transferred 21 times. Unit uses one job, one install, and one artifact restore, then executes two deterministic weighted shards concurrently inside that runner. L2 likewise uses one job and one exact artifact restore, starts one task-owned Postgres/NATS lifecycle plus the one-shot bootstrap, migrates the complete selected database inventory once, and executes three weighted package batches concurrently behind that shared lifecycle. Packages sharing live NATS subjects/durables (`collaboration-service` and `notification-service`) are one serial conflict group and can never occupy sibling lanes. The runner does not start the advisory monitor, uses a bounded 30-second integration-hook timeout, waits for every batch before cleanup, and always checks removal of its containers, volumes, and networks. On `push main`, the shadow locates the successful associated PR artifact and proves exact final Merge Commit parents, accepted feature head, base, stable result tree identity, changed paths/risk, lockfile, Node/pnpm/Buf versions, workflow revision, command/test inventories, execution strategy, evidence self-hashes, and artifact digest. PR evidence deliberately binds the synthetic test merge SHA only as its source and binds accepted result identity to the tree, because the final Merge Commit may have different metadata/SHA while retaining the exact parents and tree. A missing or mismatched proof, artifact download failure, or GitHub artifact-query failure runs the complete full fallback in the same main job. The event-aware aggregate rejects any missing, cancelled, failed, or incorrectly skipped result. PR concurrency cancels only an older run for the same PR; main runs have unique groups. Until every governance sample count and threshold passes, shadow output is observation only.
+For a pull request:
 
-The GitHub-readback collector writes the complete `OES_CI_PERFORMANCE_SAMPLE` beneath the installed profile's owner-read-only authorization root and returns an exact path/SHA-256/fingerprint reference. Evaluate it with `node --experimental-strip-types scripts/local/ci-performance-gate.mjs --profile-report PROFILE.json --sample-reference SAMPLE_REFERENCE.json`. Direct sample JSON has no gate entry. Every accepted, superseded, Stage, and authoritative-attempt observation carries a GitHub-readback fingerprint, numeric run/attempt identity, artifact id/digest identity, equal workload fingerprints, distinct control/shadow execution fingerprints and modes, and both job-minute totals. The four collections are run-disjoint and fully summed. Only a protected-provenance `CUTOVER_READY` result satisfying all frozen counts and thresholds may support a later authority change; otherwise legacy remains authoritative.
+1. Resolve the immutable base and candidate SHAs and run the planner.
+2. Upload the deterministic human-readable and JSON plans.
+3. For `DOCS`, run documentation structure, formatting, and link checks.
+4. For `SCOPED`, run the selected owner builds and Unit, Component, Contract, Integration, and Journey
+   groups. Every group consumes the exact plan rather than a caller-authored package list.
+5. For `FULL`, run the complete inventory after Human confirmation when the profile was triggered by
+   the pull-request diff.
+6. Aggregate every planned job. A missing, skipped contrary to plan, cancelled, failed, or residue-
+   bearing result fails `CI / Baseline Checks`.
+
+`FULL_REQUIRED` is an intentional blocked result, not a reduced test profile. Report the reasons,
+owners, selected scope, phases, and estimated cost in the plan artifact. After Human confirmation,
+rerun the exact candidate through an explicit full request. Nightly, manual, and release full runs use
+their pre-authorized trigger semantics and do not add another confirmation.
+
+Integration jobs derive task-owned Postgres/NATS/Compose identity from the workflow run and job. Wait
+for readiness, run the plan, then always perform teardown and residue checks. Keep only proven shared-
+resource conflicts in serial groups; Collaboration/Notification live NATS remains one such group.
+
+On `merge_group`, plan and validate the exact generated combined result. On `push main`, run integrity
+and the five critical quick-smoke families only. A migration-caused smoke failure, missing required
+context, demonstrated selector omission, or unreliable execution prepares a revert of the single
+test/CI migration Merge Commit; remote mutation still requires its own Human confirmation.
 
 ## 5. Stable owner recovery and compatibility
 

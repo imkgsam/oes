@@ -1,0 +1,5 @@
+{
+  "name": "@oes/test-infrastructure",
+  "private": true,
+  "type": "module"
+}

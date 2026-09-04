@@ -366,27 +366,25 @@ main前进本身不使授权失效。无关变化自动集成并复用证据；�
 
 ### 9.4 CI拓扑
 
-required aggregate context保持唯一`Baseline Checks`，且任何事件分层、分片、cache或artifact复用都不得缩减现有validation surface。每个required命令必须被一个非空、可追溯的authoritative shard覆盖；缺失、重复归属、取消、未知选择器、artifact digest不匹配、cleanup residue或aggregate输入不完整都fail closed。
+required aggregate context保持唯一`CI / Baseline Checks`。仓库只保留一个authoritative workflow；Change Plan、条件执行和aggregate都在该workflow内完成。Planner与aggregate对每个适用事件都创建check，禁止用workflow级path filter造成required context长期pending。
 
-CI按远端能力使用两种事件拓扑：
+测试分类、发现、影响选择、环境隔离与关键Journey的稳定规则以[Testing And CI](../architecture/platforms/testing-and-ci.md)为准。CI只接受三个profile：
 
-1. 当前仓库没有active native Merge Queue规则时，`pull_request`是完整authoritative candidate gate；`push main`只执行exact-equivalence/integrity验证和快速smoke。只有main merge commit、两个parent、accepted PR head、validated prospective result tree、workflow/command manifest、lockfile、toolchain与artifact digest全部exact-equivalent时才允许跳过重复full gate；任一证明缺失或不等价时在同一main run fail-closed升级为完整gate。
-2. 未来仓库ruleset明确启用且runtime readback验证native Merge Queue后，`pull_request`只运行focused/affected feedback，`merge_group`对GitHub生成的exact prospective merge result运行authoritative full gate；`push main`继续执行exact-equivalence/integrity与快速smoke。不能证明queue capability或`merge_group` identity时回到第一种拓扑，不以仅PR focused checks放行。
+1. `DOCS`：文档格式、链接和结构；
+2. `SCOPED`：affected static/build，以及Change Plan选出的Unit、Component、Contract、Integration与Journey；
+3. `FULL`：全部static/build、五类测试、关键Journey及适用的security、migration和rollback验证。
 
-authoritative full gate使用受版本控制的deterministic inventory和风险权重并行执行：
+Change Plan读取immutable base/candidate之间的完整Git diff并处理add、modify、delete与rename；结合pnpm workspace反向依赖和版本化跨服务关系表生成changed paths、risk、owners、selected tests与逐项reason。同一base、candidate和rules hash必须得到确定性相同的plan。未知owner、依赖图失败、规则冲突或异常空选择一律返回`FULL_REQUIRED`。
 
-- 一个prepare边界只进行一次frozen lockfile安装、Proto/Prisma generation与build，输出content-addressed、digest-verified、只读build artifact；toolchain、lockfile、generator、build command、workflow或source输入任一变化产生新key，禁止使用宽松restore key把不同输入视为命中；
-- static、Proto compatibility、design-gap、unit、contract与runtime-risk tests按完整inventory分片；L2按历史耗时平衡分片，每个shard使用独立task-owned Postgres/NATS、端口、volume、network与证据目录，并以`always()`验证和清理；
-- cache miss只影响耗时；cache或artifact不可验证时重建或进入legacy full gate，不能转为成功。测试assertion、contract、build或type failure直接失败，不因fallback或retry被遮蔽；
-- `Baseline Checks`只聚合本次authoritative topology声明的全部shards、integrity与cleanup结果，任一required输入缺失、取消或失败即失败；旧完整gate保留为workflow cutover fallback，直到新拓扑、inventory和aggregate在同一candidate上证明等价。
+`pull_request`按plan运行动态profile；`merge_group`验证GitHub生成的exact组合结果；`push main`只运行integrity和quick smoke。release、明确manual full与高风险变更进入`FULL`。nightly scheduler仅在main自上次成功FULL后发生变化且已满七天时运行；相同内容的完整证据可以复用。
 
-`pull_request`使用按PR identity分组的`cancel-in-progress`，新head产生后旧run必须在一分钟内取消；`main`和已admit的`merge_group`不得被无关run取消。CI infrastructure failure只允许same SHA重跑failed job一次；测试结果反转计入flaky rerun而不视为基础设施恢复，重复flaky必须作为阻塞缺陷治理，不允许skip、quarantine或降低assertion代替修复。
+由PR改动触发的`FULL_REQUIRED`必须先报告触发原因、候选范围和预计阶段/成本，并保持aggregate阻塞，Human确认后才启动昂贵FULL。nightly不逐次确认；manual请求本身是确认；已声明FULL的release不重复确认。
 
-以GitHub workflow/check facts和每个run的普通artifact计算性能，不建立repository CI账本或第二状态库。dated baseline与observed result只保存在当前Proposal或implementation verification evidence，不进入canonical Governance。每个观测同时绑定两个相互独立的identity：`workloadFingerprint`只包含changed-path/risk class、Stage PR count/order、适用的accepted source/result identity、command/test inventory、lockfile、toolchain与cache disposition；`executionFingerprint`只包含workflow revision、event topology、`LEGACY_CONTROL`、`OPTIMIZED_SHADOW`或`OPTIMIZED_ACTIVE` mode，以及shard/cache/artifact strategy。workflow、topology或execution mode不进入`workloadFingerprint`；PR与main只通过accepted head和merge parents关联，不能按时间邻近推测配对。
+所有Postgres、NATS、Compose network/port/data与evidence目录按job/run identity隔离，使用固定版本、readiness check、`always()` teardown和residue check。默认并行；只有跨服务关系表中具有已证明冲突的`serialGroup`串行。Browser只使用headless Playwright；Android普通反馈使用JVM/Robolectric，Emulator只在Android相关SCOPED、FULL或release运行，物理设备只用于发布资格验证。
 
-性能cutover前，legacy full gate保持唯一authoritative `Baseline Checks`和唯一merge/main verification授权来源；follow-on implementation candidate只在同一个bound source/result input上运行non-required、无Git/PR/merge mutation的optimized shadow，shadow成功或失败都不能授权merge、替代required context或改变accepted result。一个matched pair或Stage sequence必须具有相同`workloadFingerprint`，并同时具有明确不同且绑定的`LEGACY_CONTROL`与`OPTIMIZED_SHADOW` execution fingerprints；任一侧缺失即为unpaired且不计入达标样本。cutover sample从第一个完整paired shadow observation开始连续收集，到满足全部最小量或30个calendar days为止，不得排除失败、取消、retry或较慢run。最小量为20个accepted PR/main exact pairs、其中至少5个cold-cache authoritative candidates，10个自然或受控的superseded PR run pairs、5个每组至少3个PR的matched Stage sequences，以及50个authoritative test attempts；P95使用nearest-rank，job-minutes包含样本内全部attempt，flaky rerun指source、dependency、environment、command与SHA均未变化时test result反转。matched baseline与optimized observation使用相同`workloadFingerprint`、各自绑定的execution fingerprint和相同统计规则保存在task-local evidence。
+每个required命令必须属于一个非空、可追溯的authoritative job。缺失、重复归属、取消、未知选择、artifact digest不匹配、cleanup residue或aggregate输入不完整都fail closed。基础设施启动可有限重试；测试assertion失败不得自动重试为成功。`pull_request`按PR identity取消旧head；`main`与已admit的`merge_group`不被无关run取消。
 
-三项wall-clock边界固定且必须覆盖完整aggregate，不得选择较快sub-job：candidate full gate从bound prospective input的workflow run `created_at`开始，到该run全部required-equivalent prepare、shard、integrity与cleanup聚合完成时结束；main smoke从exact Merge Commit的`push main` run（shadow使用同一输入的无mutation synthetic event）`created_at`开始，到equivalence/integrity、smoke以及触发时的full fallback聚合完成时结束；多PR Stage从全部bound heads、Feature RI、Stage RI就绪且Human merge确认被记录、ordered Stage可以执行时开始，到最后一个ordered PR的post-merge main验证完成时结束，并包含serial admission、latest-main refresh、CI queue/runtime、merge response与post-merge validation。shadow Stage使用同一开始时间和同序exact prospective commits执行无mutation replay，以最后一个synthetic result的完整main aggregate结束，不读写PR或main。follow-on implementation只有在上述sample同时证明optimized candidate full-gate P95不超过5分钟、optimized main smoke P95不超过2分钟、重复完整main gate为0、superseded PR CI一分钟内取消、PR加main总job-minutes较matched legacy control至少降低35%、matched optimized Stage duration较legacy control至少降低50%，且flaky rerun率低于2%时才完成性能cutover。30天内样本不足或任一目标未满足时继续legacy full gate并报告当前样本，不以推算值、选择性窗口、局部job或未配对run宣告cutover。
+切换后不存在并行shadow或旧测试命名兼容路径。post-main smoke因迁移失败、PR/merge-group未产生required check、selector明确漏选或新CI不能可靠运行时，准备对完整迁移Merge Commit执行原子revert；merge与cleanup仍分别等待Human确认。
 
 ### 9.5 Collaboration runtime最小不变量
 

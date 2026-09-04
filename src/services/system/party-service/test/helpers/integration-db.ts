@@ -13,9 +13,9 @@ function parseEnvValue(raw: string): string {
   return trimmed
 }
 
-/** ensureIntegrationDatabaseUrl loads the local service DATABASE_URL so L2 tests use the same service database. */
+/** ensureIntegrationDatabaseUrl loads the local service DATABASE_URL so Integration tests use the same service database. */
 export function ensureIntegrationDatabaseUrl(): string {
-  const taskOwnedUrl = process.env.OES_L2_DATABASE_URL?.trim()
+  const taskOwnedUrl = process.env.OES_Integration_DATABASE_URL?.trim()
   if (taskOwnedUrl) {
     process.env.DATABASE_URL = taskOwnedUrl
     return taskOwnedUrl
@@ -58,14 +58,14 @@ export async function createPrismaForIntegration(): Promise<PrismaService> {
 
     await prisma.$disconnect().catch(() => undefined)
     throw new Error(
-      `party-service L2 tests require a reachable PostgreSQL database. Current DATABASE_URL target: ${safeTarget}`
+      `party-service Integration tests require a reachable PostgreSQL database. Current DATABASE_URL target: ${safeTarget}`
     )
   }
 }
 
-/** createTestPrefix returns one unique prefix so each L2 run can clean up only its own records. */
+/** createTestPrefix returns one unique prefix so each Integration run can clean up only its own records. */
 export function createTestPrefix(): string {
-  return `party_l2_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  return `party_integration_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
 
 /** cleanupByPrefix removes party-service integration records keyed by the generated test prefix. */

@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'fs'
 import { resolve } from 'path'
 import { PrismaService } from '../../src/infrastructure/prisma/prisma.service'
 
-const L2_TEST_SCHEMA = 'procurement_service_l2'
+const Integration_TEST_SCHEMA = 'procurement_service_integration'
 
 /** parseEnvValue removes optional quotes from one dotenv scalar value. */
 function parseEnvValue(raw: string): string {
@@ -17,16 +17,16 @@ function parseEnvValue(raw: string): string {
   return trimmed
 }
 
-/** ensureIntegrationDatabaseUrl loads procurement-service DATABASE_URL for Prisma-backed L2 tests. */
+/** ensureIntegrationDatabaseUrl loads procurement-service DATABASE_URL for Prisma-backed Integration tests. */
 export function ensureIntegrationDatabaseUrl(): string {
-  const taskOwnedUrl = process.env.OES_L2_DATABASE_URL?.trim()
+  const taskOwnedUrl = process.env.OES_Integration_DATABASE_URL?.trim()
   if (taskOwnedUrl) {
     process.env.DATABASE_URL = taskOwnedUrl
     return taskOwnedUrl
   }
 
   if (process.env.DATABASE_URL) {
-    const databaseUrl = rewriteSchemaForL2(process.env.DATABASE_URL)
+    const databaseUrl = rewriteSchemaForIntegration(process.env.DATABASE_URL)
     process.env.DATABASE_URL = databaseUrl
     return databaseUrl
   }
@@ -43,15 +43,15 @@ export function ensureIntegrationDatabaseUrl(): string {
     throw new Error(`DATABASE_URL was not found in ${envPath}`)
   }
 
-  const databaseUrl = rewriteSchemaForL2(parseEnvValue(match[1]))
+  const databaseUrl = rewriteSchemaForIntegration(parseEnvValue(match[1]))
   process.env.DATABASE_URL = databaseUrl
   return databaseUrl
 }
 
-/** rewriteSchemaForL2 keeps integration tests isolated from the default service schema. */
-function rewriteSchemaForL2(databaseUrl: string): string {
+/** rewriteSchemaForIntegration keeps integration tests isolated from the default service schema. */
+function rewriteSchemaForIntegration(databaseUrl: string): string {
   const parsed = new URL(databaseUrl)
-  parsed.searchParams.set('schema', L2_TEST_SCHEMA)
+  parsed.searchParams.set('schema', Integration_TEST_SCHEMA)
   return parsed.toString()
 }
 
@@ -75,16 +75,16 @@ export async function createPrismaForIntegration(): Promise<PrismaService> {
 
     await prisma.$disconnect().catch(() => undefined)
     throw new Error(
-      `procurement-service L2 tests require a reachable PostgreSQL database. Current DATABASE_URL target: ${safeTarget}. Cause: ${
+      `procurement-service Integration tests require a reachable PostgreSQL database. Current DATABASE_URL target: ${safeTarget}. Cause: ${
         error instanceof Error ? error.message : String(error)
       }`
     )
   }
 }
 
-/** createTestPrefix returns one unique prefix so cleanup only touches rows created by one L2 run. */
+/** createTestPrefix returns one unique prefix so cleanup only touches rows created by one Integration run. */
 export function createTestPrefix(): string {
-  return `procurement_l2_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  return `procurement_integration_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
 
 /** cleanupByPrefix removes Prisma-backed procurement rows keyed by the generated tenant prefix. */

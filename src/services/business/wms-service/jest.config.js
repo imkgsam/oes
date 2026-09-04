@@ -4,8 +4,10 @@ module.exports = {
   moduleFileExtensions: ['js', 'json', 'ts'],
   testEnvironment: 'node',
   testMatch: [
-    '<rootDir>/test/**/*.spec.ts',
-    '<rootDir>/src/infrastructure/adapters/*trusted-grpc-execution.producer.spec.ts'
+    '<rootDir>/src/**/*.unit.spec.ts',
+    '<rootDir>/src/**/*.component.spec.ts',
+    '<rootDir>/test/**/*.contract.spec.ts',
+    '<rootDir>/test/**/*.integration.spec.ts',
   ],
   setupFiles: ['reflect-metadata'],
   transform: {

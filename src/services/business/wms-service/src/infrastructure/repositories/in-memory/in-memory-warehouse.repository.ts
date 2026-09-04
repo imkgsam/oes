@@ -3,7 +3,7 @@ import { WarehouseRepository } from '../../../domain/repositories/warehouse.repo
 import { normalizeOptionalString, normalizePageInput, paginate } from '../../../application/support/wms-assertions'
 import { WmsInMemoryStore } from '../../store/wms-in-memory-store'
 
-/** InMemoryWarehouseRepository provides a deterministic topology repository for WMS L1 tests. */
+/** InMemoryWarehouseRepository provides a deterministic topology repository for WMS Unit tests. */
 export class InMemoryWarehouseRepository implements WarehouseRepository {
   constructor(private readonly store: WmsInMemoryStore) {}
 

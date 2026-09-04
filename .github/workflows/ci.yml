@@ -5,163 +5,406 @@ on:
   merge_group:
     types: [checks_requested]
   push:
-    branches:
-      - main
-      - master
+    branches: [main]
+  workflow_dispatch:
+  release:
+    types: [published]
+  schedule:
+    - cron: '17 19 * * *'
 
 permissions:
+  actions: read
   contents: read
+  pull-requests: read
 
 concurrency:
-  group: ${{ github.event_name == 'pull_request' && format('ci-pr-{0}', github.event.pull_request.number) || format('ci-{0}-{1}', github.event_name, github.run_id) }}
+  group: ${{ github.event_name == 'pull_request' && format('ci-pr-{0}', github.event.pull_request.number) || format('ci-{0}-{1}', github.event_name, github.ref) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  static-risk:
-    name: Static and Risk Checks
+  change-plan:
+    name: Change Plan
     runs-on: ubuntu-latest
-    env:
-      OES_CI_TASK_KEY: ci_${{ github.run_id }}_${{ github.run_attempt }}_static
-
+    outputs:
+      mode: ${{ steps.plan.outputs.mode }}
+      phase: ${{ steps.plan.outputs.phase }}
+      confirmation-required: ${{ steps.plan.outputs.confirmation-required }}
+      unit: ${{ steps.plan.outputs.unit }}
+      component: ${{ steps.plan.outputs.component }}
+      contract: ${{ steps.plan.outputs.contract }}
+      integration: ${{ steps.plan.outputs.integration }}
+      journey: ${{ steps.plan.outputs.journey }}
+      needs-web-install: ${{ steps.plan.outputs.needs-web-install }}
+      needs-pda-install: ${{ steps.plan.outputs.needs-pda-install }}
+      plan-identity: ${{ steps.plan.outputs.plan-identity }}
     steps:
-      - name: Checkout
+      - name: Checkout complete candidate history
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 10.33.0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Set up Buf
-        uses: bufbuild/buf-action@v1
-        with:
-          setup_only: true
-          github_token: ${{ github.token }}
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Prepare task-owned tooling environment
-        run: pnpm env:ensure -- --task-key="${OES_CI_TASK_KEY}"
-
-      - name: Resolve immutable proto comparison base
+      - name: Read last reusable scheduled FULL evidence
+        if: ${{ github.event_name == 'schedule' }}
+        id: schedule
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/test-infrastructure/src/schedule-state.mjs
+      - name: Bind exact base, head, and FULL confirmation
         env:
           EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
         run: |
           base="${EVENT_BASE_SHA}"
-          if [[ ! "${base}" =~ ^[0-9a-f]{40}$ ]] || [[ "${base}" == "0000000000000000000000000000000000000000" ]]; then
-            base="origin/main"
+          head="${EVENT_HEAD_SHA}"
+          if [[ "${GITHUB_EVENT_NAME}" == "schedule" && -n "${{ steps.schedule.outputs.last-full-sha }}" ]]; then
+            base="${{ steps.schedule.outputs.last-full-sha }}"
           fi
-          printf 'OES_PROTO_BREAKING_BASE=%s\n' "${base}" >> "${GITHUB_ENV}"
-
-      - name: Lint proto contracts
-        run: pnpm proto:lint
-
-      - name: Generate code once for build and risk tests
-        run: pnpm generated:all
-
-      - name: Check proto compatibility
-        run: pnpm proto:breaking
-
-      - name: Build Common, Gateway, 21 services, and Site Runtime from prepared code
-        run: pnpm build:prepared
-
-      - name: Check non-empty test inventory
-        run: pnpm test:matrix:check
-
-      - name: Verify declared design-gap fail-closed lane
-        run: pnpm test:design-gap
-
-      - name: Run high-risk unit and contract tests
-        run: pnpm test:risk
-
-      - name: Record legacy control identity
-        if: ${{ !cancelled() }}
+          if [[ ! "${base}" =~ ^[0-9a-f]{40}$ ]] || [[ "${base}" == "0000000000000000000000000000000000000000" ]]; then
+            base="$(git rev-parse HEAD^)"
+          fi
+          if [[ ! "${head}" =~ ^[0-9a-f]{40}$ ]]; then
+            head="$(git rev-parse HEAD)"
+          fi
+          approved=false
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            token="ci-full-approved-${head:0:12}"
+            if node -e 'const e=require(process.env.GITHUB_EVENT_PATH); process.exit(e.pull_request.labels.some((x)=>x.name===process.argv[1])?0:1)' "${token}"; then
+              approved=true
+            fi
+          fi
+          printf 'OES_CI_BASE_SHA=%s\n' "${base}" >> "${GITHUB_ENV}"
+          printf 'OES_CI_HEAD_SHA=%s\n' "${head}" >> "${GITHUB_ENV}"
+          printf 'OES_FULL_APPROVED=%s\n' "${approved}" >> "${GITHUB_ENV}"
+      - name: Generate deterministic affected-test plan
+        id: plan
         env:
-          OES_CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
-          OES_ACCEPTED_SOURCE_IDENTITY: ${{ github.event.pull_request.head.sha || github.sha }}
-          OES_CACHE_DISPOSITION: UNKNOWN
-        run: |
-          export OES_ACCEPTED_RESULT_IDENTITY="$(git rev-parse HEAD^{tree})"
-          node scripts/local/ci-performance-evidence.mjs --mode LEGACY_CONTROL --output .tmp/ci-performance/legacy-control.json
-
-      - name: Upload legacy control evidence
-        if: ${{ !cancelled() }}
+          OES_LAST_FULL_SHA: ${{ steps.schedule.outputs.last-full-sha }}
+          OES_LAST_FULL_AT: ${{ steps.schedule.outputs.last-full-at }}
+        run: >-
+          node scripts/test-infrastructure/src/change-plan.mjs
+          --event "${GITHUB_EVENT_NAME}"
+          --output .tmp/change-plan.json
+          --github-output "${GITHUB_OUTPUT}"
+      - name: Upload immutable Change Plan
         uses: actions/upload-artifact@v7
         with:
-          name: legacy-control-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .tmp/ci-performance/legacy-control.json
+          name: change-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp/change-plan.json
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 14
 
-  l2-runtime:
-    name: L2 Runtime Checks
+  full-confirmation:
+    name: FULL Confirmation
+    if: ${{ always() }}
+    needs: [change-plan]
     runs-on: ubuntu-latest
-    env:
-      OES_CI_TASK_KEY: ci_${{ github.run_id }}_${{ github.run_attempt }}_l2
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        if: ${{ needs.change-plan.result == 'success' }}
+        with:
+          name: change-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp
+      - name: Enforce exact-head confirmation before expensive FULL
+        env:
+          CONFIRMATION_REQUIRED: ${{ needs.change-plan.outputs.confirmation-required }}
+        run: |
+          test "${{ needs.change-plan.result }}" = "success"
+          if [[ "${CONFIRMATION_REQUIRED}" == "true" ]]; then
+            node -e 'const fs=require("fs"); const p=require("./.tmp/change-plan.json"); fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## FULL confirmation required\n\n- Trigger: ${p.reasons.join("; ")}\n- Scope: ${p.discoveryCount} tests across ${p.owners.length} owners\n- Cost: ${p.estimatedCost}\n- Exact-head confirmation: apply label \`${p.fullApprovalToken}\` and rerun CI.\n`)'
+            exit 1
+          fi
+          echo 'FULL_CONFIRMATION=PASS'
+
+  static:
+    name: Static
+    if: ${{ needs.change-plan.result == 'success' && ((needs.change-plan.outputs.phase == 'candidate' && needs.change-plan.outputs.confirmation-required != 'true') || needs.change-plan.outputs.mode == 'DOCS') }}
+    needs: [change-plan]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.33.0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
-
-      - name: Set up Buf
-        uses: bufbuild/buf-action@v1
+      - uses: bufbuild/buf-action@v1
+        if: ${{ needs.change-plan.outputs.mode != 'DOCS' }}
         with:
           setup_only: true
           github_token: ${{ github.token }}
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run isolated task-owned L2 tests
-        run: pnpm test:l2
-
-      - name: Verify task-owned runtime cleanup
-        if: always()
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: change-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp
+      - if: ${{ needs.change-plan.outputs.needs-web-install == 'true' }}
+        run: pnpm --dir app/web install --frozen-lockfile
+      - if: ${{ needs.change-plan.outputs.needs-pda-install == 'true' }}
+        run: pnpm --dir app/pda install --frozen-lockfile
+      - name: Run taxonomy, source rules, and changed-document links
+        run: pnpm check:static -- --plan .tmp/change-plan.json
+      - name: Run selected lint and type checks
+        if: ${{ needs.change-plan.outputs.mode != 'DOCS' }}
         run: |
-          state=".tmp/oes-database-lifecycle/${OES_CI_TASK_KEY}/state.json"
-          if [[ -f "${state}" ]]; then
-            pnpm db:rollback
-          fi
+          pnpm generated:all
+          node scripts/test-infrastructure/src/package-scripts.mjs --kind static --plan .tmp/change-plan.json
+
+  build:
+    name: Build
+    if: ${{ needs.change-plan.result == 'success' && needs.change-plan.outputs.phase == 'candidate' && needs.change-plan.outputs.mode != 'DOCS' && needs.change-plan.outputs.confirmation-required != 'true' }}
+    needs: [change-plan]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+          github_token: ${{ github.token }}
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: change-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp
+      - if: ${{ needs.change-plan.outputs.needs-web-install == 'true' }}
+        run: pnpm --dir app/web install --frozen-lockfile
+      - if: ${{ needs.change-plan.outputs.needs-pda-install == 'true' }}
+        run: pnpm --dir app/pda install --frozen-lockfile
+      - run: pnpm generated:all
+      - run: pnpm workspace:check
+      - run: node scripts/test-infrastructure/src/package-scripts.mjs --kind build --plan .tmp/change-plan.json
+
+  unit:
+    name: Unit
+    if: ${{ needs.change-plan.result == 'success' && needs.change-plan.outputs.phase == 'candidate' && needs.change-plan.outputs.unit == 'true' && needs.change-plan.outputs.confirmation-required != 'true' }}
+    needs: [change-plan]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+          github_token: ${{ github.token }}
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: change-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp
+      - if: ${{ needs.change-plan.outputs.needs-web-install == 'true' }}
+        run: pnpm --dir app/web install --frozen-lockfile
+      - if: ${{ needs.change-plan.outputs.needs-pda-install == 'true' }}
+        run: pnpm --dir app/pda install --frozen-lockfile
+      - run: pnpm generated:all
+      - run: pnpm test:run -- --type unit --plan .tmp/change-plan.json
+
+  component:
+    name: Component
+    if: ${{ needs.change-plan.result == 'success' && needs.change-plan.outputs.phase == 'candidate' && needs.change-plan.outputs.component == 'true' && needs.change-plan.outputs.confirmation-required != 'true' }}
+    needs: [change-plan]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+          github_token: ${{ github.token }}
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: change-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp
+      - if: ${{ needs.change-plan.outputs.needs-web-install == 'true' }}
+        run: pnpm --dir app/web install --frozen-lockfile
+      - if: ${{ needs.change-plan.outputs.needs-pda-install == 'true' }}
+        run: pnpm --dir app/pda install --frozen-lockfile
+      - run: pnpm generated:all
+      - run: pnpm test:run -- --type component --plan .tmp/change-plan.json
+
+  contract:
+    name: Contract
+    if: ${{ needs.change-plan.result == 'success' && needs.change-plan.outputs.phase == 'candidate' && needs.change-plan.outputs.contract == 'true' && needs.change-plan.outputs.confirmation-required != 'true' }}
+    needs: [change-plan]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+          github_token: ${{ github.token }}
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: change-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp
+      - if: ${{ needs.change-plan.outputs.needs-web-install == 'true' }}
+        run: pnpm --dir app/web install --frozen-lockfile
+      - if: ${{ needs.change-plan.outputs.needs-pda-install == 'true' }}
+        run: pnpm --dir app/pda install --frozen-lockfile
+      - run: pnpm generated:all
+      - run: pnpm test:run -- --type contract --plan .tmp/change-plan.json
+
+  integration:
+    name: Integration
+    if: ${{ needs.change-plan.result == 'success' && needs.change-plan.outputs.phase == 'candidate' && needs.change-plan.outputs.integration == 'true' && needs.change-plan.outputs.confirmation-required != 'true' }}
+    needs: [change-plan]
+    runs-on: ubuntu-latest
+    env:
+      OES_CI_TASK_KEY: ci_${{ github.run_id }}_${{ github.run_attempt }}_integration
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+          github_token: ${{ github.token }}
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: change-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp
+      - run: pnpm test:run -- --type integration --plan .tmp/change-plan.json
+      - name: Prove task-owned runtime cleanup
+        if: ${{ always() }}
+        run: |
           test -z "$(docker ps -aq --filter "label=oes.local.owner=${OES_CI_TASK_KEY}")"
           test -z "$(docker volume ls -q --filter "label=oes.local.owner=${OES_CI_TASK_KEY}")"
           test -z "$(docker network ls -q --filter "label=oes.local.owner=${OES_CI_TASK_KEY}")"
-          printf 'CI_TASK_RESIDUE=0 owner=%s\n' "${OES_CI_TASK_KEY}"
+
+  journey:
+    name: Journey
+    if: ${{ needs.change-plan.result == 'success' && needs.change-plan.outputs.phase == 'candidate' && needs.change-plan.outputs.journey == 'true' && needs.change-plan.outputs.confirmation-required != 'true' }}
+    needs: [change-plan]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+          github_token: ${{ github.token }}
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: change-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp
+      - if: ${{ needs.change-plan.outputs.needs-web-install == 'true' }}
+        run: pnpm --dir app/web install --frozen-lockfile
+      - if: ${{ needs.change-plan.outputs.needs-pda-install == 'true' }}
+        run: pnpm --dir app/pda install --frozen-lockfile
+      - run: pnpm generated:all
+      - run: pnpm test:run -- --type journey --plan .tmp/change-plan.json
+
+  quick-smoke:
+    name: Main Quick Smoke
+    if: ${{ needs.change-plan.result == 'success' && needs.change-plan.outputs.phase == 'quick-smoke' }}
+    needs: [change-plan]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+          github_token: ${{ github.token }}
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: change-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp
+      - run: pnpm generated:all
+      - run: |
+          pnpm check:static -- --plan .tmp/change-plan.json
+          pnpm test:run -- --type contract --plan .tmp/change-plan.json
+          pnpm test:run -- --type journey --plan .tmp/change-plan.json
 
   baseline:
     name: Baseline Checks
     if: ${{ always() }}
-    needs: [static-risk, l2-runtime]
+    needs: [change-plan, full-confirmation, static, build, unit, component, contract, integration, journey, quick-smoke]
     runs-on: ubuntu-latest
-
     steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        if: ${{ needs.change-plan.result == 'success' }}
+        with:
+          name: change-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp
       - name: Aggregate complete fail-closed gate
         env:
-          STATIC_RISK_RESULT: ${{ needs.static-risk.result }}
-          L2_RUNTIME_RESULT: ${{ needs.l2-runtime.result }}
-        run: |
-          test "${STATIC_RISK_RESULT}" = "success"
-          test "${L2_RUNTIME_RESULT}" = "success"
-          printf 'BASELINE_CHECKS=PASS static-risk=%s l2-runtime=%s\n' \
-            "${STATIC_RISK_RESULT}" "${L2_RUNTIME_RESULT}"
+          OES_JOB_RESULTS: >-
+            {"changePlan":"${{ needs.change-plan.result }}","confirmation":"${{ needs.full-confirmation.result }}","static":"${{ needs.static.result }}","build":"${{ needs.build.result }}","unit":"${{ needs.unit.result }}","component":"${{ needs.component.result }}","contract":"${{ needs.contract.result }}","integration":"${{ needs.integration.result }}","journey":"${{ needs.journey.result }}","quick":"${{ needs.quick-smoke.result }}"}
+        run: node scripts/test-infrastructure/src/gate.mjs .tmp/change-plan.json
+      - name: Seal successful scheduled FULL evidence
+        if: ${{ github.event_name == 'schedule' && needs.change-plan.outputs.mode == 'FULL' }}
+        run: cp .tmp/change-plan.json .tmp/full-evidence.json
+      - name: Upload reusable scheduled FULL evidence
+        if: ${{ github.event_name == 'schedule' && needs.change-plan.outputs.mode == 'FULL' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: full-evidence-${{ github.sha }}
+          path: .tmp/full-evidence.json
+          if-no-files-found: error
+          retention-days: 30

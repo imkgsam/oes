@@ -14,9 +14,9 @@ function parseEnvValue(raw: string): string {
   return trimmed
 }
 
-/** ensureIntegrationDatabaseUrl loads hr-service DATABASE_URL for L2 tests. */
+/** ensureIntegrationDatabaseUrl loads hr-service DATABASE_URL for Integration tests. */
 export function ensureIntegrationDatabaseUrl(): string {
-  const taskOwnedUrl = process.env.OES_L2_DATABASE_URL?.trim()
+  const taskOwnedUrl = process.env.OES_Integration_DATABASE_URL?.trim()
   if (taskOwnedUrl) {
     process.env.DATABASE_URL = taskOwnedUrl
     return taskOwnedUrl
@@ -59,16 +59,16 @@ export async function createPrismaForIntegration(): Promise<PrismaService> {
 
     await prisma.$disconnect().catch(() => undefined)
     throw new Error(
-      `hr-service L2 tests require a reachable PostgreSQL database. Current DATABASE_URL target: ${safeTarget}. Cause: ${
+      `hr-service Integration tests require a reachable PostgreSQL database. Current DATABASE_URL target: ${safeTarget}. Cause: ${
         error instanceof Error ? error.message : String(error)
       }`
     )
   }
 }
 
-/** createTestPrefix returns a unique prefix so each L2 run can clean up only its own rows. */
+/** createTestPrefix returns a unique prefix so each Integration run can clean up only its own rows. */
 export function createTestPrefix(): string {
-  return `hrs_l2_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  return `hrs_integration_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
 
 /** cleanupByPrefix removes HR integration records keyed by generated test prefixes. */

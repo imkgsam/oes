@@ -77,7 +77,7 @@ const INFRA_PROFILES = Object.freeze({
     monitor: true,
     resources: EXPECTED_INFRA_RESOURCES
   }),
-  l2: Object.freeze({
+  integration: Object.freeze({
     initServices: Object.freeze(['nats-bootstrap']),
     longRunningServices: Object.freeze(['postgres', 'nats']),
     monitor: false,
@@ -1072,7 +1072,7 @@ function prepareBaseline(context, environmentPath, service, databaseUrl) {
   clearBaselineResolutionCheckpoint(context, service)
 }
 
-/** Resolves the exact infrastructure surface for a full lifecycle or isolated L2 shard. */
+/** Resolves the exact infrastructure surface for a full lifecycle or isolated Integration run. */
 export function selectInfraProfile(name = 'full') {
   const profile = INFRA_PROFILES[name]
   if (!profile) throw new Error(`DATABASE_INFRA_PROFILE_INVALID profile=${name}`)
@@ -1693,17 +1693,17 @@ export function main(argv = process.argv.slice(2)) {
   }
 }
 
-/** Parses the bounded infrastructure profile used only by task-local L2 execution. */
+/** Parses the bounded infrastructure profile used only by task-local Integration execution. */
 function parseProfileArguments(arguments_) {
   if (arguments_.length === 0) return 'full'
   if (arguments_.length !== 2 || arguments_[0] !== '--profile') {
-    throw new Error('DATABASE_INFRA_PROFILE_ARGUMENT_INVALID expected=--profile full|l2')
+    throw new Error('DATABASE_INFRA_PROFILE_ARGUMENT_INVALID expected=--profile full|integration')
   }
   selectInfraProfile(arguments_[1])
   return arguments_[1]
 }
 
-/** Parses the single explicit --services CSV selector used by isolated L2 shards. */
+/** Parses the single explicit --services CSV selector used by isolated Integration runs. */
 function parseServiceArguments(arguments_) {
   if (arguments_.length === 0) return []
   if (arguments_.length !== 2 || arguments_[0] !== '--services') {

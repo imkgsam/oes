@@ -41,10 +41,15 @@
     "preview": "turbo-run preview",
     "publint": "vsh publint",
     "reinstall": "pnpm clean --del-lock && pnpm install",
-    "test:unit": "vitest run --dom",
-    "test:e2e": "turbo run test:e2e",
     "update:deps": "npx taze -r -w",
-    "catalog": "pnpx codemod pnpm/catalog"
+    "catalog": "pnpx codemod pnpm/catalog",
+    "check:static:test-architecture": "node scripts/check-test-architecture.mjs",
+    "test": "pnpm test:unit && pnpm test:component && pnpm test:contract && pnpm test:integration",
+    "test:unit": "vitest run --dom '.unit.spec.'",
+    "test:component": "vitest run --dom '.component.spec.'",
+    "test:contract": "vitest run --dom '.contract.spec.'",
+    "test:integration": "vitest run --dom '.integration.spec.' --passWithNoTests",
+    "test:journey": "turbo run test:journey"
   },
   "devDependencies": {
     "@changesets/changelog-github": "catalog:",

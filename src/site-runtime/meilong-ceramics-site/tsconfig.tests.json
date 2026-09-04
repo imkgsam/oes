@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@oes/site-runtime-kit": [
+        "runtime/node_modules/@oes/site-runtime-kit"
+      ]
+    },
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "types": [
+      "jest",
+      "node"
+    ]
+  },
+  "include": [
+    "tests/**/*.ts",
+    "runtime/src/**/*.ts",
+    "storefront/types/**/*.ts",
+    "storefront/server/utils/sitemap-policy.ts",
+    "storefront/**/*.unit.spec.ts"
+  ]
+}

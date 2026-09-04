@@ -16,9 +16,9 @@ function parseEnvValue(raw: string): string {
   return trimmed
 }
 
-/** ensureIntegrationDatabaseUrl loads collaboration-service DATABASE_URL for L2 tests. */
+/** ensureIntegrationDatabaseUrl loads collaboration-service DATABASE_URL for Integration tests. */
 export function ensureIntegrationDatabaseUrl(): string {
-  const taskOwnedUrl = process.env.OES_L2_DATABASE_URL?.trim()
+  const taskOwnedUrl = process.env.OES_Integration_DATABASE_URL?.trim()
   if (taskOwnedUrl) {
     process.env.DATABASE_URL = taskOwnedUrl
     return taskOwnedUrl
@@ -71,14 +71,14 @@ export async function createPrismaForIntegration(): Promise<PrismaService> {
 
     await prisma.$disconnect().catch(() => undefined)
     throw new Error(
-      `collaboration-service L2 tests require a reachable PostgreSQL database. Current DATABASE_URL target: ${safeTarget}. Cause: ${
+      `collaboration-service Integration tests require a reachable PostgreSQL database. Current DATABASE_URL target: ${safeTarget}. Cause: ${
         error instanceof Error ? error.message : String(error)
       }`
     )
   }
 }
 
-/** withCollaborationSchema keeps L2 tests inside collaboration-service storage. */
+/** withCollaborationSchema keeps Integration tests inside collaboration-service storage. */
 function withCollaborationSchema(rawUrl: string): string {
   const parsed = new URL(rawUrl)
   if (!parsed.searchParams.get('schema')) {
@@ -87,9 +87,9 @@ function withCollaborationSchema(rawUrl: string): string {
   return parsed.toString()
 }
 
-/** createTestPrefix returns a unique prefix so L2 cleanup only removes its own rows. */
+/** createTestPrefix returns a unique prefix so Integration cleanup only removes its own rows. */
 export function createTestPrefix(): string {
-  return `cos_l2_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  return `cos_integration_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
 
 /** cleanupByPrefix removes collaboration task integration records keyed by generated prefixes. */

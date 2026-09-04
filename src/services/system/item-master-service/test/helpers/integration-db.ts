@@ -13,7 +13,7 @@ function parseEnvValue(raw: string): string {
   return trimmed
 }
 
-/** ensureIntegrationDatabaseUrl loads the local item-master DATABASE_URL so L2 tests use the service database. */
+/** ensureIntegrationDatabaseUrl loads the local item-master DATABASE_URL so Integration tests use the service database. */
 export function ensureIntegrationDatabaseUrl(): string {
   if (process.env.DATABASE_URL?.trim()) {
     return process.env.DATABASE_URL
@@ -46,14 +46,14 @@ export async function createPrismaForIntegration(): Promise<PrismaService> {
   } catch {
     await prisma.$disconnect().catch(() => undefined)
     throw new Error(
-      `item-master-service L2 tests require a reachable PostgreSQL database. Current DATABASE_URL target: ${databaseUrl}`
+      `item-master-service Integration tests require a reachable PostgreSQL database. Current DATABASE_URL target: ${databaseUrl}`
     )
   }
 }
 
-/** createTestPrefix returns one unique prefix so each L2 run can clean up only its own rows. */
+/** createTestPrefix returns one unique prefix so each Integration run can clean up only its own rows. */
 export function createTestPrefix(): string {
-  return `item_master_l2_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  return `item_master_integration_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
 
 /** cleanupByPrefix removes item-master integration rows keyed by the generated tenant and item prefixes. */

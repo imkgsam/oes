@@ -119,5 +119,5 @@
 
 - Gateway HR adapter replaces `GrpcMetadataPropagationFactory` / signed operator metadata with the common trusted execution metadata provider and requests `aud=urn:oes:service:asset-service` plus exact BUSINESS scope `hr.employee.create`.
 - 两个 employee request 删除 `scopeLevel`、`tenantId`、`operatorId`，保留 `employeeId`、Asset id 与文件字段；Gateway service、generated caller 与 Asset Controller 在同一 service cutover 编译修复。
-- `hr-management.service.spec.ts`、HR Controller specs 与 `asset-service/test/l1/asset-grpc.controller.spec.ts` 必须改用可信 metadata / execution-context fixtures，并新增 missing Code、wrong tenant、body injection、wrong audience 与 wrong `cnf` 负向验收。
+- `src/services/api-gateway/src/modules/hr-service/hr-management.service.unit.spec.ts`、`src/services/system/hr-service/test/contract/hr-management.grpc.controller.contract.spec.ts`、`src/services/system/hr-service/test/contract/hr-query.grpc.controller.contract.spec.ts` 与 `src/services/system/asset-service/test/contract/asset-grpc.controller.contract.spec.ts` 必须改用可信 metadata / execution-context fixtures，并新增 missing Code、wrong tenant、body injection、wrong audience 与 wrong `cnf` 负向验收。
 - 当前静态扫描没有发现另一个 OES service、Cron、AI、Robot 或 worker 直接调用这两个 RPC；新增 caller 不得复用旧 body identity 或获得 wildcard policy。

@@ -221,6 +221,14 @@ importers:
         specifier: ^3.2.6
         version: 3.3.3(typescript@5.9.3)
 
+  scripts/architecture: {}
+
+  scripts/collaboration-runtime: {}
+
+  scripts/local: {}
+
+  scripts/test-infrastructure: {}
+
   src/common:
     dependencies:
       '@grpc/grpc-js':

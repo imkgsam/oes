@@ -244,7 +244,7 @@ Focused development:
 
 ```bash
 pnpm collaboration-runtime:typecheck
-node --experimental-strip-types --test scripts/collaboration-runtime/test/assignment-runtime.test.ts
+node --experimental-strip-types --test scripts/collaboration-runtime/src/__tests__/assignment-runtime.unit.spec.ts
 ```
 
 Affected candidate gate:

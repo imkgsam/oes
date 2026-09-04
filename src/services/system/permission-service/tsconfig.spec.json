@@ -3,7 +3,14 @@
   "compilerOptions": {
     "rootDir": ".",
     "isolatedModules": true,
-    "types": ["jest", "node"]
+    "types": [
+      "jest",
+      "node"
+    ]
   },
-  "include": ["src", "test"]
+  "include": [
+    "src/**/*.ts",
+    "test/**/*.ts"
+  ],
+  "exclude": ["**/*.static.check.ts"]
 }

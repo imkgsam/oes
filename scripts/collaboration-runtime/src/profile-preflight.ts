@@ -1184,7 +1184,7 @@ export class SystemPreflightProbeAdapter implements PreflightProbeAdapter {
         this.run(this.options.git, ['commit', '-m', 'test: runtime profile git probe'], clone)
         literalOutput = `commit=${this.run(this.options.git, ['rev-parse', 'HEAD'], clone).trim()};status=${JSON.stringify(this.run(this.options.git, ['status', '--porcelain'], clone))}`
       } else if (name === 'standardBuildTest') {
-        command = 'node tsc --noEmit; node profile-preflight.test.ts; node static-check.mjs'
+        command = 'node tsc --noEmit; node profile-preflight.unit.spec.ts; node ci.static.check.mjs'
         const outputs = [
           this.run(
             this.options.node,
@@ -1201,13 +1201,13 @@ export class SystemPreflightProbeAdapter implements PreflightProbeAdapter {
             [
               '--experimental-strip-types',
               '--test',
-              'scripts/collaboration-runtime/test/profile-preflight.test.ts'
+              'scripts/collaboration-runtime/src/__tests__/profile-preflight.unit.spec.ts'
             ],
             this.options.repositoryRoot
           ),
           this.run(
             this.options.node,
-            ['scripts/collaboration-runtime/test/static-check.mjs'],
+            ['--test', 'scripts/collaboration-runtime/test/static/ci.static.check.mjs'],
             this.options.repositoryRoot
           )
         ]

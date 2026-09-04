@@ -1,0 +1,241 @@
+import 'reflect-metadata'
+import { Reflector } from '@nestjs/core'
+import {
+  GATEWAY_ROUTE_SESSION_TERMINALS_METADATA_KEY,
+  REQUIRE_PERMISSIONS_METADATA_KEY
+} from '@oes/common/authorization'
+import { ItemManagementController } from '../../../../../../../src/modules/item-master-service/interface/http/controllers/item-management.controller'
+
+const source = {
+  user: {
+    scopeLevel: 'TENANT',
+    tenantId: 'tenant-1'
+  }
+}
+
+/** item-management controller specs keep the HTTP BFF surface aligned with item-master V2 concepts. */
+describe('ItemManagementController V2', () => {
+  const itemManagementService = {
+    changeBomStatus: jest.fn(),
+    changeItemCategoryStatus: jest.fn(),
+    changeItemModelStatus: jest.fn(),
+    changeItemStatus: jest.fn(),
+    createBom: jest.fn(),
+    createItem: jest.fn(),
+    createItemCategory: jest.fn(),
+    deleteItemCategory: jest.fn(),
+    deletePackagingMethod: jest.fn(),
+    createItemModel: jest.fn(),
+    getBom: jest.fn(),
+    getBomByOutputItem: jest.fn(),
+    getItem: jest.fn(),
+    getItemModel: jest.fn(),
+    listBoms: jest.fn(),
+    listItemCategories: jest.fn(),
+    listItemModels: jest.fn(),
+    listItems: jest.fn(),
+    listSupplierMappings: jest.fn(),
+    moveItemCategory: jest.fn(),
+    replaceBomLines: jest.fn(),
+    setItemCapabilities: jest.fn(),
+    setItemModelCapabilities: jest.fn(),
+    setItemModelPrimaryCategory: jest.fn(),
+    updateBomBasics: jest.fn(),
+    updateItemBasics: jest.fn(),
+    updateItemCategoryBasics: jest.fn(),
+    updateItemModelBasics: jest.fn(),
+    upsertSupplierMapping: jest.fn()
+  }
+  const controller = new ItemManagementController(itemManagementService as never)
+
+  beforeEach(() => {
+    jest.resetAllMocks()
+  })
+
+  it('attaches permissions to V2 ItemModel, Item, and BOM entrypoints', () => {
+    const reflector = new Reflector()
+
+    expect(
+      reflector.get(GATEWAY_ROUTE_SESSION_TERMINALS_METADATA_KEY, ItemManagementController)
+    ).toEqual(['WEB'])
+
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ItemManagementController.prototype.listItemModels
+      )
+    ).toMatchObject(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, ItemManagementController.prototype.createItem)
+    ).toMatchObject(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, ItemManagementController.prototype.createBom)
+    ).toMatchObject(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ItemManagementController.prototype.updateItemCategoryBasics
+      )
+    ).toMatchObject(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ItemManagementController.prototype.moveItemCategory
+      )
+    ).toMatchObject(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ItemManagementController.prototype.changeItemCategoryStatus
+      )
+    ).toMatchObject(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ItemManagementController.prototype.deleteItemCategory
+      )
+    ).toMatchObject(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ItemManagementController.prototype.deletePackagingMethod
+      )
+    ).toMatchObject(expect.objectContaining({ all: expect.any(Array) }))
+  })
+
+  it('delegates ItemModel creation to the V2 BFF service', async () => {
+    itemManagementService.createItemModel.mockResolvedValue({ itemModelId: 'model-1' })
+
+    await expect(
+      controller.createItemModel(
+        'tenant-1',
+        {
+          modelCode: 'MODEL-1',
+          modelName: 'Model 1',
+          modelKind: 'PHYSICAL',
+          modelType: 'FINISHED_PRODUCT'
+        },
+        source as never
+      )
+    ).resolves.toEqual({ itemModelId: 'model-1' })
+
+    expect(itemManagementService.createItemModel).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({
+        modelCode: 'MODEL-1',
+        modelKind: 'PHYSICAL'
+      }),
+      source
+    )
+  })
+
+  it('delegates executable Item creation with itemModelId and itemType', async () => {
+    itemManagementService.createItem.mockResolvedValue({ itemId: 'item-1' })
+
+    await expect(
+      controller.createItem(
+        'tenant-1',
+        {
+          itemModelId: 'model-1',
+          itemCode: 'SKU-1',
+          itemName: 'SKU 1',
+          itemType: 'STANDARD'
+        },
+        source as never
+      )
+    ).resolves.toEqual({ itemId: 'item-1' })
+
+    expect(itemManagementService.createItem).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({
+        itemModelId: 'model-1',
+        itemType: 'STANDARD'
+      }),
+      source
+    )
+  })
+
+  it('delegates hard item category deletion to the V2 BFF service', async () => {
+    itemManagementService.deleteItemCategory.mockResolvedValue({})
+
+    await expect(
+      controller.deleteItemCategory('tenant-1', 'category-1', source as never)
+    ).resolves.toEqual({})
+
+    expect(itemManagementService.deleteItemCategory).toHaveBeenCalledWith(
+      'tenant-1',
+      'category-1',
+      source
+    )
+  })
+
+  it('delegates hard packaging method deletion to the V2 BFF service', async () => {
+    itemManagementService.deletePackagingMethod.mockResolvedValue({})
+
+    await expect(
+      controller.deletePackagingMethod('tenant-1', 'method-1', source as never)
+    ).resolves.toEqual({})
+
+    expect(itemManagementService.deletePackagingMethod).toHaveBeenCalledWith(
+      'tenant-1',
+      'method-1',
+      source
+    )
+  })
+
+  it('delegates item category move commands to the V2 BFF service', async () => {
+    itemManagementService.moveItemCategory.mockResolvedValue({ categoryId: 'category-1' })
+
+    await expect(
+      controller.moveItemCategory(
+        'tenant-1',
+        'category-1',
+        { parentCategoryId: 'category-parent' },
+        source as never
+      )
+    ).resolves.toEqual({ categoryId: 'category-1' })
+
+    expect(itemManagementService.moveItemCategory).toHaveBeenCalledWith(
+      'tenant-1',
+      'category-1',
+      { parentCategoryId: 'category-parent' },
+      source
+    )
+  })
+
+  it('delegates BOM line replacement instead of old composition endpoints', async () => {
+    itemManagementService.replaceBomLines.mockResolvedValue({ bomId: 'bom-1' })
+
+    await expect(
+      controller.replaceBomLines(
+        'tenant-1',
+        'bom-1',
+        {
+          lines: [
+            {
+              componentItemId: 'item-1',
+              lineRole: 'COMPONENT',
+              quantity: '1',
+              uomCode: 'PCS'
+            }
+          ]
+        },
+        source as never
+      )
+    ).resolves.toEqual({ bomId: 'bom-1' })
+
+    expect(itemManagementService.replaceBomLines).toHaveBeenCalledWith(
+      'tenant-1',
+      'bom-1',
+      expect.objectContaining({
+        lines: [
+          expect.objectContaining({
+            componentItemId: 'item-1',
+            lineRole: 'COMPONENT'
+          })
+        ]
+      }),
+      source
+    )
+  })
+})

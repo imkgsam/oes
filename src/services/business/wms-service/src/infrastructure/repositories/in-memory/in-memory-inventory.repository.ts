@@ -3,7 +3,7 @@ import { InventoryRepository } from '../../../domain/repositories/inventory.repo
 import { normalizePageInput, normalizeQuantity, paginate, sumQuantities } from '../../../application/support/wms-assertions'
 import { WmsInMemoryStore } from '../../store/wms-in-memory-store'
 
-/** InMemoryInventoryRepository provides deterministic ledger and projection behavior for WMS L1 tests. */
+/** InMemoryInventoryRepository provides deterministic ledger and projection behavior for WMS Unit tests. */
 export class InMemoryInventoryRepository implements InventoryRepository {
   constructor(private readonly store: WmsInMemoryStore) {}
 
