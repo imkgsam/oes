@@ -3,7 +3,7 @@
 import { defineComponent, h } from 'vue';
 
 import { Modal, Select, message } from 'ant-design-vue';
-import { flushPromises, mount } from '@vue/test-utils';
+import { flushPromises, mount as mountComponent, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const listAdminAccountsApi = vi.fn();
@@ -22,6 +22,13 @@ const requireAdminAccountPasswordSetupApi = vi.fn();
 const replaceAccountTerminalAccessOverrideApi = vi.fn();
 const setAccountRolesApi = vi.fn();
 const deleteAccountTerminalAccessOverrideApi = vi.fn();
+const mountedWrappers: VueWrapper[] = [];
+
+function mount(...args: Parameters<typeof mountComponent>) {
+  const wrapper = mountComponent(...args);
+  mountedWrappers.push(wrapper);
+  return wrapper;
+}
 
 const authContextState: any = {
   actionCodes: [
@@ -442,6 +449,9 @@ describe('account management page', () => {
   });
 
   afterEach(() => {
+    for (const wrapper of mountedWrappers.splice(0)) {
+      wrapper.unmount();
+    }
     document.body.innerHTML = '';
     vi.restoreAllMocks();
   });
