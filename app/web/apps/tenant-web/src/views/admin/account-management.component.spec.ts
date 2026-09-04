@@ -1356,8 +1356,10 @@ describe('account management page', () => {
     );
     await clickAccountAction('基本信息');
 
-    const basicInfoModal = Array.from(document.body.querySelectorAll('.ant-modal')).find((element) =>
-      element.textContent?.includes('基本信息'),
+    const basicInfoModal = Array.from(document.body.querySelectorAll('.ant-modal')).find(
+      (element) =>
+        element.textContent?.includes('基本信息')
+        && element.textContent?.includes('末页启用用户'),
     ) as HTMLElement | undefined;
     expect(basicInfoModal).toBeTruthy();
     const switchButton = basicInfoModal!.querySelector('.ant-switch') as HTMLButtonElement | null;
@@ -1370,9 +1372,20 @@ describe('account management page', () => {
       { timeout: 5000 },
     );
 
-    const submitButton = findPrimaryButtonWithinModal('基本信息');
+    const submitButton = basicInfoModal!.querySelector(
+      '.ant-modal-footer .ant-btn-primary',
+    ) as HTMLButtonElement | null;
     expect(submitButton).toBeTruthy();
+    await vi.waitFor(() => {
+      expect(submitButton!.disabled).toBe(false);
+    });
     submitButton!.click();
+    await vi.waitFor(() => {
+      expect(updateAdminAccountBasicInfoApi).toHaveBeenCalledWith('account-last-enabled', {
+        displayName: '末页启用用户',
+        isEnabled: false,
+      });
+    });
     await vi.waitFor(
       () => {
         expect(
