@@ -52,6 +52,8 @@ jobs:
         env:
           EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
           EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+          EVENT_PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           base="${EVENT_BASE_SHA}"
           head="${EVENT_HEAD_SHA}"
@@ -67,7 +69,12 @@ jobs:
           approved=false
           if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
             token="ci-full-approved-${head:0:12}"
-            if node -e 'const e=require(process.env.GITHUB_EVENT_PATH); process.exit(e.pull_request.labels.some((x)=>x.name===process.argv[1])?0:1)' "${token}"; then
+            pull="$(curl --fail-with-body --silent --show-error \
+              --header "Authorization: Bearer ${GITHUB_TOKEN}" \
+              --header 'Accept: application/vnd.github+json' \
+              --header 'X-GitHub-Api-Version: 2022-11-28' \
+              "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/pulls/${EVENT_PR_NUMBER}")"
+            if jq --exit-status --arg token "${token}" '.labels | any(.name == $token)' <<<"${pull}" >/dev/null; then
               approved=true
             fi
           fi
