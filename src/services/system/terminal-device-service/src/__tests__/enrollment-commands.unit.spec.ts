@@ -15,6 +15,7 @@ import { TerminalDeviceAuditEventEntity } from '../domain/entities/terminal-devi
 import { TerminalDeviceEnrollmentEntity } from '../domain/entities/terminal-device-enrollment.entity'
 import { TerminalDeviceEntity } from '../domain/entities/terminal-device.entity'
 import { TerminalDeviceError } from '../domain/errors/terminal-device.error'
+import { TerminalDeviceCredentialVerifierService } from '../application/services/terminal-device-credential-verifier.service'
 import { TerminalDeviceAuditEventRepository } from '../domain/repositories/terminal-device-audit-event.repository'
 import {
   InMemoryTerminalDeviceActivationRepository,
@@ -34,8 +35,13 @@ class CapturingAuditEventRepository implements TerminalDeviceAuditEventRepositor
   }
 
   // Lists captured audit events for compatibility with the repository port.
-  async listByTerminalDeviceId(tenantId: string, terminalDeviceId: string): Promise<TerminalDeviceAuditEventEntity[]> {
-    return this.events.filter((event) => event.tenantId === tenantId && event.targetTerminalDeviceId === terminalDeviceId)
+  async listByTerminalDeviceId(
+    tenantId: string,
+    terminalDeviceId: string
+  ): Promise<TerminalDeviceAuditEventEntity[]> {
+    return this.events.filter(
+      (event) => event.tenantId === tenantId && event.targetTerminalDeviceId === terminalDeviceId
+    )
   }
 }
 
@@ -89,7 +95,9 @@ describe('enrollment commands', () => {
       expect(stored?.codeHash).toBe(hashEnrollmentCode(result.enrollmentCode))
       expect(stored?.codeHash).not.toBe(result.enrollmentCode)
       expect(JSON.stringify(stored)).not.toContain(result.enrollmentCode)
-      expect(await enrollmentRepository.findByCodeHash(hashEnrollmentCode(result.enrollmentCode))).toEqual(stored)
+      expect(
+        await enrollmentRepository.findByCodeHash(hashEnrollmentCode(result.enrollmentCode))
+      ).toEqual(stored)
       expect(auditEventRepository.events).toHaveLength(1)
       expect(auditEventRepository.events[0]).toMatchObject({
         tenantId: 'tenant-1',
@@ -121,7 +129,12 @@ describe('enrollment commands', () => {
           codeHash: hashEnrollmentCode('ENR-ACTIVATE001')
         })
       )
-      const handler = new ActivateEnrollmentHandler(enrollmentRepository, deviceRepository, activationRepository)
+      const handler = new ActivateEnrollmentHandler(
+        enrollmentRepository,
+        deviceRepository,
+        activationRepository,
+        new TerminalDeviceCredentialVerifierService()
+      )
 
       const result = await handler.execute(
         new ActivateEnrollmentCommand({
@@ -175,7 +188,10 @@ describe('enrollment commands', () => {
         usedByTerminalDeviceId: result.terminalDeviceId,
         usedAt: new Date('2026-05-16T00:05:00.000Z')
       })
-      const auditEvents = await auditEventRepository.listByTerminalDeviceId('tenant-1', result.terminalDeviceId as string)
+      const auditEvents = await auditEventRepository.listByTerminalDeviceId(
+        'tenant-1',
+        result.terminalDeviceId as string
+      )
       expect(auditEvents).toHaveLength(1)
       expect(auditEvents[0]).toMatchObject({
         tenantId: 'tenant-1',
@@ -199,7 +215,12 @@ describe('enrollment commands', () => {
           codeHash: hashEnrollmentCode('ENR-KIOSK00001')
         })
       )
-      const handler = new ActivateEnrollmentHandler(enrollmentRepository, deviceRepository, activationRepository)
+      const handler = new ActivateEnrollmentHandler(
+        enrollmentRepository,
+        deviceRepository,
+        activationRepository,
+        new TerminalDeviceCredentialVerifierService()
+      )
 
       const result = await handler.execute(
         new ActivateEnrollmentCommand({
@@ -232,13 +253,43 @@ describe('enrollment commands', () => {
         decisionCode: 'ENROLLMENT_TYPE_MISMATCH'
       })
       expect((await enrollmentRepository.findById('enrollment-non-pda-1'))?.status).toBe('ISSUED')
-      expect(await auditEventRepository.listByTerminalDeviceId('tenant-1', 'terminal-device-unused')).toHaveLength(0)
+      expect(
+        await auditEventRepository.listByTerminalDeviceId('tenant-1', 'terminal-device-unused')
+      ).toHaveLength(0)
     })
 
     it.each([
-      ['expired enrollment', createEnrollment({ enrollmentId: 'enrollment-expired-1', codeHash: hashEnrollmentCode('ENR-EXPIRED001'), expiresAt: new Date('2026-05-15T00:00:00.000Z') }), 'ENROLLMENT_EXPIRED'],
-      ['used enrollment', createEnrollment({ enrollmentId: 'enrollment-used-1', codeHash: hashEnrollmentCode('ENR-USED000000'), status: 'USED', usedAt: new Date('2026-05-16T00:00:00.000Z'), usedByTerminalDeviceId: 'terminal-device-used-1' }), 'ENROLLMENT_USED'],
-      ['revoked enrollment', createEnrollment({ enrollmentId: 'enrollment-revoked-1', codeHash: hashEnrollmentCode('ENR-REVOKED001'), status: 'REVOKED', revokedAt: new Date('2026-05-16T00:00:00.000Z'), revokedBy: 'operator-1' }), 'ENROLLMENT_REVOKED']
+      [
+        'expired enrollment',
+        createEnrollment({
+          enrollmentId: 'enrollment-expired-1',
+          codeHash: hashEnrollmentCode('ENR-EXPIRED001'),
+          expiresAt: new Date('2026-05-15T00:00:00.000Z')
+        }),
+        'ENROLLMENT_EXPIRED'
+      ],
+      [
+        'used enrollment',
+        createEnrollment({
+          enrollmentId: 'enrollment-used-1',
+          codeHash: hashEnrollmentCode('ENR-USED000000'),
+          status: 'USED',
+          usedAt: new Date('2026-05-16T00:00:00.000Z'),
+          usedByTerminalDeviceId: 'terminal-device-used-1'
+        }),
+        'ENROLLMENT_USED'
+      ],
+      [
+        'revoked enrollment',
+        createEnrollment({
+          enrollmentId: 'enrollment-revoked-1',
+          codeHash: hashEnrollmentCode('ENR-REVOKED001'),
+          status: 'REVOKED',
+          revokedAt: new Date('2026-05-16T00:00:00.000Z'),
+          revokedBy: 'operator-1'
+        }),
+        'ENROLLMENT_REVOKED'
+      ]
     ])('rejects %s', async (_name, enrollment, decisionCode) => {
       const store = new InMemoryTerminalDeviceStore()
       const enrollmentRepository = new InMemoryTerminalDeviceEnrollmentRepository(store)
@@ -246,7 +297,12 @@ describe('enrollment commands', () => {
       const activationRepository = new InMemoryTerminalDeviceActivationRepository(store)
       const auditEventRepository = new InMemoryTerminalDeviceAuditEventRepository(store)
       await enrollmentRepository.create(enrollment)
-      const handler = new ActivateEnrollmentHandler(enrollmentRepository, deviceRepository, activationRepository)
+      const handler = new ActivateEnrollmentHandler(
+        enrollmentRepository,
+        deviceRepository,
+        activationRepository,
+        new TerminalDeviceCredentialVerifierService()
+      )
 
       const result = await handler.execute(
         new ActivateEnrollmentCommand({
@@ -278,7 +334,9 @@ describe('enrollment commands', () => {
         enrollmentId: null,
         decisionCode
       })
-      expect(await auditEventRepository.listByTerminalDeviceId('tenant-1', 'terminal-device-unused')).toHaveLength(0)
+      expect(
+        await auditEventRepository.listByTerminalDeviceId('tenant-1', 'terminal-device-unused')
+      ).toHaveLength(0)
     })
 
     it('rejects an expected manufacturer serial mismatch', async () => {
@@ -294,7 +352,12 @@ describe('enrollment commands', () => {
           expectedManufacturerSerial: 'SN-EXPECTED'
         })
       )
-      const handler = new ActivateEnrollmentHandler(enrollmentRepository, deviceRepository, activationRepository)
+      const handler = new ActivateEnrollmentHandler(
+        enrollmentRepository,
+        deviceRepository,
+        activationRepository,
+        new TerminalDeviceCredentialVerifierService()
+      )
 
       const result = await handler.execute(
         new ActivateEnrollmentCommand({
@@ -319,8 +382,12 @@ describe('enrollment commands', () => {
 
       expect(result.decisionCode).toBe('EXPECTED_SERIAL_MISMATCH')
       expect(result.activated).toBe(false)
-      expect((await enrollmentRepository.findById('enrollment-serial-mismatch-1'))?.status).toBe('ISSUED')
-      expect(await auditEventRepository.listByTerminalDeviceId('tenant-1', 'terminal-device-unused')).toHaveLength(0)
+      expect((await enrollmentRepository.findById('enrollment-serial-mismatch-1'))?.status).toBe(
+        'ISSUED'
+      )
+      expect(
+        await auditEventRepository.listByTerminalDeviceId('tenant-1', 'terminal-device-unused')
+      ).toHaveLength(0)
     })
 
     it('rejects a possible identity match without auto-recovering the old device', async () => {
@@ -355,7 +422,12 @@ describe('enrollment commands', () => {
           notes: null
         })
       )
-      const handler = new ActivateEnrollmentHandler(enrollmentRepository, deviceRepository, activationRepository)
+      const handler = new ActivateEnrollmentHandler(
+        enrollmentRepository,
+        deviceRepository,
+        activationRepository,
+        new TerminalDeviceCredentialVerifierService()
+      )
 
       const result = await handler.execute(
         new ActivateEnrollmentCommand({
@@ -391,8 +463,12 @@ describe('enrollment commands', () => {
         status: 'DISABLED',
         enrollmentId: 'enrollment-old-1'
       })
-      expect((await enrollmentRepository.findById('enrollment-identity-conflict-1'))?.status).toBe('ISSUED')
-      expect(await auditEventRepository.listByTerminalDeviceId('tenant-1', 'terminal-device-old-1')).toHaveLength(0)
+      expect((await enrollmentRepository.findById('enrollment-identity-conflict-1'))?.status).toBe(
+        'ISSUED'
+      )
+      expect(
+        await auditEventRepository.listByTerminalDeviceId('tenant-1', 'terminal-device-old-1')
+      ).toHaveLength(0)
     })
 
     it('commits activation as one consistency boundary and rejects stale duplicate activation', async () => {
@@ -407,15 +483,26 @@ describe('enrollment commands', () => {
         })
       )
       const firstDevice = createDeviceFromEnrollment(enrollment, 'terminal-device-race-1')
-      const firstUsedEnrollment = enrollment.markUsed(firstDevice.terminalDeviceId, new Date('2026-05-16T00:05:00.000Z'))
+      const firstUsedEnrollment = enrollment.markUsed(
+        firstDevice.terminalDeviceId,
+        new Date('2026-05-16T00:05:00.000Z')
+      )
       const secondDevice = createDeviceFromEnrollment(enrollment, 'terminal-device-race-2')
-      const secondUsedEnrollment = enrollment.markUsed(secondDevice.terminalDeviceId, new Date('2026-05-16T00:06:00.000Z'))
+      const secondUsedEnrollment = enrollment.markUsed(
+        secondDevice.terminalDeviceId,
+        new Date('2026-05-16T00:06:00.000Z')
+      )
 
       await activationRepository.completeEnrollmentActivation({
         issuedEnrollment: enrollment,
         usedEnrollment: firstUsedEnrollment,
         terminalDevice: firstDevice,
-        auditEvent: createActivationAuditEvent(enrollment, firstUsedEnrollment, firstDevice, 'audit-race-1')
+        auditEvent: createActivationAuditEvent(
+          enrollment,
+          firstUsedEnrollment,
+          firstDevice,
+          'audit-race-1'
+        )
       })
 
       await expect(
@@ -423,7 +510,12 @@ describe('enrollment commands', () => {
           issuedEnrollment: enrollment,
           usedEnrollment: secondUsedEnrollment,
           terminalDevice: secondDevice,
-          auditEvent: createActivationAuditEvent(enrollment, secondUsedEnrollment, secondDevice, 'audit-race-2')
+          auditEvent: createActivationAuditEvent(
+            enrollment,
+            secondUsedEnrollment,
+            secondDevice,
+            'audit-race-2'
+          )
         })
       ).rejects.toMatchObject<TerminalDeviceError>({
         code: 'ENROLLMENT_ACTIVATION_CONFLICT'
@@ -552,13 +644,17 @@ describe('enrollment commands', () => {
       ).rejects.toMatchObject<TerminalDeviceError>({
         code: 'ENROLLMENT_REVOCATION_REASON_REQUIRED'
       })
-      expect((await enrollmentRepository.findById('enrollment-revoke-reason-1'))?.status).toBe('ISSUED')
+      expect((await enrollmentRepository.findById('enrollment-revoke-reason-1'))?.status).toBe(
+        'ISSUED'
+      )
       expect(auditEventRepository.events).toHaveLength(0)
     })
   })
 })
 
-function createEnrollment(input: Partial<ConstructorParameters<typeof TerminalDeviceEnrollmentEntity>[0]>): TerminalDeviceEnrollmentEntity {
+function createEnrollment(
+  input: Partial<ConstructorParameters<typeof TerminalDeviceEnrollmentEntity>[0]>
+): TerminalDeviceEnrollmentEntity {
   return new TerminalDeviceEnrollmentEntity({
     enrollmentId: 'enrollment-1',
     tenantId: 'tenant-1',
@@ -579,7 +675,10 @@ function createEnrollment(input: Partial<ConstructorParameters<typeof TerminalDe
   })
 }
 
-function createDeviceFromEnrollment(enrollment: TerminalDeviceEnrollmentEntity, terminalDeviceId: string): TerminalDeviceEntity {
+function createDeviceFromEnrollment(
+  enrollment: TerminalDeviceEnrollmentEntity,
+  terminalDeviceId: string
+): TerminalDeviceEntity {
   return new TerminalDeviceEntity({
     terminalDeviceId,
     tenantId: enrollment.tenantId,

@@ -62,7 +62,10 @@ import {
   TENANTORG_TARGET_AUDIENCE,
   TrustedTenantOrgGrpcClient
 } from '../../../../../src/infrastructure/grpc/trusted-tenant-org.grpc.client'
-import { TenantTargetBindingGuard, VerifiedTenantTarget } from '../../../../../src/common/tenant-target'
+import {
+  TenantTargetBindingGuard,
+  VerifiedTenantTarget
+} from '../../../../../src/common/tenant-target'
 import { GatewayExceptionFilter } from '../../../../../src/common/filters/gateway-exception.filter'
 import { TenantOrgQueryGrpcAdapter } from '../../../../../src/modules/tenant-org-service/adapters/tenant-org-query-grpc.adapter'
 
@@ -73,7 +76,9 @@ const GATEWAY_SPIFFE = 'spiffe://local.oes.internal/ns/oes/sa/api-gateway'
 const CODE = TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_ORG_TREE
 const KID = 'matrix-es256-1'
 const TRACEPARENT = '00-11111111111111111111111111111111-2222222222222222-01'
-const REPOSITORY_ROOT = resolve(__dirname, '../../../../../../..')
+const REPOSITORY_ROOT = resolve(
+  process.env.OES_REPOSITORY_ROOT ?? resolve(__dirname, '../../../../../../../..')
+)
 const signingKeys = generateKeyPairSync('ec', { namedCurve: 'P-256' })
 const publicJwk = signingKeys.publicKey.export({ format: 'jwk' })
 

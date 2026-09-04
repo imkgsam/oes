@@ -6,14 +6,18 @@ import { execFileSync } from 'node:child_process'
 export const TEST_TYPES = Object.freeze(['unit', 'component', 'contract', 'integration', 'journey'])
 
 /** Selects the mature package-native scripts used by each orchestration lane. */
-export function packageScriptsForKind(record, kind) {
-  if (kind === 'build') return record.scripts?.build ? ['build'] : []
+export function packageScriptsForKind(
+  record,
+  kind,
+  { delegateBuild = false, delegateTypecheck = false } = {}
+) {
+  if (kind === 'build') return record.scripts?.build && !delegateBuild ? ['build'] : []
   if (kind !== 'static') throw new Error(`Unknown package script kind: ${kind}`)
   return Object.keys(record.scripts || {})
     .filter(
       (script) =>
-        script === 'lint' ||
-        script === 'typecheck' ||
+        (script === 'typecheck' && !delegateTypecheck) ||
+        script === 'check:type' ||
         script === 'check:static' ||
         script.startsWith('check:static:')
     )
@@ -334,6 +338,41 @@ export function findWorkspaceRoot(root, directory) {
     current = dirname(current)
   }
   return ''
+}
+
+/** Reads the package globs from a pnpm workspace manifest without interpreting other YAML keys. */
+export function readWorkspacePackagePatterns(path) {
+  const patterns = []
+  let readingPackages = false
+  for (const line of readFileSync(path, 'utf8').split(/\r?\n/u)) {
+    if (/^packages:\s*$/u.test(line)) {
+      readingPackages = true
+      continue
+    }
+    if (!readingPackages) continue
+    if (/^\S/u.test(line)) break
+    const match = line.match(/^\s*-\s*['"]?(.+?)['"]?\s*$/u)
+    if (match) patterns.push(normalizePath(match[1]))
+  }
+  return patterns
+}
+
+/** Returns whether a package is actually enrolled in its nearest pnpm workspace. */
+export function isWorkspacePackage(root, record) {
+  const workspaceRoot = findWorkspaceRoot(root, record.directory)
+  if (normalizePath(record.directory) === workspaceRoot) return true
+  const workspaceManifest = resolve(root, workspaceRoot, 'pnpm-workspace.yaml')
+  if (!existsSync(workspaceManifest)) return false
+  const packagePath = normalizePath(
+    relative(resolve(root, workspaceRoot), resolve(root, record.directory))
+  )
+  let included = false
+  for (const pattern of readWorkspacePackagePatterns(workspaceManifest)) {
+    const excluded = pattern.startsWith('!')
+    const candidate = excluded ? pattern.slice(1) : pattern
+    if (globToRegExp(candidate).test(packagePath)) included = !excluded
+  }
+  return included
 }
 
 /** Ensures a file is present and regular before a CLI consumes it. */

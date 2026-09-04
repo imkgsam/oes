@@ -2072,9 +2072,21 @@ importers:
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
+      vue-tsc:
+        specifier: 3.3.3
+        version: 3.3.3(typescript@5.9.3)
 
   src/site-runtime/meilong-ceramics-site:
     devDependencies:
+      '@oes/meilong-ceramics-site-runtime':
+        specifier: workspace:*
+        version: link:runtime
+      '@oes/meilong-ceramics-site-storefront':
+        specifier: workspace:*
+        version: link:storefront
+      '@oes/site-runtime-kit':
+        specifier: workspace:*
+        version: link:../site-runtime-kit
       playwright:
         specifier: 1.58.2
         version: 1.58.2

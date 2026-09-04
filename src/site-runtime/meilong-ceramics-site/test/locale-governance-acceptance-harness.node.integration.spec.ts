@@ -13,6 +13,7 @@ import type { INestApplication } from '@nestjs/common'
 import { APP_GUARD } from '@nestjs/core'
 import { Test } from '@nestjs/testing'
 import {
+  GATEWAY_PERMISSION_TRUSTED_METADATA_PROVIDER,
   GatewayPermissionGuard,
   GRPC_METADATA_PROPAGATION_FACTORY,
   SITE_MANAGEMENT_PERMISSION_CODES
@@ -312,6 +313,10 @@ async function createGatewaySecurityTestApplication(
         }
       },
       GatewayPermissionGuard,
+      {
+        provide: GATEWAY_PERMISSION_TRUSTED_METADATA_PROVIDER,
+        useValue: { create: async () => ({}) }
+      },
       GatewayVerifiedSourceCredentialVault,
       ...acceptanceGatewayGuardProviderFactory(),
       GatewayExceptionFilter,

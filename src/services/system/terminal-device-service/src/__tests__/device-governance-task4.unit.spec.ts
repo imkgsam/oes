@@ -508,7 +508,8 @@ describe('Task 4 device governance application services', () => {
       const handler = new RecordHeartbeatHandler(
         context.deviceRepository,
         context.runtimeSnapshotRepository,
-        context.decisionService
+        context.decisionService,
+        new TerminalDeviceCredentialVerifierService()
       )
 
       const result = await handler.execute(
@@ -581,19 +582,36 @@ describe('Task 4 device governance application services', () => {
       const context = await createDecisionContext('ACTIVE')
       const now = new Date('2026-05-16T00:00:00.000Z')
       const verifier = new TerminalDeviceCredentialVerifierService()
-      const issued = verifier.issue(new Date(now.getTime() - TerminalDeviceCredentialVerifierService.MAX_AGE_MS + 24 * 60 * 60 * 1000))
-      await context.deviceRepository.update(new TerminalDeviceEntity({
-        ...createDevice('ACTIVE'),
-        deviceCredentialHash: issued.hash,
-        deviceCredentialVersion: issued.version,
-        deviceCredentialExpiresAt: new Date(now.getTime() + 60 * 60 * 1000),
-        deviceCredentialState: 'ACTIVE'
-      }))
-      const handler = new RecordHeartbeatHandler(context.deviceRepository, context.runtimeSnapshotRepository, context.decisionService)
-      const command = () => new RecordHeartbeatCommand({
-        terminalDeviceId: 'terminal-device-1', terminalDeviceType: 'PDA', appVersion: '2.1.0',
-        networkStatus: 'ONLINE', networkType: 'WIFI', appState: 'FOREGROUND', receivedAt: now
-      })
+      const issued = verifier.issue(
+        new Date(
+          now.getTime() - TerminalDeviceCredentialVerifierService.MAX_AGE_MS + 24 * 60 * 60 * 1000
+        )
+      )
+      await context.deviceRepository.update(
+        new TerminalDeviceEntity({
+          ...createDevice('ACTIVE'),
+          deviceCredentialHash: issued.hash,
+          deviceCredentialVersion: issued.version,
+          deviceCredentialExpiresAt: new Date(now.getTime() + 60 * 60 * 1000),
+          deviceCredentialState: 'ACTIVE'
+        })
+      )
+      const handler = new RecordHeartbeatHandler(
+        context.deviceRepository,
+        context.runtimeSnapshotRepository,
+        context.decisionService,
+        verifier
+      )
+      const command = () =>
+        new RecordHeartbeatCommand({
+          terminalDeviceId: 'terminal-device-1',
+          terminalDeviceType: 'PDA',
+          appVersion: '2.1.0',
+          networkStatus: 'ONLINE',
+          networkType: 'WIFI',
+          appState: 'FOREGROUND',
+          receivedAt: now
+        })
 
       const results = await Promise.all([handler.execute(command()), handler.execute(command())])
       const winner = results.filter((result) => result.rotatedDeviceCredential !== null)
@@ -601,29 +619,46 @@ describe('Task 4 device governance application services', () => {
 
       expect(winner).toHaveLength(1)
       expect(persisted?.deviceCredentialVersion).toBe(2)
-      expect(() => verifier.verify(persisted!, winner[0]!.rotatedDeviceCredential!, 'install-1', now)).not.toThrow()
+      expect(() =>
+        verifier.verify(persisted!, winner[0]!.rotatedDeviceCredential!, 'install-1', now)
+      ).not.toThrow()
       expect(results.map((result) => result.deviceCredentialVersion)).toEqual([2, 2])
     })
 
     it('rolls lifecycle and credential state back when its atomic audit commit fails', async () => {
       const context = await createLifecycleContext('ACTIVE')
-      jest.spyOn(context.deviceRepository, 'commitStatusChange').mockRejectedValue(new Error('audit insert failed'))
-      const handler = new ChangeTerminalDeviceStatusHandler(context.deviceRepository, context.auditRepository)
+      jest
+        .spyOn(context.deviceRepository, 'commitStatusChange')
+        .mockRejectedValue(new Error('audit insert failed'))
+      const handler = new ChangeTerminalDeviceStatusHandler(
+        context.deviceRepository,
+        context.auditRepository
+      )
 
-      await expect(handler.execute(new ChangeTerminalDeviceStatusCommand({
-        tenantId: 'tenant-1', terminalDeviceId: 'terminal-device-1', targetStatus: 'LOST',
-        operatorContext: { operatorAccountId: 'operator-1' }
-      }))).rejects.toThrow('audit insert failed')
+      await expect(
+        handler.execute(
+          new ChangeTerminalDeviceStatusCommand({
+            tenantId: 'tenant-1',
+            terminalDeviceId: 'terminal-device-1',
+            targetStatus: 'LOST',
+            operatorContext: { operatorAccountId: 'operator-1' }
+          })
+        )
+      ).rejects.toThrow('audit insert failed')
 
       expect((await context.deviceRepository.findById('terminal-device-1'))?.status).toBe('ACTIVE')
-      expect(await context.auditRepository.listByTerminalDeviceId('tenant-1', 'terminal-device-1')).toHaveLength(0)
+      expect(
+        await context.auditRepository.listByTerminalDeviceId('tenant-1', 'terminal-device-1')
+      ).toHaveLength(0)
     })
 
     it('derives management presence from heartbeat age instead of keeping stale snapshots online forever', async () => {
       const context = await createDecisionContext('ACTIVE')
-      await context.runtimeSnapshotRepository.upsert(createRuntimeSnapshot({
-        lastHeartbeatAt: new Date('2026-05-16T00:00:00.000Z')
-      }))
+      await context.runtimeSnapshotRepository.upsert(
+        createRuntimeSnapshot({
+          lastHeartbeatAt: new Date('2026-05-16T00:00:00.000Z')
+        })
+      )
       const handler = new ListTerminalDevicesHandler(
         context.deviceRepository,
         context.runtimeSnapshotRepository
@@ -772,7 +807,6 @@ async function createLifecycleContext(status: TerminalDeviceStatus) {
   }
 }
 
-
 // createDevice builds a terminal device entity with a variable lifecycle status for Task 4 tests.
 function createDevice(status: TerminalDeviceStatus): TerminalDeviceEntity {
   return new TerminalDeviceEntity({
@@ -814,7 +848,9 @@ function createVersionPolicy(): TerminalDeviceVersionPolicyEntity {
 }
 
 // createRuntimeSnapshot builds a heartbeat snapshot whose stored presence may be re-derived by management queries.
-function createRuntimeSnapshot(input: { lastHeartbeatAt: Date }): TerminalDeviceRuntimeSnapshotEntity {
+function createRuntimeSnapshot(input: {
+  lastHeartbeatAt: Date
+}): TerminalDeviceRuntimeSnapshotEntity {
   return new TerminalDeviceRuntimeSnapshotEntity({
     terminalDeviceId: 'terminal-device-1',
     tenantId: 'tenant-1',

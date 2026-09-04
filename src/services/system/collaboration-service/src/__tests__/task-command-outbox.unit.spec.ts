@@ -27,7 +27,8 @@ describe('TaskCommandService outbox boundary', () => {
       operation: 'CREATE',
       audit: expect.objectContaining({ action: 'TASK_CREATED', taskId: task.id })
     })
-    expect(transaction.commits[0].publicEvent).toMatchObject({
+    expect(transaction.commits[0].publicEvents).toHaveLength(1)
+    expect(transaction.commits[0].publicEvents?.[0]).toMatchObject({
       type: 'collaboration.task.assigned',
       source: 'urn:oes:service:collaboration-service',
       subject: task.id,
@@ -43,7 +44,7 @@ describe('TaskCommandService outbox boundary', () => {
         titleSnapshot: 'Review supplier quote'
       }
     })
-    expect(Object.isFrozen(transaction.commits[0].publicEvent)).toBe(true)
+    expect(Object.isFrozen(transaction.commits[0].publicEvents?.[0])).toBe(true)
   })
 
   it('does not create an assigned public fact for a self todo or for an idempotent completion', async () => {
@@ -67,7 +68,7 @@ describe('TaskCommandService outbox boundary', () => {
       now: new Date('2026-07-26T08:01:00.000Z')
     })
 
-    expect(transaction.commits.map((commit) => commit.publicEvent)).toEqual([undefined, undefined])
+    expect(transaction.commits.map((commit) => commit.publicEvents)).toEqual([undefined, undefined])
   })
 })
 
@@ -106,7 +107,10 @@ class InMemoryTaskRepository implements TaskRepository {
 }
 
 /** Builds the task-command service with authorized dependencies and a recorded transaction boundary. */
-function createService(transaction: TaskCommandTransactionPort, repository = new InMemoryTaskRepository()): TaskCommandService {
+function createService(
+  transaction: TaskCommandTransactionPort,
+  repository = new InMemoryTaskRepository()
+): TaskCommandService {
   return new TaskCommandService(
     repository,
     { isActiveTenantAccount: jest.fn().mockResolvedValue(true) },

@@ -1,7 +1,5 @@
 /* @vitest-environment happy-dom */
 
-import { resolve } from 'node:path'
-
 import { flushPromises, mount } from '@vue/test-utils'
 import { defineComponent } from 'vue'
 

@@ -1,7 +1,5 @@
 /* @vitest-environment happy-dom */
 
-import { join } from 'node:path'
-
 import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -158,7 +156,9 @@ describe('item packaging management page', () => {
     await wrapper.get('[data-testid="packaging-method-create-button"]').trigger('click')
     await wrapper.get('[data-testid="packaging-method-code"]').setValue('ECOM')
     await wrapper.get('[data-testid="packaging-method-name"]').setValue('E-commerce')
-    await wrapper.get('[data-testid="packaging-method-description"]').setValue(' Online parcel packaging ')
+    await wrapper
+      .get('[data-testid="packaging-method-description"]')
+      .setValue(' Online parcel packaging ')
     await wrapper.get('[data-testid="packaging-method-submit"]').trigger('click')
     await flushPromises()
 
@@ -171,7 +171,9 @@ describe('item packaging management page', () => {
     await wrapper.get('[data-testid="packaging-method-edit-method-1"]').trigger('click')
     await wrapper.get('[data-testid="packaging-method-code"]').setValue('STD-REV')
     await wrapper.get('[data-testid="packaging-method-name"]').setValue('Standard Rev')
-    await wrapper.get('[data-testid="packaging-method-description"]').setValue(' Updated carton flow ')
+    await wrapper
+      .get('[data-testid="packaging-method-description"]')
+      .setValue(' Updated carton flow ')
     await wrapper.get('[data-testid="packaging-method-status"]').setValue('INACTIVE')
     await wrapper.get('[data-testid="packaging-method-submit"]').trigger('click')
     await flushPromises()
@@ -201,7 +203,9 @@ describe('item packaging management page', () => {
     expect(wrapper.find('button[aria-label="包装方式操作"]').exists()).toBe(true)
     expect(wrapper.find('[data-icon="ant-design:more-outlined"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="packaging-method-edit-method-1"]').text()).toContain('编辑')
-    expect(wrapper.get('[data-testid="packaging-method-delete-method-1"]').text()).toContain('硬删除')
+    expect(wrapper.get('[data-testid="packaging-method-delete-method-1"]').text()).toContain(
+      '硬删除'
+    )
   })
 
   it('resizes PackagingMethod table columns from the header drag handle', async () => {
@@ -217,7 +221,9 @@ describe('item packaging management page', () => {
       .get('[data-testid="packaging-method-column-resize-methodName"]')
       .trigger('mousedown', { clientX: 100 })
 
-    expect(document.body.classList.contains('item-packaging-management--resizing-column')).toBe(true)
+    expect(document.body.classList.contains('item-packaging-management--resizing-column')).toBe(
+      true
+    )
 
     document.dispatchEvent(new MouseEvent('mousemove', { clientX: 148 }))
     await nextTick()
@@ -227,6 +233,8 @@ describe('item packaging management page', () => {
     document.dispatchEvent(new MouseEvent('mouseup'))
     await nextTick()
 
-    expect(document.body.classList.contains('item-packaging-management--resizing-column')).toBe(false)
+    expect(document.body.classList.contains('item-packaging-management--resizing-column')).toBe(
+      false
+    )
   })
 })

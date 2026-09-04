@@ -4,9 +4,13 @@ import {
   discoverTests,
   globToRegExp,
   integrationOwnersForTests,
+  isWorkspacePackage,
   packageScriptsForKind,
   parseNameStatus
 } from './test-infrastructure.mjs'
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 const packages = [
   { directory: 'packages/example', name: 'example', dependencies: {}, scripts: {} },
@@ -129,11 +133,12 @@ test('name-status parser retains delete and both rename paths', () => {
   ])
 })
 
-test('static package orchestration includes every mature static entry point deterministically', () => {
+test('static package orchestration includes every non-mutating static entry point deterministically', () => {
   const record = {
     scripts: {
       test: 'runner',
       typecheck: 'tsc',
+      'check:type': 'turbo run typecheck',
       'check:static:z': 'z',
       lint: 'eslint',
       'check:static': 'check',
@@ -145,8 +150,26 @@ test('static package orchestration includes every mature static entry point dete
     'check:static',
     'check:static:a',
     'check:static:z',
-    'lint',
+    'check:type',
     'typecheck'
   ])
+  assert.deepEqual(packageScriptsForKind(record, 'static', { delegateTypecheck: true }), [
+    'check:static',
+    'check:static:a',
+    'check:static:z',
+    'check:type'
+  ])
   assert.deepEqual(packageScriptsForKind(record, 'build'), ['build'])
+  assert.deepEqual(packageScriptsForKind(record, 'build', { delegateBuild: true }), [])
+})
+
+test('package scripts exclude directories outside their nearest pnpm workspace', () => {
+  const root = mkdtempSync(join(tmpdir(), 'oes-workspace-membership-'))
+  mkdirSync(join(root, 'app/web/apps/tenant'), { recursive: true })
+  mkdirSync(join(root, 'app/web/playground'), { recursive: true })
+  writeFileSync(join(root, 'pnpm-workspace.yaml'), "packages:\n  - 'app/*'\n")
+  writeFileSync(join(root, 'app/web/pnpm-workspace.yaml'), 'packages:\n  - apps/*\n')
+  assert.equal(isWorkspacePackage(root, { directory: 'app/web/apps/tenant' }), true)
+  assert.equal(isWorkspacePackage(root, { directory: 'app/web/playground' }), false)
+  assert.equal(isWorkspacePackage(root, { directory: 'app/web' }), true)
 })

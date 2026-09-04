@@ -1,4 +1,7 @@
-import { createBusinessCardSmokeSeed, runBusinessCardSmokeFlow } from '../../scripts/business-card-smoke-lib'
+import {
+  createBusinessCardSmokeSeed,
+  runBusinessCardSmokeFlow
+} from '../../scripts/business-card-smoke-lib'
 
 // Verifies BusinessCard Phase 1 persists config refs, binds ShortLink, renders public view, records visits, and audits mutations.
 describe('public-entry-service BusinessCard smoke flow', () => {
@@ -8,12 +11,9 @@ describe('public-entry-service BusinessCard smoke flow', () => {
 
     expect(result.businessCard.status).toBe('ACTIVE')
     expect(result.publicRender.state).toBe('AVAILABLE')
-    expect(result.publicRender.view?.contactActions.map((action) => action.contactActionType)).toEqual([
-      'CALL_PHONE',
-      'SEND_EMAIL',
-      'OPEN_COMPANY_WEBSITE',
-      'SAVE_VCARD'
-    ])
+    expect(
+      result.publicRender.view?.contactActions.map((action) => action.contactActionType)
+    ).toEqual(['CALL_PHONE', 'SEND_EMAIL', 'OPEN_COMPANY_WEBSITE', 'SAVE_VCARD'])
     expect(result.redirect).toEqual({
       type: 'REDIRECT',
       location: `${seed.publicRenderBaseUrl}/public/business-cards/${result.businessCard.businessCardId}`

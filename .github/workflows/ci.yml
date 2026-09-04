@@ -146,10 +146,12 @@ jobs:
         run: pnpm --dir app/pda install --frozen-lockfile
       - name: Run taxonomy, source rules, and changed-document links
         run: pnpm check:static -- --plan .tmp/change-plan.json
-      - name: Run selected lint and type checks
+      - name: Run selected package static and type checks
         if: ${{ needs.change-plan.outputs.mode != 'DOCS' }}
         run: |
           pnpm generated:all
+          pnpm common:build
+          pnpm --filter @oes/site-runtime-kit build
           node scripts/test-infrastructure/src/package-scripts.mjs --kind static --plan .tmp/change-plan.json
 
   build:
@@ -215,6 +217,10 @@ jobs:
       - if: ${{ needs.change-plan.outputs.needs-pda-install == 'true' }}
         run: pnpm --dir app/pda install --frozen-lockfile
       - run: pnpm generated:all
+      - name: Build compiled Unit-test dependencies
+        run: |
+          pnpm common:build
+          pnpm --filter notification-service build
       - run: pnpm test:run -- --type unit --plan .tmp/change-plan.json
 
   component:
@@ -247,6 +253,8 @@ jobs:
       - if: ${{ needs.change-plan.outputs.needs-pda-install == 'true' }}
         run: pnpm --dir app/pda install --frozen-lockfile
       - run: pnpm generated:all
+      - name: Build compiled Component-test dependencies
+        run: pnpm common:build
       - run: pnpm test:run -- --type component --plan .tmp/change-plan.json
 
   contract:
@@ -279,6 +287,8 @@ jobs:
       - if: ${{ needs.change-plan.outputs.needs-pda-install == 'true' }}
         run: pnpm --dir app/pda install --frozen-lockfile
       - run: pnpm generated:all
+      - name: Build compiled Contract-test dependencies
+        run: pnpm common:build
       - run: pnpm test:run -- --type contract --plan .tmp/change-plan.json
 
   integration:
@@ -308,6 +318,12 @@ jobs:
         with:
           name: change-plan-${{ github.run_id }}-${{ github.run_attempt }}
           path: .tmp
+      - name: Build compiled Integration-test dependencies
+        run: |
+          pnpm generated:all
+          pnpm common:build
+          pnpm --filter api-gateway build
+          pnpm --filter @oes/site-runtime-kit build
       - run: pnpm test:run -- --type integration --plan .tmp/change-plan.json
       - name: Prove task-owned runtime cleanup
         if: ${{ always() }}

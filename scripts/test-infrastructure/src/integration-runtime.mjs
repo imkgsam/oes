@@ -48,6 +48,34 @@ function serviceDatabaseUrl(context, service, postgresPort) {
   return url.toString()
 }
 
+/** Synchronizes one disposable Integration database with its current Prisma datamodel. */
+export function synchronizeIntegrationSchemas({ context, execute, postgresPort, services, root }) {
+  for (const service of services) {
+    execute(
+      'pnpm',
+      [
+        'exec',
+        'prisma',
+        'db',
+        'push',
+        '--schema',
+        service.schema,
+        '--skip-generate',
+        '--accept-data-loss'
+      ],
+      {
+        cwd: root,
+        env: {
+          ...process.env,
+          DATABASE_URL: serviceDatabaseUrl(context, service, postgresPort),
+          NODE_ENV: 'test'
+        }
+      }
+    )
+    process.stdout.write(`INTEGRATION_SCHEMA_SYNC service=${service.name} status=PASS\n`)
+  }
+}
+
 /** Builds one owner-scoped environment from the ready task runtime inventory. */
 export function integrationEnvironmentForOwner({
   context,
@@ -229,6 +257,10 @@ export async function withIntegrationRuntime({
     execute('pnpm', ['db:up', '--', '--profile', 'integration'], { cwd: root })
     started = true
     execute('pnpm', ['db:health'], { cwd: root })
+    const state = readState(context)
+    if (!Number.isInteger(state.postgresPort) || state.postgresPort < 1) {
+      throw new Error('INTEGRATION_POSTGRES_PORT_INVALID')
+    }
     if (selectedServices.length) {
       execute(
         'pnpm',
@@ -240,10 +272,13 @@ export async function withIntegrationRuntime({
         ],
         { cwd: root }
       )
-    }
-    const state = readState(context)
-    if (!Number.isInteger(state.postgresPort) || state.postgresPort < 1) {
-      throw new Error('INTEGRATION_POSTGRES_PORT_INVALID')
+      synchronizeIntegrationSchemas({
+        context,
+        execute,
+        postgresPort: state.postgresPort,
+        root,
+        services: selectedServices
+      })
     }
     const nats = loadNats(context, root)
     const trust = ownerNames.includes('collaboration-service') ? bootstrapTrust(context, root) : {}

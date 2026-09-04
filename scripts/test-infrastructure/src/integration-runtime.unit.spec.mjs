@@ -20,11 +20,27 @@ test('integration task identity prefers explicit CI ownership and otherwise reus
 
 test('integration runtime selects service inventory, enables live tests, and always tears down', async () => {
   const commands = []
+  const schemaEnvironments = []
   let residueChecked = false
   const services = [
-    { name: 'notification-service', database: 'notification_test' },
-    { name: 'collaboration-service', database: 'collaboration_test' },
-    { name: 'unselected-service', database: 'unselected_test' }
+    {
+      name: 'notification-service',
+      database: 'notification_test',
+      directory: '/fixture/repository/notification-service',
+      schema: '/fixture/repository/notification-service/prisma/schema.prisma'
+    },
+    {
+      name: 'collaboration-service',
+      database: 'collaboration_test',
+      directory: '/fixture/repository/collaboration-service',
+      schema: '/fixture/repository/collaboration-service/prisma/schema.prisma'
+    },
+    {
+      name: 'unselected-service',
+      database: 'unselected_test',
+      directory: '/fixture/repository/unselected-service',
+      schema: '/fixture/repository/unselected-service/prisma/schema.prisma'
+    }
   ]
   const context = {
     taskKey: 'fixture_task',
@@ -57,8 +73,9 @@ test('integration runtime selects service inventory, enables live tests, and alw
         throw failure
       },
       adapters: {
-        run(command, args) {
+        run(command, args, options = {}) {
           commands.push([command, ...args])
+          if (args.includes('push')) schemaEnvironments.push(options.env)
           return ''
         },
         loadDatabaseContext() {
@@ -92,6 +109,15 @@ test('integration runtime selects service inventory, enables live tests, and alw
         command.join(' ') ===
         'pnpm db:migrate -- --services collaboration-service,notification-service'
     )
+  )
+  const schemaPushes = commands.filter((command) => command.includes('push'))
+  assert.equal(schemaPushes.length, 2)
+  assert.ok(schemaPushes.every((command) => command.includes('--skip-generate')))
+  assert.ok(schemaPushes.every((command) => command.includes('--accept-data-loss')))
+  assert.ok(schemaEnvironments.every((environment) => environment.NODE_ENV === 'test'))
+  assert.deepEqual(
+    schemaEnvironments.map((environment) => new URL(environment.DATABASE_URL).pathname).sort(),
+    ['/collaboration_test', '/notification_test']
   )
   assert.deepEqual(commands.at(-1), ['pnpm', 'db:rollback'])
   assert.equal(residueChecked, true)

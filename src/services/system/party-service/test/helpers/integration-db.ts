@@ -15,7 +15,7 @@ function parseEnvValue(raw: string): string {
 
 /** ensureIntegrationDatabaseUrl loads the local service DATABASE_URL so Integration tests use the same service database. */
 export function ensureIntegrationDatabaseUrl(): string {
-  const taskOwnedUrl = process.env.OES_Integration_DATABASE_URL?.trim()
+  const taskOwnedUrl = process.env.OES_INTEGRATION_DATABASE_URL?.trim()
   if (taskOwnedUrl) {
     process.env.DATABASE_URL = taskOwnedUrl
     return taskOwnedUrl
@@ -93,7 +93,9 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
     where: {
       OR: [
         { idempotencyKey: { startsWith: prefix } },
-        prefixedTenantPartyIds.length > 0 ? { tenantPartyId: { in: prefixedTenantPartyIds } } : undefined
+        prefixedTenantPartyIds.length > 0
+          ? { tenantPartyId: { in: prefixedTenantPartyIds } }
+          : undefined
       ].filter(Boolean) as any
     }
   })
@@ -102,7 +104,9 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
     where: {
       OR: [
         { tenantId: { startsWith: prefix } },
-        prefixedTenantPartyIds.length > 0 ? { tenantPartyId: { in: prefixedTenantPartyIds } } : undefined,
+        prefixedTenantPartyIds.length > 0
+          ? { tenantPartyId: { in: prefixedTenantPartyIds } }
+          : undefined,
         { normalizedValue: { startsWith: prefix } },
         { rawValue: { startsWith: prefix } }
       ].filter(Boolean) as any

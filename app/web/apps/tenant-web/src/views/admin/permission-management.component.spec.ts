@@ -1,11 +1,9 @@
 /* @vitest-environment happy-dom */
 
-import { join } from 'node:path';
+import { flushPromises, mount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { flushPromises, mount } from '@vue/test-utils';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-const listPermissionsApi = vi.fn();
+const listPermissionsApi = vi.fn()
 const authContextState = vi.hoisted(() => ({
   actionCodes: [
     'permission.create',
@@ -13,9 +11,9 @@ const authContextState = vi.hoisted(() => ({
     'permission.list',
     'permission.role_template.list',
     'permission.role_instance.list',
-    'permission.update',
-  ],
-}));
+    'permission.update'
+  ]
+}))
 
 vi.mock('#/api', () => ({
   createPermissionApi: vi.fn(),
@@ -23,30 +21,30 @@ vi.mock('#/api', () => ({
   getPermissionByIdApi: vi.fn(),
   listPermissionRolesApi: vi.fn(),
   listPermissionsApi,
-  updatePermissionApi: vi.fn(),
-}));
+  updatePermissionApi: vi.fn()
+}))
 
 vi.mock('#/store/auth-context', () => ({
   useAuthContextStore: () => ({
-    actionCodes: authContextState.actionCodes,
-  }),
-}));
+    actionCodes: authContextState.actionCodes
+  })
+}))
 
 vi.mock('@vben/common-ui', () => ({
   Page: {
     name: 'Page',
     props: ['title'],
-    template: '<div><slot /></div>',
-  },
-}));
+    template: '<div><slot /></div>'
+  }
+}))
 
 vi.mock('@vben/icons', () => ({
   IconifyIcon: {
     name: 'IconifyIcon',
     props: ['icon'],
-    template: '<span :data-icon="icon" />',
-  },
-}));
+    template: '<span :data-icon="icon" />'
+  }
+}))
 
 describe('permission management page', () => {
   beforeEach(() => {
@@ -56,9 +54,9 @@ describe('permission management page', () => {
       'permission.list',
       'permission.role_template.list',
       'permission.role_instance.list',
-      'permission.update',
-    ];
-    listPermissionsApi.mockReset();
+      'permission.update'
+    ]
+    listPermissionsApi.mockReset()
     listPermissionsApi.mockResolvedValue({
       page: 1,
       pageSize: 20,
@@ -67,113 +65,107 @@ describe('permission management page', () => {
           code: 'permission.audit.list',
           description: 'List permission audit records',
           id: 'perm-1',
-          module: 'PERMISSION_SERVICE',
-        },
+          module: 'PERMISSION_SERVICE'
+        }
       ],
-      total: 1,
-    });
-  });
+      total: 1
+    })
+  })
 
   afterEach(() => {
-    document.body.innerHTML = '';
-  });
+    document.body.innerHTML = ''
+  })
 
   it('opens the row action dropdown when the trigger button is clicked', async () => {
-    const view = await import('./permission-management.vue');
+    const view = await import('./permission-management.vue')
 
     mount(view.default, {
       attachTo: document.body,
       global: {
         directives: {
-          loading: {},
-        },
-      },
-    });
+          loading: {}
+        }
+      }
+    })
 
-    await flushPromises();
+    await flushPromises()
 
     const trigger = document.body.querySelector(
-      'button[aria-label="权限操作"]',
-    ) as HTMLButtonElement | null;
+      'button[aria-label="权限操作"]'
+    ) as HTMLButtonElement | null
 
-    expect(trigger).not.toBeNull();
+    expect(trigger).not.toBeNull()
 
-    trigger?.click();
-    await flushPromises();
+    trigger?.click()
+    await flushPromises()
 
-    expect(document.body.textContent).toContain('引用角色');
-    expect(document.body.textContent).toContain('编辑');
-    expect(document.body.textContent).toContain('删除');
-  });
+    expect(document.body.textContent).toContain('引用角色')
+    expect(document.body.textContent).toContain('编辑')
+    expect(document.body.textContent).toContain('删除')
+  })
 
   it('hides edit and delete row actions when the tenant admin lacks matching action permissions', async () => {
     authContextState.actionCodes = [
       'permission.list',
       'permission.role_template.list',
-      'permission.role_instance.list',
-    ];
-    const view = await import('./permission-management.vue');
+      'permission.role_instance.list'
+    ]
+    const view = await import('./permission-management.vue')
 
     mount(view.default, {
       attachTo: document.body,
       global: {
         directives: {
-          loading: {},
-        },
-      },
-    });
+          loading: {}
+        }
+      }
+    })
 
-    await flushPromises();
+    await flushPromises()
 
     const trigger = document.body.querySelector(
-      'button[aria-label="权限操作"]',
-    ) as HTMLButtonElement | null;
+      'button[aria-label="权限操作"]'
+    ) as HTMLButtonElement | null
 
-    expect(trigger).not.toBeNull();
+    expect(trigger).not.toBeNull()
 
-    trigger?.click();
-    await flushPromises();
+    trigger?.click()
+    await flushPromises()
 
-    expect(document.body.textContent).toContain('引用角色');
-    expect(document.body.textContent).not.toContain('编辑');
-    expect(document.body.textContent).not.toContain('删除');
-  });
+    expect(document.body.textContent).toContain('引用角色')
+    expect(document.body.textContent).not.toContain('编辑')
+    expect(document.body.textContent).not.toContain('删除')
+  })
 
   it('renders the catalog header with a primary section title and a narrower create modal', async () => {
-    const view = await import('./permission-management.vue');
+    const view = await import('./permission-management.vue')
 
     mount(view.default, {
       attachTo: document.body,
       global: {
         directives: {
-          loading: {},
-        },
-      },
-    });
+          loading: {}
+        }
+      }
+    })
 
-    await flushPromises();
+    await flushPromises()
 
-    const sectionTitle = document.body.querySelector(
-      '.permission-management__section-title',
-    );
+    const sectionTitle = document.body.querySelector('.permission-management__section-title')
 
-    expect(sectionTitle).not.toBeNull();
-    expect(sectionTitle?.textContent).toContain('权限目录');
-    expect(sectionTitle?.className).toContain(
-      'permission-management__section-title--primary',
-    );
+    expect(sectionTitle).not.toBeNull()
+    expect(sectionTitle?.textContent).toContain('权限目录')
+    expect(sectionTitle?.className).toContain('permission-management__section-title--primary')
 
-    const createButton = Array.from(document.body.querySelectorAll('button')).find(
-      (button) => button.textContent?.includes('创建权限'),
-    ) as HTMLButtonElement | undefined;
+    const createButton = Array.from(document.body.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('创建权限')
+    ) as HTMLButtonElement | undefined
 
-    createButton?.click();
-    await flushPromises();
+    createButton?.click()
+    await flushPromises()
 
-    const createModalWrap = document.body.querySelector(
-      '.permission-management__create-modal-wrap',
-    );
+    const createModalWrap = document.body.querySelector('.permission-management__create-modal-wrap')
 
-    expect(createModalWrap).not.toBeNull();
-  });
-});
+    expect(createModalWrap).not.toBeNull()
+  })
+})

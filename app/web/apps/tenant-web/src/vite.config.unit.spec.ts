@@ -4,6 +4,14 @@ vi.mock('@vben/vite-config', () => ({
   defineConfig: (factory: () => unknown) => factory
 }))
 
+const viteConfigPath = '../vite.config.ts'
+
+async function loadTenantViteConfig() {
+  const { default: createConfig } = await import(/* @vite-ignore */ viteConfigPath)
+  if (typeof createConfig !== 'function') throw new TypeError('Expected a Vite config factory')
+  return createConfig()
+}
+
 // Verifies tenant-web does not claim ShortLink edge routes during local development.
 describe('tenant-web vite config', () => {
   it('proxies local API requests to the trusted-runtime Gateway by default', async () => {
@@ -12,12 +20,9 @@ describe('tenant-web vite config', () => {
 
     try {
       vi.resetModules()
-      const { default: createConfig } = await import('../vite.config')
-      const config = await createConfig()
+      const config = await loadTenantViteConfig()
 
-      expect(config.vite.server.proxy['/api'].target).toBe(
-        'http://127.0.0.1:52101/api/v1'
-      )
+      expect(config.vite.server.proxy['/api'].target).toBe('http://127.0.0.1:52101/api/v1')
       expect(config.vite.server.proxy['/public-entry/public'].target).toBe(
         'http://127.0.0.1:52101/api/v1'
       )
@@ -33,12 +38,9 @@ describe('tenant-web vite config', () => {
 
     try {
       vi.resetModules()
-      const { default: createConfig } = await import('../vite.config')
-      const config = await createConfig()
+      const config = await loadTenantViteConfig()
 
-      expect(config.vite.server.proxy['/api'].target).toBe(
-        'http://127.0.0.1:53101/api/v1'
-      )
+      expect(config.vite.server.proxy['/api'].target).toBe('http://127.0.0.1:53101/api/v1')
       expect(config.vite.server.proxy['/public-entry/public'].target).toBe(
         'http://127.0.0.1:53101/api/v1'
       )
@@ -49,8 +51,7 @@ describe('tenant-web vite config', () => {
   })
 
   it('keeps ShortLink public edge routing out of tenant-web while preserving anonymous public APIs', async () => {
-    const { default: createConfig } = await import('../vite.config')
-    const config = await createConfig()
+    const config = await loadTenantViteConfig()
     const proxy = config.vite.server.proxy
 
     const shortLinkProxyPattern = '^/c(?:/|$)'
@@ -67,8 +68,7 @@ describe('tenant-web vite config', () => {
   })
 
   it('does not install a ShortLink HTML navigation fallback plugin', async () => {
-    const { default: createConfig } = await import('../vite.config')
-    const config = await createConfig()
+    const config = await loadTenantViteConfig()
     const plugins = config.vite.plugins ?? []
 
     expect(plugins).not.toContainEqual(

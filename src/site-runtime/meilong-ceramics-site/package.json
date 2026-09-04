@@ -31,6 +31,9 @@
     "test:integration": "pnpm test:integration:local && pnpm test:integration:locale-governance"
   },
   "devDependencies": {
+    "@oes/meilong-ceramics-site-runtime": "workspace:*",
+    "@oes/meilong-ceramics-site-storefront": "workspace:*",
+    "@oes/site-runtime-kit": "workspace:*",
     "playwright": "1.58.2"
   }
 }

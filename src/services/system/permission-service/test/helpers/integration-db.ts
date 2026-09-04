@@ -14,7 +14,7 @@ function parseEnvValue(raw: string): string {
 }
 
 export function ensureIntegrationDatabaseUrl(): string {
-  const taskOwnedUrl = process.env.OES_Integration_DATABASE_URL?.trim()
+  const taskOwnedUrl = process.env.OES_INTEGRATION_DATABASE_URL?.trim()
   if (taskOwnedUrl) {
     process.env.DATABASE_URL = taskOwnedUrl
     return taskOwnedUrl

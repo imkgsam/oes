@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'fs'
 import { resolve } from 'path'
-import { PrismaService } from '../../../src/infrastructure/prisma/prisma.service'
+import { PrismaService } from '../../src/infrastructure/prisma/prisma.service'
 
 /** parseEnvValue removes optional quotes from one dotenv scalar value. */
 function parseEnvValue(raw: string): string {

@@ -5,6 +5,8 @@ import { resolve } from 'node:path'
 import {
   buildWorkspaceGraph,
   discoverPackages,
+  findWorkspaceRoot,
+  isWorkspacePackage,
   packageScriptsForKind
 } from './test-infrastructure.mjs'
 
@@ -59,7 +61,8 @@ function topologicalBatches(records, graph) {
         )
       )
       .sort((left, right) => left.name.localeCompare(right.name))
-    if (!ready.length) throw new Error(`Workspace dependency cycle: ${[...remaining.keys()].sort().join(', ')}`)
+    if (!ready.length)
+      throw new Error(`Workspace dependency cycle: ${[...remaining.keys()].sort().join(', ')}`)
     batches.push(ready)
     for (const record of ready) {
       remaining.delete(record.name)
@@ -78,20 +81,30 @@ const plan = args.plan
   : args.mode === 'FULL'
     ? { mode: 'FULL', owners: [] }
     : JSON.parse(readFileSync(resolve('.tmp/change-plan.json'), 'utf8'))
-const packages = discoverPackages(root).filter((record) => record.directory)
+const packages = discoverPackages(root).filter(
+  (record) => record.directory && isWorkspacePackage(root, record)
+)
+const workspaceRoots = new Map(packages.map((record) => [record.directory, record]))
 const graph = buildWorkspaceGraph(packages)
 if (graph.errors.length) throw new Error(`Workspace graph invalid: ${graph.errors.join(', ')}`)
 const selected = new Set(plan.owners.map((owner) => owner.name))
-const ownerNames = plan.mode === 'FULL' ? new Set(packages.map((record) => record.name)) : expandDependencies(selected, graph)
+const ownerNames =
+  plan.mode === 'FULL'
+    ? new Set(packages.map((record) => record.name))
+    : expandDependencies(selected, graph)
 const records = packages.filter((record) => ownerNames.has(record.name))
 let failures = 0
 
 for (const batch of topologicalBatches(records, graph)) {
   const statuses = await Promise.all(
-    batch.flatMap((record) =>
-      packageScriptsForKind(record, kind)
-        .map((script) => execute(root, record, script))
-    )
+    batch.flatMap((record) => {
+      const workspaceRoot = findWorkspaceRoot(root, record.directory)
+      const delegatedBy = workspaceRoot !== record.directory && workspaceRoots.get(workspaceRoot)
+      return packageScriptsForKind(record, kind, {
+        delegateBuild: kind === 'build' && Boolean(delegatedBy?.scripts?.build),
+        delegateTypecheck: kind === 'static' && Boolean(delegatedBy?.scripts?.['check:type'])
+      }).map((script) => execute(root, record, script))
+    })
   )
   failures += statuses.filter((status) => status !== 0).length
   if (failures) break

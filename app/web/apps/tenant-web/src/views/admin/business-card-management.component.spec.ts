@@ -1,7 +1,5 @@
 /* @vitest-environment happy-dom */
 
-import { resolve } from 'node:path'
-
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -130,7 +128,8 @@ vi.mock('ant-design-vue', () => ({
     name: 'AButton',
     props: ['ariaLabel', 'block', 'danger', 'href', 'loading', 'shape', 'size', 'target', 'type'],
     emits: ['click'],
-    template: '<a v-if="href" :href="href" :target="target"><slot name="icon" /><slot /></a><button v-else :aria-label="ariaLabel" :data-shape="shape" :data-ui-type="type" type="button" @click="$emit(\'click\')"><slot name="icon" /><slot /></button>'
+    template:
+      '<a v-if="href" :href="href" :target="target"><slot name="icon" /><slot /></a><button v-else :aria-label="ariaLabel" :data-shape="shape" :data-ui-type="type" type="button" @click="$emit(\'click\')"><slot name="icon" /><slot /></button>'
   },
   Card: {
     name: 'ACard',
@@ -145,7 +144,8 @@ vi.mock('ant-design-vue', () => ({
   Drawer: {
     name: 'ADrawer',
     props: ['open', 'title', 'width'],
-    template: '<section v-if="open"><h3>{{ title }}</h3><slot /><footer><slot name="footer" /></footer></section>'
+    template:
+      '<section v-if="open"><h3>{{ title }}</h3><slot /><footer><slot name="footer" /></footer></section>'
   },
   Dropdown: {
     name: 'ADropdown',
@@ -161,14 +161,16 @@ vi.mock('ant-design-vue', () => ({
     name: 'AInput',
     props: ['disabled', 'placeholder', 'type', 'value'],
     emits: ['update:value'],
-    template: '<input :disabled="disabled" :placeholder="placeholder" :type="type || \'text\'" :value="value" @input="$emit(\'update:value\', $event.target.value)" />'
+    template:
+      '<input :disabled="disabled" :placeholder="placeholder" :type="type || \'text\'" :value="value" @input="$emit(\'update:value\', $event.target.value)" />'
   },
   Menu: MenuStub,
   Modal: {
     name: 'AModal',
     props: ['open', 'title', 'width'],
     emits: ['ok', 'cancel', 'update:open'],
-    template: '<section v-if="open" :data-width="width"><h3>{{ title }}</h3><button data-testid="modal-open-update-close" type="button" @click="$emit(\'update:open\', false)">关闭弹窗</button><slot /><footer><slot name="footer" /><button type="button" @click="$emit(\'ok\')">确定</button></footer></section>'
+    template:
+      '<section v-if="open" :data-width="width"><h3>{{ title }}</h3><button data-testid="modal-open-update-close" type="button" @click="$emit(\'update:open\', false)">关闭弹窗</button><slot /><footer><slot name="footer" /><button type="button" @click="$emit(\'ok\')">确定</button></footer></section>'
   },
   QRCode: {
     name: 'AQrCode',
@@ -436,7 +438,10 @@ describe('admin BusinessCard management page', () => {
     const wrapper = mount(view.default, { attachTo: document.body })
     await flushPromises()
 
-    await wrapper.findAll('button').find((button) => button.text() === '修改名片')?.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '修改名片')
+      ?.trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('修改名片')
     expect(listBusinessCardContactAssetCandidatesApi).toHaveBeenCalledWith('tenant_001', 'emp_001')
@@ -444,7 +449,10 @@ describe('admin BusinessCard management page', () => {
 
     const contactAssetSelectors = wrapper.findAll('select[data-placeholder="选择公开联系方式"]')
     await contactAssetSelectors[0]?.setValue('asset_email_002')
-    await wrapper.findAll('button').find((button) => button.text() === '保存修改')?.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '保存修改')
+      ?.trigger('click')
     await flushPromises()
 
     expect(updateBusinessCardContactActionsApi).toHaveBeenCalledWith('tenant_001', 'card_001', {
@@ -483,7 +491,10 @@ describe('admin BusinessCard management page', () => {
     const wrapper = mount(view.default, { attachTo: document.body })
     await flushPromises()
 
-    await wrapper.findAll('button').find((button) => button.text() === '修改名片')?.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '修改名片')
+      ?.trigger('click')
     await flushPromises()
 
     expect(wrapper.find('.business-card-workspace__action-editor').exists()).toBe(true)
@@ -495,22 +506,33 @@ describe('admin BusinessCard management page', () => {
     expect(wrapper.text()).toContain('邮箱')
     expect(wrapper.text()).toContain('保存通讯录')
     expect(wrapper.text()).not.toContain('contact-00000000-0000-4000-8000-000000000903')
-    expect(wrapper.find('select[data-testid="business-card-action-type-picker"]').exists()).toBe(false)
+    expect(wrapper.find('select[data-testid="business-card-action-type-picker"]').exists()).toBe(
+      false
+    )
     expect(wrapper.findAll('button').some((button) => button.text() === '添加动作')).toBe(false)
     expect(wrapper.find('.business-card-workspace__order-input').exists()).toBe(false)
 
-    await wrapper.findAll('button').find((button) =>
-      button.text().includes('电话') && button.text().includes('员工公开工作电话')
-    )?.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find(
+        (button) => button.text().includes('电话') && button.text().includes('员工公开工作电话')
+      )
+      ?.trigger('click')
     await flushPromises()
 
     expect(wrapper.text()).toContain('电话')
-    await wrapper.findAll('button').find((button) => button.text() === '保存修改')?.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '保存修改')
+      ?.trigger('click')
     await flushPromises()
 
     expect(updateBusinessCardContactActionsApi).toHaveBeenLastCalledWith('tenant_001', 'card_001', {
       contactActionConfigs: [
-        expect.objectContaining({ contactActionType: 'SEND_EMAIL', targetRefId: 'asset_email_001' }),
+        expect.objectContaining({
+          contactActionType: 'SEND_EMAIL',
+          targetRefId: 'asset_email_001'
+        }),
         expect.objectContaining({ contactActionType: 'SAVE_VCARD', targetRefType: 'NONE' }),
         expect.objectContaining({
           contactActionType: 'CALL_PHONE',
@@ -530,7 +552,10 @@ describe('admin BusinessCard management page', () => {
     const wrapper = mount(view.default, { attachTo: document.body })
     await flushPromises()
 
-    await wrapper.findAll('button').find((button) => button.text() === '修改名片')?.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '修改名片')
+      ?.trigger('click')
     await flushPromises()
 
     expect(wrapper.text()).toContain('alex.chen@example.com')
@@ -542,12 +567,15 @@ describe('admin BusinessCard management page', () => {
     const wrapper = mount(view.default, { attachTo: document.body })
     await flushPromises()
 
-    await wrapper.findAll('button').find((button) => button.text() === '修改名片')?.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '修改名片')
+      ?.trigger('click')
     await flushPromises()
 
-    const systemRow = wrapper.findAll('.business-card-workspace__display-item').find((row) =>
-      row.text().includes('保存通讯录')
-    )
+    const systemRow = wrapper
+      .findAll('.business-card-workspace__display-item')
+      .find((row) => row.text().includes('保存通讯录'))
     expect(systemRow?.exists()).toBe(true)
     expect(systemRow?.find('.business-card-workspace__static-target').exists()).toBe(false)
     expect(systemRow?.text()).not.toContain('下载标准 vCard')
@@ -576,7 +604,10 @@ describe('admin BusinessCard management page', () => {
     const wrapper = mount(view.default, { attachTo: document.body })
     await flushPromises()
 
-    await wrapper.findAll('button').find((button) => button.text() === '修改名片')?.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '修改名片')
+      ?.trigger('click')
     await flushPromises()
 
     expect(wrapper.text()).toContain('修改名片展示')
@@ -606,7 +637,10 @@ describe('admin BusinessCard management page', () => {
     const wrapper = mount(view.default, { attachTo: document.body })
     await flushPromises()
 
-    await wrapper.findAll('button').find((button) => button.text() === '修改名片')?.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '修改名片')
+      ?.trigger('click')
     await flushPromises()
 
     expect(wrapper.text()).toContain('修改名片展示')
@@ -655,7 +689,10 @@ describe('admin BusinessCard management page', () => {
     const wrapper = mount(view.default, { attachTo: document.body })
     await flushPromises()
 
-    await wrapper.findAll('button').find((button) => button.text() === '修改名片')?.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '修改名片')
+      ?.trigger('click')
     await flushPromises()
 
     const preview = wrapper.find('.business-card-workspace__display-preview')
@@ -715,7 +752,10 @@ describe('admin BusinessCard management page', () => {
     const wrapper = mount(view.default, { attachTo: document.body })
     await flushPromises()
 
-    await wrapper.findAll('button').find((button) => button.text() === '修改名片')?.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '修改名片')
+      ?.trigger('click')
     await flushPromises()
 
     const preview = wrapper.find('.business-card-workspace__display-preview')
@@ -740,7 +780,10 @@ describe('admin BusinessCard management page', () => {
     const wrapper = mount(view.default, { attachTo: document.body })
     await flushPromises()
 
-    await wrapper.findAll('button').find((button) => button.text() === '查看详情')?.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '查看详情')
+      ?.trigger('click')
     await flushPromises()
 
     const detailPanel = wrapper.find('.business-card-workspace__detail-panel')
@@ -792,7 +835,10 @@ describe('admin BusinessCard management page', () => {
     expect(wrapper.findAll('button').some((button) => button.text() === '禁用')).toBe(false)
     expect(wrapper.text()).not.toContain('刷新公开链接')
 
-    await wrapper.findAll('button').find((button) => button.text() === '查看详情')?.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '查看详情')
+      ?.trigger('click')
     await flushPromises()
     expect(getBusinessCardDetailApi).toHaveBeenCalledWith('tenant_001', 'card_001')
     expect(getBusinessCardVisitSummaryApi).toHaveBeenCalledWith('tenant_001', 'card_001')
@@ -801,7 +847,10 @@ describe('admin BusinessCard management page', () => {
     expect(wrapper.text()).toContain('12')
     expect(wrapper.text()).toContain('https://go.oes.local/c/ABC1234')
 
-    await wrapper.findAll('button').find((button) => button.text() === '启用')?.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '启用')
+      ?.trigger('click')
     await flushPromises()
 
     expect(bindBusinessCardPublicEntryApi).not.toHaveBeenCalled()
@@ -810,7 +859,12 @@ describe('admin BusinessCard management page', () => {
   })
 
   it('does not mark an active card as accessible when its ShortLink entry is disabled', async () => {
-    listBusinessCardsApi.mockResolvedValue({ items: [disabledEntryCardRecord], page: 1, pageSize: 50, total: 1 })
+    listBusinessCardsApi.mockResolvedValue({
+      items: [disabledEntryCardRecord],
+      page: 1,
+      pageSize: 50,
+      total: 1
+    })
     const view = await import('./business-card-management.vue')
     const wrapper = mount(view.default, { attachTo: document.body })
     await flushPromises()
@@ -833,7 +887,12 @@ describe('admin BusinessCard management page', () => {
   })
 
   it('opens draft card detail without requesting visit stats for a missing public entry', async () => {
-    listBusinessCardsApi.mockResolvedValue({ items: [draftCardRecord], page: 1, pageSize: 50, total: 1 })
+    listBusinessCardsApi.mockResolvedValue({
+      items: [draftCardRecord],
+      page: 1,
+      pageSize: 50,
+      total: 1
+    })
     getBusinessCardDetailApi.mockResolvedValue({
       businessCard: draftCardRecord,
       readiness: { ready: false, reasons: ['PUBLIC_ENTRY_MISSING'] }
@@ -844,7 +903,10 @@ describe('admin BusinessCard management page', () => {
 
     expect(wrapper.text()).toContain('草稿')
     expect(wrapper.text()).toContain('未生成')
-    await wrapper.findAll('button').find((button) => button.text() === '查看详情')?.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '查看详情')
+      ?.trigger('click')
     await flushPromises()
 
     expect(getBusinessCardDetailApi).toHaveBeenCalledWith('tenant_001', 'card_draft_001')
@@ -857,7 +919,12 @@ describe('admin BusinessCard management page', () => {
   })
 
   it('binds a public entry before offering enable for draft cards without a public link', async () => {
-    listBusinessCardsApi.mockResolvedValue({ items: [draftCardRecord], page: 1, pageSize: 50, total: 1 })
+    listBusinessCardsApi.mockResolvedValue({
+      items: [draftCardRecord],
+      page: 1,
+      pageSize: 50,
+      total: 1
+    })
     bindBusinessCardPublicEntryApi.mockResolvedValue({ publicEntryRef: cardRecord.publicEntryRef })
     const view = await import('./business-card-management.vue')
     const wrapper = mount(view.default, { attachTo: document.body })
@@ -867,7 +934,10 @@ describe('admin BusinessCard management page', () => {
     expect(rowActions.text()).toContain('生成公开入口')
     expect(rowActions.findAll('button').some((button) => button.text() === '启用')).toBe(false)
 
-    await rowActions.findAll('button').find((button) => button.text() === '生成公开入口')?.trigger('click')
+    await rowActions
+      .findAll('button')
+      .find((button) => button.text() === '生成公开入口')
+      ?.trigger('click')
     await flushPromises()
 
     expect(bindBusinessCardPublicEntryApi).toHaveBeenCalledWith('tenant_001', 'card_draft_001')
@@ -875,13 +945,21 @@ describe('admin BusinessCard management page', () => {
   })
 
   it('shows draft detail fallback and releases loading when the modal open state closes during a pending request', async () => {
-    listBusinessCardsApi.mockResolvedValue({ items: [draftCardRecord], page: 1, pageSize: 50, total: 1 })
+    listBusinessCardsApi.mockResolvedValue({
+      items: [draftCardRecord],
+      page: 1,
+      pageSize: 50,
+      total: 1
+    })
     getBusinessCardDetailApi.mockReturnValue(new Promise(() => {}))
     const view = await import('./business-card-management.vue')
     const wrapper = mount(view.default, { attachTo: document.body })
     await flushPromises()
 
-    await wrapper.findAll('button').find((button) => button.text() === '查看详情')?.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '查看详情')
+      ?.trigger('click')
     await flushPromises()
 
     expect(wrapper.text()).toContain('名片详情')
@@ -910,7 +988,10 @@ describe('admin BusinessCard management page', () => {
     expect(wrapper.text()).not.toContain('Public Entry Governance')
     expect(wrapper.text()).not.toContain('集中检查全租户员工名片')
 
-    await wrapper.findAll('button').find((button) => button.text() === '新增名片')?.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '新增名片')
+      ?.trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('新增员工名片')
     expect(wrapper.find('section[data-width="860"]').exists()).toBe(true)
@@ -921,7 +1002,10 @@ describe('admin BusinessCard management page', () => {
     expect(wrapper.text()).not.toContain('公开名片预览')
 
     await wrapper.find('select[data-placeholder="选择员工"]').setValue('emp_001')
-    await wrapper.findAll('button').find((button) => button.text() === '下一步')?.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '下一步')
+      ?.trigger('click')
     await flushPromises()
 
     expect(listBusinessCardContactAssetCandidatesApi).toHaveBeenCalledWith('tenant_001', 'emp_001')
@@ -932,14 +1016,20 @@ describe('admin BusinessCard management page', () => {
     expect(wrapper.text()).not.toContain('Contact Asset')
 
     await wrapper.find('select[data-placeholder="选择公开联系方式"]').setValue('asset_email_001')
-    await wrapper.findAll('button').find((button) => button.text() === '下一步')?.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '下一步')
+      ?.trigger('click')
     await flushPromises()
 
     expect(wrapper.text()).toContain('配置检查')
     expect(wrapper.text()).toContain('保存草稿')
     expect(wrapper.text()).toContain('创建并启用')
 
-    await wrapper.findAll('button').find((button) => button.text() === '保存草稿')?.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '保存草稿')
+      ?.trigger('click')
     await flushPromises()
 
     expect(ensurePrimaryBusinessCardApi).toHaveBeenCalledWith('tenant_001', 'emp_001')
