@@ -14,17 +14,26 @@
     "build:runtime": "pnpm --dir runtime build",
     "build:storefront": "pnpm --dir storefront build",
     "build": "pnpm build:runtime && pnpm build:storefront",
-    "test:governance": "NODE_NO_WARNINGS=1 pnpm exec jest --config jest.config.cjs --runInBand",
     "test:display": "node scripts/verify-blog-news-display.mjs",
-    "test:acceptance:locale-governance": "pnpm --dir ../../.. proto:gen && pnpm --dir ../../services/system/site-service prisma:generate && pnpm --dir ../../.. --filter @oes/common clear:build && pnpm --dir ../../.. --filter @oes/common build && pnpm --dir ../../.. --filter site-service clear:build && pnpm --dir ../../.. --filter site-service build && pnpm --dir ../../.. --filter api-gateway clear:build && pnpm --dir ../../.. --filter api-gateway build && pnpm exec tsc --noEmit -p tsconfig.acceptance.json && TS_NODE_PROJECT=tsconfig.acceptance.json TS_NODE_TRANSPILE_ONLY=false node --test --require ts-node/register --require tsconfig-paths/register tests/locale-governance-acceptance-harness.test.ts && TS_NODE_PROJECT=tsconfig.acceptance.json TS_NODE_TRANSPILE_ONLY=false node --require ts-node/register --require tsconfig-paths/register scripts/verify-locale-governance-acceptance.ts",
     "verify:boundaries": "node scripts/verify-meilong-boundaries.mjs",
     "reference:browser": "node scripts/start-reference-browser.mjs",
     "reference:browser:capture": "node scripts/capture-reference-page.mjs",
-    "verify": "pnpm test:governance && pnpm verify:boundaries && pnpm typecheck && pnpm build && pnpm test:display",
+    "verify": "pnpm test && pnpm check:static && pnpm typecheck && pnpm build && pnpm test:display",
     "clean:generated": "node -e \"console.log('Generated directories are ignored but not deleted by default. Review README.md before removing runtime/dist, storefront/.nuxt, storefront/.output, or runtime/data manually.')\"",
-    "clean": "pnpm clean:generated"
+    "clean": "pnpm clean:generated",
+    "check:static": "node scripts/verify-meilong-boundaries.mjs",
+    "test": "pnpm test:unit && pnpm test:contract && pnpm test:integration",
+    "test:unit": "NODE_NO_WARNINGS=1 pnpm exec jest --config jest.config.cjs --runInBand --testPathPattern='\\.unit\\.spec\\.ts$' && node scripts/run-node-unit-tests.mjs",
+    "test:component": "NODE_NO_WARNINGS=1 pnpm exec jest --config jest.config.cjs --runInBand --testPathPattern='\\.component\\.spec\\.ts$' --passWithNoTests",
+    "test:contract": "NODE_NO_WARNINGS=1 pnpm exec jest --config jest.config.cjs --runInBand --testPathPattern='\\.contract\\.spec\\.ts$'",
+    "test:integration:local": "NODE_NO_WARNINGS=1 pnpm exec jest --config jest.config.cjs --runInBand --testPathPattern='\\.integration\\.spec\\.ts$'",
+    "test:integration:locale-governance": "pnpm --dir ../../.. proto:gen && pnpm --dir ../../services/system/site-service prisma:generate && pnpm --dir ../../.. --filter @oes/common clear:build && pnpm --dir ../../.. --filter @oes/common build && pnpm --dir ../../.. --filter site-service clear:build && pnpm --dir ../../.. --filter site-service build && pnpm --dir ../../.. --filter api-gateway clear:build && pnpm --dir ../../.. --filter api-gateway build && pnpm exec tsc --noEmit -p tsconfig.acceptance.json && TS_NODE_PROJECT=tsconfig.acceptance.json TS_NODE_TRANSPILE_ONLY=false node --test --require ts-node/register --require tsconfig-paths/register test/locale-governance-acceptance-harness.node.integration.spec.ts && TS_NODE_PROJECT=tsconfig.acceptance.json TS_NODE_TRANSPILE_ONLY=false node --require ts-node/register --require tsconfig-paths/register scripts/verify-locale-governance-acceptance.ts",
+    "test:integration": "pnpm test:integration:local && pnpm test:integration:locale-governance"
   },
   "devDependencies": {
+    "@oes/meilong-ceramics-site-runtime": "workspace:*",
+    "@oes/meilong-ceramics-site-storefront": "workspace:*",
+    "@oes/site-runtime-kit": "workspace:*",
     "playwright": "1.58.2"
   }
 }

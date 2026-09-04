@@ -14,9 +14,9 @@ function parseEnvValue(raw: string): string {
   return trimmed
 }
 
-/** ensureIntegrationDatabaseUrl loads tenant-org-service DATABASE_URL for L2 tests. */
+/** ensureIntegrationDatabaseUrl loads tenant-org-service DATABASE_URL for Integration tests. */
 export function ensureIntegrationDatabaseUrl(): string {
-  const taskOwnedUrl = process.env.OES_L2_DATABASE_URL?.trim()
+  const taskOwnedUrl = process.env.OES_INTEGRATION_DATABASE_URL?.trim()
   if (taskOwnedUrl) {
     process.env.DATABASE_URL = taskOwnedUrl
     return taskOwnedUrl
@@ -59,21 +59,21 @@ export async function createPrismaForIntegration(): Promise<PrismaService> {
 
     await prisma.$disconnect().catch(() => undefined)
     throw new Error(
-      `tenant-org-service L2 tests require a reachable PostgreSQL database. Current DATABASE_URL target: ${safeTarget}. Cause: ${
+      `tenant-org-service Integration tests require a reachable PostgreSQL database. Current DATABASE_URL target: ${safeTarget}. Cause: ${
         error instanceof Error ? error.message : String(error)
       }`
     )
   }
 }
 
-/** createTestPrefix returns a unique prefix so each L2 run can clean up only its own rows. */
+/** createTestPrefix returns a unique prefix so each Integration run can clean up only its own rows. */
 export function createTestPrefix(): string {
-  return `tos_l2_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  return `tos_integration_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
 
 let employeeCodePrefixCursor = Math.floor(Date.now() % 0xfff)
 
-/** createTestEmployeeCodePrefix returns a valid unique-ish tenant employee-code prefix for L2 fixtures. */
+/** createTestEmployeeCodePrefix returns a valid unique-ish tenant employee-code prefix for Integration fixtures. */
 export function createTestEmployeeCodePrefix(): string {
   employeeCodePrefixCursor = (employeeCodePrefixCursor % 0xfff) + 1
   return employeeCodePrefixCursor.toString(16).toUpperCase().padStart(3, '0')

@@ -789,7 +789,7 @@ Updated: 2026-04-09 11:35 +08:00
   - `permission-service` 角色管理查询已开始通过显式 query scope builder 收口租户 / 系统范围
   - `permission-service` 已形成 `AuthorizationQueryScopeService + QueryScopeBuilder + DI registry` 第一版 query scope 门面
   - `identity-service` 已在 `listAccountWorkEmailAssets / listAccountWorkPhoneAssets / listServiceAccounts / listApiKeysByServiceAccountId / listAuditEvents` 上完成首批真实业务域 `buildQueryScope` 试点
-  - `identity-service` 已通过 handler 级与 L2 仓储级测试验证首批 tenant-bound query scope 会真实进入查询过滤条件
+  - `identity-service` 已通过 handler 级与 Integration 仓储级测试验证首批 tenant-bound query scope 会真实进入查询过滤条件
   - `auth-service` 已在 `listAuditEvents / adminListUserSessions` 上完成下一批真实业务域 `buildQueryScope` 试点
   - `auth-service` 已形成本地 `AuthorizationQueryScopeService + QueryScopeBuilder + DI registry` 首批骨架
   - `identity-service` 已在 `getAccountById / getServiceAccountById / getApiKeyById` 上完成首批 application 层 `checkResource` detail query 试点

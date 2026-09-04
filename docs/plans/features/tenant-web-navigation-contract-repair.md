@@ -57,7 +57,7 @@ latestMainIntegration: 8c8dfb66b79c1ee0a14496259d1d8095c5bcef3d
 
 - Scope:
   - `app/web/apps/tenant-web/src/router/guard.ts`
-  - `app/web/apps/tenant-web/src/router/guard.spec.ts`
+  - `app/web/apps/tenant-web/src/router/guard.unit.spec.ts`
 - Protected scope:
   - PAGE-038 account-selection behavior
   - PAGE-053 through PAGE-075 behavior and page implementations

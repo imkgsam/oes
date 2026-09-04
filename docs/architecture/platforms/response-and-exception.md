@@ -86,7 +86,7 @@ OES 应采用“传输状态与业务错误码分离”的统一异常模型。
   - 已接入 gRPC request context interceptor，用于承接管理入口的多跳传播上下文
   - 已将 `identity-service -> permission-service` 这条共享权限解析二跳链路接到 propagation factory
   - 已补定向测试验证共享 `permission-service` 读取 adaptor 的行为未回归
-  - `test:l1` 已通过，用于验证 optional result 与 `Fail Closed but Observable` 未引入回归
+  - `test:unit` 已通过，用于验证 optional result 与 `Fail Closed but Observable` 未引入回归
 
 当前仍未完成的部分包括：
 

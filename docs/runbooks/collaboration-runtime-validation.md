@@ -52,7 +52,7 @@ Each call to `createValidationPlan` handles exactly one tier. Every command in t
    - Changed collaboration-runtime unit/type/static checks only.
    - `gateContext` is `NONE`.
 2. `CANDIDATE_AFFECTED`
-   - Dependency, contract, L2 and journey commands selected by the candidate affected matrix.
+   - Dependency, contract, Integration and journey commands selected by the candidate affected matrix.
    - `gateContext` is `NONE`.
 3. `FULL_GATE`
    - One Feature PR or Stage-composition gate.
@@ -86,11 +86,11 @@ Run direct unit and schema coverage while developing:
 
 ```bash
 node --experimental-strip-types --test \
-  scripts/collaboration-runtime/test/evidence.test.ts \
-  scripts/collaboration-runtime/test/validation-plan.test.ts \
-  scripts/collaboration-runtime/test/design-risk-scan.test.ts
+  scripts/collaboration-runtime/src/__tests__/evidence.unit.spec.ts \
+  scripts/collaboration-runtime/src/__tests__/validation-plan.unit.spec.ts \
+  scripts/collaboration-runtime/src/__tests__/design-risk-scan.unit.spec.ts
 pnpm collaboration-runtime:typecheck
-node scripts/collaboration-runtime/test/static-check.mjs
+node --test scripts/collaboration-runtime/test/static/ci.static.check.mjs
 ```
 
 Before candidate freeze, form the affected matrix from the exact changed paths and evidence inputs. Run only the invalidated commands. At the Feature or Stage full-gate point, run the repository gate once unless an unchanged complete full-gate key already proves the same candidate, dependencies, inputs, environment, command/version, literal result and coverage:

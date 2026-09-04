@@ -8,11 +8,7 @@
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "test": "jest --config jest.config.js --runInBand",
-    "test:l1": "jest --config jest.config.js --runInBand test/l1",
-    "test:l2": "jest --config jest.config.js --runInBand test/l2",
-    "test:l3": "jest --config jest.config.js --runInBand test/l3",
-    "test:smoke": "node --test ./scripts/party-smoke.spec.mjs",
+    "test": "pnpm run test:unit && pnpm run test:component && pnpm run test:contract && pnpm run test:integration",
     "build": "tsc -b",
     "dev:build": "tsc -b -w --preserveWatchOutput",
     "dev:start": "wait-on dist/main.js ../../../common/dist/index.js && nodemon --watch dist --watch ../../../common/dist --ext js,json --signal SIGTERM dist/main.js",
@@ -23,7 +19,11 @@
     "prisma:push": "npx prisma db push --schema=./prisma/schema.prisma",
     "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo",
     "clear:nm": "rimraf node_modules",
-    "prisma:migrate:deploy": "prisma migrate deploy --schema=./prisma/schema.prisma"
+    "prisma:migrate:deploy": "prisma migrate deploy --schema=./prisma/schema.prisma",
+    "test:unit": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.unit\\.spec\\.ts$' && node --test src/__tests__/scripts/party-smoke.unit.spec.mjs",
+    "test:component": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.component\\.spec\\.ts$'",
+    "test:contract": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.contract\\.spec\\.ts$'",
+    "test:integration": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.integration\\.spec\\.ts$'"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

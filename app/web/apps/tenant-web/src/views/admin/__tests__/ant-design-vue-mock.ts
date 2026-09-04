@@ -1,6 +1,6 @@
 import type { PropType, VNodeChild } from 'vue'
 
-import { defineComponent, h, inject, provide } from 'vue'
+import { defineComponent, getCurrentInstance, h, inject, provide } from 'vue'
 
 type AnyRecord = Record<string, any>
 
@@ -572,13 +572,12 @@ export const MenuItem = defineComponent({
   name: 'MenuItem',
   props: {
     danger: Boolean,
-    disabled: Boolean,
-    key: {
-      default: '',
-      type: String
-    }
+    disabled: Boolean
   },
   setup(props, { attrs, slots }) {
+    // `key` is reserved by Vue, so it never arrives as a component prop. Read
+    // the vnode key to preserve Ant Design's Menu click payload contract.
+    const instance = getCurrentInstance()
     return () =>
       h(
         'li',
@@ -587,7 +586,7 @@ export const MenuItem = defineComponent({
           'aria-disabled': props.disabled ? 'true' : undefined,
           class: mergeClass('ant-menu-item', attrs.class),
           'data-danger': props.danger ? 'true' : undefined,
-          'data-menu-key': attrs['data-menu-key'] ?? props.key
+          'data-menu-key': attrs['data-menu-key'] ?? instance?.vnode.key
         },
         slots.default?.()
       )

@@ -150,6 +150,9 @@ importers:
       jest:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@22.19.15)(ts-node@10.9.2(@swc/core@1.15.18)(@types/node@22.19.15)(typescript@5.9.3))
+      playwright:
+        specifier: 1.58.2
+        version: 1.58.2
       prettier:
         specifier: ^3.4.2
         version: 3.8.1
@@ -220,6 +223,14 @@ importers:
       vue-tsc:
         specifier: ^3.2.6
         version: 3.3.3(typescript@5.9.3)
+
+  scripts/architecture: {}
+
+  scripts/collaboration-runtime: {}
+
+  scripts/local: {}
+
+  scripts/test-infrastructure: {}
 
   src/common:
     dependencies:
@@ -2061,9 +2072,21 @@ importers:
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
+      vue-tsc:
+        specifier: 3.3.3
+        version: 3.3.3(typescript@5.9.3)
 
   src/site-runtime/meilong-ceramics-site:
     devDependencies:
+      '@oes/meilong-ceramics-site-runtime':
+        specifier: workspace:*
+        version: link:runtime
+      '@oes/meilong-ceramics-site-storefront':
+        specifier: workspace:*
+        version: link:storefront
+      '@oes/site-runtime-kit':
+        specifier: workspace:*
+        version: link:../site-runtime-kit
       playwright:
         specifier: 1.58.2
         version: 1.58.2

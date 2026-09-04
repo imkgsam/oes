@@ -10,9 +10,13 @@
     "dev:web": "pnpm --filter @oes/pda-web dev",
     "gradle:android": "scripts/android-gradle.sh",
     "install:android": "scripts/android-gradle.sh :app:installDebug",
-    "test:android": "scripts/android-gradle.sh :app:testDebugUnitTest",
-    "test:web": "pnpm --filter @oes/pda-web test",
-    "typecheck:web": "pnpm --filter @oes/pda-web typecheck"
+    "typecheck:web": "pnpm --filter @oes/pda-web typecheck",
+    "check:static": "node scripts/check-static.mjs",
+    "test": "pnpm test:unit && pnpm test:component && pnpm test:contract && pnpm test:integration",
+    "test:unit": "pnpm --filter @oes/pda-web test:unit && scripts/android-gradle.sh :app:testDebugUnitTest",
+    "test:component": "pnpm --filter @oes/pda-web test:component",
+    "test:contract": "pnpm --filter @oes/pda-web test:contract",
+    "test:integration": "pnpm --filter @oes/pda-web test:integration"
   },
   "packageManager": "pnpm@10.32.1"
 }

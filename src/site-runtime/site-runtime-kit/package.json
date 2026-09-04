@@ -12,14 +12,14 @@
   ],
   "scripts": {
     "build": "tsc -b",
-    "typecheck": "tsc --noEmit -p tsconfig.spec.json",
-    "test": "NODE_OPTIONS=--no-warnings=ExperimentalWarning jest --config jest.config.js --runInBand",
-    "test:unit": "NODE_OPTIONS=--no-warnings=ExperimentalWarning jest --config jest.config.js --runInBand test/unit",
-    "test:store": "NODE_OPTIONS=--no-warnings=ExperimentalWarning jest --config jest.config.js --runInBand test/store",
-    "test:integration": "NODE_OPTIONS=--no-warnings=ExperimentalWarning jest --config jest.config.js --runInBand test/integration",
-    "test:e2e": "NODE_OPTIONS=--no-warnings=ExperimentalWarning jest --config jest.config.js --runInBand test/e2e",
-    "smoke:local-runtime": "NODE_OPTIONS=--no-warnings=ExperimentalWarning ts-node --project tsconfig.spec.json scripts/local-runtime-smoke.ts",
-    "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo"
+    "typecheck": "tsc --noEmit -p tsconfig.tests.json",
+    "smoke:local-runtime": "NODE_OPTIONS=--no-warnings=ExperimentalWarning ts-node --project tsconfig.tests.json scripts/local-runtime-smoke.ts",
+    "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo",
+    "test": "pnpm test:unit && pnpm test:component && pnpm test:contract && pnpm test:integration",
+    "test:unit": "NODE_OPTIONS=--no-warnings=ExperimentalWarning jest --config jest.config.js --runInBand --testPathPattern='\\.unit\\.spec\\.ts$'",
+    "test:component": "NODE_OPTIONS=--no-warnings=ExperimentalWarning jest --config jest.config.js --runInBand --testPathPattern='\\.component\\.spec\\.ts$'",
+    "test:contract": "NODE_OPTIONS=--no-warnings=ExperimentalWarning jest --config jest.config.js --runInBand --testPathPattern='\\.contract\\.spec\\.ts$' --passWithNoTests",
+    "test:integration": "NODE_OPTIONS=--no-warnings=ExperimentalWarning jest --config jest.config.js --runInBand --testPathPattern='\\.integration\\.spec\\.ts$'"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

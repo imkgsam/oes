@@ -383,7 +383,7 @@ Minimum verification expected from implementation thread:
 - `pnpm --filter public-entry-service lint`
 - `pnpm --filter public-entry-service test`
   - 4 suites / 18 tests passed
-- `pnpm --filter public-entry-service exec jest --config jest.config.js --runInBand test/l1/business-card.application.spec.ts`
+- `pnpm --filter public-entry-service exec jest --config jest.config.js --runInBand src/__tests__/business-card.application.unit.spec.ts`
   - 1 suite / 10 tests passed
   - 新增覆盖：BusinessCard disabled 后，ShortLink `/c/{shortCode}` 通过 resolver 返回统一不可用，并记录 `INVALID_TARGET` VisitEvent。
 - `pnpm --filter public-entry-service build`
@@ -437,9 +437,9 @@ BusinessCard 实现线程完成后复核结论：
   - ShortLink 未读取 BusinessCard 内部字段，未自行拼 BusinessCard URL。
   - BusinessCard owns public render URL / vCard URL / display content；ShortLink owns `/c/{shortCode}` reachability、status、expiry、VisitEvent。
 - 已执行验证：
-  - `pnpm --filter public-entry-service exec jest --config jest.config.js --runInBand test/l1/business-card.module.spec.ts test/l1/business-card.application.spec.ts test/l1/short-link-public-redirect.spec.ts`
+  - `pnpm --filter public-entry-service exec jest --config jest.config.js --runInBand src/__tests__/business-card.module.component.spec.ts src/__tests__/business-card.application.unit.spec.ts src/__tests__/short-link-public-redirect.unit.spec.ts`
     - 3 suites / 19 tests passed
-  - `pnpm --filter public-entry-service exec jest --config jest.config.js --runInBand test/l1/business-card.application.spec.ts`
+  - `pnpm --filter public-entry-service exec jest --config jest.config.js --runInBand src/__tests__/business-card.application.unit.spec.ts`
     - 1 suite / 10 tests passed
     - 覆盖 BusinessCard disabled / readiness failed 类路径在 `/c/{shortCode}` 下进入统一不可用并记录 `INVALID_TARGET`。
   - `pnpm --filter public-entry-service smoke`

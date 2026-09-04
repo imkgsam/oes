@@ -153,13 +153,13 @@ The registration artifact is owned by AI-PLATFORM at a repository-level neutral 
 One v2 Lite A/I may write only：
 
 - `src/ai-platform/tool-contracts/registrations/task-assistant-collaboration-task.v1.json`
-- `src/ai-platform/tool-contracts/registrations/task-assistant-collaboration-task.v1.contract.test.mjs`
+- `src/ai-platform/tool-contracts/registrations/task-assistant-collaboration-task.v1.static.check.mjs`
 
-The test uses only the Node standard library and must not require a package, lockfile, generated code, network access or runtime service.
+The static check uses only the Node standard library and must not require a package, lockfile, generated code, network access or runtime service.
 
 ## 6. Validation Contract
 
-The contract test and A/V evidence must prove：
+The static check and A/V evidence must prove：
 
 1. exact identity、version、kind、state and immutable flag；
 2. exact five-operation set with no duplicate/additional key；
@@ -175,7 +175,7 @@ The contract test and A/V evidence must prove：
 Required test command：
 
 ```bash
-node --test src/ai-platform/tool-contracts/registrations/task-assistant-collaboration-task.v1.contract.test.mjs
+node --test src/ai-platform/tool-contracts/registrations/task-assistant-collaboration-task.v1.static.check.mjs
 ```
 
 ## 7. Disabled-Phase Consequences

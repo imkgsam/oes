@@ -8,5 +8,5 @@
   },
   "references": [{ "path": "../../common" }],
   "include": ["src"],
-  "exclude": ["node_modules", "src/**/*.spec.ts", "src/**/*.test.ts"]
+  "exclude": ["node_modules", "**/*.static.check.ts", "**/*.spec.ts", "**/*.test.ts"]
 }

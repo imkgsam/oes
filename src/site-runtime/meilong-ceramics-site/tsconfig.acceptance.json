@@ -3,12 +3,22 @@
     "target": "ES2022",
     "module": "commonjs",
     "moduleResolution": "node",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "baseUrl": ".",
     "paths": {
-      "@oes/common/generated/site_service": ["../../common/dist/generated/index.site_service.js"],
-      "@oes/common/*": ["../../common/dist/*"],
-      "@oes/site-runtime-kit": ["../site-runtime-kit/src/index.ts"]
+      "@oes/common/generated/site_service": [
+        "../../common/dist/generated/index.site_service.js"
+      ],
+      "@oes/common/*": [
+        "../../common/dist/*"
+      ],
+      "@oes/site-runtime-kit": [
+        "../site-runtime-kit/src/index.ts"
+      ]
     },
     "esModuleInterop": true,
     "experimentalDecorators": true,
@@ -17,13 +27,15 @@
     "noEmit": true,
     "skipLibCheck": true,
     "strict": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
   "include": [
     "scripts/locale-governance-acceptance-harness.ts",
     "scripts/locale-governance-gateway-harness.ts",
     "scripts/verify-locale-governance-acceptance.ts",
-    "tests/locale-governance-acceptance-harness.test.ts",
+    "test/locale-governance-acceptance-harness.node.integration.spec.ts",
     "runtime/src/site-capability-manifest.ts"
   ]
 }

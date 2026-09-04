@@ -15,7 +15,7 @@ import {
   SupplierFinancialAccountRecord
 } from '../../domain/models/finance-records'
 
-/** FinanceInMemoryStore keeps phase 1A records in plain maps for deterministic L1 behavior tests. */
+/** FinanceInMemoryStore keeps phase 1A records in plain maps for deterministic Unit behavior tests. */
 export class FinanceInMemoryStore {
   financialAccounts = new Map<string, FinancialAccountRecord>()
   balanceSnapshots = new Map<string, FinancialAccountBalanceSnapshotRecord>()

@@ -105,19 +105,19 @@ May modify only:
 - `src/site-runtime/meilong-ceramics-site/storefront/nuxt.config.ts`;
 - `src/site-runtime/meilong-ceramics-site/scripts/verify-meilong-boundaries.mjs`;
 - `src/site-runtime/meilong-ceramics-site/scripts/verify-blog-news-display.mjs`;
-- `src/site-runtime/meilong-ceramics-site/tests/archive-route-state.spec.ts`;
-- `src/site-runtime/meilong-ceramics-site/tests/content-archive.spec.ts`;
-- `src/site-runtime/meilong-ceramics-site/tests/content-category-archive.spec.ts`;
-- `src/site-runtime/meilong-ceramics-site/tests/meilong-seed-exposure.spec.ts`;
-- `src/site-runtime/meilong-ceramics-site/tests/runtime-controller-boundary.spec.ts`;
-- `src/site-runtime/meilong-ceramics-site/tests/site-capability-manifest.spec.ts`;
-- `src/site-runtime/meilong-ceramics-site/tests/site-exposure-service.spec.ts`;
-- `src/site-runtime/meilong-ceramics-site/tests/site-public-surface.spec.ts`;
-- `src/site-runtime/meilong-ceramics-site/tests/storefront-public-proxy.spec.ts`;
-- `src/site-runtime/meilong-ceramics-site/tests/storefront-route-policy.spec.ts`;
+- `src/site-runtime/meilong-ceramics-site/storefront/src/tests/utils/archive-route-state.unit.spec.ts`;
+- `src/site-runtime/meilong-ceramics-site/test/content-archive.integration.spec.ts`;
+- `src/site-runtime/meilong-ceramics-site/test/content-category-archive.integration.spec.ts`;
+- `src/site-runtime/meilong-ceramics-site/test/meilong-seed-exposure.integration.spec.ts`;
+- `src/site-runtime/meilong-ceramics-site/test/runtime-controller-boundary.contract.spec.ts`;
+- `src/site-runtime/meilong-ceramics-site/test/site-capability-manifest.contract.spec.ts`;
+- `src/site-runtime/meilong-ceramics-site/test/site-exposure-service.integration.spec.ts`;
+- `src/site-runtime/meilong-ceramics-site/test/site-public-surface.integration.spec.ts`;
+- `src/site-runtime/meilong-ceramics-site/test/storefront-public-proxy.contract.spec.ts`;
+- `src/site-runtime/meilong-ceramics-site/storefront/src/tests/types/storefront-route-policy.unit.spec.ts`;
 - `src/site-runtime/meilong-ceramics-site/tests/nuxt-server-globals.d.ts`;
 - `src/site-runtime/meilong-ceramics-site/jest.config.cjs`;
-- `src/site-runtime/meilong-ceramics-site/tsconfig.test.json`.
+- `src/site-runtime/meilong-ceramics-site/tsconfig.tests.json`.
 
 Must not modify Runtime Kit, OES service, API Gateway or tenant-web.
 
@@ -128,10 +128,10 @@ May modify only:
 - `src/site-runtime/meilong-ceramics-site/scripts/locale-governance-acceptance-harness.ts`;
 - `src/site-runtime/meilong-ceramics-site/scripts/locale-governance-gateway-harness.ts`;
 - `src/site-runtime/meilong-ceramics-site/scripts/verify-locale-governance-acceptance.ts`;
-- `src/site-runtime/meilong-ceramics-site/tests/locale-governance-acceptance-harness.test.ts`;
+- `src/site-runtime/meilong-ceramics-site/test/locale-governance-acceptance-harness.node.integration.spec.ts`;
 - `src/site-runtime/meilong-ceramics-site/tsconfig.acceptance.json`;
 - `src/site-runtime/meilong-ceramics-site/package.json`, only the `scripts.test:acceptance:locale-governance` entry;
-- `src/site-runtime/meilong-ceramics-site/tests/storefront-runtime-boundary.spec.ts`, only the acceptance entry-point migration assertion needed to prevent an obsolete parallel acceptance path.
+- `src/site-runtime/meilong-ceramics-site/storefront/src/tests/types/public-read-error.unit.spec.ts` and `src/site-runtime/meilong-ceramics-site/storefront/src/tests/server/sitemap-policy.unit.spec.ts`, the focused runtime-policy coverage retained after the mixed source-text suite was split.
 
 Must not modify production Runtime, Storefront behavior, Runtime Kit, OES services, API Gateway, tenant-web, schema, proto or stable architecture/contracts. Cross-boundary execution state is recorded in this feature packet rather than in the Meilong runbook.
 

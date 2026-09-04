@@ -208,7 +208,7 @@ The Collaboration owner owns all database changes under its own Prisma directory
 - Invalid contract, owner mismatch, unsupported version, oversize body, and deterministic encoding failures are quarantined and alerted rather than retried forever.
 - Existing process-local event code may remain only for explicitly local behavior; it must not be used as cross-service delivery or as a second public outbox.
 
-Required implementation/test paths are the existing task-command.service.ts, task audit/event ports and adapters, prisma/schema.prisma, the Task module wiring, new service-owned outbox/relay adapters, and focused L1/L2 tests. The owner must preserve existing Task command/query behavior outside this transaction boundary.
+Required implementation/test paths are the existing task-command.service.ts, task audit/event ports and adapters, prisma/schema.prisma, the Task module wiring, new service-owned outbox/relay adapters, and focused Unit/Integration tests. The owner must preserve existing Task command/query behavior outside this transaction boundary.
 
 ### EV-5: Notification Inbox and typed handler
 
@@ -292,8 +292,8 @@ The verification owner writes only harness/fixture code and evidence. It must no
 
 1. **Documentation/contract gate:** validate links, catalog status, CloudEvents example, common-contract path, and absence of stale Asset gap language in the platform architecture.
 2. **Common unit gate:** run only common event codec, descriptor, port, adapter, retry, and header tests; build @oes/common.
-3. **Collaboration producer gate:** regenerate its Prisma client, run Task L1, run focused L2 transaction tests against the Collaboration database, and prove rollback/outbox persistence independently of NATS.
-4. **Notification consumer gate:** after EV-0, regenerate its Prisma client, run typed handler/inbox L1 tests, and run focused L2 duplicate/conflict/restart tests against the Notification database.
+3. **Collaboration producer gate:** regenerate its Prisma client, run Task Unit, run focused Integration transaction tests against the Collaboration database, and prove rollback/outbox persistence independently of NATS.
+4. **Notification consumer gate:** after EV-0, regenerate its Prisma client, run typed handler/inbox Unit tests, and run focused Integration duplicate/conflict/restart tests against the Notification database.
 5. **Topology gate:** start only the repository’s local infrastructure Compose plus the NATS service, bootstrap streams/consumers/ACL, and prove readiness before starting service workers.
 6. **Cross-service smoke gate:** run scripts/local/event-bus-collaboration-notification-smoke.mjs for one tenant and one assigned Task, then exercise completed/cancelled facts and the failure matrix.
 7. **Review/integration gate:** inspect the complete diff for shared-path collisions, verify no producer/consumer imports NATS client types, verify no local EventEmitter/Redis Pub/Sub is used for this public slice, and record accepted evidence in the structured handoff.
@@ -303,8 +303,8 @@ Expected command families for an implementation worker are:
 ```text
 pnpm --filter @oes/common build
 pnpm --filter collaboration-service prisma:generate
-pnpm --filter collaboration-service test:l1
-pnpm --filter collaboration-service test:l2
+pnpm --filter collaboration-service test:unit
+pnpm --filter collaboration-service test:integration
 pnpm --filter notification-service prisma:generate
 pnpm --filter notification-service build
 docker compose -f docker-compose.infra.yml config

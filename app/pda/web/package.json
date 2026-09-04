@@ -7,8 +7,12 @@
     "build": "vue-tsc --noEmit && vite build",
     "dev": "vite --host 0.0.0.0",
     "preview": "vite preview --host 0.0.0.0",
+    "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
-    "typecheck": "vue-tsc --noEmit"
+    "test:unit": "vitest run '.unit.spec.'",
+    "test:component": "vitest run '.component.spec.'",
+    "test:contract": "vitest run '.contract.spec.'",
+    "test:integration": "vitest run '.integration.spec.' --passWithNoTests"
   },
   "dependencies": {
     "@vitejs/plugin-vue": "^6.0.5",

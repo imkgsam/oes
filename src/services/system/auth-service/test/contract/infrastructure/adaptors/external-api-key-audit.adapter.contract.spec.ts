@@ -1,0 +1,2 @@
+import { ExternalApiKeyAuditAdapter } from '../../../../src/infrastructure/adaptors/external-api-key-audit.adapter'
+describe('ExternalApiKeyAuditAdapter', () => { it('persists no secret-bearing fields', async () => { const append = jest.fn(); await new ExternalApiKeyAuditAdapter(append).record({ eventType: 'EXCHANGE', outcome: 'DENIED', machineId: 'm', tenantId: 't' }); expect(JSON.stringify(append.mock.calls)).not.toMatch(/oek_live|access_token|pepper|verifier/i) }) })

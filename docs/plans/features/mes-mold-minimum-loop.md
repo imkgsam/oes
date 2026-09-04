@@ -236,7 +236,7 @@ MarkProductionMoldForScrap:
 | --- | --- | --- | --- | --- | --- |
 | design owner | 冻结 MES mold 第一阶段修正版边界与切片顺序 | `docs/plans/features/mes-mold-minimum-loop.md` | 用户确认、MES 服务真相源、当前 contracts / proto / runtime / BFF / UI 现状 | 当前 feature packet | completed |
 | contract owner | 按本 packet 修正 mes-service 与 API Gateway contract / proto | `docs/contracts/mes-service/**`, `docs/contracts/api-gateway/mes-mold-management.md`, `src/common/src/contracts/mes_service/mes.proto`, generated proto | 当前 feature packet | 合法 contract/proto 与 proto lint 结果 | implementation-present / fresh-verification-needed |
-| mes-service owner | 实现 application/domain/infrastructure/interface 修正 | `src/services/business/mes-service/**` | 更新后的 contract/proto | mes-service runtime、Prisma、L1/L2/L3 tests | implementation-present / fresh-verification-needed |
+| mes-service owner | 实现 application/domain/infrastructure/interface 修正 | `src/services/business/mes-service/**` | 更新后的 contract/proto | mes-service runtime、Prisma、Unit/Integration/Contract tests | implementation-present / fresh-verification-needed |
 | api-gateway owner | 对齐 BFF HTTP surface 与 gRPC adapters | `src/services/api-gateway/src/modules/mes-service/**` | 更新后的 proto 与 API Gateway contract | BFF routes、DTO、adapter、tests | implementation-present / fresh-verification-needed |
 | tenant-web owner | 对齐 Web 过渡流程与模具页面 | `app/web/apps/tenant-web/src/api/bff/mes/**`, `app/web/apps/tenant-web/src/views/admin/**` | BFF contract | tenant-web API client、页面、unit tests | pending |
 
@@ -264,7 +264,7 @@ MarkProductionMoldForScrap:
    - enum normalize 修复。
 5. Verification and closure
    - proto lint。
-   - mes-service L1/L2/L3。
+   - mes-service Unit/Integration/Contract。
    - api-gateway MES BFF jest。
    - tenant-web MES API / 页面 vitest 或现有 test command。
 
@@ -305,9 +305,9 @@ MarkProductionMoldForScrap:
 
 - `pnpm proto:lint`
 - 如 proto 修改：`pnpm proto:gen`
-- `pnpm --filter mes-service test:l1`
-- `pnpm --filter mes-service test:l2`
-- `pnpm --filter mes-service test:l3`
+- `pnpm --filter mes-service test:unit`
+- `pnpm --filter mes-service test:integration`
+- `pnpm --filter mes-service test:contract`
 - `pnpm --filter api-gateway exec jest src/modules/mes-service --runInBand`
 - `pnpm --dir app/web test:unit -- apps/tenant-web/src/api/bff/mes/index.spec.ts apps/tenant-web/src/views/admin/mes-mold-management.spec.ts apps/tenant-web/src/views/admin/mes-production-mold-management.spec.ts apps/tenant-web/src/views/admin/mes-mold-design-detail.spec.ts --dom`
 - 如果前端 test command 与仓库实际脚本不匹配，执行仓库现有 vitest 精确文件命令并在交付中说明。

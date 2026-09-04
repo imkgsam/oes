@@ -7,10 +7,7 @@
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
-    "test": "jest --config jest.config.js --runInBand",
-    "test:l1": "jest --config jest.config.js --runInBand test/l1",
-    "test:l2": "pnpm prisma:push && jest --config jest.config.js --runInBand test/l2",
-    "test:l3": "jest --config jest.config.js --runInBand test/l3",
+    "test": "pnpm run test:unit && pnpm run test:component && pnpm run test:contract && pnpm run test:integration",
     "build": "tsc -b",
     "prisma:generate": "npx prisma generate --schema=./prisma/schema.prisma",
     "prisma:push": "npx prisma db push --schema=./prisma/schema.prisma",
@@ -20,7 +17,11 @@
     "start": "node dist/main.js",
     "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo",
     "clear:nm": "rimraf node_modules",
-    "prisma:migrate:deploy": "prisma migrate deploy --schema=./prisma/schema.prisma"
+    "prisma:migrate:deploy": "prisma migrate deploy --schema=./prisma/schema.prisma",
+    "test:unit": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.unit\\.spec\\.ts$'",
+    "test:component": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.component\\.spec\\.ts$'",
+    "test:contract": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.contract\\.spec\\.ts$'",
+    "test:integration": "pnpm prisma:push && jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.integration\\.spec\\.ts$'"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.14.3",

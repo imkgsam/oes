@@ -1,6 +1,6 @@
 import { InventoryBalanceRecord, LocationRecord, ReceiptRecord, StockLedgerEntryRecord, WarehouseRecord } from '../../domain/models/wms-records'
 
-/** WmsInMemoryStore holds the isolated aggregate maps used by the L1 in-memory repositories. */
+/** WmsInMemoryStore holds the isolated aggregate maps used by the Unit in-memory repositories. */
 export class WmsInMemoryStore {
   readonly warehouses = new Map<string, WarehouseRecord>()
   readonly locations = new Map<string, LocationRecord>()

@@ -1,4 +1,5 @@
 packages:
+  - 'scripts/*'
   - 'app/browser-extension'
   - 'src/services/*'
   - 'src/services/auxiliary/*'

@@ -15,7 +15,7 @@ function parseEnvValue(raw: string): string {
   return trimmed
 }
 
-/** ensureIntegrationDatabaseUrl loads srm-service DATABASE_URL for Prisma-backed L2 tests. */
+/** ensureIntegrationDatabaseUrl loads srm-service DATABASE_URL for Prisma-backed Integration tests. */
 export function ensureIntegrationDatabaseUrl(): string {
   if (process.env.DATABASE_URL) {
     return process.env.DATABASE_URL
@@ -58,16 +58,16 @@ export async function createPrismaForIntegration(): Promise<PrismaService> {
 
     await prisma.$disconnect().catch(() => undefined)
     throw new Error(
-      `srm-service L2 tests require a reachable PostgreSQL database. Current DATABASE_URL target: ${safeTarget}. Cause: ${
+      `srm-service Integration tests require a reachable PostgreSQL database. Current DATABASE_URL target: ${safeTarget}. Cause: ${
         error instanceof Error ? error.message : String(error)
       }`
     )
   }
 }
 
-/** createTestPrefix returns one unique prefix so cleanup only touches rows created by one L2 run. */
+/** createTestPrefix returns one unique prefix so cleanup only touches rows created by one Integration run. */
 export function createTestPrefix(): string {
-  return `srm_l2_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  return `srm_integration_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
 
 /** cleanupByPrefix removes Prisma-backed SRM rows keyed by the generated tenant prefix. */

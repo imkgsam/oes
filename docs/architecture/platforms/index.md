@@ -14,3 +14,4 @@
 - [Event bus and outbox](./event-bus-and-outbox.md)
 - [Site runtime](./site-runtime-architecture.md)
 - [Site runtime kit](./site-runtime-kit.md)
+- [Testing and CI](./testing-and-ci.md)

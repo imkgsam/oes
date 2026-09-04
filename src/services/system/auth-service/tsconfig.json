@@ -10,5 +10,5 @@
     { "path": "../../../common" }
   ],
   "include": ["src"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "**/*.static.check.ts", "**/*.spec.ts", "**/*.test.ts"]
 }

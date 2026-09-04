@@ -1,0 +1,5 @@
+{
+  "name": "@oes/local-tooling",
+  "private": true,
+  "type": "module"
+}

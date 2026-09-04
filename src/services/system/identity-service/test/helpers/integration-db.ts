@@ -15,7 +15,7 @@ function parseEnvValue(raw: string): string {
 }
 
 export function ensureIntegrationDatabaseUrl(): string {
-  const taskOwnedUrl = process.env.OES_L2_DATABASE_URL?.trim()
+  const taskOwnedUrl = process.env.OES_INTEGRATION_DATABASE_URL?.trim()
   if (taskOwnedUrl) {
     process.env.DATABASE_URL = taskOwnedUrl
     return taskOwnedUrl
@@ -60,13 +60,13 @@ export async function createPrismaForIntegration(): Promise<PrismaService> {
 
     await prisma.$disconnect().catch(() => undefined)
     throw new Error(
-      `L2 integration tests require a reachable PostgreSQL database. Current DATABASE_URL target: ${safeTarget}`
+      `Integration integration tests require a reachable PostgreSQL database. Current DATABASE_URL target: ${safeTarget}`
     )
   }
 }
 
 export function createTestPrefix(): string {
-  return `idn_l2_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  return `idn_integration_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
 
 export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Promise<void> {
@@ -145,5 +145,4 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
       ]
     }
   })
-
 }

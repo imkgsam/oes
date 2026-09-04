@@ -24,7 +24,7 @@ Current implementation status:
 - Internal `PolicyTemplateInstanceAuthorizationService` evaluator exists.
 - Prisma-backed `PolicyInstance` storage exists.
 - First-stage template params schema validation exists for preview and repository save paths.
-- L1 and L2 tests cover `checkResource`, `buildQueryScope`, storage mapping, and repository-backed evaluation.
+- Unit and Integration tests cover `checkResource`, `buildQueryScope`, storage mapping, and repository-backed evaluation.
 
 Current external status:
 

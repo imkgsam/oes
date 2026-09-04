@@ -149,11 +149,11 @@ Primary files to inspect and modify:
 - `src/services/system/party-service/src/infrastructure/repositories/prisma-tenant-party.repository.ts`
 - `src/services/system/party-service/src/interfaces/grpc/party-query.grpc.controller.ts`
 - `src/services/system/party-service/src/interfaces/grpc/party-registration.grpc.controller.ts`
-- `src/services/system/party-service/test/l1/party-query.service.spec.ts`
-- `src/services/system/party-service/test/l1/party-registration.service.spec.ts`
-- `src/services/system/party-service/test/l2/prisma.tenant-party.repository.spec.ts`
-- `src/services/system/party-service/test/l3/party-query.grpc.controller.spec.ts`
-- `src/services/system/party-service/test/l3/party-registration.grpc.controller.spec.ts`
+- `src/services/system/party-service/src/__tests__/party-query.service.unit.spec.ts`
+- `src/services/system/party-service/src/__tests__/party-registration.service.unit.spec.ts`
+- `src/services/system/party-service/test/integration/prisma.tenant-party.repository.integration.spec.ts`
+- `src/services/system/party-service/test/contract/party-query.grpc.controller.contract.spec.ts`
+- `src/services/system/party-service/test/contract/party-registration.grpc.controller.contract.spec.ts`
 
 ### 4.2 CRM-Service
 
@@ -173,10 +173,11 @@ Primary files to replace or rewrite:
 - `src/services/business/crm-service/src/modules/**`
 - `src/services/business/crm-service/scripts/crm-smoke-lib.mjs`
 - `src/services/business/crm-service/scripts/crm-smoke.mjs`
-- `src/services/business/crm-service/scripts/crm-smoke.spec.mjs`
-- `src/services/business/crm-service/test/l1/**`
-- `src/services/business/crm-service/test/l2/**`
-- `src/services/business/crm-service/test/l3/**`
+- `src/services/business/crm-service/src/__tests__/scripts/crm-smoke.unit.spec.mjs`
+- `src/services/business/crm-service/src/**/*.unit.spec.ts`
+- `src/services/business/crm-service/src/**/*.component.spec.ts`
+- `src/services/business/crm-service/test/**/*.contract.spec.ts`
+- `src/services/business/crm-service/test/**/*.integration.spec.ts`
 
 ### 4.3 API Gateway / BFF
 
@@ -191,9 +192,9 @@ Primary files to modify:
 Primary files to replace or add:
 
 - `app/web/apps/tenant-web/src/api/bff/customer-management/index.ts`
-- `app/web/apps/tenant-web/src/api/bff/customer-management/index.spec.ts`
+- `app/web/apps/tenant-web/test/api/bff/customer-management/index.contract.spec.ts`
 - `app/web/apps/tenant-web/src/views/admin/customer-management.vue`
-- `app/web/apps/tenant-web/src/views/admin/customer-management.spec.ts`
+- `app/web/apps/tenant-web/src/views/admin/customer-management.component.spec.ts`
 - `app/web/apps/tenant-web/src/modules/tenant-admin/routes.ts`
 - `app/web/apps/tenant-web/src/locales/langs/zh-CN/page.json`
 - `app/web/apps/tenant-web/src/locales/langs/en-US/page.json`
@@ -256,8 +257,8 @@ Tasks:
 Tests:
 
 ```bash
-pnpm --filter party-service test:l2
-pnpm --filter party-service test:l2 -- --runInBand
+pnpm --filter party-service test:integration
+pnpm --filter party-service test:integration -- --runInBand
 pnpm proto:lint
 ```
 
@@ -294,7 +295,7 @@ Tests:
 
 ```bash
 pnpm proto:lint
-pnpm --filter permission-service test:l1
+pnpm --filter permission-service test:unit
 ```
 
 Expected coverage:
@@ -327,7 +328,7 @@ Tests:
 ```bash
 pnpm --filter crm-service prisma:generate
 pnpm --filter crm-service prisma:push
-pnpm --filter crm-service test:l2
+pnpm --filter crm-service test:integration
 ```
 
 Expected coverage:
@@ -358,9 +359,9 @@ Tasks:
 Tests:
 
 ```bash
-pnpm --filter crm-service test:l1
-pnpm --filter crm-service test:l2
-pnpm --filter crm-service test:l3
+pnpm --filter crm-service test:unit
+pnpm --filter crm-service test:integration
+pnpm --filter crm-service test:contract
 ```
 
 Expected coverage:
@@ -382,7 +383,7 @@ Tasks:
 Tests:
 
 ```bash
-pnpm --filter crm-service test:l3
+pnpm --filter crm-service test:contract
 pnpm crm:smoke
 ```
 
@@ -463,12 +464,12 @@ Commands:
 
 ```bash
 pnpm proto:lint
-pnpm --filter party-service test:l1
-pnpm --filter party-service test:l2
-pnpm --filter party-service test:l3
-pnpm --filter crm-service test:l1
-pnpm --filter crm-service test:l2
-pnpm --filter crm-service test:l3
+pnpm --filter party-service test:unit
+pnpm --filter party-service test:integration
+pnpm --filter party-service test:contract
+pnpm --filter crm-service test:unit
+pnpm --filter crm-service test:integration
+pnpm --filter crm-service test:contract
 pnpm --filter api-gateway exec jest src/modules/crm-service
 pnpm crm:smoke
 pnpm --dir app/web --filter @oes/tenant-web run typecheck
@@ -486,9 +487,9 @@ Runtime verification:
 
 P1 must pass:
 
-- L1 domain / use case tests.
-- L2 repository / schema tests.
-- L3 gRPC / API tests.
+- Unit domain / use case tests.
+- Integration repository / schema tests.
+- Contract gRPC / API tests.
 - Gateway/BFF HTTP tests.
 - Smoke tests.
 - tenant-web unit tests.

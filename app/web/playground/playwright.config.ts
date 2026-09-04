@@ -78,8 +78,9 @@ const config: PlaywrightTestConfig = {
     ['html', { outputFolder: 'node_modules/.e2e/test-results' }],
   ],
   /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
-  testDir: './__tests__/e2e',
+  retries: 0,
+  testDir: './__tests__/journey',
+  testMatch: '**/*.journey.spec.ts',
   /* Maximum time one test can run for. */
   timeout: 30 * 1000,
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
@@ -89,7 +90,7 @@ const config: PlaywrightTestConfig = {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: 'http://localhost:5555',
     /* Only on CI systems run the tests headless */
-    headless: !!process.env.CI,
+    headless: true,
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'retain-on-failure',
   },
@@ -102,7 +103,7 @@ const config: PlaywrightTestConfig = {
   },
 
   /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  fullyParallel: true,
 };
 
 export default config;

@@ -7,8 +7,13 @@
     "build": "vite build",
     "dev": "vite --host 127.0.0.1",
     "preview": "vite preview",
-    "test:unit": "vitest run --dom",
-    "typecheck": "vue-tsc --noEmit --skipLibCheck"
+    "typecheck": "vue-tsc --noEmit --skipLibCheck",
+    "check:static": "node scripts/check-static.mjs",
+    "test": "vitest run --dom",
+    "test:unit": "vitest run --dom '.unit.spec.'",
+    "test:component": "vitest run --dom '.component.spec.'",
+    "test:contract": "vitest run --dom '.contract.spec.'",
+    "test:integration": "vitest run --dom '.integration.spec.' --passWithNoTests"
   },
   "dependencies": {
     "vue": "^3.5.30"
