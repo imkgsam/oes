@@ -335,8 +335,7 @@ function renderedProfile(
     ownerRef: 'refs/heads/codex/delivery/profile',
     artifactRoot: values.ARTIFACT_PATH,
     taskTempRoot: `/private/tmp/oes-owner-${sha256(ownerTaskId)}`,
-    deliveryRecord: 'docs/plans/deliveries/profile.md',
-    deliveryRecordCheckpointPath: join(values.ARTIFACT_PATH, 'delivery-record.md'),
+    deliveryPackagePath: join(values.ARTIFACT_PATH, 'delivery-package.json'),
     currentEvidenceManifestPath: join(values.ARTIFACT_PATH, 'current.json'),
     checkpointBundlePath: join(values.ARTIFACT_PATH, 'checkpoint.json'),
     gitBundlePath: join(values.ARTIFACT_PATH, 'owner.bundle')

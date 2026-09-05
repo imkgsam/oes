@@ -32,7 +32,7 @@ docs/
     └── features/     # pre-V2 historical records only
 ```
 
-不建立 archive、history、migration ledger 或 task ledger。`docs/plans/deliveries/` 是 V2 repository delivery record 的唯一 active 路径；不得恢复其他 active delivery packet 路径。
+不建立 archive、history、migration ledger 或 task ledger。V2 的 active delivery control surface 是 owner task stable artifact root 中的 Delivery Package (DP)；CO 另有 Aggregate Delivery Package (ADP)。`docs/plans/deliveries/` 仅保留历史说明，不是 active 状态源。
 
 ## 3. 稳定真相源
 
@@ -76,23 +76,23 @@ Workspace 由 DA 维护，只保存 objective、scope/protected scope、truth re
 
 Human 确认 exact Proposal preview 后，DA 才形成 immutable Proposal 并提交 exact UD。UD 接受后更新 canonical truth；Design PR merge 与后续 delivery activation 分别确认。全部结论进入 canonical truth 后，Workspace 在独立 cleanup 边界删除。
 
-## 5. V2 Delivery Record
+## 5. V2 Delivery Package
 
-一个 repository DO 对应一个 compact active record：
+一个 repository DO 对应一个 stable artifact root 中的 DP：
 
 ```text
-docs/plans/deliveries/<delivery-key>.md
+<owner-task-stable-artifact-root>/delivery-package.json
 ```
 
-record 只保存当前 objective、base SHA、scope/protected scope、dependencies、acceptance、candidate SHA、self-test evidence、RV result、PR/CI state、remaining risk、rollback 和 cleanup state。只有 exact DO 写自己的 record；状态原位覆盖，不写执行流水、task 消息或重复日志。
+DP 只保存 activation-fixed objective、scope/protected scope、dependencies、acceptance、risk、rollback，以及 execution slices、candidate/self-test/RV/CI/PR、remaining risk 和 cleanup state。只有 exact DO 写自己的 DP；状态原位覆盖，不写执行流水、task 消息或重复日志。
 
-CO 的 decomposition、dependency order、integration contract、aggregate acceptance、scoped RV references 与 aggregate candidate 保存在 CO task-local current evidence。CO 默认生成一个 aggregate branch/PR，不建立第二套 repository coordination packet。若 Human 明确确认 independently releasable 的 independent-PR exception，各 DO record 仍分别绑定各自 candidate/PR。
+CO 的 decomposition、dependency order、integration contract、aggregate acceptance、scoped RV references 与 aggregate candidate 保存在 CO stable artifact root 的 ADP。ADP 绑定每个 DO DP、accepted candidate SHA、aggregate RV/CI、merge、post-check 与 cleanup。CO 默认生成一个 aggregate branch/PR；若 Human 明确确认 independently releasable 的 independent-PR exception，各 DO DP 仍分别绑定各自 candidate/PR。
 
-Repository merge 和 main verification完成后，record 进入 terminal lifecycle disposal；删除 record 属于零新增内容的 cleanup 边界，不得借 cleanup 产生产品修改或其他 repository diff。
+Repository merge 和 main verification完成后，DP/ADP 进入 terminal lifecycle disposal；删除 package 属于零新增内容的 cleanup 边界，不得借 cleanup 产生产品修改或其他 repository diff。
 
 ## 6. Host-local work
 
-Host-local DO 只在 task-local current evidence 保存 scope/protected scope、精确资源、acceptance、verification 与 post-check；没有 repository 修改时不创建 delivery record、Git candidate 或 PR。破坏性操作绑定 exact operation candidate，完成后按同一 owner 的 child-first disposal 处理临时资源与 task。
+Host-local DO 在 stable artifact root 保存同一 DP schema 的 scope/protected scope、精确资源、acceptance、verification、post-check 与 rollback；没有 repository 修改时不创建 Git candidate、PR、Merge Queue 或远程 CI。Host-local CO 使用 ADP 绑定至少两个独立 workstream 及真实并行/跨操作集成。破坏性操作绑定 exact operation candidate，完成后按同一 owner 的 child-first disposal 处理临时资源与 task。
 
 ## 7. Intake 与 Backlog
 
@@ -109,13 +109,13 @@ Index 只包含一到两句目录用途、当前规范文件名称和 repository
 docs/index.md -> category/index.md -> canonical document
 ```
 
-Active Workspace 与 Delivery Record 由目录中的当前文件表示，不维护第二状态表。
+Active Workspace 由目录中的当前文件表示；DP/ADP 由 owner task stable artifact root 表示，不维护第二状态表。
 
 ## 9. 历史文件
 
-`docs/plans/features/` 下的既有文件是 pre-V2 historical records，不是 active route、template 或 owner authority。它们可保留原词作为历史证据，但任何新交付都使用 `docs/plans/deliveries/`。后续逐文件清理时：
+`docs/plans/features/` 与 `docs/plans/deliveries/` 下的既有文件是 pre-V2 historical records，不是 active route、template 或 owner authority。它们可保留原词作为历史证据；任何新交付都使用 stable artifact root 中的 DP/ADP。后续逐文件清理时：
 
-- 已存在于 canonical truth、active Workspace 或 Delivery Record：删除重复文件；
+- 已存在于 canonical truth、active Workspace 或 DP/ADP：删除重复文件；
 - 仅包含完成 checklist、命令或流水：删除；
 - 包含唯一稳定事实：提取最小事实到 architecture/contract/ADR/runbook 后删除；
 - 包含仍有效的未冻结设计：提取当前草稿到 active Workspace 后删除。
@@ -129,7 +129,7 @@ Active Workspace 与 Delivery Record 由目录中的当前文件表示，不维�
 - 所有 Markdown 相对链接存在；
 - stable truth 被索引且不重复；
 - active route 只出现 DA/UD/DO/CO/RV；
-- active delivery record 路径仅为 `docs/plans/deliveries/`；
+- active DP/ADP 路径仅为 owner task stable artifact root；
 - repository 文档不含本机 home 目录；
 - plans index 不枚举实现进度；
 - cleanup 变更没有新增/修改 repository 内容；

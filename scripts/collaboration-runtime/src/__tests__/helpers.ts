@@ -7,8 +7,15 @@ import type {
   RemoteAuthorizationRoot,
   RemoteDriverBinding,
   RemoteTrustRoots,
-  CoordinationCleanupAuthorization
+  CoordinationChildCleanupAuthorization,
+  CoordinationCleanupAuthorization,
+  TerminalCoordinationCleanup
 } from '../types.ts'
+import type { OwnerResourceReference } from '../resource-topology.types.ts'
+import {
+  loadTrustedCoordinationChildCleanupAuthorization,
+  loadTrustedCoordinationCleanupAuthorization
+} from '../cleanup-binding.ts'
 
 const trustByBinding = new WeakMap<RemoteDriverBinding, RemoteTrustRoots>()
 
@@ -187,8 +194,7 @@ export function remoteBinding(overrides: Partial<RemoteDriverBinding> = {}): Rem
     ownerRef: `refs/heads/${base.headRef}`,
     artifactRoot: base.artifactRoot,
     taskTempRoot: `/private/tmp/oes-owner-${sha256(base.owner.taskId)}`,
-    deliveryRecord: 'docs/plans/deliveries/runtime.md',
-    deliveryRecordCheckpointPath: join(base.artifactRoot, 'delivery-record.md'),
+    deliveryPackagePath: join(base.artifactRoot, 'delivery-package.json'),
     currentEvidenceManifestPath: join(base.artifactRoot, 'current.json'),
     checkpointBundlePath: join(base.artifactRoot, 'bundle.json'),
     gitBundlePath: join(base.artifactRoot, 'owner.bundle')
@@ -215,31 +221,59 @@ export function remoteBinding(overrides: Partial<RemoteDriverBinding> = {}): Rem
 
 /** Creates one valid V2 two-DO terminal cleanup authorization. */
 export function cleanupAuthorization(): CoordinationCleanupAuthorization {
-  const binding = (key: string, ownerTaskId: string, sha: string) => ({
-    schemaVersion: 1 as const,
-    kind: 'OES_OWNER_RESOURCE_BINDING' as const,
-    bindingFingerprint: 'f'.repeat(64),
-    resourceTopologyVersion: 'owner-exclusive-v2' as const,
-    ownerTaskId,
-    directParentTaskId: '/root/co',
-    transitionId: 'coordination:cleanup:1',
-    repositoryRoot: '/fixture/oes',
-    repositoryRemoteUrl: 'https://github.com/example/oes.git',
-    ownerClone: `/private/tmp/oes-do-${key}`,
-    ownerGitDirectory: `/private/tmp/oes-do-${key}/.git`,
-    ownerRef: `refs/heads/codex/delivery/${key}`,
-    artifactRoot: `/private/tmp/oes-do-${key}-artifacts`,
-    taskTempRoot: `/private/tmp/oes-owner-${sha256(ownerTaskId)}`,
-    deliveryRecord: `docs/plans/deliveries/${key}.md`,
-    deliveryRecordCheckpointPath: `/private/tmp/oes-do-${key}-artifacts/delivery-record.md`,
-    currentEvidenceManifestPath: `/private/tmp/oes-do-${key}-artifacts/current.json`,
-    checkpointBundlePath: `/private/tmp/oes-do-${key}-artifacts/checkpoint.json`,
-    gitBundlePath: `/private/tmp/oes-do-${key}-artifacts/owner.bundle`
-  })
+  const fixtureRoot = mkdtempSync(join(tmpdir(), 'oes-cleanup-owner-resources-'))
+  const bindingReference = (
+    key: string,
+    ownerTaskId: string,
+    ownerRef: string,
+    ownerClone: string,
+    artifactRoot: string,
+    taskTempRoot: string
+  ): OwnerResourceReference => {
+    const binding = {
+      schemaVersion: 1 as const,
+      kind: 'OES_OWNER_RESOURCE_BINDING' as const,
+      bindingFingerprint: '',
+      resourceTopologyVersion: 'owner-exclusive-v2' as const,
+      ownerTaskId,
+      directParentTaskId: ownerTaskId === '/root/co' ? '/root' : '/root/co',
+      transitionId: 'coordination:cleanup:1',
+      repositoryRoot: ownerClone,
+      repositoryRemoteUrl: 'https://github.com/example/oes.git',
+      ownerClone,
+      ownerGitDirectory: `${ownerClone}/.git`,
+      ownerRef,
+      artifactRoot,
+      taskTempRoot,
+      deliveryPackagePath: `${artifactRoot}/delivery-package.json`,
+      currentEvidenceManifestPath: `${artifactRoot}/current.json`,
+      checkpointBundlePath: `${artifactRoot}/checkpoint.json`,
+      gitBundlePath: `${artifactRoot}/owner.bundle`
+    }
+    binding.bindingFingerprint = objectFingerprint(
+      binding as unknown as Record<string, unknown>,
+      'bindingFingerprint'
+    )
+    mkdirSync(artifactRoot, { recursive: true })
+    const path = join(artifactRoot, 'owner-resource-binding.json')
+    const bytes = `${canonicalJson(binding)}\n`
+    writeFileSync(path, bytes)
+    return { path, sha256: sha256(bytes), fingerprint: binding.bindingFingerprint }
+  }
   const terminal = (key: string, suffix: string) => {
     const candidateSha = suffix.repeat(40)
     const ownerTaskId = `/root/co/do-${key}`
-    const ownerResourceBinding = binding(key, ownerTaskId, candidateSha)
+    const ownerClone = join(fixtureRoot, key, 'owner')
+    const artifactRoot = join(fixtureRoot, key, 'artifacts')
+    const taskTempRoot = `/private/tmp/oes-owner-${sha256(ownerTaskId)}`
+    const ownerResourceBinding = bindingReference(
+      key,
+      ownerTaskId,
+      `refs/heads/codex/delivery/${key}`,
+      ownerClone,
+      artifactRoot,
+      taskTempRoot
+    )
     return {
       deliveryKey: key,
       ownerTaskId,
@@ -256,10 +290,15 @@ export function cleanupAuthorization(): CoordinationCleanupAuthorization {
         { kind: 'local-branch' as const, path: `codex/delivery/${key}`, expectedSha: candidateSha },
         {
           kind: 'worktree' as const,
-          path: ownerResourceBinding.ownerClone,
+          path: ownerClone,
           expectedSha: candidateSha
         },
-        { kind: 'task-temp' as const, path: ownerResourceBinding.taskTempRoot, expectedSha: null }
+        { kind: 'task-temp' as const, path: taskTempRoot, expectedSha: null },
+        {
+          kind: 'delivery-package' as const,
+          path: `${artifactRoot}/delivery-package.json`,
+          expectedSha: null
+        }
       ]
     }
   }
@@ -274,11 +313,169 @@ export function cleanupAuthorization(): CoordinationCleanupAuthorization {
     coordinationOwnerTaskId: '/root/co',
     transitionId: 'coordination:cleanup:1',
     confirmationFingerprint: 'a'.repeat(64),
-    terminalDeliveries: [terminal('alpha', '1'), terminal('beta', '3')]
+    terminalDeliveries: [terminal('alpha', '1'), terminal('beta', '3')],
+    coordinationOwner: {
+      ownerTaskId: '/root/co',
+      terminalState: 'MERGED',
+      candidateSha: '5'.repeat(40),
+      mergeSha: '6'.repeat(40),
+      ownerResourceBinding: bindingReference(
+        'coordination',
+        '/root/co',
+        'refs/heads/codex/coordination/release',
+        join(fixtureRoot, 'coordination', 'owner'),
+        join(fixtureRoot, 'coordination', 'artifacts'),
+        `/private/tmp/oes-owner-${sha256('/root/co')}`
+      ),
+      resources: [
+        { kind: 'remote-branch', path: 'codex/coordination/release', expectedSha: '5'.repeat(40) },
+        { kind: 'local-branch', path: 'codex/coordination/release', expectedSha: '5'.repeat(40) },
+        {
+          kind: 'worktree',
+          path: join(fixtureRoot, 'coordination', 'owner'),
+          expectedSha: '5'.repeat(40)
+        },
+        {
+          kind: 'task-temp',
+          path: `/private/tmp/oes-owner-${sha256('/root/co')}`,
+          expectedSha: null
+        },
+        {
+          kind: 'delivery-package',
+          path: join(fixtureRoot, 'coordination', 'artifacts', 'delivery-package.json'),
+          expectedSha: null
+        }
+      ]
+    } satisfies TerminalCoordinationCleanup
   }
   value.authorizationFingerprint = objectFingerprint(
     value as unknown as Record<string, unknown>,
     'authorizationFingerprint'
   )
   return value
+}
+
+/** Reopens a cleanup fixture through the same current protected-record path used by the CLI. */
+export function trustedCleanupAuthorization(
+  value: CoordinationCleanupAuthorization = cleanupAuthorization()
+): CoordinationCleanupAuthorization {
+  const authorizationRoot = mkdtempSync(join(tmpdir(), 'oes-cleanup-authorization-root-'))
+  const rootPath = join(authorizationRoot, 'coordination-cleanup.json')
+  const rootBytes = `${canonicalJson(value)}\n`
+  writeFileSync(rootPath, rootBytes)
+  const current = {
+    schemaVersion: 2 as const,
+    kind: 'OES_COORDINATION_CLEANUP_CURRENT_AUTHORIZATION' as const,
+    recordFingerprint: '',
+    status: 'ACTIVE' as const,
+    purpose: 'COORDINATION_CLEANUP_VERIFY' as const,
+    rootAuthorization: {
+      path: rootPath,
+      sha256: sha256(rootBytes),
+      fingerprint: value.authorizationFingerprint
+    },
+    childAuthorization: null,
+    coordinationKey: value.coordinationKey,
+    coordinationOwnerTaskId: value.coordinationOwnerTaskId,
+    ownerTaskId: value.coordinationOwnerTaskId,
+    expectedState: value.expectedState,
+    stateVersion: value.stateVersion,
+    transitionId: value.transitionId,
+    confirmationFingerprint: value.confirmationFingerprint,
+    postcondition: 'CURRENT_COORDINATION_CLEANUP' as const
+  }
+  current.recordFingerprint = objectFingerprint(
+    current as unknown as Record<string, unknown>,
+    'recordFingerprint'
+  )
+  writeFileSync(join(authorizationRoot, 'current-coordination-cleanup.json'), `${canonicalJson(current)}\n`)
+  const trust: RemoteTrustRoots = {
+    authorizationRoot,
+    admissionRoot: join(authorizationRoot, 'admission'),
+    profilePath: join(authorizationRoot, 'profile.toml'),
+    profileSha256: '9'.repeat(64),
+    ownerTaskId: value.coordinationOwnerTaskId,
+    profileTransitionId: value.transitionId,
+    profileExpectedState: 'DELIVERY_ACTIVE'
+  }
+  return loadTrustedCoordinationCleanupAuthorization(rootPath, trust)
+}
+
+/** Reopens one child cleanup fixture through exact current/root/child CAS references. */
+export function trustedChildCleanupAuthorization(
+  value: CoordinationCleanupAuthorization = cleanupAuthorization(),
+  mutateChild?: (child: CoordinationChildCleanupAuthorization) => void
+): { root: CoordinationCleanupAuthorization; child: CoordinationChildCleanupAuthorization } {
+  const authorizationRoot = mkdtempSync(join(tmpdir(), 'oes-child-cleanup-authorization-root-'))
+  const rootPath = join(authorizationRoot, 'coordination-cleanup.json')
+  const rootBytes = `${canonicalJson(value)}\n`
+  writeFileSync(rootPath, rootBytes)
+  const rootReference = {
+    path: rootPath,
+    sha256: sha256(rootBytes),
+    fingerprint: value.authorizationFingerprint
+  }
+  const delivery = value.terminalDeliveries[0]
+  const child: CoordinationChildCleanupAuthorization = {
+    schemaVersion: 2,
+    kind: 'OES_COORDINATION_CHILD_CLEANUP_AUTHORIZATION',
+    authorizationFingerprint: '',
+    status: 'ISSUED',
+    rootAuthorization: structuredClone(rootReference),
+    expectedState: value.expectedState,
+    stateVersion: value.stateVersion,
+    coordinationKey: value.coordinationKey,
+    coordinationOwnerTaskId: value.coordinationOwnerTaskId,
+    ownerTaskId: delivery.ownerTaskId,
+    transitionId: value.transitionId,
+    confirmationFingerprint: value.confirmationFingerprint,
+    ownerResourceBinding: structuredClone(delivery.ownerResourceBinding),
+    resources: structuredClone(delivery.resources),
+    postcondition: 'CHILD_SELF_CLEANUP'
+  }
+  mutateChild?.(child)
+  child.authorizationFingerprint = objectFingerprint(
+    child as unknown as Record<string, unknown>,
+    'authorizationFingerprint'
+  )
+  const childPath = join(authorizationRoot, 'child-cleanup.json')
+  const childBytes = `${canonicalJson(child)}\n`
+  writeFileSync(childPath, childBytes)
+  const childReference = {
+    path: childPath,
+    sha256: sha256(childBytes),
+    fingerprint: child.authorizationFingerprint
+  }
+  const current = {
+    schemaVersion: 2 as const,
+    kind: 'OES_COORDINATION_CLEANUP_CURRENT_AUTHORIZATION' as const,
+    recordFingerprint: '',
+    status: 'ACTIVE' as const,
+    purpose: 'CHILD_SELF_CLEANUP' as const,
+    rootAuthorization: rootReference,
+    childAuthorization: childReference,
+    coordinationKey: value.coordinationKey,
+    coordinationOwnerTaskId: value.coordinationOwnerTaskId,
+    ownerTaskId: delivery.ownerTaskId,
+    expectedState: value.expectedState,
+    stateVersion: value.stateVersion,
+    transitionId: value.transitionId,
+    confirmationFingerprint: value.confirmationFingerprint,
+    postcondition: 'CURRENT_COORDINATION_CLEANUP' as const
+  }
+  current.recordFingerprint = objectFingerprint(
+    current as unknown as Record<string, unknown>,
+    'recordFingerprint'
+  )
+  writeFileSync(join(authorizationRoot, 'current-coordination-cleanup.json'), `${canonicalJson(current)}\n`)
+  const trust: RemoteTrustRoots = {
+    authorizationRoot,
+    admissionRoot: join(authorizationRoot, 'admission'),
+    profilePath: join(authorizationRoot, 'profile.toml'),
+    profileSha256: '9'.repeat(64),
+    ownerTaskId: delivery.ownerTaskId,
+    profileTransitionId: value.transitionId,
+    profileExpectedState: 'DELIVERY_ACTIVE'
+  }
+  return loadTrustedCoordinationChildCleanupAuthorization(rootPath, childPath, trust)
 }

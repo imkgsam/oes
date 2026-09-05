@@ -18,8 +18,7 @@
     "ownerRef",
     "artifactRoot",
     "taskTempRoot",
-    "deliveryRecord",
-    "deliveryRecordCheckpointPath",
+    "deliveryPackagePath",
     "currentEvidenceManifestPath",
     "checkpointBundlePath",
     "gitBundlePath"
@@ -72,10 +71,6 @@
     "taskTempRoot": {
       "$ref": "#/$defs/absolutePath"
     },
-    "deliveryRecord": {
-      "type": "string",
-      "pattern": "^docs/plans/deliveries/[a-z0-9]+(?:-[a-z0-9]+)*\\.md$"
-    },
     "currentEvidenceManifestPath": {
       "$ref": "#/$defs/absolutePath"
     },
@@ -86,7 +81,7 @@
       "type": ["string", "null"],
       "pattern": "^/"
     },
-    "deliveryRecordCheckpointPath": {
+    "deliveryPackagePath": {
       "$ref": "#/$defs/absolutePath"
     }
   },

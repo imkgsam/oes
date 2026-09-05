@@ -59,9 +59,8 @@ function stableBinding(overrides: Partial<OwnerResourceBinding> = {}): OwnerReso
     ownerRef: 'refs/heads/codex/delivery/runtime',
     artifactRoot: '/Users/fixture/.codex/oes/artifacts/11111111/runtime',
     taskTempRoot: `/private/tmp/${stableOwnerTaskTempLeaf(ownerTaskId)}`,
-    deliveryRecord: 'docs/plans/deliveries/runtime.md',
-    deliveryRecordCheckpointPath:
-      '/Users/fixture/.codex/oes/artifacts/11111111/runtime/delivery-record.md',
+    deliveryPackagePath:
+      '/Users/fixture/.codex/oes/artifacts/11111111/runtime/delivery-package.json',
     currentEvidenceManifestPath:
       '/Users/fixture/.codex/oes/artifacts/11111111/runtime/current-evidence-manifest.json',
     checkpointBundlePath:
@@ -86,7 +85,7 @@ function manifest(binding: OwnerResourceBinding): OwnerCurrentEvidenceManifest {
     transitionId: binding.transitionId,
     stateVersion: 4,
     resourceBindingFingerprint: binding.bindingFingerprint,
-    deliveryRecord: { path: binding.deliveryRecordCheckpointPath, sha256: 'a'.repeat(64) },
+    deliveryPackage: { path: binding.deliveryPackagePath, sha256: 'a'.repeat(64) },
     candidateSha: '1'.repeat(40),
     evidence: [],
     scratchPaths: [join(binding.taskTempRoot, 'tests')]
@@ -112,7 +111,7 @@ function checkpoint(
     resourceBindingFingerprint: binding.bindingFingerprint,
     ownerRef: binding.ownerRef,
     headSha: '1'.repeat(40),
-    deliveryRecord: current.deliveryRecord,
+    deliveryPackage: current.deliveryPackage,
     currentEvidenceManifest: {
       path: binding.currentEvidenceManifestPath,
       sha256: 'b'.repeat(64),
@@ -141,8 +140,7 @@ function observed(binding: OwnerResourceBinding): OwnerResourceObservation {
     ownerHeadSha: '1'.repeat(40),
     artifactRootExists: true,
     taskTempRootExists: true,
-    liveDeliveryRecordExists: true,
-    deliveryRecordCheckpointExists: true,
+    deliveryPackageExists: true,
     currentEvidenceManifestExists: true,
     checkpointBundleExists: true,
     gitBundleExists: binding.gitBundlePath !== null
@@ -180,7 +178,7 @@ test('stable durability rehashes every binding-selected Packet, manifest, checkp
   const packetBytes = '# Runtime\n'
   const gitBundleBytes = 'fixture git bundle bytes\n'
   const current = manifest(binding)
-  current.deliveryRecord.sha256 = sha256(packetBytes)
+  current.deliveryPackage.sha256 = sha256(packetBytes)
   current.manifestFingerprint = objectFingerprint(
     current as unknown as Record<string, unknown>,
     'manifestFingerprint'
@@ -197,7 +195,7 @@ test('stable durability rehashes every binding-selected Packet, manifest, checkp
   const artifacts = new Map<string, string>([
     [binding.currentEvidenceManifestPath, manifestBytes],
     [binding.checkpointBundlePath, checkpointBytes],
-    [binding.deliveryRecordCheckpointPath, packetBytes],
+    [binding.deliveryPackagePath, packetBytes],
     [binding.gitBundlePath as string, gitBundleBytes]
   ])
   const readArtifact = (path: string): Uint8Array => Buffer.from(artifacts.get(path) ?? '')
@@ -249,8 +247,8 @@ test('stable scratch identity is deterministically bound to the exact owner task
     ownerGitDirectory: '/Users/fixture/.codex/oes/owners/33333333/oes/.git',
     artifactRoot: '/Users/fixture/.codex/oes/artifacts/33333333/runtime',
     taskTempRoot: ownerA.taskTempRoot,
-    deliveryRecordCheckpointPath:
-      '/Users/fixture/.codex/oes/artifacts/33333333/runtime/delivery-record.md',
+    deliveryPackagePath:
+      '/Users/fixture/.codex/oes/artifacts/33333333/runtime/delivery-package.json',
     currentEvidenceManifestPath:
       '/Users/fixture/.codex/oes/artifacts/33333333/runtime/current-evidence-manifest.json',
     checkpointBundlePath:
@@ -301,7 +299,7 @@ test('stable reboot and temp loss restore only the exact owner and become idempo
     ownerRepositoryRemoteUrl: null,
     ownerRef: null,
     ownerHeadSha: null,
-    liveDeliveryRecordExists: false,
+    deliveryPackageExists: false,
     taskTempRootExists: false
   }
   const calls: string[] = []
@@ -316,7 +314,7 @@ test('stable reboot and temp loss restore only the exact owner and become idempo
         ownerRepositoryRemoteUrl: binding.repositoryRemoteUrl ?? null,
         ownerRef: binding.ownerRef,
         ownerHeadSha: bundle.headSha,
-        liveDeliveryRecordExists: true
+        deliveryPackageExists: true
       }
     },
     rebuildTaskTemp() {
@@ -377,14 +375,14 @@ test('system recovery restores the canonical origin accepted by remote preflight
   const source = join(root, 'source')
   const ownerClone = join(root, 'owner')
   const artifactRoot = join(root, 'artifacts')
-  mkdirSync(join(source, 'docs', 'plans', 'deliveries'), { recursive: true })
+  mkdirSync(source, { recursive: true })
   mkdirSync(artifactRoot, { recursive: true })
   git(source, ['init', '-b', 'codex/delivery/runtime'])
   git(source, ['config', 'user.email', 'runtime@example.test'])
   git(source, ['config', 'user.name', 'Runtime Test'])
   const packetBytes = '# Runtime\n'
-  writeFileSync(join(source, 'docs', 'plans', 'deliveries', 'runtime.md'), packetBytes)
-  git(source, ['add', 'docs/plans/deliveries/runtime.md'])
+  writeFileSync(join(source, 'README.md'), '# fixture\n')
+  git(source, ['add', 'README.md'])
   git(source, ['commit', '-m', 'fixture'])
   const headSha = git(source, ['rev-parse', 'HEAD'])
   const gitBundlePath = join(artifactRoot, 'owner.bundle')
@@ -396,15 +394,15 @@ test('system recovery restores the canonical origin accepted by remote preflight
     ownerGitDirectory: join(ownerClone, '.git'),
     artifactRoot,
     taskTempRoot: scratch,
-    deliveryRecordCheckpointPath: join(artifactRoot, 'delivery-record.md'),
+    deliveryPackagePath: join(artifactRoot, 'delivery-package.json'),
     currentEvidenceManifestPath: join(artifactRoot, 'current-evidence-manifest.json'),
     checkpointBundlePath: join(artifactRoot, 'checkpoint-bundle.json'),
     gitBundlePath
   })
-  writeFileSync(binding.deliveryRecordCheckpointPath, packetBytes)
+  writeFileSync(binding.deliveryPackagePath, packetBytes)
   const current = manifest(binding)
   current.candidateSha = headSha
-  current.deliveryRecord.sha256 = sha256(packetBytes)
+  current.deliveryPackage.sha256 = sha256(packetBytes)
   current.manifestFingerprint = objectFingerprint(
     current as unknown as Record<string, unknown>,
     'manifestFingerprint'

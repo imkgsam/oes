@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/aggregate-rv-input-v2.json",
+  "title": "OES V2 exact Aggregate RV input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "inputFingerprint",
+    "aggregatePackage",
+    "executionMode",
+    "aggregateCandidateSha",
+    "aggregateOperationSetFingerprint"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "kind": { "const": "OES_AGGREGATE_RV_INPUT" },
+    "inputFingerprint": { "$ref": "#/$defs/digest" },
+    "aggregatePackage": { "$ref": "#/$defs/reference" },
+    "executionMode": { "enum": ["REPOSITORY", "HOST_LOCAL"] },
+    "aggregateCandidateSha": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "aggregateOperationSetFingerprint": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "fingerprint"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^/" },
+        "sha256": { "$ref": "#/$defs/digest" },
+        "fingerprint": { "$ref": "#/$defs/digest" }
+      }
+    }
+  }
+}

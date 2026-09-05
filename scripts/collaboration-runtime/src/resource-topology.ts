@@ -23,7 +23,6 @@ const SHA256 = /^[0-9a-f]{64}$/
 const GIT_SHA = /^[0-9a-f]{40}$/
 const OWNER_REF =
   /^refs\/heads\/(?!main$)(?!HEAD$)(?!-)(?!\/)(?!\.)(?!.*\/\.)(?!.*\/\/)(?!.*\.\.)(?!.*@\{)(?!.*(?:^|\/)[^/]*\.lock(?:\/|$))(?!.*[/.]$)(?!@$)[A-Za-z0-9._/@+-]+$/
-const DELIVERY_RECORD = /^docs\/plans\/deliveries\/[a-z0-9]+(?:-[a-z0-9]+)*\.md$/
 const SAFE_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 const CANONICAL_GITHUB_REMOTE = /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\.git$/
 const PROFILE_TOPOLOGY_FIELDS = new Set([
@@ -150,8 +149,7 @@ function validateOwnerResourceObservation(
       'ownerHeadSha',
       'artifactRootExists',
       'taskTempRootExists',
-      'liveDeliveryRecordExists',
-      'deliveryRecordCheckpointExists',
+      'deliveryPackageExists',
       'currentEvidenceManifestExists',
       'checkpointBundleExists',
       'gitBundleExists'
@@ -162,8 +160,7 @@ function validateOwnerResourceObservation(
     'ownerCloneExists',
     'artifactRootExists',
     'taskTempRootExists',
-    'liveDeliveryRecordExists',
-    'deliveryRecordCheckpointExists',
+    'deliveryPackageExists',
     'currentEvidenceManifestExists',
     'checkpointBundleExists',
     'gitBundleExists'
@@ -228,8 +225,7 @@ export function validateOwnerResourceBinding(value: OwnerResourceBinding): Owner
       'ownerRef',
       'artifactRoot',
       'taskTempRoot',
-      'deliveryRecord',
-      'deliveryRecordCheckpointPath',
+      'deliveryPackagePath',
       'currentEvidenceManifestPath',
       'checkpointBundlePath',
       'gitBundlePath'
@@ -259,15 +255,13 @@ export function validateOwnerResourceBinding(value: OwnerResourceBinding): Owner
     ['ownerGitDirectory', value.ownerGitDirectory],
     ['artifactRoot', value.artifactRoot],
     ['taskTempRoot', value.taskTempRoot],
-    ['deliveryRecordCheckpointPath', value.deliveryRecordCheckpointPath],
+    ['deliveryPackagePath', value.deliveryPackagePath],
     ['currentEvidenceManifestPath', value.currentEvidenceManifestPath],
     ['checkpointBundlePath', value.checkpointBundlePath]
   ] as const)
     requireAbsolutePath(path, field)
   if (value.gitBundlePath !== null) requireAbsolutePath(value.gitBundlePath, 'gitBundlePath')
   if (!OWNER_REF.test(value.ownerRef)) fail('OWNER_RESOURCE_REF_INVALID', value.ownerRef)
-  if (!DELIVERY_RECORD.test(value.deliveryRecord))
-    fail('OWNER_RESOURCE_DELIVERY_RECORD_INVALID', value.deliveryRecord)
   if (value.ownerGitDirectory !== join(value.ownerClone, '.git'))
     fail('OWNER_GIT_DIRECTORY_NOT_PRIVATE_CLONE', value.ownerGitDirectory)
   const physicalOwnerClone = physicalIdentityForPotentialPath(value.ownerClone)
@@ -287,7 +281,7 @@ export function validateOwnerResourceBinding(value: OwnerResourceBinding): Owner
       fail('STABLE_OWNER_RESOURCE_USES_TEMPORARY_ROOT', value.ownerClone)
     validateStableOwnerTaskTempRoot(value.taskTempRoot, value.ownerTaskId)
     for (const path of [
-      value.deliveryRecordCheckpointPath,
+      value.deliveryPackagePath,
       value.currentEvidenceManifestPath,
       value.checkpointBundlePath,
       value.gitBundlePath
@@ -297,7 +291,7 @@ export function validateOwnerResourceBinding(value: OwnerResourceBinding): Owner
     }
     if (
       new Set([
-        value.deliveryRecordCheckpointPath,
+        value.deliveryPackagePath,
         value.currentEvidenceManifestPath,
         value.checkpointBundlePath,
         value.gitBundlePath
@@ -357,7 +351,7 @@ export function validateOwnerCurrentEvidenceManifest(
       'transitionId',
       'stateVersion',
       'resourceBindingFingerprint',
-      'deliveryRecord',
+      'deliveryPackage',
       'candidateSha',
       'evidence',
       'scratchPaths'
@@ -379,12 +373,12 @@ export function validateOwnerCurrentEvidenceManifest(
     fail('OWNER_CURRENT_MANIFEST_BINDING_MISMATCH', binding.ownerTaskId)
   if (!Number.isSafeInteger(value.stateVersion) || value.stateVersion < 1)
     fail('OWNER_CURRENT_MANIFEST_STATE_VERSION_INVALID', String(value.stateVersion))
-  requireExactKeys(value.deliveryRecord, ['path', 'sha256'], 'manifest.deliveryRecord')
+  requireExactKeys(value.deliveryPackage, ['path', 'sha256'], 'manifest.deliveryPackage')
   if (
-    value.deliveryRecord.path !== binding.deliveryRecordCheckpointPath ||
-    !SHA256.test(value.deliveryRecord.sha256)
+    value.deliveryPackage.path !== binding.deliveryPackagePath ||
+    !SHA256.test(value.deliveryPackage.sha256)
   )
-    fail('OWNER_CURRENT_MANIFEST_PACKET_MISMATCH', value.deliveryRecord.path)
+    fail('OWNER_CURRENT_MANIFEST_PACKET_MISMATCH', value.deliveryPackage.path)
   if (value.candidateSha !== null && !GIT_SHA.test(value.candidateSha))
     fail('OWNER_CURRENT_MANIFEST_CANDIDATE_INVALID', String(value.candidateSha))
   if (!Array.isArray(value.evidence) || !Array.isArray(value.scratchPaths))
@@ -425,7 +419,7 @@ export function validateOwnerCheckpointBundle(
       'resourceBindingFingerprint',
       'ownerRef',
       'headSha',
-      'deliveryRecord',
+      'deliveryPackage',
       'currentEvidenceManifest',
       'gitBundle'
     ],
@@ -447,7 +441,7 @@ export function validateOwnerCheckpointBundle(
     (manifest.candidateSha !== null && value.headSha !== manifest.candidateSha)
   )
     fail('OWNER_CHECKPOINT_BUNDLE_BINDING_MISMATCH', binding.ownerTaskId)
-  for (const [item, field] of [[value.deliveryRecord, 'checkpoint.deliveryRecord']] as const) {
+  for (const [item, field] of [[value.deliveryPackage, 'checkpoint.deliveryPackage']] as const) {
     requireExactKeys(item, ['path', 'sha256'], field)
     if (!SHA256.test(item.sha256)) fail('OWNER_CHECKPOINT_REFERENCE_HASH_INVALID', field)
   }
@@ -458,8 +452,8 @@ export function validateOwnerCheckpointBundle(
   }
   validateOwnerResourceReference(value.currentEvidenceManifest, 'checkpoint.currentManifest')
   if (
-    value.deliveryRecord.path !== binding.deliveryRecordCheckpointPath ||
-    value.deliveryRecord.sha256 !== manifest.deliveryRecord.sha256 ||
+    value.deliveryPackage.path !== binding.deliveryPackagePath ||
+    value.deliveryPackage.sha256 !== manifest.deliveryPackage.sha256 ||
     value.currentEvidenceManifest.path !== binding.currentEvidenceManifestPath ||
     value.currentEvidenceManifest.fingerprint !== manifest.manifestFingerprint ||
     value.gitBundle?.path !== (binding.gitBundlePath ?? undefined)
@@ -493,7 +487,7 @@ export function loadOwnerDurabilityArtifacts(
     physicalPath
   )
   const durabilityPaths: Array<readonly [string, string]> = [
-    [binding.deliveryRecordCheckpointPath, 'deliveryRecordCheckpointPath'],
+    [binding.deliveryPackagePath, 'deliveryPackagePath'],
     [binding.currentEvidenceManifestPath, 'currentEvidenceManifestPath'],
     [binding.checkpointBundlePath, 'checkpointBundlePath'],
     ...manifest.evidence.map((item) => [item.path, 'manifest.evidence'] as const)
@@ -512,7 +506,7 @@ export function loadOwnerDurabilityArtifacts(
       : binding.gitBundlePath !== null || checkpointBundle.gitBundle !== null
   if (
     checkpointBundle.currentEvidenceManifest.sha256 !== sha256(manifestBytes) ||
-    sha256(readArtifact(binding.deliveryRecordCheckpointPath)) !== manifest.deliveryRecord.sha256 ||
+    sha256(readArtifact(binding.deliveryPackagePath)) !== manifest.deliveryPackage.sha256 ||
     manifest.evidence.some((evidence) => sha256(readArtifact(evidence.path)) !== evidence.sha256) ||
     gitBundleMismatch
   )
@@ -520,8 +514,8 @@ export function loadOwnerDurabilityArtifacts(
   return { manifest, checkpointBundle }
 }
 
-/** Verifies the active repository Packet still matches its durable stable checkpoint copy. */
-export function verifyLiveOwnerPacket(
+/** Verifies the durable DP or ADP selected by the owner binding against the current manifest. */
+export function verifyOwnerDeliveryPackage(
   bindingInput: OwnerResourceBinding,
   manifest: OwnerCurrentEvidenceManifest,
   readArtifact: (path: string) => Uint8Array = readFileSync,
@@ -529,16 +523,15 @@ export function verifyLiveOwnerPacket(
 ): void {
   const binding = validateOwnerResourceBinding(bindingInput)
   validateOwnerCurrentEvidenceManifest(manifest, binding)
-  const repositoryRoot = requireExactPhysicalPath(
-    binding.repositoryRoot,
-    'repositoryRoot',
+  const artifactRoot = requireExactPhysicalPath(binding.artifactRoot, 'artifactRoot', physicalPath)
+  const packagePath = requireExactPhysicalPath(
+    binding.deliveryPackagePath,
+    'deliveryPackagePath',
     physicalPath
   )
-  const packetPath = join(binding.repositoryRoot, binding.deliveryRecord)
-  const physicalPacket = requireExactPhysicalPath(packetPath, 'deliveryRecord', physicalPath)
-  assertPathWithin(repositoryRoot, physicalPacket)
-  if (sha256(readArtifact(packetPath)) !== manifest.deliveryRecord.sha256)
-    fail('OWNER_LIVE_PACKET_CHECKPOINT_MISMATCH', binding.deliveryRecord)
+  assertPathWithin(artifactRoot, packagePath)
+  if (sha256(readArtifact(packagePath)) !== manifest.deliveryPackage.sha256)
+    fail('OWNER_DELIVERY_PACKAGE_MANIFEST_MISMATCH', binding.deliveryPackagePath)
 }
 
 /** Observes exact filesystem and Git identities without mutating the owner. */
@@ -574,8 +567,7 @@ export function observeOwnerResources(
     ownerHeadSha,
     artifactRootExists: existsSync(binding.artifactRoot),
     taskTempRootExists: existsSync(binding.taskTempRoot),
-    liveDeliveryRecordExists: existsSync(join(binding.repositoryRoot, binding.deliveryRecord)),
-    deliveryRecordCheckpointExists: existsSync(binding.deliveryRecordCheckpointPath),
+    deliveryPackageExists: existsSync(binding.deliveryPackagePath),
     currentEvidenceManifestExists: existsSync(binding.currentEvidenceManifestPath),
     checkpointBundleExists: existsSync(binding.checkpointBundlePath),
     gitBundleExists: binding.gitBundlePath !== null && existsSync(binding.gitBundlePath)
@@ -606,8 +598,7 @@ export function verifyStableOwnerResourceObservation(
   if (
     !observation.artifactRootExists ||
     !observation.taskTempRootExists ||
-    !observation.liveDeliveryRecordExists ||
-    !observation.deliveryRecordCheckpointExists ||
+    !observation.deliveryPackageExists ||
     !observation.currentEvidenceManifestExists ||
     !observation.checkpointBundleExists ||
     !observation.gitBundleExists
@@ -627,7 +618,6 @@ export function planOwnerRecovery(request: OwnerRecoveryRequest): OwnerRecoveryP
     request.transitionId !== binding.transitionId ||
     request.ownerRef !== binding.ownerRef ||
     !observation.artifactRootExists ||
-    !observation.deliveryRecordCheckpointExists ||
     !observation.currentEvidenceManifestExists ||
     !observation.checkpointBundleExists
   if (mismatch)
@@ -651,7 +641,7 @@ export function planOwnerRecovery(request: OwnerRecoveryRequest): OwnerRecoveryP
     observation.ownerRepositoryRemoteUrl === binding.repositoryRemoteUrl &&
     observation.ownerRef === binding.ownerRef &&
     observation.ownerHeadSha === request.checkpointBundle.headSha &&
-    observation.liveDeliveryRecordExists
+    observation.deliveryPackageExists
   if (observation.ownerCloneExists && !cloneExact)
     return {
       decision: 'RESOURCE_BINDING_MISMATCH',
@@ -683,10 +673,10 @@ export async function recoverOwnerResources(
   durabilityLoader: (
     binding: OwnerResourceBinding
   ) => OwnerDurabilityArtifacts = loadOwnerDurabilityArtifacts,
-  livePacketVerifier: (
+  deliveryPackageVerifier: (
     binding: OwnerResourceBinding,
     manifest: OwnerCurrentEvidenceManifest
-  ) => void = verifyLiveOwnerPacket
+  ) => void = verifyOwnerDeliveryPackage
 ): Promise<OwnerRecoveryPlan> {
   const durable = durabilityLoader(request.binding)
   if (
@@ -703,7 +693,7 @@ export async function recoverOwnerResources(
   }
   const after = await adapter.observe(request.binding)
   verifyStableOwnerResourceObservation(request.binding, after, request.checkpointBundle.headSha)
-  livePacketVerifier(request.binding, request.manifest)
+  deliveryPackageVerifier(request.binding, request.manifest)
   return plan
 }
 
@@ -766,10 +756,10 @@ export function readInstalledProfileResourceTopology(
   durabilityLoader: (
     binding: OwnerResourceBinding
   ) => OwnerDurabilityArtifacts = loadOwnerDurabilityArtifacts,
-  livePacketVerifier: (
+  _deliveryPackageVerifier: (
     binding: OwnerResourceBinding,
     manifest: OwnerCurrentEvidenceManifest
-  ) => void = verifyLiveOwnerPacket,
+  ) => void = verifyOwnerDeliveryPackage,
   bindingLoader: (
     reference: OwnerResourceReference
   ) => OwnerResourceBinding = loadOwnerResourceBindingReference,

@@ -81,8 +81,18 @@
           "uniqueItems": true,
           "items": { "$ref": "#/$defs/key" }
         },
-        "scopedRv": { "const": "PASSED" },
+        "scopedRv": { "$ref": "#/$defs/reference" },
         "independentlyReleasable": { "type": "boolean" }
+      }
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "fingerprint"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^/" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "fingerprint": { "$ref": "#/$defs/sha256" }
       }
     }
   }

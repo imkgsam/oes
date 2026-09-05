@@ -1086,7 +1086,11 @@ function normalizeCompletedSlice(slice: CompletedSliceBinding): CompletedSliceBi
 
 /** Validates one exact owner resource set without mutating any referenced locator. */
 function validateResources(resources: DeliveryOwnerResources): DeliveryOwnerResources {
-  requireExactKeys(resources, ['ownerRef', 'ownerClone', 'taskTemp', 'deliveryRecord'], 'resources')
+  requireExactKeys(
+    resources,
+    ['ownerRef', 'ownerClone', 'taskTemp', 'deliveryPackagePath'],
+    'resources'
+  )
   for (const [key, value] of Object.entries(resources))
     if (typeof value !== 'string' || value.length === 0)
       fail('DELIVERY_TOPOLOGY_RESOURCE_INVALID', key)

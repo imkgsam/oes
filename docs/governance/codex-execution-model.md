@@ -42,7 +42,7 @@ Initial execution, Proposal submission, delivery activation, merge, abandonment,
 
 DA, UD, DO, CO, and RV are Human-visible project tasks with role-first titles and exact parent/subject binding. Bounded helpers may use hidden transport. A work item and artifact have exactly one current owner. Notification is not ownership transfer. Replacement follows verified termination of the old owner; it never duplicates owners.
 
-Repository deliveries use an owner-exclusive clone/ref plus durable artifact root and task-local scratch. Host-local operations get no Git resources unless they modify the repository. Owner profile, task, repository, transition, credentials, permissions, and resource binding are read back before role-owned writes. Drift repairs the same owner.
+Repository deliveries use an owner-exclusive clone/ref plus durable artifact root and task-local scratch. Each DO records one Delivery Package (DP) in that stable artifact root; each CO records one Aggregate Delivery Package (ADP) binding child DPs and the exact aggregate candidate. Host-local operations use the same package schema with no Git resources unless they modify the repository. Owner profile, task, repository, transition, credentials, permissions, and resource binding are read back before role-owned writes. Drift repairs the same owner.
 
 ## 5. Design flow
 
@@ -82,7 +82,7 @@ RV findings and failed CI are routed to the candidate owner. Infrastructure-only
 
 ## 9. Lifecycle disposal
 
-Cleanup is disposal, not delivery or defect discovery. Its executable is isolated from routing, task creation, product writes, PR publication, merge, and CI. The authorization binds terminal state and each exact owner ref/clone/worktree/scratch resource. It permits no cleanup branch and no repository-content diff.
+Cleanup is disposal, not delivery or defect discovery. Its executable is isolated from routing, task creation, product writes, PR publication, merge, and CI. The authorization binds terminal state and each exact owner ref/clone/worktree/scratch/DP resource, including CO-owned aggregate resources. It permits no cleanup branch and no repository-content diff; DP/ADP files are external stable artifacts.
 
 For CO work, dispose deepest children first: bounded helpers/RV, then DOs, then aggregate RV, then CO. A task archives only after every created child is terminal and removed/archived and all exact resources are verified absent. Unknown, shared, active, dirty, missing-observation, or SHA-mismatched resources are preserved and reported. A partially completed retry skips exact verified results and retries only failed identities. Paused design is checkpointed and retained.
 
@@ -118,4 +118,4 @@ Merge cards bind exact PR head(s), order/topology, required CI, RV result, and l
 
 ## 11. Completion
 
-A delivery candidate is stable when scope and design conformance are exact, focused self-test passes, Draft PR exists, remote CI state is known, modified artifact/patch/verification/rollback are reopened, remaining risks are explicit, and independent RV is requested. Merge and cleanup happen only at their later confirmed boundaries.
+A delivery candidate is stable when its DP activation fields and scope/design conformance are exact, focused self-test passes, Draft PR exists when repository mode applies, remote CI state is known when applicable, modified artifact/patch/verification/rollback are reopened, remaining risks are explicit, and independent RV is requested. A CO aggregate candidate additionally requires an ADP and exact ADP-plus-candidate Aggregate RV input. Merge and cleanup happen only at their later confirmed boundaries.

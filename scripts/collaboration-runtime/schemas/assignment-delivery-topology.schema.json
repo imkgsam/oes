@@ -158,12 +158,12 @@
     "resources": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["ownerRef", "ownerClone", "taskTemp", "deliveryRecord"],
+      "required": ["ownerRef", "ownerClone", "taskTemp", "deliveryPackagePath"],
       "properties": {
         "ownerRef": { "type": "string", "minLength": 1 },
         "ownerClone": { "type": "string", "minLength": 1 },
         "taskTemp": { "type": "string", "minLength": 1 },
-        "deliveryRecord": { "type": "string", "minLength": 1 }
+        "deliveryPackagePath": { "type": "string", "pattern": "^/" }
       }
     },
     "completedSlice": {

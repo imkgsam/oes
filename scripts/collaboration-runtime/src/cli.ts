@@ -17,7 +17,19 @@ import {
   type SystemProbeOptions
 } from './profile-preflight.ts'
 import { validateJsonSchema } from './schema-validation.ts'
-import { planCoordinationIntegration } from './coordination-integration.ts'
+import {
+  createAggregateRvInput,
+  loadAggregateDeliveryPackageReference,
+  renderPackagePrSummary,
+  validateAggregateDeliveryPackage,
+  validateAggregateRvInput,
+  validateDeliveryPackage
+} from './delivery-package.ts'
+import {
+  loadTrustedCoordinationIntegrationAuthorization,
+  loadTrustedCoordinationIntegrationResults,
+  planCoordinationIntegration
+} from './coordination-integration.ts'
 import { RemoteDriver } from './remote-driver.ts'
 import { decideRouting, type RoutingDecisionInput } from './routing.ts'
 import {
@@ -33,8 +45,7 @@ import type {
   DriftAssessmentInput,
   EffectiveProfileReport,
   EvidenceKeyInput,
-  CoordinationIntegrationAuthorization,
-  CoordinationIntegrationItemResult
+  TrustedAuthorizationReference
 } from './types.ts'
 
 /** Returns the value following one required command-line flag. */
@@ -184,11 +195,57 @@ async function main(args: string[]): Promise<void> {
     return
   }
   if (command === 'coordination-integration-plan') {
-    const authorization = readJson<CoordinationIntegrationAuthorization>(
-      flag(args, '--authorization')
+    const profileReport = verifyEffectiveProfileReport(
+      readJson<EffectiveProfileReport>(flag(args, '--profile-report'))
     )
-    const results = readJson<CoordinationIntegrationItemResult[]>(flag(args, '--results'))
-    emit(planCoordinationIntegration(authorization, results))
+    const trust = loadRemoteTrustRootsFromProfileReport(profileReport)
+    const { authorization, repositoryRoot } = loadTrustedCoordinationIntegrationAuthorization(
+      readJson<TrustedAuthorizationReference>(flag(args, '--authorization')),
+      trust
+    )
+    const results = loadTrustedCoordinationIntegrationResults(
+      readJson<TrustedAuthorizationReference>(flag(args, '--results')),
+      authorization,
+      trust
+    )
+    emit(
+      planCoordinationIntegration(
+        authorization,
+        results,
+        repositoryRoot,
+        new SpawnCommandRunner()
+      )
+    )
+    return
+  }
+  if (command === 'delivery-package-validate') {
+    const value = readJson<Record<string, unknown>>(flag(args, '--package'))
+    const packageValue = value.kind === 'OES_DELIVERY_PACKAGE'
+      ? validateDeliveryPackage(value as never)
+      : validateAggregateDeliveryPackage(value as never)
+    emit({ status: 'PACKAGE_VALID', kind: packageValue.kind, packageFingerprint: packageValue.packageFingerprint })
+    return
+  }
+  if (command === 'delivery-package-summary') {
+    const value = readJson<Record<string, unknown>>(flag(args, '--package'))
+    emit({ summary: renderPackagePrSummary(
+      value.kind === 'OES_DELIVERY_PACKAGE'
+        ? validateDeliveryPackage(value as never)
+        : validateAggregateDeliveryPackage(value as never)
+    ) })
+    return
+  }
+  if (command === 'aggregate-rv-input') {
+    const reference = readJson<TrustedAuthorizationReference>(flag(args, '--package-reference'))
+    const aggregate = loadAggregateDeliveryPackageReference(reference)
+    const input = createAggregateRvInput(reference, aggregate)
+    if (args.includes('--existing'))
+      validateAggregateRvInput(
+        readJson<Record<string, unknown>>(flag(args, '--existing')) as never,
+        reference,
+        aggregate
+      )
+    emit(input)
     return
   }
   fail('CLI_COMMAND_UNKNOWN', command ?? 'NONE')

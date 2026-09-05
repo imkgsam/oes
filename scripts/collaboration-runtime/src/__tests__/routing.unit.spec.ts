@@ -12,6 +12,8 @@ const stream = (key: string) => ({
 })
 const base = {
   stateful: true,
+  executionMode: 'REPOSITORY' as const,
+  repositoryModification: true,
   stableDesignChange: false,
   designProposalConfirmed: false,
   deliveryActivationConfirmed: false,
@@ -48,6 +50,35 @@ test('CO requires independent workstreams and defaults to one aggregate PR', () 
   })
   assert.equal(result.route, 'CO')
   assert.equal(result.prTopology, 'ONE_AGGREGATE_CO_PR')
+})
+
+test('host-local DO and CO create no Git resources and repository writes require rerouting', () => {
+  const one = decideRouting({
+    ...base,
+    executionMode: 'HOST_LOCAL',
+    repositoryModification: false
+  })
+  assert.equal(one.route, 'DO')
+  assert.equal(one.executionMode, 'HOST_LOCAL')
+  assert.equal(one.prTopology, 'NONE')
+  const coordinated = decideRouting({
+    ...base,
+    executionMode: 'HOST_LOCAL',
+    repositoryModification: false,
+    workstreams: [stream('one'), stream('two')],
+    crossDeliveryIntegration: true
+  })
+  assert.equal(coordinated.route, 'CO')
+  assert.equal(coordinated.prTopology, 'NONE')
+  assert.throws(
+    () =>
+      decideRouting({
+        ...base,
+        executionMode: 'HOST_LOCAL',
+        repositoryModification: true
+      }),
+    /HOST_LOCAL_REPOSITORY_MODIFICATION_REQUIRES_REROUTE/
+  )
 })
 
 test('design impact routes DA to UD before delivery activation', () => {

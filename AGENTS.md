@@ -27,7 +27,7 @@ Helpers are bounded execution mechanisms, not task roles or owners.
 
 ## 4. Routing and lifecycle
 
-1. Read-only discussion creates no task, branch, worktree, delivery record, candidate, or PR.
+1. Read-only discussion creates no task, branch, worktree, Delivery Package (DP), candidate, or PR.
 2. Before stateful work, classify scope, risk, design impact, and coupling; present one DO or CO plus multiple DOs for Human confirmation.
 3. Stable-design change follows DA → Human-confirmed Proposal → UD audit/canonical write → Human-confirmed delivery activation.
 4. Small, already-designed, or atomically coupled work uses one DO. Size alone never justifies CO.
@@ -45,3 +45,4 @@ Helpers are bounded execution mechanisms, not task roles or owners.
 - New or rewritten functions/classes/services/handlers/repositories/guards/interceptors have a one-sentence responsibility comment.
 - Use UTF-8; code identifiers and repository paths are English.
 - A candidate records changed behavior, base/head SHA, exact commands and literal results with exit status, risks, rollback, PR/CI state, and the independent RV request. Do not merge or clean up without their separate confirmations.
+- Every DO owns one Delivery Package (DP) in its stable artifact root; every CO owns one Aggregate Delivery Package (ADP) binding child DPs, dependency/order, integration contract, accepted candidates, aggregate candidate, aggregate RV/CI, merge, post-check, and cleanup state. A package change invalidates affected evidence. Host-local DP/ADP records use the same schema with no Git, PR, Merge Queue, or remote CI fields.

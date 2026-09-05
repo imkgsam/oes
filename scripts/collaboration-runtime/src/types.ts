@@ -417,7 +417,7 @@ export interface DriftAssessment {
 }
 
 export interface CoordinationCleanupResource {
-  kind: 'remote-branch' | 'local-branch' | 'worktree' | 'task-temp'
+  kind: 'remote-branch' | 'local-branch' | 'worktree' | 'task-temp' | 'delivery-package'
   path: string
   expectedSha: string | null
 }
@@ -428,7 +428,16 @@ export interface TerminalDeliveryCleanup {
   terminalState: 'MERGED' | 'ABANDONED'
   candidateSha: string
   mergeSha: string | null
-  ownerResourceBinding: import('./resource-topology.types.ts').OwnerResourceBinding
+  ownerResourceBinding: import('./resource-topology.types.ts').OwnerResourceReference
+  resources: CoordinationCleanupResource[]
+}
+
+export interface TerminalCoordinationCleanup {
+  ownerTaskId: string
+  terminalState: 'MERGED' | 'ABANDONED'
+  candidateSha: string
+  mergeSha: string | null
+  ownerResourceBinding: import('./resource-topology.types.ts').OwnerResourceReference
   resources: CoordinationCleanupResource[]
 }
 
@@ -444,6 +453,7 @@ export interface CoordinationCleanupAuthorization {
   transitionId: string
   confirmationFingerprint: string
   terminalDeliveries: TerminalDeliveryCleanup[]
+  coordinationOwner: TerminalCoordinationCleanup
 }
 
 export interface CoordinationChildCleanupAuthorization {
@@ -459,7 +469,7 @@ export interface CoordinationChildCleanupAuthorization {
   ownerTaskId: string
   transitionId: string
   confirmationFingerprint: string
-  ownerResourceBinding: import('./resource-topology.types.ts').OwnerResourceBinding
+  ownerResourceBinding: import('./resource-topology.types.ts').OwnerResourceReference
   resources: CoordinationCleanupResource[]
   postcondition: 'CHILD_SELF_CLEANUP'
 }
@@ -517,8 +527,22 @@ export interface CoordinationDeliveryCandidate {
   patchFingerprint: string
   contentFingerprint: string
   dependencies: string[]
-  scopedRv: 'PASSED'
+  scopedRv: TrustedAuthorizationReference
   independentlyReleasable: boolean
+}
+
+export interface CoordinationScopedRvResult {
+  schemaVersion: 2
+  kind: 'OES_COORDINATION_SCOPED_RV_RESULT'
+  resultFingerprint: string
+  status: 'PASSED'
+  coordinationKey: string
+  deliveryKey: string
+  deliveryOwnerTaskId: string
+  reviewerTaskId: string
+  candidateSha: string
+  patchFingerprint: string
+  contentFingerprint: string
 }
 
 export interface CoordinationIntegrationAuthorization {
@@ -547,6 +571,17 @@ export interface CoordinationIntegrationItemResult {
   state: 'PENDING' | 'FAILED' | 'INTEGRATED_VERIFIED'
   integratedSha: string | null
   failureCode: string | null
+}
+
+export interface CoordinationIntegrationResultSet {
+  schemaVersion: 2
+  kind: 'OES_COORDINATION_INTEGRATION_RESULT_SET'
+  resultSetFingerprint: string
+  authorizationFingerprint: string
+  coordinationKey: string
+  coordinationOwnerTaskId: string
+  transitionId: string
+  results: CoordinationIntegrationItemResult[]
 }
 
 export interface CoordinationIntegrationPlan {

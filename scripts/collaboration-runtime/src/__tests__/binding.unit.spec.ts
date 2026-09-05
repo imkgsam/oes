@@ -44,8 +44,7 @@ function stableOwnerResourceFixture(): {
     ownerRef: 'refs/heads/codex/delivery/runtime',
     artifactRoot,
     taskTempRoot: `/private/tmp/${stableOwnerTaskTempLeaf('11111111-1111-4111-8111-111111111111')}`,
-    deliveryRecord: 'docs/plans/deliveries/runtime.md',
-    deliveryRecordCheckpointPath: `${artifactRoot}/delivery-record.md`,
+    deliveryPackagePath: `${artifactRoot}/delivery-package.json`,
     currentEvidenceManifestPath: `${artifactRoot}/current-evidence-manifest.json`,
     checkpointBundlePath: `${artifactRoot}/checkpoint-bundle.json`,
     gitBundlePath: `${artifactRoot}/owner.bundle`

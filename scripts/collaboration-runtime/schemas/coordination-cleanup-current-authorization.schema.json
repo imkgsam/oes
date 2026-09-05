@@ -41,7 +41,7 @@
       "$ref": "#/$defs/reference"
     },
     "childAuthorization": {
-      "type": ["object", "null"]
+      "$ref": "#/$defs/nullableReference"
     },
     "coordinationKey": {
       "type": "string",
@@ -93,6 +93,16 @@
         "fingerprint": {
           "$ref": "#/$defs/sha256"
         }
+      }
+    },
+    "nullableReference": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["path", "sha256", "fingerprint"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^/" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "fingerprint": { "$ref": "#/$defs/sha256" }
       }
     }
   }

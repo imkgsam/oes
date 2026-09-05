@@ -1,4 +1,5 @@
 import {
+  requireTrustedCoordinationCleanupAuthorization,
   validateCoordinationCleanupAuthorization,
   validateCoordinationCleanupResource
 } from './cleanup-binding.ts'
@@ -57,12 +58,20 @@ export function planChildSelfCleanup(
   completedResources: CompletedCleanupResource[] = []
 ): CleanupResourceDecision[] {
   const authorization = validateCoordinationCleanupAuthorization(authorizationInput)
+  requireTrustedCoordinationCleanupAuthorization(authorization)
   const owned = authorization.terminalDeliveries.filter(
     (delivery) => delivery.ownerTaskId === ownerTaskId
   )
-  if (owned.length === 0) fail('CLEANUP_OWNER_NOT_IN_BATCH', ownerTaskId)
+  const ownerDelivery =
+    ownerTaskId === authorization.coordinationOwner.ownerTaskId
+      ? [authorization.coordinationOwner]
+      : []
+  if (owned.length === 0 && ownerDelivery.length === 0)
+    fail('CLEANUP_OWNER_NOT_IN_BATCH', ownerTaskId)
   const allowed = new Map<string, CoordinationCleanupResource>()
   for (const delivery of owned)
+    for (const resource of delivery.resources) allowed.set(resourceKey(resource), resource)
+  for (const delivery of ownerDelivery)
     for (const resource of delivery.resources) allowed.set(resourceKey(resource), resource)
   if (!Array.isArray(observations)) fail('CLEANUP_OBSERVATIONS_REQUIRED', ownerTaskId)
   const observed = new Map<string, ObservedCleanupResource>()
@@ -159,6 +168,7 @@ export function verifyCleanupProducesNoRepositoryDiff(
   diffEntries: CleanupDiffEntry[]
 ): void {
   const authorization = validateCoordinationCleanupAuthorization(authorizationInput)
+  requireTrustedCoordinationCleanupAuthorization(authorization)
   if (!Array.isArray(diffEntries)) fail('CLEANUP_DIFF_REQUIRED', authorization.coordinationKey)
   if (diffEntries.length !== 0)
     fail('CLEANUP_REPOSITORY_MUTATION_FORBIDDEN', JSON.stringify(diffEntries))
@@ -170,6 +180,7 @@ export function verifyChildCleanupResults(
   resultsByOwner: Record<string, CleanupResourceDecision[]>
 ): void {
   const authorization = validateCoordinationCleanupAuthorization(authorizationInput)
+  requireTrustedCoordinationCleanupAuthorization(authorization)
   if (
     typeof resultsByOwner !== 'object' ||
     resultsByOwner === null ||
@@ -177,17 +188,22 @@ export function verifyChildCleanupResults(
   )
     fail('COORDINATION_CLEANUP_CHILD_RESULTS_INVALID', authorization.coordinationKey)
   const expectedOwners = [
-    ...new Set(authorization.terminalDeliveries.map((delivery) => delivery.ownerTaskId))
-  ].sort()
-  const actualOwners = Object.keys(resultsByOwner).sort()
+    ...new Set(authorization.terminalDeliveries.map((delivery) => delivery.ownerTaskId)),
+    authorization.coordinationOwner.ownerTaskId
+  ]
+  const actualOwners = Object.keys(resultsByOwner)
   if (
     expectedOwners.length !== actualOwners.length ||
     expectedOwners.some((owner, index) => owner !== actualOwners[index])
   )
     fail('COORDINATION_CLEANUP_CHILD_SET_MISMATCH', JSON.stringify(actualOwners))
   for (const owner of expectedOwners) {
-    const expected = authorization.terminalDeliveries
-      .filter((delivery) => delivery.ownerTaskId === owner)
+    const expected = [
+      ...authorization.terminalDeliveries.filter((delivery) => delivery.ownerTaskId === owner),
+      ...(authorization.coordinationOwner.ownerTaskId === owner
+        ? [authorization.coordinationOwner]
+        : [])
+    ]
       .flatMap((delivery) => delivery.resources)
       .map(resourceKey)
       .sort()

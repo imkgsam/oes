@@ -41,7 +41,7 @@ When one DO discovers proposed independent siblings, use `createDeliveryTopology
 
 - exact CO/DO tasks, state, scope, root authorization, topology, and ceiling;
 - retained write set and proposed disjoint sibling write sets;
-- current owner ref/clone/task-temp/delivery-record resources;
+- current owner ref/clone/task-temp/DP resources (and CO aggregate resources when applicable);
 - completed slices and evidence;
 - independent candidate, RV, PR, and safe-main-merge proofs.
 

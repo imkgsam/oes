@@ -1,0 +1,273 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/delivery-package-v2.json",
+  "title": "OES V2 Delivery Package",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "packageFingerprint",
+    "packageVersion",
+    "evidenceGeneration",
+    "invalidatedEvidence",
+    "deliveryKey",
+    "ownerTaskId",
+    "executionMode",
+    "artifactRoot",
+    "packagePath",
+    "activationFingerprint",
+    "evidenceBasisFingerprint",
+    "activation",
+    "execution"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "kind": { "const": "OES_DELIVERY_PACKAGE" },
+    "packageFingerprint": { "$ref": "#/$defs/digest" },
+    "packageVersion": { "type": "integer", "minimum": 1 },
+    "evidenceGeneration": { "type": "integer", "minimum": 1 },
+    "invalidatedEvidence": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "deliveryKey": { "$ref": "#/$defs/key" },
+    "ownerTaskId": { "$ref": "#/$defs/token" },
+    "executionMode": { "enum": ["REPOSITORY", "HOST_LOCAL"] },
+    "artifactRoot": { "$ref": "#/$defs/absolutePath" },
+    "packagePath": {
+      "type": "string",
+      "pattern": "^/.+/delivery-package\\.json$"
+    },
+    "activationFingerprint": { "$ref": "#/$defs/digest" },
+    "evidenceBasisFingerprint": { "$ref": "#/$defs/digest" },
+    "activation": { "$ref": "#/$defs/activation" },
+    "execution": { "$ref": "#/$defs/execution" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "executionMode": { "const": "REPOSITORY" } } },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "repository": { "$ref": "#/$defs/repository" },
+              "hostLocal": { "const": null }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "executionMode": { "const": "HOST_LOCAL" } } },
+      "then": {
+        "properties": {
+          "activation": { "properties": { "writeSet": { "maxItems": 0 } } },
+          "execution": {
+            "properties": {
+              "repository": { "const": null },
+              "hostLocal": { "$ref": "#/$defs/hostLocal" },
+              "ci": { "$ref": "#/$defs/notApplicableEvidence" }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "key": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "token": { "type": "string", "minLength": 1 },
+    "absolutePath": { "type": "string", "pattern": "^/" },
+    "stringList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "nonEmptyStringList": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "fingerprint"],
+      "properties": {
+        "path": { "$ref": "#/$defs/absolutePath" },
+        "sha256": { "$ref": "#/$defs/digest" },
+        "fingerprint": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "nullableReference": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["path", "sha256", "fingerprint"],
+      "properties": {
+        "path": { "$ref": "#/$defs/absolutePath" },
+        "sha256": { "$ref": "#/$defs/digest" },
+        "fingerprint": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deliveryKey", "acceptedCandidateSha", "acceptedOperationFingerprint"],
+      "properties": {
+        "deliveryKey": { "$ref": "#/$defs/key" },
+        "acceptedCandidateSha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" },
+        "acceptedOperationFingerprint": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "activation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "confirmationFingerprint",
+        "objective",
+        "scope",
+        "nonGoals",
+        "acceptance",
+        "designReferences",
+        "protectedScope",
+        "dependencies",
+        "writeSet",
+        "risk",
+        "rollback"
+      ],
+      "properties": {
+        "confirmationFingerprint": { "$ref": "#/$defs/digest" },
+        "objective": { "type": "string", "minLength": 1 },
+        "scope": { "$ref": "#/$defs/nonEmptyStringList" },
+        "nonGoals": { "$ref": "#/$defs/stringList" },
+        "acceptance": { "$ref": "#/$defs/nonEmptyStringList" },
+        "designReferences": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "protectedScope": { "$ref": "#/$defs/nonEmptyStringList" },
+        "dependencies": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/dependency" }
+        },
+        "writeSet": { "$ref": "#/$defs/stringList" },
+        "risk": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["level", "reasons"],
+          "properties": {
+            "level": { "enum": ["LOW", "MEDIUM", "HIGH"] },
+            "reasons": { "$ref": "#/$defs/stringList" }
+          }
+        },
+        "rollback": { "$ref": "#/$defs/nonEmptyStringList" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "basisFingerprint", "evidence"],
+      "properties": {
+        "status": {
+          "enum": ["PENDING", "PASSED", "FAILED", "INVALIDATED", "NOT_APPLICABLE"]
+        },
+        "basisFingerprint": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+        "evidence": { "$ref": "#/$defs/nullableReference" }
+      }
+    },
+    "notApplicableEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "basisFingerprint", "evidence"],
+      "properties": {
+        "status": { "const": "NOT_APPLICABLE" },
+        "basisFingerprint": { "const": null },
+        "evidence": { "const": null }
+      }
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "baseSha",
+        "candidateSha",
+        "branch",
+        "worktree",
+        "pullRequestNumber",
+        "mergeQueueEntryId",
+        "mergeSha"
+      ],
+      "properties": {
+        "baseSha": { "$ref": "#/$defs/sha" },
+        "candidateSha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" },
+        "branch": {
+          "type": "string",
+          "pattern": "^codex/delivery/[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "worktree": { "$ref": "#/$defs/absolutePath" },
+        "pullRequestNumber": { "type": ["integer", "null"], "minimum": 1 },
+        "mergeQueueEntryId": { "type": ["string", "null"] },
+        "mergeSha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" }
+      }
+    },
+    "hostLocal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cohesiveOperation",
+        "operationFingerprint",
+        "repositoryModified",
+        "resourceKinds"
+      ],
+      "properties": {
+        "cohesiveOperation": { "type": "string", "minLength": 1 },
+        "operationFingerprint": { "$ref": "#/$defs/digest" },
+        "repositoryModified": { "const": false },
+        "resourceKinds": { "$ref": "#/$defs/nonEmptyStringList" }
+      }
+    },
+    "slice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sliceId", "status"],
+      "properties": {
+        "sliceId": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["PENDING", "COMPLETE"] }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "slices",
+        "repository",
+        "hostLocal",
+        "selfTest",
+        "rv",
+        "ci",
+        "postCheck",
+        "remainingRisk",
+        "cleanup"
+      ],
+      "properties": {
+        "slices": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/slice" } },
+        "repository": { "type": ["object", "null"] },
+        "hostLocal": { "type": ["object", "null"] },
+        "selfTest": { "$ref": "#/$defs/evidence" },
+        "rv": { "$ref": "#/$defs/evidence" },
+        "ci": { "$ref": "#/$defs/evidence" },
+        "postCheck": { "$ref": "#/$defs/evidence" },
+        "remainingRisk": { "$ref": "#/$defs/stringList" },
+        "cleanup": { "enum": ["PENDING", "VERIFIED"] }
+      }
+    }
+  }
+}

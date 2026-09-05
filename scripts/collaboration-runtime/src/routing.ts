@@ -15,6 +15,8 @@ export interface DeliveryWorkstream {
 
 export interface RoutingDecisionInput {
   stateful: boolean
+  executionMode: 'REPOSITORY' | 'HOST_LOCAL'
+  repositoryModification: boolean
   stableDesignChange: boolean
   designProposalConfirmed: boolean
   deliveryActivationConfirmed: boolean
@@ -29,6 +31,7 @@ export interface RoutingDecision {
   schemaVersion: 2
   kind: 'OES_V2_ROUTING_DECISION'
   route: 'DISCUSSION' | 'DA_UD' | 'DO' | 'CO'
+  executionMode: 'NONE' | 'REPOSITORY' | 'HOST_LOCAL'
   activeRoles: ActiveTaskRole[]
   deliveryOwnerCount: number
   prTopology: 'NONE' | 'ONE_DO_PR' | 'ONE_AGGREGATE_CO_PR' | 'INDEPENDENT_DO_PRS'
@@ -45,6 +48,10 @@ const KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 /** Selects the smallest V2 owner topology from scope, design impact, coupling, and explicit PR choice. */
 export function decideRouting(input: RoutingDecisionInput): RoutingDecision {
+  if (!['REPOSITORY', 'HOST_LOCAL'].includes(input.executionMode))
+    fail('ROUTING_EXECUTION_MODE_INVALID', String(input.executionMode))
+  if (input.executionMode === 'HOST_LOCAL' && input.repositoryModification)
+    fail('HOST_LOCAL_REPOSITORY_MODIFICATION_REQUIRES_REROUTE', 'REPOSITORY')
   if (!Array.isArray(input.workstreams)) fail('ROUTING_WORKSTREAMS_INVALID', 'not an array')
   const keys = new Set<string>()
   for (const stream of input.workstreams) {
@@ -64,6 +71,7 @@ export function decideRouting(input: RoutingDecisionInput): RoutingDecision {
   if (!input.stateful)
     return seal({
       route: 'DISCUSSION',
+      executionMode: 'NONE',
       activeRoles: [],
       deliveryOwnerCount: 0,
       prTopology: 'NONE',
@@ -78,6 +86,7 @@ export function decideRouting(input: RoutingDecisionInput): RoutingDecision {
         : 'INITIAL_EXECUTION_CONFIRMATION'
     return seal({
       route: 'DA_UD',
+      executionMode: 'NONE',
       activeRoles: ['DA', 'UD'],
       deliveryOwnerCount: 0,
       prTopology: 'NONE',
@@ -94,14 +103,17 @@ export function decideRouting(input: RoutingDecisionInput): RoutingDecision {
   if (!coordinationJustified)
     return seal({
       route: 'DO',
+      executionMode: input.executionMode,
       activeRoles: ['DO'],
       deliveryOwnerCount: 1,
-      prTopology: 'ONE_DO_PR',
+      prTopology: input.executionMode === 'REPOSITORY' ? 'ONE_DO_PR' : 'NONE',
       nextGate: 'INITIAL_EXECUTION_CONFIRMATION',
       reason:
         input.workstreams.length > 1
           ? 'size or multiple atomic slices alone does not justify CO; one DO owns the cohesive delivery'
-          : 'one cohesive delivery has one DO and one pull request'
+          : input.executionMode === 'REPOSITORY'
+            ? 'one cohesive repository delivery has one DO and one pull request'
+            : 'one cohesive host-local operation has one DO, local verification, and no Git resources'
     })
   const independentAllowed =
     input.requestedPrTopology === 'INDEPENDENT' &&
@@ -109,13 +121,22 @@ export function decideRouting(input: RoutingDecisionInput): RoutingDecision {
     input.workstreams.every((item) => item.independentlyReleasable)
   return seal({
     route: 'CO',
+    executionMode: input.executionMode,
     activeRoles: ['CO', 'DO'],
     deliveryOwnerCount: input.workstreams.length,
-    prTopology: independentAllowed ? 'INDEPENDENT_DO_PRS' : 'ONE_AGGREGATE_CO_PR',
+    prTopology:
+      input.executionMode === 'HOST_LOCAL'
+        ? 'NONE'
+        : independentAllowed
+          ? 'INDEPENDENT_DO_PRS'
+          : 'ONE_AGGREGATE_CO_PR',
     nextGate: 'INITIAL_EXECUTION_CONFIRMATION',
-    reason: independentAllowed
-      ? 'the Human-confirmed exception uses independently releasable DO pull requests'
-      : 'CO integrates independently ownable deliveries into one aggregate candidate and pull request'
+    reason:
+      input.executionMode === 'HOST_LOCAL'
+        ? 'CO coordinates at least two independently ownable host-local workstreams with real parallelism or cross-operation integration and no Git resources'
+        : independentAllowed
+          ? 'the Human-confirmed exception uses independently releasable DO pull requests'
+          : 'CO integrates independently ownable deliveries into one aggregate candidate and pull request'
   })
 }
 

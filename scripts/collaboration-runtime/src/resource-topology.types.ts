@@ -23,8 +23,7 @@ export interface OwnerResourceBinding {
   ownerRef: string
   artifactRoot: string
   taskTempRoot: string
-  deliveryRecord: string
-  deliveryRecordCheckpointPath: string
+  deliveryPackagePath: string
   currentEvidenceManifestPath: string
   checkpointBundlePath: string
   gitBundlePath: string | null
@@ -39,8 +38,7 @@ export interface OwnerResourceObservation {
   ownerHeadSha: string | null
   artifactRootExists: boolean
   taskTempRootExists: boolean
-  liveDeliveryRecordExists: boolean
-  deliveryRecordCheckpointExists: boolean
+  deliveryPackageExists: boolean
   currentEvidenceManifestExists: boolean
   checkpointBundleExists: boolean
   gitBundleExists: boolean
@@ -59,7 +57,7 @@ export interface OwnerCurrentEvidenceManifest {
   transitionId: string
   stateVersion: number
   resourceBindingFingerprint: string
-  deliveryRecord: OwnerEvidenceReference
+  deliveryPackage: OwnerEvidenceReference
   candidateSha: string | null
   evidence: OwnerEvidenceReference[]
   scratchPaths: string[]
@@ -74,7 +72,7 @@ export interface OwnerCheckpointBundle {
   resourceBindingFingerprint: string
   ownerRef: string
   headSha: string
-  deliveryRecord: OwnerEvidenceReference
+  deliveryPackage: OwnerEvidenceReference
   currentEvidenceManifest: OwnerResourceReference
   gitBundle: OwnerEvidenceReference | null
 }

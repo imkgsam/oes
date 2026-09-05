@@ -260,7 +260,7 @@ function replanRequest(
       ownerRef: 'refs/heads/codex/delivery/delivery-alpha',
       ownerClone: '/private/tmp/oes-do-delivery-alpha',
       taskTemp: '/private/tmp/oes-do-delivery-alpha-artifacts',
-      deliveryRecord: 'docs/plans/deliveries/delivery-alpha.md'
+      deliveryPackagePath: '/private/tmp/oes-do-delivery-alpha-artifacts/delivery-package.json'
     },
     completedSlices: [
       {

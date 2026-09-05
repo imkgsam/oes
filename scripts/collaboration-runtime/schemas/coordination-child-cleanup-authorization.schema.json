@@ -67,8 +67,8 @@
     },
     "resources": {
       "type": "array",
-      "minItems": 4,
-      "maxItems": 4,
+      "minItems": 5,
+      "maxItems": 5,
       "items": {
         "$ref": "#/$defs/resource"
       }
@@ -109,7 +109,7 @@
       "required": ["kind", "path", "expectedSha"],
       "properties": {
         "kind": {
-          "enum": ["remote-branch", "local-branch", "worktree", "task-temp"]
+          "enum": ["remote-branch", "local-branch", "worktree", "task-temp", "delivery-package"]
         },
         "path": {
           "type": "string",
@@ -123,45 +123,16 @@
     },
     "ownerBinding": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
-        "schemaVersion",
-        "kind",
-        "bindingFingerprint",
-        "resourceTopologyVersion",
-        "ownerTaskId",
-        "ownerClone",
-        "ownerRef",
-        "taskTempRoot"
+        "path",
+        "sha256",
+        "fingerprint"
       ],
       "properties": {
-        "schemaVersion": {
-          "const": 1
-        },
-        "kind": {
-          "const": "OES_OWNER_RESOURCE_BINDING"
-        },
-        "bindingFingerprint": {
-          "$ref": "#/$defs/sha256"
-        },
-        "resourceTopologyVersion": {
-          "const": "owner-exclusive-v2"
-        },
-        "ownerTaskId": {
-          "type": "string",
-          "pattern": "^(?:/[A-Za-z0-9][A-Za-z0-9_-]*){2,}$"
-        },
-        "ownerClone": {
-          "type": "string",
-          "pattern": "^/"
-        },
-        "ownerRef": {
-          "type": "string",
-          "pattern": "^refs/heads/codex/(?:delivery|coordination)/[a-z0-9]+(?:-[a-z0-9]+)*$"
-        },
-        "taskTempRoot": {
-          "type": "string",
-          "pattern": "^/"
-        }
+        "path": { "type": "string", "pattern": "^/" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "fingerprint": { "$ref": "#/$defs/sha256" }
       }
     }
   }

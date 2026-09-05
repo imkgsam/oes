@@ -251,7 +251,7 @@
       "required": ["kind", "path", "expectedSha"],
       "properties": {
         "kind": {
-          "enum": ["remote-branch", "local-branch", "worktree", "delivery-record"]
+          "enum": ["remote-branch", "local-branch", "worktree", "task-temp", "delivery-package"]
         },
         "path": {
           "type": "string"

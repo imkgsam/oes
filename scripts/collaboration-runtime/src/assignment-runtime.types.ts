@@ -207,7 +207,7 @@ export interface DeliveryOwnerResources {
   ownerRef: string
   ownerClone: string
   taskTemp: string
-  deliveryRecord: string
+  deliveryPackagePath: string
 }
 
 export const DELIVERY_TOPOLOGY_INVALIDATION_CONDITIONS = [
