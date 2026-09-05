@@ -5,14 +5,18 @@ import {
 } from './cleanup-binding.ts'
 import { objectFingerprint } from './canonical.ts'
 import { fail } from './errors.ts'
+import { physicalIdentityForPotentialPath, requireExactPhysicalPath } from './resource-topology.ts'
 import type {
   CleanupDiffEntry,
   CleanupResourceDecision,
   CompletedCleanupResource,
   ObservedCleanupResource,
   CoordinationCleanupAuthorization,
-  CoordinationCleanupResource
+  CoordinationCleanupResource,
+  CoordinationCleanupResultSet
 } from './types.ts'
+
+const DIGEST = /^[0-9a-f]{64}$/
 
 /** Builds a stable identity for one cleanup resource. */
 function resourceKey(resource: CoordinationCleanupResource): string {
@@ -109,6 +113,12 @@ export function planChildSelfCleanup(
     completed.set(key, record)
   }
   return [...allowed.entries()].map(([key, resource]) => {
+    if (!['remote-branch', 'local-branch'].includes(resource.kind))
+      requireExactPhysicalPath(
+        resource.path,
+        `cleanup.${resource.kind}`,
+        physicalIdentityForPotentialPath
+      )
     const prior = completed.get(key)
     if (prior)
       return {
@@ -190,8 +200,8 @@ export function verifyChildCleanupResults(
   const expectedOwners = [
     ...new Set(authorization.terminalDeliveries.map((delivery) => delivery.ownerTaskId)),
     authorization.coordinationOwner.ownerTaskId
-  ]
-  const actualOwners = Object.keys(resultsByOwner)
+  ].sort()
+  const actualOwners = Object.keys(resultsByOwner).sort()
   if (
     expectedOwners.length !== actualOwners.length ||
     expectedOwners.some((owner, index) => owner !== actualOwners[index])
@@ -285,4 +295,69 @@ export function verifyChildCleanupResults(
       }
     }
   }
+}
+
+/** Seals the exact child-plus-CO absence proof that the archive lifecycle must consume. */
+export function createCoordinationCleanupResultSet(
+  authorizationInput: CoordinationCleanupAuthorization,
+  resultsByOwner: Record<string, CleanupResourceDecision[]>,
+  repositoryDiff: CleanupDiffEntry[]
+): CoordinationCleanupResultSet {
+  const authorization = validateCoordinationCleanupAuthorization(authorizationInput)
+  requireTrustedCoordinationCleanupAuthorization(authorization)
+  verifyCleanupProducesNoRepositoryDiff(authorization, repositoryDiff)
+  verifyChildCleanupResults(authorization, resultsByOwner)
+  const raw: Omit<CoordinationCleanupResultSet, 'resultSetFingerprint'> = {
+    schemaVersion: 2,
+    kind: 'OES_COORDINATION_CLEANUP_RESULT_SET',
+    coordinationKey: authorization.coordinationKey,
+    coordinationOwnerTaskId: authorization.coordinationOwnerTaskId,
+    transitionId: authorization.transitionId,
+    coordinationCleanupAuthorizationFingerprint: authorization.authorizationFingerprint,
+    resultsByOwner: structuredClone(resultsByOwner),
+    repositoryDiff: structuredClone(repositoryDiff)
+  }
+  return {
+    ...raw,
+    resultSetFingerprint: objectFingerprint(raw as unknown as Record<string, unknown>, '__none__')
+  }
+}
+
+/** Revalidates one sealed absence proof against the exact current cleanup authorization. */
+export function validateCoordinationCleanupResultSet(
+  authorizationInput: CoordinationCleanupAuthorization,
+  value: CoordinationCleanupResultSet
+): CoordinationCleanupResultSet {
+  const authorization = validateCoordinationCleanupAuthorization(authorizationInput)
+  requireTrustedCoordinationCleanupAuthorization(authorization)
+  requireExactKeys(
+    value,
+    [
+      'schemaVersion',
+      'kind',
+      'resultSetFingerprint',
+      'coordinationKey',
+      'coordinationOwnerTaskId',
+      'transitionId',
+      'coordinationCleanupAuthorizationFingerprint',
+      'resultsByOwner',
+      'repositoryDiff'
+    ],
+    'coordinationCleanupResultSet'
+  )
+  if (
+    value.schemaVersion !== 2 ||
+    value.kind !== 'OES_COORDINATION_CLEANUP_RESULT_SET' ||
+    value.coordinationKey !== authorization.coordinationKey ||
+    value.coordinationOwnerTaskId !== authorization.coordinationOwnerTaskId ||
+    value.transitionId !== authorization.transitionId ||
+    value.coordinationCleanupAuthorizationFingerprint !== authorization.authorizationFingerprint ||
+    !DIGEST.test(value.resultSetFingerprint) ||
+    value.resultSetFingerprint !==
+      objectFingerprint(value as unknown as Record<string, unknown>, 'resultSetFingerprint')
+  )
+    fail('COORDINATION_CLEANUP_RESULT_SET_BINDING_MISMATCH', authorization.coordinationKey)
+  verifyCleanupProducesNoRepositoryDiff(authorization, value.repositoryDiff)
+  verifyChildCleanupResults(authorization, value.resultsByOwner)
+  return value
 }

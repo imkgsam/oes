@@ -1,5 +1,6 @@
 import { objectFingerprint } from './canonical.ts'
 import { verifyTrustedReference } from './binding.ts'
+import { validateCoordinationCleanupResultSet } from './cleanup.ts'
 import { fail } from './errors.ts'
 import type {
   RemoteTrustRoots,
@@ -7,6 +8,7 @@ import type {
   CoordinationArchiveResult,
   CoordinationArchiveResultSet,
   CoordinationCleanupAuthorization,
+  CoordinationCleanupResultSet,
   CoordinationLifecycleCreatedTask,
   CoordinationLifecycleInventory,
   CoordinationLifecyclePlan,
@@ -59,6 +61,16 @@ export function loadTrustedCoordinationLifecycleInventory(
     ) as unknown as CoordinationLifecycleInventory
   )
   validateCleanupBinding(value, cleanup, trust)
+  if (value.resourceCleanup === 'VERIFIED' && value.cleanupResult) {
+    validateCoordinationCleanupResultSet(
+      cleanup,
+      verifyTrustedReference(
+        value.cleanupResult,
+        trust.authorizationRoot,
+        'resultSetFingerprint'
+      ) as unknown as CoordinationCleanupResultSet
+    )
+  }
   const frozen = deepFreeze(value)
   trustedInventories.add(frozen)
   return frozen
@@ -160,11 +172,37 @@ export function validateCoordinationLifecycleInventory(
 ): CoordinationLifecycleInventory {
   const authority = validateCoordinationLifecycleRosterAuthority(authorityInput)
   if (
+    Object.keys(value).sort().join(',') !==
+      [
+        'schemaVersion',
+        'kind',
+        'inventoryFingerprint',
+        'coordinationKey',
+        'coordinationOwnerTaskId',
+        'transitionId',
+        'coordinationCleanupAuthorizationFingerprint',
+        'cleanupIntentDetected',
+        'coordinationExit',
+        'resourceCleanup',
+        'cleanupResult',
+        'rosterAuthorityFingerprint',
+        'taskReadbackSource',
+        'readbackRosterFingerprint',
+        'readbackRoster',
+        'terminalTaskIds'
+      ]
+        .sort()
+        .join(',') ||
     value.schemaVersion !== 2 ||
     value.kind !== 'OES_COORDINATION_LIFECYCLE_INVENTORY' ||
     value.cleanupIntentDetected !== true ||
     !['PASSED', 'PENDING', 'FAILED'].includes(value.coordinationExit) ||
     !['PENDING', 'VERIFIED', 'PARTIAL_FAILURE'].includes(value.resourceCleanup) ||
+    (value.resourceCleanup === 'VERIFIED') !== (value.cleanupResult !== null) ||
+    (value.cleanupResult !== null &&
+      (!value.cleanupResult.path ||
+        !DIGEST.test(value.cleanupResult.sha256) ||
+        !DIGEST.test(value.cleanupResult.fingerprint))) ||
     value.taskReadbackSource !== 'CODEX_TASK_NATIVE' ||
     value.coordinationKey !== authority.coordinationKey ||
     value.coordinationOwnerTaskId !== authority.coordinationOwnerTaskId ||

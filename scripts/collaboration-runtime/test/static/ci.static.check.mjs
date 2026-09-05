@@ -200,6 +200,9 @@ assert.doesNotMatch(localMain, /\['(?:reset|stash|rebase|checkout)'|setInterval|
 for (const file of readdirSync(new URL('schemas', base))) JSON.parse(readBase(`schemas/${file}`))
 for (const file of [
   'coordination-integration-authorization.schema.json',
+  'aggregate-delivery-child-roster.schema.json',
+  'package-evidence.schema.json',
+  'coordination-cleanup-result-set.schema.json',
   'coordination-lifecycle-roster-authority.schema.json',
   'coordination-lifecycle-inventory.schema.json',
   'coordination-archive-result-set.schema.json'

@@ -1,8 +1,14 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { canonicalJson, objectFingerprint, sha256 } from './canonical.ts'
 import { fail } from './errors.ts'
-import type { TrustedAuthorizationReference } from './types.ts'
+import {
+  physicalIdentityForPotentialPath,
+  requireExactPhysicalPath,
+  requireTrustedOwnerResourceBinding
+} from './resource-topology.ts'
+import type { CleanupDiffEntry, TrustedAuthorizationReference } from './types.ts'
+import type { OwnerResourceBinding } from './resource-topology.types.ts'
 
 export type DeliveryExecutionMode = 'REPOSITORY' | 'HOST_LOCAL'
 export type DeliveryEvidenceStatus =
@@ -36,6 +42,37 @@ export interface DeliveryEvidence {
   status: DeliveryEvidenceStatus
   basisFingerprint: string | null
   evidence: TrustedAuthorizationReference | null
+}
+
+export type PackageEvidenceType =
+  | 'SELF_TEST'
+  | 'RV'
+  | 'CI'
+  | 'POST_CHECK'
+  | 'AGGREGATE_RV'
+  | 'AGGREGATE_CI'
+  | 'AGGREGATE_POST_CHECK'
+
+export interface PackageEvidenceArtifact {
+  path: string
+  sha256: string
+}
+
+export interface PackageEvidenceRecord {
+  schemaVersion: 2
+  kind: 'OES_PACKAGE_EVIDENCE'
+  evidenceFingerprint: string
+  evidenceType: PackageEvidenceType
+  subjectKey: string
+  ownerTaskId: string
+  reviewerTaskId: string | null
+  executionMode: DeliveryExecutionMode
+  evidenceGeneration: number
+  basisFingerprint: string
+  candidateSha: string | null
+  operationFingerprint: string | null
+  result: 'PASSED' | 'FAILED'
+  sourceArtifacts: PackageEvidenceArtifact[]
 }
 
 export interface RepositoryDeliveryState {
@@ -134,12 +171,30 @@ export interface AggregateDeliveryPackage {
   artifactRoot: string
   packagePath: string
   confirmationFingerprint: string
+  childRoster: TrustedAuthorizationReference
   deliveryPackages: DeliveryPackageReference[]
   dependencyOrder: string[]
   integrationContract: string[]
   aggregateAcceptance: string[]
   evidenceBasisFingerprint: string
   execution: AggregateExecution
+}
+
+export interface AggregateDeliveryChild {
+  deliveryKey: string
+  ownerTaskId: string
+}
+
+export interface AggregateDeliveryChildRoster {
+  schemaVersion: 2
+  kind: 'OES_AGGREGATE_DELIVERY_CHILD_ROSTER'
+  rosterFingerprint: string
+  confirmationFingerprint: string
+  coordinationKey: string
+  ownerTaskId: string
+  executionMode: DeliveryExecutionMode
+  deliveries: AggregateDeliveryChild[]
+  externalDependencies: DeliveryPackageDependency[]
 }
 
 export interface AggregateRvInput {
@@ -161,6 +216,15 @@ const AGGREGATE_BRANCH = /^codex\/coordination\/[a-z0-9]+(?:-[a-z0-9]+)*$/
 const EVIDENCE_NAMES = ['selfTest', 'rv', 'ci', 'postCheck'] as const
 const AGGREGATE_EVIDENCE_NAMES = ['aggregateRv', 'aggregateCi', 'postCheck'] as const
 const trustedAggregatePackages = new WeakMap<object, string>()
+const EVIDENCE_TYPES: Record<string, PackageEvidenceType> = {
+  selfTest: 'SELF_TEST',
+  rv: 'RV',
+  ci: 'CI',
+  postCheck: 'POST_CHECK',
+  aggregateRv: 'AGGREGATE_RV',
+  aggregateCi: 'AGGREGATE_CI',
+  aggregatePostCheck: 'AGGREGATE_POST_CHECK'
+}
 
 /** Seals one DO Delivery Package and invalidates evidence affected by changed control inputs. */
 export function createDeliveryPackage(
@@ -330,20 +394,19 @@ export function createAggregateDeliveryPackage(
     previous !== null &&
     canonicalJson({
       deliveryPackages: previous.deliveryPackages,
+      childRoster: previous.childRoster,
       dependencyOrder: previous.dependencyOrder,
       integrationContract: previous.integrationContract,
       aggregateAcceptance: previous.aggregateAcceptance
     }) !==
       canonicalJson({
         deliveryPackages: draft.deliveryPackages,
+        childRoster: draft.childRoster,
         dependencyOrder: draft.dependencyOrder,
         integrationContract: draft.integrationContract,
         aggregateAcceptance: draft.aggregateAcceptance
       })
-  if (
-    controlChanged &&
-    previous?.confirmationFingerprint === draft.confirmationFingerprint
-  )
+  if (controlChanged && previous?.confirmationFingerprint === draft.confirmationFingerprint)
     fail('AGGREGATE_PACKAGE_RECONFIRMATION_REQUIRED', draft.coordinationKey)
   const execution = clone(draft.execution)
   if (invalidation.length)
@@ -361,6 +424,7 @@ export function createAggregateDeliveryPackage(
     artifactRoot: draft.artifactRoot,
     packagePath: draft.packagePath,
     confirmationFingerprint: draft.confirmationFingerprint,
+    childRoster: clone(draft.childRoster),
     deliveryPackages: clone(draft.deliveryPackages),
     dependencyOrder: [...draft.dependencyOrder],
     integrationContract: [...draft.integrationContract],
@@ -372,6 +436,88 @@ export function createAggregateDeliveryPackage(
     ...raw,
     packageFingerprint: objectFingerprint(raw as unknown as Record<string, unknown>, '__none__')
   })
+}
+
+/** Seals the Human-confirmed complete CO child set and its explicitly external dependencies. */
+export function createAggregateDeliveryChildRoster(
+  draft: Omit<AggregateDeliveryChildRoster, 'schemaVersion' | 'kind' | 'rosterFingerprint'>
+): AggregateDeliveryChildRoster {
+  const raw: Omit<AggregateDeliveryChildRoster, 'rosterFingerprint'> = {
+    schemaVersion: 2,
+    kind: 'OES_AGGREGATE_DELIVERY_CHILD_ROSTER',
+    confirmationFingerprint: draft.confirmationFingerprint,
+    coordinationKey: draft.coordinationKey,
+    ownerTaskId: draft.ownerTaskId,
+    executionMode: draft.executionMode,
+    deliveries: clone(draft.deliveries),
+    externalDependencies: clone(draft.externalDependencies)
+  }
+  return validateAggregateDeliveryChildRoster({
+    ...raw,
+    rosterFingerprint: objectFingerprint(raw as unknown as Record<string, unknown>, '__none__')
+  })
+}
+
+/** Validates one closed CO child roster before an ADP can bind it. */
+export function validateAggregateDeliveryChildRoster(
+  value: AggregateDeliveryChildRoster
+): AggregateDeliveryChildRoster {
+  requireExactKeys(
+    value,
+    [
+      'schemaVersion',
+      'kind',
+      'rosterFingerprint',
+      'confirmationFingerprint',
+      'coordinationKey',
+      'ownerTaskId',
+      'executionMode',
+      'deliveries',
+      'externalDependencies'
+    ],
+    'aggregateDeliveryChildRoster'
+  )
+  if (
+    value.schemaVersion !== 2 ||
+    value.kind !== 'OES_AGGREGATE_DELIVERY_CHILD_ROSTER' ||
+    !DIGEST.test(value.confirmationFingerprint) ||
+    !KEY.test(value.coordinationKey) ||
+    !TASK.test(value.ownerTaskId) ||
+    !['REPOSITORY', 'HOST_LOCAL'].includes(value.executionMode) ||
+    !Array.isArray(value.deliveries) ||
+    value.deliveries.length < 2 ||
+    !Array.isArray(value.externalDependencies)
+  )
+    fail('AGGREGATE_CHILD_ROSTER_INVALID', value.coordinationKey)
+  const deliveryKeys = new Set<string>()
+  const owners = new Set<string>()
+  for (const delivery of value.deliveries) {
+    requireExactKeys(delivery, ['deliveryKey', 'ownerTaskId'], 'aggregateChildRoster.delivery')
+    if (
+      !KEY.test(delivery.deliveryKey) ||
+      deliveryKeys.has(delivery.deliveryKey) ||
+      !TASK.test(delivery.ownerTaskId) ||
+      owners.has(delivery.ownerTaskId) ||
+      !delivery.ownerTaskId.startsWith(`${value.ownerTaskId}/`)
+    )
+      fail('AGGREGATE_CHILD_ROSTER_DELIVERY_INVALID', delivery.deliveryKey)
+    deliveryKeys.add(delivery.deliveryKey)
+    owners.add(delivery.ownerTaskId)
+  }
+  const externalKeys = new Set<string>()
+  for (const dependency of value.externalDependencies) {
+    validateDependency(dependency, value.executionMode, 'aggregateChildRoster.externalDependency')
+    if (deliveryKeys.has(dependency.deliveryKey) || externalKeys.has(dependency.deliveryKey))
+      fail('AGGREGATE_CHILD_ROSTER_EXTERNAL_DEPENDENCY_INVALID', dependency.deliveryKey)
+    externalKeys.add(dependency.deliveryKey)
+  }
+  if (
+    !DIGEST.test(value.rosterFingerprint) ||
+    value.rosterFingerprint !==
+      objectFingerprint(value as unknown as Record<string, unknown>, 'rosterFingerprint')
+  )
+    fail('AGGREGATE_CHILD_ROSTER_FINGERPRINT_MISMATCH', value.coordinationKey)
+  return value
 }
 
 /** Validates the closed ADP contract and its complete ordered DP set. */
@@ -393,6 +539,7 @@ export function validateAggregateDeliveryPackage(
       'artifactRoot',
       'packagePath',
       'confirmationFingerprint',
+      'childRoster',
       'deliveryPackages',
       'dependencyOrder',
       'integrationContract',
@@ -423,15 +570,13 @@ export function validateAggregateDeliveryPackage(
   )
     fail('AGGREGATE_PACKAGE_ENVELOPE_INVALID', value.coordinationKey)
   validatePackagePath(value.artifactRoot, value.packagePath, 'aggregate-delivery-package.json')
+  validateReference(value.childRoster, 'aggregateDeliveryPackage.childRoster')
   const keys = new Set<string>()
   const owners = new Set<string>()
   for (const item of value.deliveryPackages) {
     validatePackageReference(item, value.executionMode)
     if (keys.has(item.deliveryKey)) fail('AGGREGATE_PACKAGE_DUPLICATE_DP', item.deliveryKey)
-    if (
-      owners.has(item.ownerTaskId) ||
-      !item.ownerTaskId.startsWith(`${value.ownerTaskId}/`)
-    )
+    if (owners.has(item.ownerTaskId) || !item.ownerTaskId.startsWith(`${value.ownerTaskId}/`))
       fail('AGGREGATE_PACKAGE_DP_OWNER_INVALID', item.deliveryKey)
     keys.add(item.deliveryKey)
     owners.add(item.ownerTaskId)
@@ -466,6 +611,7 @@ export function loadDeliveryPackageReference(
   if (sha256(bytes) !== reference.packageSha256)
     fail('DELIVERY_PACKAGE_REFERENCE_SHA_MISMATCH', reference.deliveryKey)
   const value = validateDeliveryPackage(JSON.parse(bytes.toString('utf8')) as DeliveryPackage)
+  validatePackageArtifactIdentity(value.artifactRoot, value.packagePath, value.deliveryKey)
   if (
     value.deliveryKey !== reference.deliveryKey ||
     value.ownerTaskId !== reference.ownerTaskId ||
@@ -474,12 +620,25 @@ export function loadDeliveryPackageReference(
     value.packageFingerprint !== reference.packageFingerprint ||
     (executionMode === 'REPOSITORY'
       ? value.execution.repository?.candidateSha !== reference.acceptedCandidateSha
-      : value.execution.hostLocal?.operationFingerprint !== reference.acceptedOperationFingerprint) ||
+      : value.execution.hostLocal?.operationFingerprint !==
+        reference.acceptedOperationFingerprint) ||
     value.execution.selfTest.status !== 'PASSED' ||
     value.execution.rv.status !== 'PASSED'
   )
     fail('DELIVERY_PACKAGE_REFERENCE_BINDING_MISMATCH', reference.deliveryKey)
-  reopenCompletedEvidence(value.execution, EVIDENCE_NAMES, value.deliveryKey)
+  reopenCompletedEvidence({
+    execution: value.execution,
+    names: EVIDENCE_NAMES,
+    subjectKey: value.deliveryKey,
+    ownerTaskId: value.ownerTaskId,
+    artifactRoot: value.artifactRoot,
+    executionMode: value.executionMode,
+    evidenceGeneration: value.evidenceGeneration,
+    basisFingerprint: value.evidenceBasisFingerprint,
+    candidateSha: value.execution.repository?.candidateSha ?? null,
+    operationFingerprint: value.execution.hostLocal?.operationFingerprint ?? null,
+    aggregate: false
+  })
   return deepFreeze(value)
 }
 
@@ -494,16 +653,30 @@ export function loadAggregateDeliveryPackageReference(
   const value = validateAggregateDeliveryPackage(
     JSON.parse(bytes.toString('utf8')) as AggregateDeliveryPackage
   )
+  validatePackageArtifactIdentity(value.artifactRoot, value.packagePath, value.coordinationKey)
   if (value.packagePath !== reference.path || value.packageFingerprint !== reference.fingerprint)
     fail('AGGREGATE_PACKAGE_REFERENCE_BINDING_MISMATCH', value.coordinationKey)
+  const childRoster = loadAggregateDeliveryChildRoster(value.childRoster, value)
   const packages = new Map(
     value.deliveryPackages.map((item) => [
       item.deliveryKey,
       loadDeliveryPackageReference(item, value.executionMode)
     ])
   )
-  validateLoadedDependencyOrder(value, packages)
-  reopenCompletedEvidence(value.execution, AGGREGATE_EVIDENCE_NAMES, value.coordinationKey)
+  validateLoadedDependencyOrder(value, packages, childRoster)
+  reopenCompletedEvidence({
+    execution: value.execution,
+    names: AGGREGATE_EVIDENCE_NAMES,
+    subjectKey: value.coordinationKey,
+    ownerTaskId: value.ownerTaskId,
+    artifactRoot: value.artifactRoot,
+    executionMode: value.executionMode,
+    evidenceGeneration: value.evidenceGeneration,
+    basisFingerprint: value.evidenceBasisFingerprint,
+    candidateSha: value.execution.repository?.aggregateCandidateSha ?? null,
+    operationFingerprint: value.execution.hostLocal?.operationSetFingerprint ?? null,
+    aggregate: true
+  })
   const frozen = deepFreeze(value)
   trustedAggregatePackages.set(frozen, canonicalJson(reference))
   return frozen
@@ -556,38 +729,85 @@ export function renderPackagePrSummary(value: DeliveryPackage | AggregateDeliver
   if (value.kind === 'OES_DELIVERY_PACKAGE') {
     validateDeliveryPackage(value)
     return [
-      '## Delivery Package summary',
-      `- Delivery: \`${value.deliveryKey}\``,
-      `- Objective: ${value.activation.objective}`,
-      `- Acceptance: ${value.activation.acceptance.join('; ')}`,
+      '# Summary',
+      value.activation.objective,
+      '',
+      `- Delivery Package: \`${value.deliveryKey}\``,
       `- Candidate: \`${value.execution.repository?.candidateSha ?? 'host-local'}\``,
-      `- DP fingerprint: \`${value.packageFingerprint}\``
+      `- DP fingerprint: \`${value.packageFingerprint}\``,
+      '',
+      '## Scope',
+      `- Included: ${value.activation.scope.join('; ')}`,
+      `- Excluded: ${value.activation.nonGoals.length ? value.activation.nonGoals.join('; ') : 'None'}`,
+      `- Protected: ${value.activation.protectedScope.join('; ')}`,
+      '',
+      '## Architecture Boundary',
+      `- Owner task: \`${value.ownerTaskId}\``,
+      `- Write set: ${value.activation.writeSet.length ? value.activation.writeSet.join('; ') : 'Host-local; repository write set is empty'}`,
+      `- Bound design sources: ${value.activation.designReferences.length ? `${value.activation.designReferences.length} hash-verified reference(s)` : 'No stable-boundary change declared'}`,
+      '',
+      '## Tenant, Permission, And Audit Impact',
+      `- Control impact is bounded by the confirmed scope and protected scope above; risk level is **${value.activation.risk.level}**.`,
+      `- Risk reasons: ${value.activation.risk.reasons.length ? value.activation.risk.reasons.join('; ') : 'No additional control impact declared'}`,
+      '',
+      '## Verification',
+      `- Acceptance: ${value.activation.acceptance.join('; ')}`,
+      `- Self-test: **${value.execution.selfTest.status}**; RV: **${value.execution.rv.status}**; CI: **${value.execution.ci.status}**; post-check: **${value.execution.postCheck.status}**.`,
+      '',
+      '## Reviewer Notes',
+      `- Remaining risk: ${value.execution.remainingRisk.length ? value.execution.remainingRisk.join('; ') : 'None recorded'}`,
+      `- Rollback: ${value.activation.rollback.join('; ')}`
     ].join('\n')
   }
   validateAggregateDeliveryPackage(value)
   return [
-    '## Aggregate Delivery Package summary',
-    `- Coordination: \`${value.coordinationKey}\``,
-    `- Delivery Packages: ${value.dependencyOrder.map((key) => `\`${key}\``).join(', ')}`,
-    `- Aggregate acceptance: ${value.aggregateAcceptance.join('; ')}`,
+    '# Summary',
+    `Coordinate the complete confirmed delivery set for \`${value.coordinationKey}\`.`,
+    '',
     `- Aggregate candidate: \`${value.execution.repository?.aggregateCandidateSha ?? 'host-local'}\``,
-    `- ADP fingerprint: \`${value.packageFingerprint}\``
+    `- ADP fingerprint: \`${value.packageFingerprint}\``,
+    '',
+    '## Scope',
+    `- Delivery Packages: ${value.dependencyOrder.map((key) => `\`${key}\``).join(', ')}`,
+    `- Integration contract: ${value.integrationContract.join('; ')}`,
+    '',
+    '## Architecture Boundary',
+    `- Coordination owner: \`${value.ownerTaskId}\``,
+    `- Confirmed child roster fingerprint: \`${value.childRoster.fingerprint}\``,
+    '',
+    '## Tenant, Permission, And Audit Impact',
+    '- Aggregate impact is the union of the exact reopened child packages and the integration contract above.',
+    '',
+    '## Verification',
+    `- Aggregate acceptance: ${value.aggregateAcceptance.join('; ')}`,
+    `- Aggregate RV: **${value.execution.aggregateRv.status}**; aggregate CI: **${value.execution.aggregateCi.status}**; post-check: **${value.execution.postCheck.status}**.`,
+    '',
+    '## Reviewer Notes',
+    `- Remaining risk: ${value.execution.remainingRisk.length ? value.execution.remainingRisk.join('; ') : 'None recorded'}`,
+    `- Dependency order: ${value.dependencyOrder.join(' → ')}`
   ].join('\n')
 }
 
-/** Proves package disposal is external to the repository and therefore has an empty repository diff. */
+/** Plans disposal only after reopening the exact owner binding and physical package placement. */
 export function planPackageCleanup(
   value: DeliveryPackage | AggregateDeliveryPackage,
-  repositoryRoot: string | null
-): { packagePath: string; repositoryDiff: []; decision: 'REMOVE_EXTERNAL_PACKAGE' } {
-  if (value.kind === 'OES_DELIVERY_PACKAGE') validateDeliveryPackage(value)
-  else validateAggregateDeliveryPackage(value)
-  if (repositoryRoot !== null) {
-    requireAbsolute(repositoryRoot, 'repositoryRoot')
-    if (isWithin(repositoryRoot, value.packagePath))
-      fail('PACKAGE_CLEANUP_REPOSITORY_PATH_FORBIDDEN', value.packagePath)
-  }
-  return { packagePath: value.packagePath, repositoryDiff: [], decision: 'REMOVE_EXTERNAL_PACKAGE' }
+  ownerBinding: OwnerResourceBinding | null
+): { packagePath: string; decision: 'REMOVE_EXTERNAL_PACKAGE' } {
+  validatePackageCleanupPlacement(value, ownerBinding)
+  return { packagePath: value.packagePath, decision: 'REMOVE_EXTERNAL_PACKAGE' }
+}
+
+/** Verifies actual package absence and an observed empty repository diff after disposal. */
+export function verifyPackageCleanup(
+  value: DeliveryPackage | AggregateDeliveryPackage,
+  ownerBinding: OwnerResourceBinding | null,
+  repositoryDiff: CleanupDiffEntry[]
+): { packagePath: string; repositoryDiff: []; status: 'PACKAGE_CLEANUP_VERIFIED' } {
+  validatePackageCleanupPlacement(value, ownerBinding)
+  if (existsSync(value.packagePath)) fail('PACKAGE_CLEANUP_ABSENCE_NOT_VERIFIED', value.packagePath)
+  if (!Array.isArray(repositoryDiff) || repositoryDiff.length !== 0)
+    fail('PACKAGE_CLEANUP_REPOSITORY_DIFF_NOT_EMPTY', JSON.stringify(repositoryDiff))
+  return { packagePath: value.packagePath, repositoryDiff: [], status: 'PACKAGE_CLEANUP_VERIFIED' }
 }
 
 /** Validates activation-fixed control fields shared by repository and host-local deliveries. */
@@ -629,31 +849,41 @@ function validateActivation(value: DeliveryActivation, mode: DeliveryExecutionMo
   value.designReferences.forEach((item) => validateReference(item, 'activation.designReference'))
   const dependencyKeys = new Set<string>()
   for (const dependency of value.dependencies) {
-    requireExactKeys(
-      dependency,
-      ['deliveryKey', 'acceptedCandidateSha', 'acceptedOperationFingerprint'],
-      'activation.dependency'
-    )
-    if (!KEY.test(dependency.deliveryKey) || dependencyKeys.has(dependency.deliveryKey))
+    validateDependency(dependency, mode, 'activation.dependency')
+    if (dependencyKeys.has(dependency.deliveryKey))
       fail('DELIVERY_PACKAGE_DEPENDENCY_INVALID', dependency.deliveryKey)
-    if (mode === 'REPOSITORY') {
-      if (!dependency.acceptedCandidateSha || !SHA.test(dependency.acceptedCandidateSha))
-        fail('DELIVERY_PACKAGE_DEPENDENCY_CANDIDATE_REQUIRED', dependency.deliveryKey)
-      if (dependency.acceptedOperationFingerprint !== null)
-        fail('DELIVERY_PACKAGE_DEPENDENCY_MODE_MISMATCH', dependency.deliveryKey)
-    } else {
-      if (
-        dependency.acceptedCandidateSha !== null ||
-        !dependency.acceptedOperationFingerprint ||
-        !DIGEST.test(dependency.acceptedOperationFingerprint)
-      )
-        fail('DELIVERY_PACKAGE_DEPENDENCY_OPERATION_REQUIRED', dependency.deliveryKey)
-    }
     dependencyKeys.add(dependency.deliveryKey)
   }
   requireExactKeys(value.risk, ['level', 'reasons'], 'activation.risk')
   if (!['LOW', 'MEDIUM', 'HIGH'].includes(value.risk.level) || !Array.isArray(value.risk.reasons))
     fail('DELIVERY_PACKAGE_RISK_INVALID', value.objective)
+}
+
+/** Validates one exact internal or explicitly external delivery dependency identity. */
+function validateDependency(
+  dependency: DeliveryPackageDependency,
+  mode: DeliveryExecutionMode,
+  field: string
+): void {
+  requireExactKeys(
+    dependency,
+    ['deliveryKey', 'acceptedCandidateSha', 'acceptedOperationFingerprint'],
+    field
+  )
+  if (!KEY.test(dependency.deliveryKey))
+    fail('DELIVERY_PACKAGE_DEPENDENCY_INVALID', dependency.deliveryKey)
+  if (mode === 'REPOSITORY') {
+    if (!dependency.acceptedCandidateSha || !SHA.test(dependency.acceptedCandidateSha))
+      fail('DELIVERY_PACKAGE_DEPENDENCY_CANDIDATE_REQUIRED', dependency.deliveryKey)
+    if (dependency.acceptedOperationFingerprint !== null)
+      fail('DELIVERY_PACKAGE_DEPENDENCY_MODE_MISMATCH', dependency.deliveryKey)
+  } else if (
+    dependency.acceptedCandidateSha !== null ||
+    !dependency.acceptedOperationFingerprint ||
+    !DIGEST.test(dependency.acceptedOperationFingerprint)
+  ) {
+    fail('DELIVERY_PACKAGE_DEPENDENCY_OPERATION_REQUIRED', dependency.deliveryKey)
+  }
 }
 
 /** Enforces mutually exclusive repository and host-local execution state. */
@@ -682,7 +912,11 @@ function validateDeliveryExecution(
   const slices = new Set<string>()
   for (const slice of value.slices) {
     requireExactKeys(slice, ['sliceId', 'status'], 'deliveryExecution.slice')
-    if (!slice.sliceId || slices.has(slice.sliceId) || !['PENDING', 'COMPLETE'].includes(slice.status))
+    if (
+      !slice.sliceId ||
+      slices.has(slice.sliceId) ||
+      !['PENDING', 'COMPLETE'].includes(slice.status)
+    )
       fail('DELIVERY_PACKAGE_SLICE_INVALID', slice.sliceId)
     slices.add(slice.sliceId)
   }
@@ -692,8 +926,7 @@ function validateDeliveryExecution(
     if (!value.repository || value.hostLocal !== null)
       fail('DELIVERY_PACKAGE_REPOSITORY_STATE_REQUIRED', key)
     validateRepositoryState(value.repository, key)
-    if (value.ci.status === 'NOT_APPLICABLE')
-      fail('DELIVERY_PACKAGE_REPOSITORY_CI_REQUIRED', key)
+    if (value.ci.status === 'NOT_APPLICABLE') fail('DELIVERY_PACKAGE_REPOSITORY_CI_REQUIRED', key)
   } else {
     if (!value.hostLocal || value.repository !== null)
       fail('HOST_LOCAL_PACKAGE_STATE_REQUIRED', key)
@@ -862,19 +1095,78 @@ function validatePackageReference(
     fail('AGGREGATE_PACKAGE_DP_MODE_MISMATCH', value.deliveryKey)
 }
 
+/** Reopens the exact confirmed CO child roster and checks it covers every ADP child once. */
+function loadAggregateDeliveryChildRoster(
+  reference: TrustedAuthorizationReference,
+  aggregate: AggregateDeliveryPackage
+): AggregateDeliveryChildRoster {
+  validateReference(reference, 'aggregateDeliveryPackage.childRoster')
+  if (!isWithin(aggregate.artifactRoot, reference.path))
+    fail('AGGREGATE_CHILD_ROSTER_OUTSIDE_ARTIFACT_ROOT', aggregate.coordinationKey)
+  const rosterPhysical = requireExactPhysicalPath(
+    reference.path,
+    'aggregateDeliveryPackage.childRoster.path',
+    physicalIdentityForPotentialPath
+  )
+  const artifactPhysical = requireExactPhysicalPath(
+    aggregate.artifactRoot,
+    'aggregateDeliveryPackage.artifactRoot',
+    physicalIdentityForPotentialPath
+  )
+  if (!isWithin(artifactPhysical, rosterPhysical))
+    fail('AGGREGATE_CHILD_ROSTER_OUTSIDE_ARTIFACT_ROOT', aggregate.coordinationKey)
+  const bytes = readFileSync(reference.path)
+  if (sha256(bytes) !== reference.sha256)
+    fail('AGGREGATE_CHILD_ROSTER_SHA_MISMATCH', aggregate.coordinationKey)
+  const roster = validateAggregateDeliveryChildRoster(
+    JSON.parse(bytes.toString('utf8')) as AggregateDeliveryChildRoster
+  )
+  if (
+    roster.rosterFingerprint !== reference.fingerprint ||
+    roster.confirmationFingerprint !== aggregate.confirmationFingerprint ||
+    roster.coordinationKey !== aggregate.coordinationKey ||
+    roster.ownerTaskId !== aggregate.ownerTaskId ||
+    roster.executionMode !== aggregate.executionMode
+  )
+    fail('AGGREGATE_CHILD_ROSTER_BINDING_MISMATCH', aggregate.coordinationKey)
+  const expected = [...roster.deliveries]
+    .map((item) => `${item.deliveryKey}:${item.ownerTaskId}`)
+    .sort()
+  const actual = [...aggregate.deliveryPackages]
+    .map((item) => `${item.deliveryKey}:${item.ownerTaskId}`)
+    .sort()
+  if (expected.length !== actual.length || expected.some((item, index) => item !== actual[index]))
+    fail('AGGREGATE_CHILD_ROSTER_COVERAGE_MISMATCH', aggregate.coordinationKey)
+  return roster
+}
+
 /** Verifies each internal DP dependency is present earlier and bound to the accepted identity. */
 function validateLoadedDependencyOrder(
   aggregate: AggregateDeliveryPackage,
-  packages: Map<string, DeliveryPackage>
+  packages: Map<string, DeliveryPackage>,
+  roster: AggregateDeliveryChildRoster
 ): void {
   const positions = new Map(aggregate.dependencyOrder.map((key, index) => [key, index]))
   const references = new Map(aggregate.deliveryPackages.map((item) => [item.deliveryKey, item]))
+  const external = new Map(roster.externalDependencies.map((item) => [item.deliveryKey, item]))
   for (const [deliveryKey, value] of packages) {
     const position = positions.get(deliveryKey)
     if (position === undefined) fail('AGGREGATE_PACKAGE_DEPENDENCY_ORDER_INVALID', deliveryKey)
     for (const dependency of value.activation.dependencies) {
       const dependencyPosition = positions.get(dependency.deliveryKey)
-      if (dependencyPosition === undefined) continue
+      if (dependencyPosition === undefined) {
+        const accepted = external.get(dependency.deliveryKey)
+        if (
+          !accepted ||
+          dependency.acceptedCandidateSha !== accepted.acceptedCandidateSha ||
+          dependency.acceptedOperationFingerprint !== accepted.acceptedOperationFingerprint
+        )
+          fail(
+            'AGGREGATE_PACKAGE_UNDECLARED_EXTERNAL_DEPENDENCY',
+            `${deliveryKey}:${dependency.deliveryKey}`
+          )
+        continue
+      }
       const reference = references.get(dependency.deliveryKey)
       if (
         dependencyPosition >= position ||
@@ -912,6 +1204,7 @@ function aggregateEvidenceBasis(
   value: Pick<
     AggregateDeliveryPackage,
     | 'executionMode'
+    | 'childRoster'
     | 'deliveryPackages'
     | 'dependencyOrder'
     | 'integrationContract'
@@ -922,6 +1215,7 @@ function aggregateEvidenceBasis(
   return objectFingerprint(
     {
       executionMode: value.executionMode,
+      childRoster: value.childRoster,
       deliveryPackages: value.deliveryPackages,
       dependencyOrder: value.dependencyOrder,
       integrationContract: value.integrationContract,
@@ -943,7 +1237,8 @@ function deliveryInvalidationReasons(
   const reasons: string[] = []
   if (
     canonicalJson(previous.activation.scope) !== canonicalJson(next.activation.scope) ||
-    canonicalJson(previous.activation.protectedScope) !== canonicalJson(next.activation.protectedScope)
+    canonicalJson(previous.activation.protectedScope) !==
+      canonicalJson(next.activation.protectedScope)
   )
     reasons.push('SCOPE_CHANGED')
   if (
@@ -958,13 +1253,11 @@ function deliveryInvalidationReasons(
   if (
     previous.executionMode !== next.executionMode ||
     previous.execution.repository?.candidateSha !== next.execution.repository?.candidateSha ||
-    previous.execution.hostLocal?.operationFingerprint !== next.execution.hostLocal?.operationFingerprint
+    previous.execution.hostLocal?.operationFingerprint !==
+      next.execution.hostLocal?.operationFingerprint
   )
     reasons.push('CANDIDATE_CHANGED')
-  if (
-    previous.activationFingerprint !== activationFingerprint &&
-    reasons.length === 0
-  )
+  if (previous.activationFingerprint !== activationFingerprint && reasons.length === 0)
     reasons.push('ACTIVATION_CHANGED')
   if (previous.evidenceBasisFingerprint !== basis && reasons.length === 0)
     reasons.push('EVIDENCE_BASIS_CHANGED')
@@ -977,6 +1270,7 @@ function aggregateInvalidationReasons(
   next: Pick<
     AggregateDeliveryPackage,
     | 'deliveryPackages'
+    | 'childRoster'
     | 'dependencyOrder'
     | 'integrationContract'
     | 'aggregateAcceptance'
@@ -986,6 +1280,8 @@ function aggregateInvalidationReasons(
   basis: string
 ): string[] {
   const reasons: string[] = []
+  if (canonicalJson(previous.childRoster) !== canonicalJson(next.childRoster))
+    reasons.push('CHILD_ROSTER_CHANGED')
   if (canonicalJson(previous.deliveryPackages) !== canonicalJson(next.deliveryPackages))
     reasons.push('DELIVERY_PACKAGE_SET_CHANGED')
   if (canonicalJson(previous.dependencyOrder) !== canonicalJson(next.dependencyOrder))
@@ -1006,11 +1302,7 @@ function aggregateInvalidationReasons(
 }
 
 /** Marks previously applicable evidence invalid and binds its replacement slot to the new basis. */
-function invalidateEvidence(
-  execution: object,
-  names: readonly string[],
-  basis: string
-): void {
+function invalidateEvidence(execution: object, names: readonly string[], basis: string): void {
   const record = execution as Record<string, unknown>
   for (const name of names) {
     const evidence = record[name] as DeliveryEvidence
@@ -1020,11 +1312,7 @@ function invalidateEvidence(
 }
 
 /** Fills pending evidence slots with the exact current basis without altering completed evidence. */
-function normalizeEvidenceBasis(
-  execution: object,
-  names: readonly string[],
-  basis: string
-): void {
+function normalizeEvidenceBasis(execution: object, names: readonly string[], basis: string): void {
   const record = execution as Record<string, unknown>
   for (const name of names) {
     const evidence = record[name] as DeliveryEvidence
@@ -1060,25 +1348,239 @@ function validateEvidenceBindings(
   }
 }
 
-/** Reopens every completed evidence record and verifies its exact bytes and self-fingerprint. */
-function reopenCompletedEvidence(execution: object, names: readonly string[], ownerKey: string): void {
-  const record = execution as Record<string, unknown>
-  for (const name of names) {
+/** Seals a typed evidence envelope that binds verdict and artifacts to one exact package basis. */
+export function createPackageEvidenceRecord(
+  draft: Omit<PackageEvidenceRecord, 'schemaVersion' | 'kind' | 'evidenceFingerprint'>
+): PackageEvidenceRecord {
+  const raw: Omit<PackageEvidenceRecord, 'evidenceFingerprint'> = {
+    schemaVersion: 2,
+    kind: 'OES_PACKAGE_EVIDENCE',
+    evidenceType: draft.evidenceType,
+    subjectKey: draft.subjectKey,
+    ownerTaskId: draft.ownerTaskId,
+    reviewerTaskId: draft.reviewerTaskId,
+    executionMode: draft.executionMode,
+    evidenceGeneration: draft.evidenceGeneration,
+    basisFingerprint: draft.basisFingerprint,
+    candidateSha: draft.candidateSha,
+    operationFingerprint: draft.operationFingerprint,
+    result: draft.result,
+    sourceArtifacts: clone(draft.sourceArtifacts)
+  }
+  return validatePackageEvidenceRecord({
+    ...raw,
+    evidenceFingerprint: objectFingerprint(raw as unknown as Record<string, unknown>, '__none__')
+  })
+}
+
+/** Validates and rehashes one typed package evidence envelope and all of its source artifacts. */
+export function validatePackageEvidenceRecord(value: PackageEvidenceRecord): PackageEvidenceRecord {
+  requireExactKeys(
+    value,
+    [
+      'schemaVersion',
+      'kind',
+      'evidenceFingerprint',
+      'evidenceType',
+      'subjectKey',
+      'ownerTaskId',
+      'reviewerTaskId',
+      'executionMode',
+      'evidenceGeneration',
+      'basisFingerprint',
+      'candidateSha',
+      'operationFingerprint',
+      'result',
+      'sourceArtifacts'
+    ],
+    'packageEvidenceRecord'
+  )
+  const rvEvidence = ['RV', 'AGGREGATE_RV'].includes(value.evidenceType)
+  if (
+    value.schemaVersion !== 2 ||
+    value.kind !== 'OES_PACKAGE_EVIDENCE' ||
+    !Object.values(EVIDENCE_TYPES).includes(value.evidenceType) ||
+    !KEY.test(value.subjectKey) ||
+    !TASK.test(value.ownerTaskId) ||
+    (rvEvidence
+      ? !value.reviewerTaskId ||
+        !TASK.test(value.reviewerTaskId) ||
+        value.reviewerTaskId === value.ownerTaskId
+      : value.reviewerTaskId !== null) ||
+    !['REPOSITORY', 'HOST_LOCAL'].includes(value.executionMode) ||
+    !Number.isSafeInteger(value.evidenceGeneration) ||
+    value.evidenceGeneration < 1 ||
+    !DIGEST.test(value.basisFingerprint) ||
+    !['PASSED', 'FAILED'].includes(value.result) ||
+    !Array.isArray(value.sourceArtifacts) ||
+    value.sourceArtifacts.length === 0
+  )
+    fail('PACKAGE_EVIDENCE_RECORD_INVALID', value.subjectKey)
+  if (
+    (value.executionMode === 'REPOSITORY' &&
+      (!value.candidateSha ||
+        !SHA.test(value.candidateSha) ||
+        value.operationFingerprint !== null)) ||
+    (value.executionMode === 'HOST_LOCAL' &&
+      (value.candidateSha !== null ||
+        !value.operationFingerprint ||
+        !DIGEST.test(value.operationFingerprint)))
+  )
+    fail('PACKAGE_EVIDENCE_IDENTITY_INVALID', value.subjectKey)
+  const paths = new Set<string>()
+  for (const artifact of value.sourceArtifacts) {
+    requireExactKeys(artifact, ['path', 'sha256'], 'packageEvidence.sourceArtifact')
+    if (
+      !isAbsolute(artifact.path) ||
+      resolve(artifact.path) !== artifact.path ||
+      !DIGEST.test(artifact.sha256) ||
+      paths.has(artifact.path)
+    )
+      fail('PACKAGE_EVIDENCE_SOURCE_INVALID', artifact.path)
+    const bytes = readFileSync(artifact.path)
+    if (sha256(bytes) !== artifact.sha256)
+      fail('PACKAGE_EVIDENCE_SOURCE_SHA_MISMATCH', artifact.path)
+    paths.add(artifact.path)
+  }
+  if (
+    !DIGEST.test(value.evidenceFingerprint) ||
+    value.evidenceFingerprint !==
+      objectFingerprint(value as unknown as Record<string, unknown>, 'evidenceFingerprint')
+  )
+    fail('PACKAGE_EVIDENCE_REFERENCE_FINGERPRINT_MISMATCH', value.subjectKey)
+  return value
+}
+
+interface EvidenceReopenContext {
+  execution: object
+  names: readonly string[]
+  subjectKey: string
+  ownerTaskId: string
+  artifactRoot: string
+  executionMode: DeliveryExecutionMode
+  evidenceGeneration: number
+  basisFingerprint: string
+  candidateSha: string | null
+  operationFingerprint: string | null
+  aggregate: boolean
+}
+
+/** Reopens every completed typed evidence record and checks exact package applicability. */
+function reopenCompletedEvidence(context: EvidenceReopenContext): void {
+  const record = context.execution as Record<string, unknown>
+  for (const name of context.names) {
     const evidence = record[name] as DeliveryEvidence
     if (!['PASSED', 'FAILED'].includes(evidence.status) || !evidence.evidence) continue
     const reference = evidence.evidence
+    if (!isWithin(context.artifactRoot, reference.path))
+      fail('PACKAGE_EVIDENCE_OUTSIDE_ARTIFACT_ROOT', `${context.subjectKey}:${name}`)
+    const artifactPhysical = requireExactPhysicalPath(
+      context.artifactRoot,
+      'packageEvidence.artifactRoot',
+      physicalIdentityForPotentialPath
+    )
+    const evidencePhysical = requireExactPhysicalPath(
+      reference.path,
+      'packageEvidence.path',
+      physicalIdentityForPotentialPath
+    )
+    if (!isWithin(artifactPhysical, evidencePhysical))
+      fail('PACKAGE_EVIDENCE_OUTSIDE_ARTIFACT_ROOT', `${context.subjectKey}:${name}`)
     const bytes = readFileSync(reference.path)
     if (sha256(bytes) !== reference.sha256)
-      fail('PACKAGE_EVIDENCE_REFERENCE_SHA_MISMATCH', `${ownerKey}:${name}`)
-    const value = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>
-    const fingerprintField = Object.keys(value).find(
-      (field) =>
-        value[field] === reference.fingerprint &&
-        objectFingerprint(value, field) === reference.fingerprint
+      fail('PACKAGE_EVIDENCE_REFERENCE_SHA_MISMATCH', `${context.subjectKey}:${name}`)
+    const parsed = JSON.parse(bytes.toString('utf8')) as PackageEvidenceRecord
+    if (
+      !Array.isArray(parsed.sourceArtifacts) ||
+      parsed.sourceArtifacts.some(
+        (artifact) =>
+          !artifact ||
+          typeof artifact.path !== 'string' ||
+          !isWithin(context.artifactRoot, artifact.path)
+      )
     )
-    if (!fingerprintField)
-      fail('PACKAGE_EVIDENCE_REFERENCE_FINGERPRINT_MISMATCH', `${ownerKey}:${name}`)
+      fail('PACKAGE_EVIDENCE_SOURCE_OUTSIDE_ARTIFACT_ROOT', `${context.subjectKey}:${name}`)
+    for (const source of parsed.sourceArtifacts) {
+      const sourcePhysical = requireExactPhysicalPath(
+        source.path,
+        'packageEvidence.sourceArtifact.path',
+        physicalIdentityForPotentialPath
+      )
+      if (!isWithin(artifactPhysical, sourcePhysical))
+        fail('PACKAGE_EVIDENCE_SOURCE_OUTSIDE_ARTIFACT_ROOT', `${context.subjectKey}:${name}`)
+    }
+    const value = validatePackageEvidenceRecord(parsed)
+    const expectedType =
+      context.aggregate && name === 'postCheck' ? 'AGGREGATE_POST_CHECK' : EVIDENCE_TYPES[name]
+    if (
+      value.evidenceFingerprint !== reference.fingerprint ||
+      value.evidenceType !== expectedType ||
+      value.subjectKey !== context.subjectKey ||
+      value.ownerTaskId !== context.ownerTaskId ||
+      value.executionMode !== context.executionMode ||
+      value.evidenceGeneration !== context.evidenceGeneration ||
+      value.basisFingerprint !== context.basisFingerprint ||
+      value.candidateSha !== context.candidateSha ||
+      value.operationFingerprint !== context.operationFingerprint ||
+      value.result !== evidence.status
+    )
+      fail('PACKAGE_EVIDENCE_APPLICABILITY_MISMATCH', `${context.subjectKey}:${name}`)
   }
+}
+
+/** Binds package cleanup to the trusted owner and rejects every physical repository alias. */
+function validatePackageCleanupPlacement(
+  value: DeliveryPackage | AggregateDeliveryPackage,
+  ownerBinding: OwnerResourceBinding | null
+): void {
+  if (value.kind === 'OES_DELIVERY_PACKAGE') validateDeliveryPackage(value)
+  else validateAggregateDeliveryPackage(value)
+  const { artifactPhysical, packagePhysical } = validatePackageArtifactIdentity(
+    value.artifactRoot,
+    value.packagePath,
+    value.kind === 'OES_DELIVERY_PACKAGE' ? value.deliveryKey : value.coordinationKey
+  )
+  if (value.executionMode === 'HOST_LOCAL') {
+    if (ownerBinding !== null)
+      fail('HOST_LOCAL_PACKAGE_REPOSITORY_BINDING_FORBIDDEN', value.ownerTaskId)
+    return
+  }
+  if (!ownerBinding) fail('PACKAGE_CLEANUP_OWNER_BINDING_REQUIRED', value.ownerTaskId)
+  requireTrustedOwnerResourceBinding(ownerBinding)
+  const repositoryPhysical = requireExactPhysicalPath(
+    ownerBinding.repositoryRoot,
+    'ownerBinding.repositoryRoot',
+    physicalIdentityForPotentialPath
+  )
+  if (
+    ownerBinding.ownerTaskId !== value.ownerTaskId ||
+    ownerBinding.artifactRoot !== value.artifactRoot ||
+    ownerBinding.deliveryPackagePath !== value.packagePath
+  )
+    fail('PACKAGE_CLEANUP_OWNER_BINDING_MISMATCH', value.ownerTaskId)
+  if (isWithin(repositoryPhysical, packagePhysical))
+    fail('PACKAGE_CLEANUP_REPOSITORY_PATH_FORBIDDEN', value.packagePath)
+}
+
+/** Reopens one package and stable root as exact physical identities. */
+function validatePackageArtifactIdentity(
+  artifactRoot: string,
+  packagePath: string,
+  subjectKey: string
+): { artifactPhysical: string; packagePhysical: string } {
+  const artifactPhysical = requireExactPhysicalPath(
+    artifactRoot,
+    'package.artifactRoot',
+    physicalIdentityForPotentialPath
+  )
+  const packagePhysical = requireExactPhysicalPath(
+    packagePath,
+    'package.packagePath',
+    physicalIdentityForPotentialPath
+  )
+  if (!isWithin(artifactPhysical, packagePhysical))
+    fail('PACKAGE_ARTIFACT_BINDING_MISMATCH', subjectKey)
+  return { artifactPhysical, packagePhysical }
 }
 
 /** Validates one package's absolute external artifact location. */
@@ -1103,7 +1605,12 @@ function requireAbsolute(value: string, field: string): void {
 /** Validates one trusted evidence reference shape. */
 function validateReference(value: TrustedAuthorizationReference, field: string): void {
   requireExactKeys(value, ['path', 'sha256', 'fingerprint'], field)
-  if (!isAbsolute(value.path) || !DIGEST.test(value.sha256) || !DIGEST.test(value.fingerprint))
+  if (
+    !isAbsolute(value.path) ||
+    resolve(value.path) !== value.path ||
+    !DIGEST.test(value.sha256) ||
+    !DIGEST.test(value.fingerprint)
+  )
     fail('PACKAGE_REFERENCE_INVALID', field)
 }
 

@@ -2,13 +2,16 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { validateCoordinationCleanupAuthorization } from '../cleanup-binding.ts'
 import {
+  createCoordinationCleanupResultSet,
   planChildSelfCleanup,
+  validateCoordinationCleanupResultSet,
   verifyChildCleanupResults,
   verifyCleanupProducesNoRepositoryDiff
 } from '../cleanup.ts'
 import { validateJsonSchema } from '../schema-validation.ts'
-import { readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import {
   cleanupAuthorization,
   trustedChildCleanupAuthorization,
@@ -25,6 +28,12 @@ const schema = JSON.parse(
       'schemas',
       'coordination-cleanup-authorization.schema.json'
     ),
+    'utf8'
+  )
+) as Record<string, unknown>
+const resultSchema = JSON.parse(
+  readFileSync(
+    join(import.meta.dirname, '..', '..', 'schemas', 'coordination-cleanup-result-set.schema.json'),
     'utf8'
   )
 ) as Record<string, unknown>
@@ -62,26 +71,24 @@ test('cleanup structurally permits no repository-content diff', () => {
 
 test('coordination verification requires every child resource to be observed absent', () => {
   const value = trustedCleanupAuthorization()
-  const results = Object.fromEntries(
-    [
-      ...value.terminalDeliveries.map((delivery) => [
+  const results = Object.fromEntries([
+    ...value.terminalDeliveries.map((delivery) => [
+      delivery.ownerTaskId,
+      planChildSelfCleanup(
+        value,
         delivery.ownerTaskId,
-        planChildSelfCleanup(
-          value,
-          delivery.ownerTaskId,
-          delivery.resources.map((resource) => observation(resource, false))
-        )
-      ]),
-      [
+        delivery.resources.map((resource) => observation(resource, false))
+      )
+    ]),
+    [
+      value.coordinationOwner.ownerTaskId,
+      planChildSelfCleanup(
+        value,
         value.coordinationOwner.ownerTaskId,
-        planChildSelfCleanup(
-          value,
-          value.coordinationOwner.ownerTaskId,
-          value.coordinationOwner.resources.map((resource) => observation(resource, false))
-        )
-      ]
+        value.coordinationOwner.resources.map((resource) => observation(resource, false))
+      )
     ]
-  )
+  ])
   verifyChildCleanupResults(value, results)
   results[value.terminalDeliveries[0].ownerTaskId][0].decision = 'PRESERVE_FAILURE'
   assert.throws(
@@ -136,7 +143,9 @@ test('trusted owner binding defeats /etc, arbitrary temp, aliases, and forged ne
   for (const path of ['/etc', '/var/tmp/unrelated-cleanup']) {
     const value = cleanupAuthorization()
     const delivery = value.terminalDeliveries[0]
-    const resource = delivery.resources.find((item) => item.kind === (path === '/etc' ? 'worktree' : 'task-temp'))
+    const resource = delivery.resources.find(
+      (item) => item.kind === (path === '/etc' ? 'worktree' : 'task-temp')
+    )
     if (!resource) throw new Error('cleanup fixture resource absent')
     resource.path = path
     value.authorizationFingerprint = objectFingerprint(
@@ -185,6 +194,66 @@ test('cleanup verification requires the complete CO aggregate resource result se
   )
   assert.throws(
     () => verifyChildCleanupResults(value, results),
+    /COORDINATION_CLEANUP_CHILD_SET_MISMATCH/
+  )
+})
+
+test('cleanup loader rejects a bound owner target replaced by a physical symlink alias', () => {
+  const value = cleanupAuthorization()
+  const worktree = value.terminalDeliveries[0].resources.find((item) => item.kind === 'worktree')
+  if (!worktree) throw new Error('worktree fixture absent')
+  mkdirSync(join(worktree.path, '..'), { recursive: true })
+  symlinkSync(mkdtempSync(join(tmpdir(), 'oes-cleanup-non-owner-')), worktree.path)
+  assert.throws(() => trustedCleanupAuthorization(value), /OWNER_RESOURCE_PHYSICAL_PATH_ALIAS/)
+
+  const loaded = trustedCleanupAuthorization()
+  const delivery = loaded.terminalDeliveries[0]
+  const loadedWorktree = delivery.resources.find((item) => item.kind === 'worktree')
+  if (!loadedWorktree) throw new Error('loaded worktree fixture absent')
+  mkdirSync(join(loadedWorktree.path, '..'), { recursive: true })
+  symlinkSync(mkdtempSync(join(tmpdir(), 'oes-cleanup-late-alias-')), loadedWorktree.path)
+  assert.throws(
+    () =>
+      planChildSelfCleanup(
+        loaded,
+        delivery.ownerTaskId,
+        delivery.resources.map((resource) => observation(resource))
+      ),
+    /OWNER_RESOURCE_PHYSICAL_PATH_ALIAS/
+  )
+})
+
+test('cleanup result set seals the exact child-plus-CO absence and zero-diff proof', () => {
+  const value = trustedCleanupAuthorization()
+  const results = Object.fromEntries([
+    ...value.terminalDeliveries.map((delivery) => [
+      delivery.ownerTaskId,
+      planChildSelfCleanup(
+        value,
+        delivery.ownerTaskId,
+        delivery.resources.map((resource) => observation(resource, false))
+      )
+    ]),
+    [
+      value.coordinationOwner.ownerTaskId,
+      planChildSelfCleanup(
+        value,
+        value.coordinationOwner.ownerTaskId,
+        value.coordinationOwner.resources.map((resource) => observation(resource, false))
+      )
+    ]
+  ])
+  const result = createCoordinationCleanupResultSet(value, results, [])
+  validateCoordinationCleanupResultSet(value, result)
+  validateJsonSchema(resultSchema, result)
+  const missingOwner = structuredClone(result)
+  delete missingOwner.resultsByOwner[value.coordinationOwner.ownerTaskId]
+  missingOwner.resultSetFingerprint = objectFingerprint(
+    missingOwner as unknown as Record<string, unknown>,
+    'resultSetFingerprint'
+  )
+  assert.throws(
+    () => validateCoordinationCleanupResultSet(value, missingOwner),
     /COORDINATION_CLEANUP_CHILD_SET_MISMATCH/
   )
 })

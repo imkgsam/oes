@@ -84,11 +84,11 @@ Human 确认 exact Proposal preview 后，DA 才形成 immutable Proposal 并提
 <owner-task-stable-artifact-root>/delivery-package.json
 ```
 
-DP 只保存 activation-fixed objective、scope/protected scope、dependencies、acceptance、risk、rollback，以及 execution slices、candidate/self-test/RV/CI/PR、remaining risk 和 cleanup state。只有 exact DO 写自己的 DP；状态原位覆盖，不写执行流水、task 消息或重复日志。
+DP 只保存 activation-fixed objective、scope/protected scope、dependencies、acceptance、risk、rollback，以及 execution slices、candidate/self-test/RV/CI/PR、remaining risk 和 cleanup state。已完成的 evidence 必须通过 typed envelope 绑定 evidence type、verdict、owner/reviewer、evidence generation、当前 basis、exact candidate/operation 与 source artifact hashes；只匹配任意自指纹或重新贴状态不构成可复用证据。只有 exact DO 写自己的 DP；状态原位覆盖，不写执行流水、task 消息或重复日志。
 
-CO 的 decomposition、dependency order、integration contract、aggregate acceptance、scoped RV references 与 aggregate candidate 保存在 CO stable artifact root 的 ADP。ADP 绑定每个 DO DP、accepted candidate SHA、aggregate RV/CI、merge、post-check 与 cleanup。CO 默认生成一个 aggregate branch/PR；若 Human 明确确认 independently releasable 的 independent-PR exception，各 DO DP 仍分别绑定各自 candidate/PR。
+CO 的 decomposition、dependency order、integration contract、aggregate acceptance、scoped RV references 与 aggregate candidate 保存在 CO stable artifact root 的 ADP。ADP 重开 Human-confirmed complete child roster，精确覆盖每个内部 DO DP，并把外部 dependency 作为独立 accepted identity 显式声明；缺失内部 child/dependency 时不得生成 Aggregate RV input。ADP 另绑定 accepted candidate SHA、aggregate RV/CI、merge、post-check 与 cleanup。CO 默认生成一个 aggregate branch/PR；若 Human 明确确认 independently releasable 的 independent-PR exception，各 DO DP 仍分别绑定各自 candidate/PR。
 
-Repository merge 和 main verification完成后，DP/ADP 进入 terminal lifecycle disposal；删除 package 属于零新增内容的 cleanup 边界，不得借 cleanup 产生产品修改或其他 repository diff。
+Repository merge 和 main verification完成后，DP/ADP 进入 terminal lifecycle disposal；repository-mode package cleanup 必须重开 exact owner binding，确认 package 的 physical path 位于 bound repository 之外，并在删除后实际验证 package absent 与 repository diff 为空。Host-local package cleanup 使用显式 repository-free contract。删除 package 属于零新增内容的 cleanup 边界，不得借 cleanup 产生产品修改或其他 repository diff。
 
 ## 6. Host-local work
 

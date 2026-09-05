@@ -17,6 +17,7 @@
     "artifactRoot",
     "packagePath",
     "confirmationFingerprint",
+    "childRoster",
     "deliveryPackages",
     "dependencyOrder",
     "integrationContract",
@@ -44,6 +45,7 @@
       "pattern": "^/.+/aggregate-delivery-package\\.json$"
     },
     "confirmationFingerprint": { "$ref": "#/$defs/digest" },
+    "childRoster": { "$ref": "#/$defs/reference" },
     "deliveryPackages": {
       "type": "array",
       "minItems": 2,

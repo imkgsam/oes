@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/package-evidence-v2.json",
+  "title": "OES V2 typed package evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "evidenceFingerprint",
+    "evidenceType",
+    "subjectKey",
+    "ownerTaskId",
+    "reviewerTaskId",
+    "executionMode",
+    "evidenceGeneration",
+    "basisFingerprint",
+    "candidateSha",
+    "operationFingerprint",
+    "result",
+    "sourceArtifacts"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "kind": { "const": "OES_PACKAGE_EVIDENCE" },
+    "evidenceFingerprint": { "$ref": "#/$defs/digest" },
+    "evidenceType": {
+      "enum": [
+        "SELF_TEST",
+        "RV",
+        "CI",
+        "POST_CHECK",
+        "AGGREGATE_RV",
+        "AGGREGATE_CI",
+        "AGGREGATE_POST_CHECK"
+      ]
+    },
+    "subjectKey": { "$ref": "#/$defs/key" },
+    "ownerTaskId": { "$ref": "#/$defs/token" },
+    "reviewerTaskId": { "type": ["string", "null"], "minLength": 1 },
+    "executionMode": { "enum": ["REPOSITORY", "HOST_LOCAL"] },
+    "evidenceGeneration": { "type": "integer", "minimum": 1 },
+    "basisFingerprint": { "$ref": "#/$defs/digest" },
+    "candidateSha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" },
+    "operationFingerprint": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+    "result": { "enum": ["PASSED", "FAILED"] },
+    "sourceArtifacts": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/artifact" }
+    }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "key": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "token": { "type": "string", "minLength": 1 },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^/" },
+        "sha256": { "$ref": "#/$defs/digest" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "executionMode": { "const": "REPOSITORY" } } },
+      "then": {
+        "properties": {
+          "candidateSha": { "$ref": "#/$defs/sha" },
+          "operationFingerprint": { "const": null }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "executionMode": { "const": "HOST_LOCAL" } } },
+      "then": {
+        "properties": {
+          "candidateSha": { "const": null },
+          "operationFingerprint": { "$ref": "#/$defs/digest" }
+        }
+      }
+    }
+  ]
+}

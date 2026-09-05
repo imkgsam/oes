@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test, { type TestContext } from 'node:test'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -78,7 +78,7 @@ function integrationFixture(
   t: TestContext,
   prTopology: 'AGGREGATE' | 'INDEPENDENT' = 'AGGREGATE'
 ): IntegrationFixture {
-  const root = mkdtempSync(join(tmpdir(), 'oes-co-integration-test-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'oes-co-integration-test-')))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   const repositoryRoot = join(root, 'owner')
   const artifactRoot = join(root, 'artifacts')
@@ -292,7 +292,10 @@ const integrated = (
 
 test('CO readiness reopens protected authorization/RV/results and verifies a real Git merge chain', (t) => {
   const fixture = integrationFixture(t)
-  validateJsonSchema(schema('coordination-integration-authorization.schema.json'), fixture.authorization)
+  validateJsonSchema(
+    schema('coordination-integration-authorization.schema.json'),
+    fixture.authorization
+  )
   fixture.scopedRvRecords.forEach((value) =>
     validateJsonSchema(schema('coordination-scoped-rv-result.schema.json'), value)
   )
@@ -302,21 +305,13 @@ test('CO readiness reopens protected authorization/RV/results and verifies a rea
   )
   const empty = loadResults(fixture, loaded.authorization, 'results-empty.json', [])
   assert.equal(
-    planCoordinationIntegration(
-      loaded.authorization,
-      empty,
-      loaded.repositoryRoot
-    ).nextItem?.deliveryKey,
+    planCoordinationIntegration(loaded.authorization, empty, loaded.repositoryRoot).nextItem
+      ?.deliveryKey,
     'api'
   )
 
   git(fixture.repositoryRoot, ['checkout', 'main'])
-  git(fixture.repositoryRoot, [
-    'branch',
-    '-f',
-    'codex/coordination/release',
-    fixture.mergeShas[0]
-  ])
+  git(fixture.repositoryRoot, ['branch', '-f', 'codex/coordination/release', fixture.mergeShas[0]])
   const first = loadResults(fixture, loaded.authorization, 'results-first.json', [
     integrated(fixture, 0, fixture.mergeShas[0])
   ])
@@ -326,21 +321,12 @@ test('CO readiness reopens protected authorization/RV/results and verifies a rea
     'web'
   )
 
-  git(fixture.repositoryRoot, [
-    'branch',
-    '-f',
-    'codex/coordination/release',
-    fixture.mergeShas[1]
-  ])
+  git(fixture.repositoryRoot, ['branch', '-f', 'codex/coordination/release', fixture.mergeShas[1]])
   const complete = loadResults(fixture, loaded.authorization, 'results-complete.json', [
     integrated(fixture, 0, fixture.mergeShas[0]),
     integrated(fixture, 1, fixture.mergeShas[1])
   ])
-  const final = planCoordinationIntegration(
-    loaded.authorization,
-    complete,
-    loaded.repositoryRoot
-  )
+  const final = planCoordinationIntegration(loaded.authorization, complete, loaded.repositoryRoot)
   assert.equal(final.status, 'AGGREGATE_CANDIDATE_READY')
   assert.equal(final.pullRequestCount, 1)
 })
@@ -416,11 +402,7 @@ test('independent PR topology requires the exception and uses exact candidate he
     integrated(fixture, 0, fixture.candidateShas[0]),
     integrated(fixture, 1, fixture.candidateShas[1])
   ])
-  const plan = planCoordinationIntegration(
-    loaded.authorization,
-    results,
-    loaded.repositoryRoot
-  )
+  const plan = planCoordinationIntegration(loaded.authorization, results, loaded.repositoryRoot)
   assert.equal(plan.status, 'INDEPENDENT_PRS_READY')
   assert.equal(plan.pullRequestCount, 2)
 
@@ -443,12 +425,7 @@ test('a trusted failed integration preserves the real verified prefix and blocks
     fixture.trust
   )
   git(fixture.repositoryRoot, ['checkout', 'main'])
-  git(fixture.repositoryRoot, [
-    'branch',
-    '-f',
-    'codex/coordination/release',
-    fixture.mergeShas[0]
-  ])
+  git(fixture.repositoryRoot, ['branch', '-f', 'codex/coordination/release', fixture.mergeShas[0]])
   const results = loadResults(fixture, loaded.authorization, 'results-failed.json', [
     integrated(fixture, 0, fixture.mergeShas[0]),
     {
@@ -460,11 +437,7 @@ test('a trusted failed integration preserves the real verified prefix and blocks
       failureCode: 'CONFLICT'
     }
   ])
-  const plan = planCoordinationIntegration(
-    loaded.authorization,
-    results,
-    loaded.repositoryRoot
-  )
+  const plan = planCoordinationIntegration(loaded.authorization, results, loaded.repositoryRoot)
   assert.equal(plan.status, 'STOPPED_FAILURE')
   assert.deepEqual(plan.integratedPrefix, ['api'])
 })

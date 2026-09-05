@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { canonicalJson, objectFingerprint, sha256 } from '../canonical.ts'
@@ -18,11 +18,22 @@ import {
 } from '../cleanup-binding.ts'
 
 const trustByBinding = new WeakMap<RemoteDriverBinding, RemoteTrustRoots>()
+const cleanupTrustByAuthorization = new WeakMap<
+  CoordinationCleanupAuthorization,
+  RemoteTrustRoots
+>()
 
 /** Returns the fixture trust context separately from the untrusted binding. */
 export function remoteTrust(binding: RemoteDriverBinding): RemoteTrustRoots {
   const trust = trustByBinding.get(binding)
   if (!trust) throw new Error('fixture trust context absent')
+  return trust
+}
+
+/** Returns the protected-root fixture context used to reopen one cleanup authorization. */
+export function cleanupTrust(value: CoordinationCleanupAuthorization): RemoteTrustRoots {
+  const trust = cleanupTrustByAuthorization.get(value)
+  if (!trust) throw new Error('cleanup fixture trust context absent')
   return trust
 }
 
@@ -221,7 +232,7 @@ export function remoteBinding(overrides: Partial<RemoteDriverBinding> = {}): Rem
 
 /** Creates one valid V2 two-DO terminal cleanup authorization. */
 export function cleanupAuthorization(): CoordinationCleanupAuthorization {
-  const fixtureRoot = mkdtempSync(join(tmpdir(), 'oes-cleanup-owner-resources-'))
+  const fixtureRoot = realpathSync(mkdtempSync(join(tmpdir(), 'oes-cleanup-owner-resources-')))
   const bindingReference = (
     key: string,
     ownerTaskId: string,
@@ -388,7 +399,10 @@ export function trustedCleanupAuthorization(
     current as unknown as Record<string, unknown>,
     'recordFingerprint'
   )
-  writeFileSync(join(authorizationRoot, 'current-coordination-cleanup.json'), `${canonicalJson(current)}\n`)
+  writeFileSync(
+    join(authorizationRoot, 'current-coordination-cleanup.json'),
+    `${canonicalJson(current)}\n`
+  )
   const trust: RemoteTrustRoots = {
     authorizationRoot,
     admissionRoot: join(authorizationRoot, 'admission'),
@@ -398,7 +412,9 @@ export function trustedCleanupAuthorization(
     profileTransitionId: value.transitionId,
     profileExpectedState: 'DELIVERY_ACTIVE'
   }
-  return loadTrustedCoordinationCleanupAuthorization(rootPath, trust)
+  const loaded = loadTrustedCoordinationCleanupAuthorization(rootPath, trust)
+  cleanupTrustByAuthorization.set(loaded, trust)
+  return loaded
 }
 
 /** Reopens one child cleanup fixture through exact current/root/child CAS references. */
@@ -467,7 +483,10 @@ export function trustedChildCleanupAuthorization(
     current as unknown as Record<string, unknown>,
     'recordFingerprint'
   )
-  writeFileSync(join(authorizationRoot, 'current-coordination-cleanup.json'), `${canonicalJson(current)}\n`)
+  writeFileSync(
+    join(authorizationRoot, 'current-coordination-cleanup.json'),
+    `${canonicalJson(current)}\n`
+  )
   const trust: RemoteTrustRoots = {
     authorizationRoot,
     admissionRoot: join(authorizationRoot, 'admission'),

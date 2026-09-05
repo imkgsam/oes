@@ -6,6 +6,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   writeFileSync
 } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -292,6 +293,7 @@ function renderedProfile(
   profileGeneration = 1,
   predecessorLaunchReceipt: OwnerProfileRenderResult['launchReceipt'] | null = null
 ): OwnerProfileRenderResult {
+  root = realpathSync(root)
   const installedRoot = join(root, 'installed')
   const values = {
     OWNER_PATH: join(root, 'owner'),

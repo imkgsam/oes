@@ -518,6 +518,18 @@ export interface CleanupDiffEntry {
   path: string
 }
 
+export interface CoordinationCleanupResultSet {
+  schemaVersion: 2
+  kind: 'OES_COORDINATION_CLEANUP_RESULT_SET'
+  resultSetFingerprint: string
+  coordinationKey: string
+  coordinationOwnerTaskId: string
+  transitionId: string
+  coordinationCleanupAuthorizationFingerprint: string
+  resultsByOwner: Record<string, CleanupResourceDecision[]>
+  repositoryDiff: CleanupDiffEntry[]
+}
+
 export interface CoordinationDeliveryCandidate {
   order: number
   deliveryKey: string
@@ -637,6 +649,7 @@ export interface CoordinationLifecycleInventory {
   cleanupIntentDetected: true
   coordinationExit: 'PASSED' | 'PENDING' | 'FAILED'
   resourceCleanup: 'PENDING' | 'VERIFIED' | 'PARTIAL_FAILURE'
+  cleanupResult: TrustedAuthorizationReference | null
   rosterAuthorityFingerprint: string
   taskReadbackSource: 'CODEX_TASK_NATIVE'
   readbackRosterFingerprint: string

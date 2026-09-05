@@ -1,13 +1,18 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { objectFingerprint } from '../canonical.ts'
+import { canonicalJson, objectFingerprint, sha256 } from '../canonical.ts'
 import {
+  loadTrustedCoordinationLifecycleInventory,
+  loadTrustedCoordinationLifecycleRosterAuthority,
+  planCoordinationLifecycle,
   validateCoordinationLifecycleInventory,
   validateCoordinationLifecycleRosterAuthority
 } from '../coordination-lifecycle.ts'
+import { createCoordinationCleanupResultSet, planChildSelfCleanup } from '../cleanup.ts'
 import { validateJsonSchema } from '../schema-validation.ts'
+import { cleanupTrust, trustedCleanupAuthorization } from './helpers.ts'
 import type {
   CoordinationLifecycleCreatedTask,
   CoordinationLifecycleRosterAuthority,
@@ -98,6 +103,142 @@ test('closed coordination topology requires two DOs, each scoped RV, and one agg
   assert.throws(() => validateCoordinationLifecycleRosterAuthority(missing), /AGGREGATE_RV_MISSING/)
 })
 
+test('archive planning reopens the exact complete cleanup result set before ARCHIVE_READY', () => {
+  const cleanup = trustedCleanupAuthorization()
+  const trust = cleanupTrust(cleanup)
+  const persist = <T extends Record<string, unknown>>(
+    value: T,
+    field: keyof T & string,
+    name: string
+  ) => {
+    value[field] = objectFingerprint(value, field) as T[keyof T & string]
+    const path = join(trust.authorizationRoot, name)
+    const bytes = `${canonicalJson(value)}\n`
+    writeFileSync(path, bytes)
+    return { path, sha256: sha256(bytes), fingerprint: String(value[field]) }
+  }
+  const results = Object.fromEntries([
+    ...cleanup.terminalDeliveries.map((delivery) => [
+      delivery.ownerTaskId,
+      planChildSelfCleanup(
+        cleanup,
+        delivery.ownerTaskId,
+        delivery.resources.map((resource) => ({
+          ...resource,
+          exists: false,
+          clean: true,
+          actualSha: null
+        }))
+      )
+    ]),
+    [
+      cleanup.coordinationOwner.ownerTaskId,
+      planChildSelfCleanup(
+        cleanup,
+        cleanup.coordinationOwner.ownerTaskId,
+        cleanup.coordinationOwner.resources.map((resource) => ({
+          ...resource,
+          exists: false,
+          clean: true,
+          actualSha: null
+        }))
+      )
+    ]
+  ])
+  const cleanupResult = createCoordinationCleanupResultSet(cleanup, results, [])
+  const cleanupResultReference = persist(
+    cleanupResult as unknown as Record<string, unknown>,
+    'resultSetFingerprint',
+    'cleanup-result.json'
+  )
+  const createdRoster: CoordinationLifecycleCreatedTask[] = [
+    {
+      taskId: '/root/co',
+      taskKind: 'CO',
+      ownerTaskId: null,
+      creationReceiptFingerprint: fingerprint
+    },
+    ...cleanup.terminalDeliveries.flatMap((delivery) => [
+      {
+        taskId: delivery.ownerTaskId,
+        taskKind: 'DO' as const,
+        ownerTaskId: '/root/co',
+        creationReceiptFingerprint: fingerprint
+      },
+      {
+        taskId: `${delivery.ownerTaskId}/rv`,
+        taskKind: 'RV' as const,
+        ownerTaskId: delivery.ownerTaskId,
+        creationReceiptFingerprint: fingerprint
+      }
+    ]),
+    {
+      taskId: '/root/co/rv',
+      taskKind: 'RV',
+      ownerTaskId: '/root/co',
+      creationReceiptFingerprint: fingerprint
+    }
+  ]
+  const roster = {
+    schemaVersion: 2 as const,
+    kind: 'OES_COORDINATION_LIFECYCLE_ROSTER_AUTHORITY' as const,
+    authorityFingerprint: '',
+    coordinationKey: cleanup.coordinationKey,
+    coordinationOwnerTaskId: cleanup.coordinationOwnerTaskId,
+    transitionId: cleanup.transitionId,
+    coordinationCleanupAuthorizationFingerprint: cleanup.authorizationFingerprint,
+    source: 'TASK_NATIVE_CREATION_RECEIPTS' as const,
+    createdRoster
+  }
+  const trustedRoster = loadTrustedCoordinationLifecycleRosterAuthority(
+    persist(roster, 'authorityFingerprint', 'lifecycle-roster.json'),
+    cleanup,
+    trust
+  )
+  const readbackRoster = createdRoster.map(({ creationReceiptFingerprint: _, ...task }) => ({
+    ...task,
+    state: 'TERMINAL' as const
+  }))
+  const inventory = {
+    schemaVersion: 2 as const,
+    kind: 'OES_COORDINATION_LIFECYCLE_INVENTORY' as const,
+    inventoryFingerprint: '',
+    coordinationKey: cleanup.coordinationKey,
+    coordinationOwnerTaskId: cleanup.coordinationOwnerTaskId,
+    transitionId: cleanup.transitionId,
+    coordinationCleanupAuthorizationFingerprint: cleanup.authorizationFingerprint,
+    cleanupIntentDetected: true as const,
+    coordinationExit: 'PASSED' as const,
+    resourceCleanup: 'VERIFIED' as const,
+    cleanupResult: cleanupResultReference,
+    rosterAuthorityFingerprint: trustedRoster.authorityFingerprint,
+    taskReadbackSource: 'CODEX_TASK_NATIVE' as const,
+    readbackRosterFingerprint: objectFingerprint(
+      readbackRoster as unknown as Record<string, unknown>,
+      '__none__'
+    ),
+    readbackRoster,
+    terminalTaskIds: readbackRoster.map((task) => task.taskId)
+  }
+  const trustedInventory = loadTrustedCoordinationLifecycleInventory(
+    persist(inventory, 'inventoryFingerprint', 'lifecycle-inventory.json'),
+    trustedRoster,
+    cleanup,
+    trust
+  )
+  assert.equal(planCoordinationLifecycle(trustedRoster, trustedInventory).status, 'ARCHIVE_READY')
+
+  const missingProof = { ...inventory, cleanupResult: null, inventoryFingerprint: '' }
+  missingProof.inventoryFingerprint = objectFingerprint(
+    missingProof as unknown as Record<string, unknown>,
+    'inventoryFingerprint'
+  )
+  assert.throws(
+    () => validateCoordinationLifecycleInventory(trustedRoster, missingProof),
+    /COORDINATION_LIFECYCLE_INVENTORY_INVALID/
+  )
+})
+
 test('inventory binds every terminal task to the immutable creation roster', () => {
   const auth = authority()
   const readbackRoster: CoordinationLifecycleTask[] = auth.createdRoster.map(
@@ -114,6 +255,11 @@ test('inventory binds every terminal task to the immutable creation roster', () 
     cleanupIntentDetected: true as const,
     coordinationExit: 'PASSED' as const,
     resourceCleanup: 'VERIFIED' as const,
+    cleanupResult: {
+      path: '/stable/authorization/cleanup-result.json',
+      sha256: 'c'.repeat(64),
+      fingerprint: 'd'.repeat(64)
+    },
     rosterAuthorityFingerprint: auth.authorityFingerprint,
     taskReadbackSource: 'CODEX_TASK_NATIVE' as const,
     readbackRosterFingerprint: objectFingerprint(

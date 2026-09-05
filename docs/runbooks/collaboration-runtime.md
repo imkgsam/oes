@@ -72,7 +72,8 @@ scripts/collaboration-runtime/bin/oes-lifecycle-cleanup \
 scripts/collaboration-runtime/bin/oes-lifecycle-cleanup \
   cleanup-verify --profile-report EFFECTIVE_PROFILE.json \
   --authorization CO_CLEANUP.json --child-results RESULTS.json \
-  --repository-diff REPOSITORY_DIFF.json
+  --repository-diff REPOSITORY_DIFF.json \
+  --output CLEANUP_RESULT_SET.json
 
 scripts/collaboration-runtime/bin/oes-lifecycle-cleanup \
   coordination-lifecycle-plan --profile-report EFFECTIVE_PROFILE.json \
@@ -81,8 +82,8 @@ scripts/collaboration-runtime/bin/oes-lifecycle-cleanup \
   --inventory INVENTORY_REFERENCE.json
 ```
 
-This entrypoint exposes only exact resource disposal, zero-repository-diff verification, and child-first archive planning. It has no route to task/delivery creation, branch creation, product writes, PR publication, merge, or CI. Unknown, shared, active, dirty, missing-observation, and SHA-mismatched resources are preserved. For CO work, archive deepest bounded helpers/RVs, then DOs, aggregate RV, and CO; retries skip already verified identities.
+This entrypoint exposes only exact resource disposal, zero-repository-diff verification, and child-first archive planning. `cleanup-verify` seals the complete DO-plus-CO absence proof; the protected lifecycle inventory must bind that exact result-set reference before archive planning can reach `ARCHIVE_READY`. It has no route to task/delivery creation, branch creation, product writes, PR publication, merge, or CI. Unknown, shared, active, dirty, missing-observation, physical-path alias, and SHA-mismatched resources are preserved. For CO work, archive deepest bounded helpers/RVs, then DOs, aggregate RV, and CO; retries skip already verified identities.
 
 ## 7. Evidence and restart
 
-Persist candidate/base SHA, exact commands, literal output, exit status, dependency/environment identity, changed-risk coverage, RV result, CI state, remaining risk, and rollback. Reopen and rehash bindings before resuming. Reuse evidence only when its exact candidate, inputs, dependencies, environment, command, and coverage still apply.
+Persist candidate/base SHA, exact commands, literal output, exit status, dependency/environment identity, changed-risk coverage, RV result, CI state, remaining risk, and rollback. Completed DP/ADP evidence uses a typed envelope that binds evidence type, verdict, owner/reviewer, evidence generation, exact candidate or operation, current evidence basis, and hashed source artifacts. A CO ADP also reopens the Human-confirmed complete child roster and explicitly declared external dependencies before Aggregate RV input creation. Reopen and rehash bindings before resuming. Reuse evidence only when its exact candidate, inputs, dependencies, environment, command, and coverage still apply.

@@ -4,11 +4,7 @@ import {
   loadTrustedCoordinationChildCleanupAuthorization,
   loadTrustedCoordinationCleanupAuthorization
 } from './cleanup-binding.ts'
-import {
-  planChildSelfCleanup,
-  verifyChildCleanupResults,
-  verifyCleanupProducesNoRepositoryDiff
-} from './cleanup.ts'
+import { createCoordinationCleanupResultSet, planChildSelfCleanup } from './cleanup.ts'
 import {
   loadTrustedCoordinationArchiveResults,
   loadTrustedCoordinationLifecycleInventory,
@@ -72,12 +68,9 @@ async function main(args: string[]): Promise<void> {
       flag(args, '--child-results')
     )
     const repositoryDiff = readJson<CleanupDiffEntry[]>(flag(args, '--repository-diff'))
-    verifyCleanupProducesNoRepositoryDiff(authorization, repositoryDiff)
-    verifyChildCleanupResults(authorization, childResults)
-    emit({
-      status: 'COORDINATION_CLEANUP_VERIFIED',
-      coordinationKey: authorization.coordinationKey
-    })
+    const result = createCoordinationCleanupResultSet(authorization, childResults, repositoryDiff)
+    writeJsonAtomic(flag(args, '--output'), result)
+    emit(result)
     return
   }
   if (command === 'coordination-lifecycle-plan') {

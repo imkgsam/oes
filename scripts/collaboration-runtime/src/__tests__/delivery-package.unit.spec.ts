@@ -1,23 +1,37 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync
+} from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { canonicalJson, objectFingerprint, sha256 } from '../canonical.ts'
 import {
+  createAggregateDeliveryChildRoster,
   createAggregateDeliveryPackage,
   createAggregateRvInput,
   createDeliveryPackage,
+  createPackageEvidenceRecord,
   loadAggregateDeliveryPackageReference,
+  loadDeliveryPackageReference,
   planPackageCleanup,
   renderPackagePrSummary,
   validateAggregateDeliveryPackage,
   validateAggregateRvInput,
   validateDeliveryPackage,
+  verifyPackageCleanup,
   type AggregateDeliveryPackage,
   type DeliveryPackage
 } from '../delivery-package.ts'
 import { validateJsonSchema } from '../schema-validation.ts'
+import { loadOwnerResourceBindingReference, stableOwnerTaskTempLeaf } from '../resource-topology.ts'
+import type { OwnerResourceBinding } from '../resource-topology.types.ts'
 
 const schema = (name: string) =>
   JSON.parse(
@@ -36,23 +50,66 @@ const notApplicable = () => ({
   evidence: null
 })
 
-/** Writes one self-sealed evidence fixture and returns its immutable reference. */
-function persistedEvidence(root: string, name: string) {
+/** Writes one typed evidence envelope plus its exact source and returns the envelope reference. */
+function persistedEvidence(
+  root: string,
+  name: string,
+  draft: Omit<Parameters<typeof createPackageEvidenceRecord>[0], 'sourceArtifacts'>
+) {
   mkdirSync(root, { recursive: true })
-  const value = {
-    schemaVersion: 2,
-    kind: 'OES_PACKAGE_TEST_EVIDENCE',
-    evidenceFingerprint: '',
-    result: 'PASSED'
-  }
-  value.evidenceFingerprint = objectFingerprint(
-    value as unknown as Record<string, unknown>,
-    'evidenceFingerprint'
-  )
+  const sourcePath = join(root, `${name}.source.log`)
+  const sourceBytes = `${draft.evidenceType}:${draft.result}\n`
+  writeFileSync(sourcePath, sourceBytes, { flag: 'wx' })
+  const value = createPackageEvidenceRecord({
+    ...draft,
+    sourceArtifacts: [{ path: sourcePath, sha256: sha256(sourceBytes) }]
+  })
   const path = join(root, name)
   const bytes = `${canonicalJson(value)}\n`
   writeFileSync(path, bytes, { flag: 'wx' })
   return { path, sha256: sha256(bytes), fingerprint: value.evidenceFingerprint }
+}
+
+/** Persists and reopens the exact owner binding required by repository package cleanup. */
+function persistedOwnerBinding(
+  value: DeliveryPackage | AggregateDeliveryPackage,
+  repositoryRoot: string
+): OwnerResourceBinding {
+  const binding: OwnerResourceBinding = {
+    schemaVersion: 1,
+    kind: 'OES_OWNER_RESOURCE_BINDING',
+    bindingFingerprint: '',
+    resourceTopologyVersion: 'owner-exclusive-v2',
+    ownerTaskId: value.ownerTaskId,
+    directParentTaskId: '/root/parent',
+    transitionId: 'delivery:cleanup:1',
+    repositoryRoot,
+    repositoryRemoteUrl: 'https://github.com/example/oes.git',
+    ownerClone: repositoryRoot,
+    ownerGitDirectory: join(repositoryRoot, '.git'),
+    ownerRef:
+      value.kind === 'OES_DELIVERY_PACKAGE'
+        ? `refs/heads/codex/delivery/${value.deliveryKey}`
+        : `refs/heads/codex/coordination/${value.coordinationKey}`,
+    artifactRoot: value.artifactRoot,
+    taskTempRoot: `/private/tmp/${stableOwnerTaskTempLeaf(value.ownerTaskId)}`,
+    deliveryPackagePath: value.packagePath,
+    currentEvidenceManifestPath: join(value.artifactRoot, 'current.json'),
+    checkpointBundlePath: join(value.artifactRoot, 'checkpoint.json'),
+    gitBundlePath: join(value.artifactRoot, 'owner.bundle')
+  }
+  binding.bindingFingerprint = objectFingerprint(
+    binding as unknown as Record<string, unknown>,
+    'bindingFingerprint'
+  )
+  const path = join(value.artifactRoot, 'owner-resource-binding.json')
+  const bytes = `${canonicalJson(binding)}\n`
+  writeFileSync(path, bytes)
+  return loadOwnerResourceBindingReference({
+    path,
+    sha256: sha256(bytes),
+    fingerprint: binding.bindingFingerprint
+  })
 }
 
 /** Creates one representative repository DP draft. */
@@ -129,6 +186,7 @@ function aggregateDraft(): Parameters<typeof createAggregateDeliveryPackage>[0] 
     artifactRoot: '/stable/artifacts/co-release',
     packagePath: '/stable/artifacts/co-release/aggregate-delivery-package.json',
     confirmationFingerprint: 'd'.repeat(64),
+    childRoster: reference('/stable/artifacts/co-release/child-roster.json', 'e'),
     deliveryPackages: ['api', 'web'].map((deliveryKey, index) => ({
       deliveryKey,
       ownerTaskId: `/root/co-release/do-${deliveryKey}`,
@@ -179,13 +237,16 @@ test('repository DP is stable-artifact state and PR body is only a generated sum
   const value = validateDeliveryPackage(createDeliveryPackage(repositoryDraft()))
   validateJsonSchema(schema('delivery-package.schema.json'), value)
   assert.equal(value.execution.selfTest.basisFingerprint, value.evidenceBasisFingerprint)
-  assert.match(renderPackagePrSummary(value), /Delivery Package summary/)
-  assert.doesNotMatch(renderPackagePrSummary(value), /designReferences|evidenceGeneration/)
-  assert.deepEqual(planPackageCleanup(value, '/repository/oes'), {
-    packagePath: value.packagePath,
-    repositoryDiff: [],
-    decision: 'REMOVE_EXTERNAL_PACKAGE'
-  })
+  const summary = renderPackagePrSummary(value)
+  const templateHeadings = readFileSync(
+    join(import.meta.dirname, '..', '..', '..', '..', '.github', 'pull_request_template.md'),
+    'utf8'
+  )
+    .split('\n')
+    .filter((line) => line.startsWith('#'))
+  templateHeadings.forEach((heading) => assert.match(summary, new RegExp(`^${heading}$`, 'm')))
+  assert.doesNotMatch(summary, /designReferences|evidenceGeneration/)
+  assert.doesNotMatch(summary, /\/stable\//)
 })
 
 test('scope, design, dependency, and candidate changes invalidate bound DP evidence', () => {
@@ -239,6 +300,11 @@ test('host-local DP uses the same schema without Git candidate, PR, Merge Queue,
   validateJsonSchema(schema('delivery-package.schema.json'), value)
   assert.equal(value.execution.repository, null)
   assert.equal(value.execution.ci.status, 'NOT_APPLICABLE')
+  assert.deepEqual(planPackageCleanup(value, null), {
+    packagePath: value.packagePath,
+    decision: 'REMOVE_EXTERNAL_PACKAGE'
+  })
+  assert.equal(verifyPackageCleanup(value, null, []).status, 'PACKAGE_CLEANUP_VERIFIED')
   const invalid = deliveryUpdate(value)
   if (!invalid.execution.hostLocal) throw new Error('host-local fixture absent')
   ;(invalid.execution.hostLocal as { repositoryModified: boolean }).repositoryModified = true
@@ -246,27 +312,27 @@ test('host-local DP uses the same schema without Git candidate, PR, Merge Queue,
 })
 
 test('ADP binds every DP, dependency order, integration contract, accepted candidates, and exact RV input', () => {
-  const root = mkdtempSync(join(tmpdir(), 'oes-package-rv-test-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'oes-package-rv-test-')))
   const childReferences = ['api', 'web'].map((deliveryKey, index) => {
     const draft = repositoryDraft()
     draft.deliveryKey = deliveryKey
     draft.ownerTaskId = `/root/co-release/do-${deliveryKey}`
     draft.artifactRoot = join(root, deliveryKey)
     draft.packagePath = join(draft.artifactRoot, 'delivery-package.json')
-    draft.execution.selfTest = {
-      status: 'PASSED',
-      basisFingerprint: null,
-      evidence: persistedEvidence(draft.artifactRoot, 'self-test.json')
-    }
+    draft.execution.selfTest = pending()
     if (!draft.execution.repository) throw new Error('repository fixture absent')
     draft.execution.repository.branch = `codex/delivery/${deliveryKey}`
     draft.execution.repository.worktree = join(root, 'owners', deliveryKey, 'oes')
     draft.execution.repository.candidateSha = String(index + 2).repeat(40)
-    draft.execution.rv = {
-      status: 'PASSED',
-      basisFingerprint: null,
-      evidence: persistedEvidence(draft.artifactRoot, 'rv.json')
-    }
+    draft.execution.rv = pending()
+    if (deliveryKey === 'api')
+      draft.activation.dependencies = [
+        {
+          deliveryKey: 'foundation',
+          acceptedCandidateSha: '7'.repeat(40),
+          acceptedOperationFingerprint: null
+        }
+      ]
     if (deliveryKey === 'web')
       draft.activation.dependencies = [
         {
@@ -275,7 +341,43 @@ test('ADP binds every DP, dependency order, integration contract, accepted candi
           acceptedOperationFingerprint: null
         }
       ]
-    const value = createDeliveryPackage(draft)
+    const initial = createDeliveryPackage(draft)
+    const candidateSha = initial.execution.repository?.candidateSha ?? null
+    const update = deliveryUpdate(initial)
+    update.packageVersion += 1
+    update.execution.selfTest = {
+      status: 'PASSED',
+      basisFingerprint: null,
+      evidence: persistedEvidence(draft.artifactRoot, 'self-test.json', {
+        evidenceType: 'SELF_TEST',
+        subjectKey: deliveryKey,
+        ownerTaskId: draft.ownerTaskId,
+        reviewerTaskId: null,
+        executionMode: 'REPOSITORY',
+        evidenceGeneration: initial.evidenceGeneration,
+        basisFingerprint: initial.evidenceBasisFingerprint,
+        candidateSha,
+        operationFingerprint: null,
+        result: 'PASSED'
+      })
+    }
+    update.execution.rv = {
+      status: 'PASSED',
+      basisFingerprint: null,
+      evidence: persistedEvidence(draft.artifactRoot, 'rv.json', {
+        evidenceType: 'RV',
+        subjectKey: deliveryKey,
+        ownerTaskId: draft.ownerTaskId,
+        reviewerTaskId: `${draft.ownerTaskId}/rv`,
+        executionMode: 'REPOSITORY',
+        evidenceGeneration: initial.evidenceGeneration,
+        basisFingerprint: initial.evidenceBasisFingerprint,
+        candidateSha,
+        operationFingerprint: null,
+        result: 'PASSED'
+      })
+    }
+    const value = createDeliveryPackage(update, initial)
     const bytes = `${canonicalJson(value)}\n`
     mkdirSync(value.artifactRoot, { recursive: true })
     writeFileSync(value.packagePath, bytes, { flag: 'wx' })
@@ -293,12 +395,36 @@ test('ADP binds every DP, dependency order, integration contract, accepted candi
   draft.artifactRoot = join(root, 'coordination')
   draft.packagePath = join(draft.artifactRoot, 'aggregate-delivery-package.json')
   draft.deliveryPackages = childReferences
-  const value = validateAggregateDeliveryPackage(
-    createAggregateDeliveryPackage(draft)
-  )
+  const childRoster = createAggregateDeliveryChildRoster({
+    confirmationFingerprint: draft.confirmationFingerprint,
+    coordinationKey: draft.coordinationKey,
+    ownerTaskId: draft.ownerTaskId,
+    executionMode: draft.executionMode,
+    deliveries: childReferences.map(({ deliveryKey, ownerTaskId }) => ({
+      deliveryKey,
+      ownerTaskId
+    })),
+    externalDependencies: [
+      {
+        deliveryKey: 'foundation',
+        acceptedCandidateSha: '7'.repeat(40),
+        acceptedOperationFingerprint: null
+      }
+    ]
+  })
+  validateJsonSchema(schema('aggregate-delivery-child-roster.schema.json'), childRoster)
+  mkdirSync(draft.artifactRoot, { recursive: true })
+  const childRosterPath = join(draft.artifactRoot, 'child-roster.json')
+  const childRosterBytes = `${canonicalJson(childRoster)}\n`
+  writeFileSync(childRosterPath, childRosterBytes, { flag: 'wx' })
+  draft.childRoster = {
+    path: childRosterPath,
+    sha256: sha256(childRosterBytes),
+    fingerprint: childRoster.rosterFingerprint
+  }
+  const value = validateAggregateDeliveryPackage(createAggregateDeliveryPackage(draft))
   validateJsonSchema(schema('aggregate-delivery-package.schema.json'), value)
   const aggregateBytes = `${canonicalJson(value)}\n`
-  mkdirSync(value.artifactRoot, { recursive: true })
   writeFileSync(value.packagePath, aggregateBytes, { flag: 'wx' })
   const aggregateReference = {
     path: value.packagePath,
@@ -307,11 +433,7 @@ test('ADP binds every DP, dependency order, integration contract, accepted candi
   }
   const trusted = loadAggregateDeliveryPackageReference(aggregateReference)
   assert.throws(
-    () =>
-      createAggregateRvInput(
-        { ...aggregateReference, sha256: 'f'.repeat(64) },
-        trusted
-      ),
+    () => createAggregateRvInput({ ...aggregateReference, sha256: 'f'.repeat(64) }, trusted),
     /AGGREGATE_RV_TRUSTED_PACKAGE_REQUIRED/
   )
   const input = createAggregateRvInput(aggregateReference, trusted)
@@ -337,6 +459,96 @@ test('ADP binds every DP, dependency order, integration contract, accepted candi
   assert.throws(
     () => createAggregateRvInput(aggregateReference, changed),
     /AGGREGATE_RV_TRUSTED_PACKAGE_REQUIRED/
+  )
+
+  const incompleteRoot = join(root, 'incomplete-aggregate')
+  mkdirSync(incompleteRoot)
+  const completeRoster = createAggregateDeliveryChildRoster({
+    confirmationFingerprint: draft.confirmationFingerprint,
+    coordinationKey: draft.coordinationKey,
+    ownerTaskId: draft.ownerTaskId,
+    executionMode: draft.executionMode,
+    deliveries: [
+      { deliveryKey: 'core', ownerTaskId: '/root/co-release/do-core' },
+      ...childReferences.map(({ deliveryKey, ownerTaskId }) => ({ deliveryKey, ownerTaskId }))
+    ],
+    externalDependencies: []
+  })
+  const completeRosterPath = join(incompleteRoot, 'child-roster.json')
+  const completeRosterBytes = `${canonicalJson(completeRoster)}\n`
+  writeFileSync(completeRosterPath, completeRosterBytes)
+  const incompleteDraft = aggregateDraft()
+  incompleteDraft.artifactRoot = incompleteRoot
+  incompleteDraft.packagePath = join(incompleteRoot, 'aggregate-delivery-package.json')
+  incompleteDraft.deliveryPackages = childReferences
+  incompleteDraft.childRoster = {
+    path: completeRosterPath,
+    sha256: sha256(completeRosterBytes),
+    fingerprint: completeRoster.rosterFingerprint
+  }
+  const incomplete = createAggregateDeliveryPackage(incompleteDraft)
+  const incompleteBytes = `${canonicalJson(incomplete)}\n`
+  writeFileSync(incomplete.packagePath, incompleteBytes)
+  assert.throws(
+    () =>
+      loadAggregateDeliveryPackageReference({
+        path: incomplete.packagePath,
+        sha256: sha256(incompleteBytes),
+        fingerprint: incomplete.packageFingerprint
+      }),
+    /AGGREGATE_CHILD_ROSTER_COVERAGE_MISMATCH/
+  )
+
+  const aggregateEvidenceRoot = join(root, 'aggregate-evidence')
+  mkdirSync(aggregateEvidenceRoot)
+  const aggregateEvidenceDraft = aggregateDraft()
+  aggregateEvidenceDraft.artifactRoot = aggregateEvidenceRoot
+  aggregateEvidenceDraft.packagePath = join(
+    aggregateEvidenceRoot,
+    'aggregate-delivery-package.json'
+  )
+  aggregateEvidenceDraft.deliveryPackages = childReferences
+  const aggregateEvidenceRosterPath = join(aggregateEvidenceRoot, 'child-roster.json')
+  writeFileSync(aggregateEvidenceRosterPath, childRosterBytes)
+  aggregateEvidenceDraft.childRoster = {
+    path: aggregateEvidenceRosterPath,
+    sha256: sha256(childRosterBytes),
+    fingerprint: childRoster.rosterFingerprint
+  }
+  const aggregateInitial = createAggregateDeliveryPackage(aggregateEvidenceDraft)
+  const wrongAggregateRv = persistedEvidence(aggregateEvidenceRoot, 'wrong-aggregate-rv.json', {
+    evidenceType: 'AGGREGATE_RV',
+    subjectKey: aggregateInitial.coordinationKey,
+    ownerTaskId: aggregateInitial.ownerTaskId,
+    reviewerTaskId: `${aggregateInitial.ownerTaskId}/rv`,
+    executionMode: 'REPOSITORY',
+    evidenceGeneration: aggregateInitial.evidenceGeneration,
+    basisFingerprint: aggregateInitial.evidenceBasisFingerprint,
+    candidateSha: '8'.repeat(40),
+    operationFingerprint: null,
+    result: 'PASSED'
+  })
+  const aggregateEvidenceUpdate = aggregateUpdate(aggregateInitial)
+  aggregateEvidenceUpdate.packageVersion += 1
+  aggregateEvidenceUpdate.execution.aggregateRv = {
+    status: 'PASSED',
+    basisFingerprint: null,
+    evidence: wrongAggregateRv
+  }
+  const aggregateWithWrongEvidence = createAggregateDeliveryPackage(
+    aggregateEvidenceUpdate,
+    aggregateInitial
+  )
+  const aggregateWithWrongEvidenceBytes = `${canonicalJson(aggregateWithWrongEvidence)}\n`
+  writeFileSync(aggregateWithWrongEvidence.packagePath, aggregateWithWrongEvidenceBytes)
+  assert.throws(
+    () =>
+      loadAggregateDeliveryPackageReference({
+        path: aggregateWithWrongEvidence.packagePath,
+        sha256: sha256(aggregateWithWrongEvidenceBytes),
+        fingerprint: aggregateWithWrongEvidence.packageFingerprint
+      }),
+    /PACKAGE_EVIDENCE_APPLICABILITY_MISMATCH/
   )
 
   const firstPackage = JSON.parse(
@@ -384,13 +596,183 @@ test('host-local ADP requires two independent packages plus parallelism or cross
   )
 })
 
-test('DP and ADP cleanup reject active package files under the repository tree', () => {
+test('typed evidence rejects stale failed RV reattachment and wrong evidence types', () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'oes-package-evidence-test-')))
   const draft = repositoryDraft()
-  draft.artifactRoot = '/repository/oes/docs/plans/deliveries/runtime'
-  draft.packagePath = `${draft.artifactRoot}/delivery-package.json`
-  const value = createDeliveryPackage(draft)
-  assert.throws(
-    () => planPackageCleanup(value, '/repository/oes'),
-    /PACKAGE_CLEANUP_REPOSITORY_PATH_FORBIDDEN/
+  draft.artifactRoot = join(root, 'artifacts')
+  draft.packagePath = join(draft.artifactRoot, 'delivery-package.json')
+  draft.execution.selfTest = pending()
+  draft.execution.rv = pending()
+  if (!draft.execution.repository) throw new Error('repository fixture absent')
+  draft.execution.repository.worktree = join(root, 'repository')
+  const initial = createDeliveryPackage(draft)
+  const oldRv = persistedEvidence(draft.artifactRoot, 'old-rv.json', {
+    evidenceType: 'RV',
+    subjectKey: draft.deliveryKey,
+    ownerTaskId: draft.ownerTaskId,
+    reviewerTaskId: `${draft.ownerTaskId}/rv`,
+    executionMode: 'REPOSITORY',
+    evidenceGeneration: initial.evidenceGeneration,
+    basisFingerprint: initial.evidenceBasisFingerprint,
+    candidateSha: initial.execution.repository?.candidateSha ?? null,
+    operationFingerprint: null,
+    result: 'FAILED'
+  })
+  validateJsonSchema(
+    schema('package-evidence.schema.json'),
+    JSON.parse(readFileSync(oldRv.path, 'utf8'))
   )
+  const changedDraft = deliveryUpdate(initial)
+  changedDraft.packageVersion += 1
+  if (!changedDraft.execution.repository) throw new Error('repository fixture absent')
+  changedDraft.execution.repository.candidateSha = '8'.repeat(40)
+  const changed = createDeliveryPackage(changedDraft, initial)
+  const currentSelfTest = persistedEvidence(draft.artifactRoot, 'current-self-test.json', {
+    evidenceType: 'SELF_TEST',
+    subjectKey: draft.deliveryKey,
+    ownerTaskId: draft.ownerTaskId,
+    reviewerTaskId: null,
+    executionMode: 'REPOSITORY',
+    evidenceGeneration: changed.evidenceGeneration,
+    basisFingerprint: changed.evidenceBasisFingerprint,
+    candidateSha: changed.execution.repository?.candidateSha ?? null,
+    operationFingerprint: null,
+    result: 'PASSED'
+  })
+  const resealDraft = deliveryUpdate(changed)
+  resealDraft.packageVersion += 1
+  resealDraft.execution.selfTest = {
+    status: 'PASSED',
+    basisFingerprint: null,
+    evidence: currentSelfTest
+  }
+  resealDraft.execution.rv = { status: 'PASSED', basisFingerprint: null, evidence: oldRv }
+  const resealed = createDeliveryPackage(resealDraft, changed)
+  const resealedBytes = `${canonicalJson(resealed)}\n`
+  writeFileSync(resealed.packagePath, resealedBytes)
+  const reference = {
+    deliveryKey: resealed.deliveryKey,
+    ownerTaskId: resealed.ownerTaskId,
+    packagePath: resealed.packagePath,
+    packageSha256: sha256(resealedBytes),
+    packageFingerprint: resealed.packageFingerprint,
+    acceptedCandidateSha: resealed.execution.repository?.candidateSha ?? null,
+    acceptedOperationFingerprint: null
+  }
+  assert.throws(
+    () => loadDeliveryPackageReference(reference, 'REPOSITORY'),
+    /PACKAGE_EVIDENCE_APPLICABILITY_MISMATCH/
+  )
+
+  const wrongVerdictDraft = deliveryUpdate(changed)
+  wrongVerdictDraft.packageVersion += 1
+  wrongVerdictDraft.execution.selfTest = resealDraft.execution.selfTest
+  wrongVerdictDraft.execution.rv = {
+    status: 'PASSED',
+    basisFingerprint: null,
+    evidence: persistedEvidence(draft.artifactRoot, 'wrong-verdict-rv.json', {
+      evidenceType: 'RV',
+      subjectKey: draft.deliveryKey,
+      ownerTaskId: draft.ownerTaskId,
+      reviewerTaskId: `${draft.ownerTaskId}/rv`,
+      executionMode: 'REPOSITORY',
+      evidenceGeneration: changed.evidenceGeneration,
+      basisFingerprint: changed.evidenceBasisFingerprint,
+      candidateSha: changed.execution.repository?.candidateSha ?? null,
+      operationFingerprint: null,
+      result: 'FAILED'
+    })
+  }
+  const wrongVerdict = createDeliveryPackage(wrongVerdictDraft, changed)
+  const wrongVerdictBytes = `${canonicalJson(wrongVerdict)}\n`
+  writeFileSync(wrongVerdict.packagePath, wrongVerdictBytes)
+  assert.throws(
+    () =>
+      loadDeliveryPackageReference(
+        {
+          ...reference,
+          packageSha256: sha256(wrongVerdictBytes),
+          packageFingerprint: wrongVerdict.packageFingerprint
+        },
+        'REPOSITORY'
+      ),
+    /PACKAGE_EVIDENCE_APPLICABILITY_MISMATCH/
+  )
+
+  const wrongTypeDraft = deliveryUpdate(changed)
+  wrongTypeDraft.packageVersion += 1
+  wrongTypeDraft.execution.selfTest = resealDraft.execution.selfTest
+  wrongTypeDraft.execution.rv = {
+    status: 'PASSED',
+    basisFingerprint: null,
+    evidence: persistedEvidence(draft.artifactRoot, 'wrong-type-rv.json', {
+      evidenceType: 'CI',
+      subjectKey: draft.deliveryKey,
+      ownerTaskId: draft.ownerTaskId,
+      reviewerTaskId: null,
+      executionMode: 'REPOSITORY',
+      evidenceGeneration: changed.evidenceGeneration,
+      basisFingerprint: changed.evidenceBasisFingerprint,
+      candidateSha: changed.execution.repository?.candidateSha ?? null,
+      operationFingerprint: null,
+      result: 'PASSED'
+    })
+  }
+  const wrongType = createDeliveryPackage(wrongTypeDraft, changed)
+  const wrongTypeBytes = `${canonicalJson(wrongType)}\n`
+  writeFileSync(wrongType.packagePath, wrongTypeBytes)
+  const wrongTypeReference = {
+    ...reference,
+    packageSha256: sha256(wrongTypeBytes),
+    packageFingerprint: wrongType.packageFingerprint
+  }
+  assert.throws(
+    () => loadDeliveryPackageReference(wrongTypeReference, 'REPOSITORY'),
+    /PACKAGE_EVIDENCE_APPLICABILITY_MISMATCH/
+  )
+
+  const outsidePackage = join(root, 'outside-delivery-package.json')
+  writeFileSync(outsidePackage, wrongTypeBytes)
+  rmSync(wrongType.packagePath)
+  symlinkSync(outsidePackage, wrongType.packagePath)
+  assert.throws(
+    () => loadDeliveryPackageReference(wrongTypeReference, 'REPOSITORY'),
+    /OWNER_RESOURCE_PHYSICAL_PATH_ALIAS/
+  )
+})
+
+test('package cleanup requires trusted physical repository placement and observed postconditions', () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'oes-package-cleanup-test-')))
+  const repositoryRoot = join(root, 'repository')
+  const artifactRoot = join(root, 'artifacts')
+  mkdirSync(repositoryRoot)
+  mkdirSync(artifactRoot)
+  const draft = repositoryDraft()
+  draft.artifactRoot = artifactRoot
+  draft.packagePath = join(artifactRoot, 'delivery-package.json')
+  if (!draft.execution.repository) throw new Error('repository fixture absent')
+  draft.execution.repository.worktree = repositoryRoot
+  const value = createDeliveryPackage(draft)
+  writeFileSync(value.packagePath, `${canonicalJson(value)}\n`)
+  const binding = persistedOwnerBinding(value, repositoryRoot)
+  assert.deepEqual(planPackageCleanup(value, binding), {
+    packagePath: value.packagePath,
+    decision: 'REMOVE_EXTERNAL_PACKAGE'
+  })
+  assert.throws(() => planPackageCleanup(value, null), /PACKAGE_CLEANUP_OWNER_BINDING_REQUIRED/)
+  rmSync(value.packagePath)
+  assert.deepEqual(verifyPackageCleanup(value, binding, []), {
+    packagePath: value.packagePath,
+    repositoryDiff: [],
+    status: 'PACKAGE_CLEANUP_VERIFIED'
+  })
+  assert.throws(
+    () => verifyPackageCleanup(value, binding, [{ status: 'M', path: 'README.md' }]),
+    /PACKAGE_CLEANUP_REPOSITORY_DIFF_NOT_EMPTY/
+  )
+
+  const insideRepository = join(repositoryRoot, 'delivery-package.json')
+  writeFileSync(insideRepository, '{}\n')
+  symlinkSync(insideRepository, value.packagePath)
+  assert.throws(() => planPackageCleanup(value, binding), /OWNER_RESOURCE_PHYSICAL_PATH_ALIAS/)
 })

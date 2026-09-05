@@ -15,6 +15,7 @@
     "cleanupIntentDetected",
     "coordinationExit",
     "resourceCleanup",
+    "cleanupResult",
     "rosterAuthorityFingerprint",
     "taskReadbackSource",
     "readbackRosterFingerprint",
@@ -32,6 +33,16 @@
     "cleanupIntentDetected": { "const": true },
     "coordinationExit": { "enum": ["PASSED", "PENDING", "FAILED"] },
     "resourceCleanup": { "enum": ["PENDING", "VERIFIED", "PARTIAL_FAILURE"] },
+    "cleanupResult": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["path", "sha256", "fingerprint"],
+      "properties": {
+        "path": { "$ref": "#/$defs/absolutePath" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "fingerprint": { "$ref": "#/$defs/sha256" }
+      }
+    },
     "rosterAuthorityFingerprint": { "$ref": "#/$defs/sha256" },
     "taskReadbackSource": { "const": "CODEX_TASK_NATIVE" },
     "readbackRosterFingerprint": { "$ref": "#/$defs/sha256" },
@@ -51,6 +62,7 @@
     "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "key": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
     "token": { "type": "string", "minLength": 1 },
+    "absolutePath": { "type": "string", "pattern": "^/" },
     "taskKind": { "enum": ["BOUNDED_HELPER", "RV", "DO", "CO"] },
     "task": {
       "type": "object",

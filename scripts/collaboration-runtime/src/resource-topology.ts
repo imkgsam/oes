@@ -32,6 +32,7 @@ const PROFILE_TOPOLOGY_FIELDS = new Set([
   'owner_resource_binding_fingerprint'
 ])
 const OWNER_SCRATCH_LEAF = /^oes-owner-[0-9a-f]{64}$/
+const trustedOwnerResourceBindings = new WeakSet<object>()
 
 /** Requires an exact object shape for one durable owner artifact. */
 function requireExactKeys(value: unknown, allowed: string[], field: string): void {
@@ -65,7 +66,7 @@ function isStrictlyWithin(root: string, candidate: string): boolean {
 }
 
 /** Resolves an absent target through its nearest existing parent to one physical identity. */
-function physicalIdentityForPotentialPath(path: string): string {
+export function physicalIdentityForPotentialPath(path: string): string {
   const target = resolve(path)
   let existing = target
   while (!existsSync(existing)) {
@@ -119,7 +120,7 @@ export function validateStableOwnerTaskTempRoot(
 }
 
 /** Reopens one existing path and rejects aliases or missing resource identities. */
-function requireExactPhysicalPath(
+export function requireExactPhysicalPath(
   path: string,
   field: string,
   physicalPath: (path: string) => string
@@ -266,6 +267,10 @@ export function validateOwnerResourceBinding(value: OwnerResourceBinding): Owner
     fail('OWNER_GIT_DIRECTORY_NOT_PRIVATE_CLONE', value.ownerGitDirectory)
   const physicalOwnerClone = physicalIdentityForPotentialPath(value.ownerClone)
   const physicalArtifactRoot = physicalIdentityForPotentialPath(value.artifactRoot)
+  if (physicalOwnerClone !== value.ownerClone)
+    fail('OWNER_RESOURCE_PHYSICAL_PATH_ALIAS', 'ownerClone')
+  if (physicalArtifactRoot !== value.artifactRoot)
+    fail('OWNER_RESOURCE_PHYSICAL_PATH_ALIAS', 'artifactRoot')
   if (
     isWithin(physicalOwnerClone, physicalArtifactRoot) ||
     isWithin(physicalArtifactRoot, physicalOwnerClone)
@@ -288,6 +293,7 @@ export function validateOwnerResourceBinding(value: OwnerResourceBinding): Owner
     ]) {
       if (!path) fail('STABLE_OWNER_DURABILITY_PATH_REQUIRED', value.ownerTaskId)
       assertPathWithin(value.artifactRoot, path)
+      requireExactPhysicalPath(path, 'durabilityPath', physicalIdentityForPotentialPath)
     }
     if (
       new Set([
@@ -333,7 +339,24 @@ export function loadOwnerResourceBindingReference(
   )
   if (binding.bindingFingerprint !== reference.fingerprint)
     fail('OWNER_RESOURCE_BINDING_REFERENCE_MISMATCH', reference.path)
-  return binding
+  const frozen = deepFreeze(binding)
+  trustedOwnerResourceBindings.add(frozen)
+  return frozen
+}
+
+/** Requires a binding to have been reopened from its exact hashed reference in this process. */
+export function requireTrustedOwnerResourceBinding(value: OwnerResourceBinding): void {
+  if (!trustedOwnerResourceBindings.has(value))
+    fail('OWNER_RESOURCE_TRUSTED_BINDING_REQUIRED', value.ownerTaskId)
+}
+
+/** Deep-freezes one reopened owner binding so its trust mark cannot survive mutation. */
+function deepFreeze<T>(value: T): T {
+  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+    for (const child of Object.values(value as Record<string, unknown>)) deepFreeze(child)
+    Object.freeze(value)
+  }
+  return value
 }
 
 /** Validates one current evidence manifest for its exact owner binding. */
