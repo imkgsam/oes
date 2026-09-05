@@ -124,7 +124,7 @@
       "$ref": "#/$defs/sha256"
     },
     "resourceTopologyVersion": {
-      "const": "stable-owner-exclusive-v1"
+      "const": "owner-exclusive-v2"
     },
     "ownerResourceBinding": {
       "$ref": "#/$defs/reference"
@@ -140,7 +140,7 @@
       "pattern": "^[0-9a-f]{40}$"
     },
     "action": {
-      "enum": ["preflight", "publish-pr", "verify-pr", "merge-pr", "verify-main", "cleanup"]
+      "enum": ["preflight", "publish-pr", "verify-pr", "merge-pr", "verify-main"]
     },
     "reference": {
       "type": "object",
@@ -165,7 +165,7 @@
       "required": ["role", "taskId"],
       "properties": {
         "role": {
-          "enum": ["Direct owner", "Global Unified Design", "Feature Lead", "Stage Lead"]
+          "enum": ["DO", "UD", "DO", "CO"]
         },
         "taskId": {
           "type": "string",

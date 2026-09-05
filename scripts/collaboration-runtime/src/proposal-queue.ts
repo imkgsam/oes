@@ -135,7 +135,7 @@ function validateEnvelope(envelope: ProposalEnvelope): void {
   if (
     !envelope.source ||
     typeof envelope.source.role !== 'string' ||
-    !envelope.source.role.trim() ||
+    envelope.source.role !== 'DA' ||
     typeof envelope.source.taskId !== 'string' ||
     !envelope.source.taskId.trim() ||
     typeof envelope.returnTaskId !== 'string' ||

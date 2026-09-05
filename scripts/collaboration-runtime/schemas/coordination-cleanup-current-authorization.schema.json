@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://oes.local/schemas/collaboration-runtime/stage-cleanup-current-authorization-v1.json",
-  "title": "OES current Stage cleanup CAS authorization",
+  "$id": "https://oes.local/schemas/collaboration-runtime/coordination-cleanup-current-authorization-v2.json",
+  "title": "OES V2 current coordination cleanup CAS authorization",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -12,8 +12,8 @@
     "purpose",
     "rootAuthorization",
     "childAuthorization",
-    "stageKey",
-    "stageOwnerTaskId",
+    "coordinationKey",
+    "coordinationOwnerTaskId",
     "ownerTaskId",
     "expectedState",
     "stateVersion",
@@ -23,10 +23,10 @@
   ],
   "properties": {
     "schemaVersion": {
-      "const": 1
+      "const": 2
     },
     "kind": {
-      "const": "OES_STAGE_CLEANUP_CURRENT_AUTHORIZATION"
+      "const": "OES_COORDINATION_CLEANUP_CURRENT_AUTHORIZATION"
     },
     "recordFingerprint": {
       "$ref": "#/$defs/sha256"
@@ -35,41 +35,28 @@
       "enum": ["ACTIVE", "INVALIDATED", "COMPLETED"]
     },
     "purpose": {
-      "enum": ["CHILD_SELF_CLEANUP", "STAGE_CLEANUP_VERIFY"]
+      "enum": ["CHILD_SELF_CLEANUP", "COORDINATION_CLEANUP_VERIFY"]
     },
     "rootAuthorization": {
       "$ref": "#/$defs/reference"
     },
     "childAuthorization": {
-      "type": ["object", "null"],
-      "allOf": [
-        {
-          "if": {
-            "type": "object"
-          },
-          "then": {
-            "$ref": "#/$defs/reference"
-          }
-        }
-      ]
+      "type": ["object", "null"]
     },
-    "stageKey": {
+    "coordinationKey": {
       "type": "string",
-      "minLength": 1,
-      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+      "minLength": 1
     },
-    "stageOwnerTaskId": {
+    "coordinationOwnerTaskId": {
       "type": "string",
-      "minLength": 1,
-      "pattern": "^(?:/[A-Za-z0-9][A-Za-z0-9_-]*(?:/[A-Za-z0-9][A-Za-z0-9_-]*)+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$"
+      "minLength": 1
     },
     "ownerTaskId": {
       "type": "string",
-      "minLength": 1,
-      "pattern": "^(?:/[A-Za-z0-9][A-Za-z0-9_-]*(?:/[A-Za-z0-9][A-Za-z0-9_-]*)+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$"
+      "minLength": 1
     },
     "expectedState": {
-      "const": "STAGE_CLEANUP_AUTHORIZED"
+      "const": "COORDINATION_CLEANUP_AUTHORIZED"
     },
     "stateVersion": {
       "type": "integer",
@@ -83,7 +70,7 @@
       "$ref": "#/$defs/sha256"
     },
     "postcondition": {
-      "const": "CURRENT_STAGE_CLEANUP"
+      "const": "CURRENT_COORDINATION_CLEANUP"
     }
   },
   "$defs": {

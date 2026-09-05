@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://oes.local/schemas/assignment-result.schema.json",
-  "title": "OES direct assignment result",
+  "title": "OES bounded assignment result",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -9,7 +9,7 @@
     "kind",
     "resultFingerprint",
     "assignmentId",
-    "directExecutionParentTaskId",
+    "parentTaskId",
     "childTaskId",
     "transitionId",
     "dispatchStateVersion",
@@ -21,7 +21,7 @@
     "kind": { "const": "OES_ASSIGNMENT_RESULT" },
     "resultFingerprint": { "$ref": "#/$defs/fingerprint" },
     "assignmentId": { "$ref": "#/$defs/fingerprint" },
-    "directExecutionParentTaskId": { "$ref": "#/$defs/token" },
+    "parentTaskId": { "$ref": "#/$defs/token" },
     "childTaskId": { "$ref": "#/$defs/token" },
     "transitionId": { "$ref": "#/$defs/token" },
     "dispatchStateVersion": { "type": "integer", "minimum": 1 },

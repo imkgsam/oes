@@ -12,29 +12,55 @@
     "mergeCommitSha"
   ],
   "properties": {
-    "action": { "$ref": "#/$defs/action" },
-    "mutationPerformed": { "type": "boolean" },
-    "recoveredFromRemoteTruth": { "type": "boolean" },
-    "branchHead": { "$ref": "#/$defs/nullableGitSha" },
-    "pullRequestNumber": { "type": ["integer", "null"], "minimum": 1 },
-    "mergeCommitSha": { "$ref": "#/$defs/nullableGitSha" },
-    "mergeGroupBaseSha": { "$ref": "#/$defs/nullableGitSha" },
-    "mergeGroupHeadSha": { "$ref": "#/$defs/nullableGitSha" },
-    "cleanupResources": { "type": "array", "items": { "$ref": "#/$defs/resource" } }
+    "action": {
+      "$ref": "#/$defs/action"
+    },
+    "mutationPerformed": {
+      "type": "boolean"
+    },
+    "recoveredFromRemoteTruth": {
+      "type": "boolean"
+    },
+    "branchHead": {
+      "$ref": "#/$defs/nullableGitSha"
+    },
+    "pullRequestNumber": {
+      "type": ["integer", "null"],
+      "minimum": 1
+    },
+    "mergeCommitSha": {
+      "$ref": "#/$defs/nullableGitSha"
+    },
+    "mergeGroupBaseSha": {
+      "$ref": "#/$defs/nullableGitSha"
+    },
+    "mergeGroupHeadSha": {
+      "$ref": "#/$defs/nullableGitSha"
+    }
   },
   "$defs": {
     "action": {
-      "enum": ["preflight", "publish-pr", "verify-pr", "merge-pr", "verify-main", "cleanup"]
+      "enum": ["preflight", "publish-pr", "verify-pr", "merge-pr", "verify-main"]
     },
-    "nullableGitSha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" },
+    "nullableGitSha": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{40}$"
+    },
     "resource": {
       "type": "object",
       "additionalProperties": false,
       "required": ["kind", "path", "expectedSha"],
       "properties": {
-        "kind": { "enum": ["remote-branch", "local-branch", "worktree", "feature-packet"] },
-        "path": { "type": "string", "minLength": 1 },
-        "expectedSha": { "$ref": "#/$defs/nullableGitSha" }
+        "kind": {
+          "enum": ["remote-branch", "local-branch", "worktree", "delivery-record"]
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expectedSha": {
+          "$ref": "#/$defs/nullableGitSha"
+        }
       }
     }
   }

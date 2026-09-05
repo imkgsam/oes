@@ -18,8 +18,8 @@
     "ownerRef",
     "artifactRoot",
     "taskTempRoot",
-    "featurePacket",
-    "featurePacketCheckpointPath",
+    "deliveryRecord",
+    "deliveryRecordCheckpointPath",
     "currentEvidenceManifestPath",
     "checkpointBundlePath",
     "gitBundlePath"
@@ -72,9 +72,9 @@
     "taskTempRoot": {
       "$ref": "#/$defs/absolutePath"
     },
-    "featurePacket": {
+    "deliveryRecord": {
       "type": "string",
-      "pattern": "^docs/plans/features/[a-z0-9]+(?:-[a-z0-9]+)*\\.md$"
+      "pattern": "^docs/plans/deliveries/[a-z0-9]+(?:-[a-z0-9]+)*\\.md$"
     },
     "currentEvidenceManifestPath": {
       "$ref": "#/$defs/absolutePath"
@@ -86,7 +86,7 @@
       "type": ["string", "null"],
       "pattern": "^/"
     },
-    "featurePacketCheckpointPath": {
+    "deliveryRecordCheckpointPath": {
       "$ref": "#/$defs/absolutePath"
     }
   },
@@ -95,7 +95,7 @@
       "if": {
         "properties": {
           "resourceTopologyVersion": {
-            "const": "stable-owner-exclusive-v1"
+            "const": "owner-exclusive-v2"
           }
         }
       },
@@ -111,25 +111,6 @@
           }
         }
       }
-    },
-    {
-      "if": {
-        "properties": {
-          "resourceTopologyVersion": {
-            "const": "pre-cutover-v1"
-          }
-        }
-      },
-      "then": {
-        "not": {
-          "required": ["repositoryRemoteUrl"]
-        },
-        "properties": {
-          "gitBundlePath": {
-            "const": null
-          }
-        }
-      }
     }
   ],
   "$defs": {
@@ -138,7 +119,7 @@
       "pattern": "^[0-9a-f]{64}$"
     },
     "topologyVersion": {
-      "enum": ["pre-cutover-v1", "stable-owner-exclusive-v1"]
+      "enum": ["owner-exclusive-v2"]
     },
     "absolutePath": {
       "type": "string",

@@ -1,53 +1,49 @@
-export const ASSIGNMENT_CHILD_ROLES = [
-  'FEATURE_LEAD',
-  'IMPLEMENTATION_TASK',
-  'FEATURE_REVIEW'
-] as const
-export type AssignmentChildRole = (typeof ASSIGNMENT_CHILD_ROLES)[number]
+export const ASSIGNMENT_CHILD_KINDS = ['DO', 'BOUNDED_HELPER', 'RV'] as const
+export type AssignmentChildKind = (typeof ASSIGNMENT_CHILD_KINDS)[number]
 
-export type AssignmentOwnerRole = 'STAGE_LEAD' | 'FEATURE_LEAD'
+export type AssignmentOwnerRole = 'CO' | 'DO'
 
 export interface AssignmentOwnerBinding {
   role: AssignmentOwnerRole
   taskId: string
-  directExecutionParentTaskId: string
+  parentTaskId: string
 }
 
 export interface AssignmentWipCeiling {
-  maxActiveFeatureLeads: number
-  maxActiveImplementationTasksPerFeature: number
-  maxActiveFeatureReviewsPerFeature: 1
+  maxActiveDeliveryOwners: number
+  maxActiveBoundedHelpersPerDelivery: number
+  maxActiveReviewVerifiersPerDelivery: 1
 }
 
-export interface FeatureWipSnapshot {
-  featureKey: string
-  activeImplementationTasks: number
-  activeFeatureReviews: number
+export interface DeliveryWipSnapshot {
+  deliveryKey: string
+  activeBoundedHelpers: number
+  activeReviewVerifiers: number
 }
 
 export interface AssignmentWipSnapshot {
-  activeFeatureLeads: number
-  features: FeatureWipSnapshot[]
+  activeDeliveryOwners: number
+  deliveries: DeliveryWipSnapshot[]
 }
 
-export interface StageWipAuthorityBinding {
+export interface CoordinationWipAuthorityBinding {
   schemaVersion: 1
-  kind: 'OES_STAGE_WIP_AUTHORITY_BINDING'
+  kind: 'OES_COORDINATION_WIP_AUTHORITY_BINDING'
   authorityFingerprint: string
-  stageLeadTaskId: string
-  stageKey: string
+  coordinationOwnerTaskId: string
+  coordinationKey: string
   transitionId: string
-  stageStateVersion: number
-  stageStateFingerprint: string
-  activeFeatureLeads: number
-  activeFeatureKeys: string[]
+  coordinationStateVersion: number
+  coordinationStateFingerprint: string
+  activeDeliveryOwners: number
+  activeDeliveryKeys: string[]
   ceiling: AssignmentWipCeiling
 }
 
 export interface AssignmentRuntimeInitialization {
   owner: AssignmentOwnerBinding
-  stageKey: string
-  featureKey: string
+  coordinationKey: string
+  deliveryKey: string
   transitionId: string
   scopeFingerprint: string
   ceiling: AssignmentWipCeiling
@@ -57,8 +53,8 @@ export interface AssignmentRuntimeInitialization {
 export interface ChildAssignmentRequest {
   expectedStateVersion: number
   childTaskId: string
-  childRole: AssignmentChildRole
-  featureKey: string
+  childKind: AssignmentChildKind
+  deliveryKey: string
   expectedTypedResult: string
   nextLegalActionOnResult: string
   scopeFingerprint: string
@@ -75,10 +71,10 @@ export interface AssignmentResultArtifactRootIdentity {
 export interface ActiveChildAssignment {
   assignmentId: string
   requestFingerprint: string
-  directExecutionParentTaskId: string
+  parentTaskId: string
   childTaskId: string
-  childRole: AssignmentChildRole
-  featureKey: string
+  childKind: AssignmentChildKind
+  deliveryKey: string
   transitionId: string
   dispatchStateVersion: number
   expectedTypedResult: string
@@ -96,7 +92,7 @@ export interface AssignmentResultArtifact {
 
 export interface AssignmentResultArtifactPayloadInput {
   assignmentId: string
-  directExecutionParentTaskId: string
+  parentTaskId: string
   childTaskId: string
   transitionId: string
   dispatchStateVersion: number
@@ -112,7 +108,7 @@ export interface AssignmentResultArtifactPayload extends AssignmentResultArtifac
 
 export interface AssignmentResultInput {
   assignmentId: string
-  directExecutionParentTaskId: string
+  parentTaskId: string
   childTaskId: string
   transitionId: string
   dispatchStateVersion: number
@@ -125,7 +121,7 @@ export interface AssignmentResult extends AssignmentResultInput {
   kind: 'OES_ASSIGNMENT_RESULT'
   resultFingerprint: string
   assignmentId: string
-  directExecutionParentTaskId: string
+  parentTaskId: string
   childTaskId: string
   transitionId: string
   dispatchStateVersion: number
@@ -150,10 +146,10 @@ export interface AssignmentResultTombstone {
   receipt: AssignmentResultReceipt
 }
 
-export type AssignmentRuntimeStatus = 'ACTIVE' | 'WAITING_ON_CHILD' | 'FEATURE_REPLAN_REQUIRED'
+export type AssignmentRuntimeStatus = 'ACTIVE' | 'WAITING_ON_CHILD' | 'DELIVERY_TOPOLOGY_REQUIRED'
 
-export interface FeatureReplanStateMarker {
-  decision: FeatureReplanDecisionKind
+export interface DeliveryTopologyStateMarker {
+  decision: DeliveryTopologyDecisionKind
   requestFingerprint: string
   decisionFingerprint: string
 }
@@ -163,8 +159,8 @@ export interface AssignmentRuntimeState {
   kind: 'OES_ASSIGNMENT_RUNTIME_STATE'
   recordFingerprint: string
   owner: AssignmentOwnerBinding
-  stageKey: string
-  featureKey: string
+  coordinationKey: string
+  deliveryKey: string
   transitionId: string
   scopeFingerprint: string
   stateVersion: number
@@ -173,19 +169,19 @@ export interface AssignmentRuntimeState {
   activeAssignments: ActiveChildAssignment[]
   resultTombstones: AssignmentResultTombstone[]
   wip: AssignmentWipSnapshot
-  featureReplan: FeatureReplanStateMarker | null
+  deliveryTopology: DeliveryTopologyStateMarker | null
   nextLegalAction: string
 }
 
 export interface IndependentDeliveryProof {
   independentCandidate: boolean
-  independentFeatureReview: boolean
+  independentReviewVerification: boolean
   independentPullRequest: boolean
   safeIndependentMainMerge: boolean
 }
 
-export interface FeatureReplanSiblingInput {
-  featureKey: string
+export interface DeliveryTopologySiblingInput {
+  deliveryKey: string
   objective: string
   scope: string[]
   protectedScope: string[]
@@ -196,7 +192,7 @@ export interface FeatureReplanSiblingInput {
   independenceProof: IndependentDeliveryProof
 }
 
-export interface FeatureReplanSibling extends FeatureReplanSiblingInput {
+export interface DeliveryTopologySibling extends DeliveryTopologySiblingInput {
   scopeFingerprint: string
 }
 
@@ -207,16 +203,16 @@ export interface CompletedSliceBinding {
   evidenceFingerprints: string[]
 }
 
-export interface FeatureOwnerResources {
+export interface DeliveryOwnerResources {
   ownerRef: string
   ownerClone: string
   taskTemp: string
-  featurePacket: string
+  deliveryRecord: string
 }
 
-export const FEATURE_REPLAN_INVALIDATION_CONDITIONS = [
+export const DELIVERY_TOPOLOGY_INVALIDATION_CONDITIONS = [
   'OWNER_OR_PARENT_CHANGED',
-  'STAGE_OR_FEATURE_KEY_CHANGED',
+  'COORDINATION_OR_DELIVERY_KEY_CHANGED',
   'TRANSITION_OR_STATE_VERSION_CHANGED',
   'SCOPE_OR_PROTECTED_SCOPE_CHANGED',
   'ROOT_AUTHORIZATION_CHANGED',
@@ -225,45 +221,45 @@ export const FEATURE_REPLAN_INVALIDATION_CONDITIONS = [
   'COMPLETED_WORK_OR_EVIDENCE_CHANGED',
   'RESOURCE_BINDING_CHANGED'
 ] as const
-export type FeatureReplanInvalidationCondition =
-  (typeof FEATURE_REPLAN_INVALIDATION_CONDITIONS)[number]
+export type DeliveryTopologyInvalidationCondition =
+  (typeof DELIVERY_TOPOLOGY_INVALIDATION_CONDITIONS)[number]
 
-export interface FeatureReplanRequestInput {
-  stageLeadTaskId: string
-  featureLeadTaskId: string
-  stageKey: string
-  featureKey: string
+export interface DeliveryTopologyRequestInput {
+  coordinationOwnerTaskId: string
+  deliveryOwnerTaskId: string
+  coordinationKey: string
+  deliveryKey: string
   transitionId: string
   stateVersion: number
   scopeFingerprint: string
   rootAuthorizationFingerprint: string
-  stageWipAuthority: StageWipAuthorityBinding
+  coordinationWipAuthority: CoordinationWipAuthorityBinding
   oldTopology: AssignmentWipSnapshot
   delegationCeiling: AssignmentWipCeiling
   retainedWriteSet: string[]
-  currentResources: FeatureOwnerResources
+  currentResources: DeliveryOwnerResources
   completedSlices: CompletedSliceBinding[]
-  proposedSiblings: FeatureReplanSibling[]
+  proposedSiblings: DeliveryTopologySibling[]
 }
 
-export interface FeatureReplanRequest extends FeatureReplanRequestInput {
+export interface DeliveryTopologyRequest extends DeliveryTopologyRequestInput {
   schemaVersion: 1
-  kind: 'OES_FEATURE_REPLAN_REQUEST'
+  kind: 'OES_DELIVERY_TOPOLOGY_REQUEST'
   requestFingerprint: string
-  invalidationConditions: FeatureReplanInvalidationCondition[]
+  invalidationConditions: DeliveryTopologyInvalidationCondition[]
 }
 
-export type FeatureReplanDecisionKind = 'FEATURE_REPLAN_REQUIRED' | 'ATOMIC_CONTINUATION'
+export type DeliveryTopologyDecisionKind = 'DELIVERY_TOPOLOGY_REQUIRED' | 'ATOMIC_CONTINUATION'
 
-export interface FeatureReplanDecision {
+export interface DeliveryTopologyDecision {
   schemaVersion: 1
-  kind: 'OES_FEATURE_REPLAN_DECISION'
+  kind: 'OES_DELIVERY_TOPOLOGY_DECISION'
   decisionFingerprint: string
-  decision: FeatureReplanDecisionKind
-  request: FeatureReplanRequest
+  decision: DeliveryTopologyDecisionKind
+  request: DeliveryTopologyRequest
   newTopology: AssignmentWipSnapshot
   nextLegalAction:
-    | 'RETURN_FEATURE_REPLAN_REQUIRED_TO_DIRECT_PARENT'
-    | 'CONTINUE_ORIGINAL_FEATURE_WITH_BOUNDED_ITS'
+    | 'RETURN_DELIVERY_TOPOLOGY_REQUIRED_TO_OWNER'
+    | 'CONTINUE_ORIGINAL_DELIVERY_WITH_BOUNDED_HELPERS'
   reason: string
 }

@@ -9,8 +9,8 @@
     "kind",
     "recordFingerprint",
     "owner",
-    "stageKey",
-    "featureKey",
+    "coordinationKey",
+    "deliveryKey",
     "transitionId",
     "scopeFingerprint",
     "stateVersion",
@@ -19,7 +19,7 @@
     "activeAssignments",
     "resultTombstones",
     "wip",
-    "featureReplan",
+    "deliveryTopology",
     "nextLegalAction"
   ],
   "properties": {
@@ -27,12 +27,12 @@
     "kind": { "const": "OES_ASSIGNMENT_RUNTIME_STATE" },
     "recordFingerprint": { "$ref": "#/$defs/fingerprint" },
     "owner": { "$ref": "#/$defs/owner" },
-    "stageKey": { "$ref": "#/$defs/featureKey" },
-    "featureKey": { "$ref": "#/$defs/featureKey" },
+    "coordinationKey": { "$ref": "#/$defs/deliveryKey" },
+    "deliveryKey": { "$ref": "#/$defs/deliveryKey" },
     "transitionId": { "$ref": "#/$defs/token" },
     "scopeFingerprint": { "$ref": "#/$defs/fingerprint" },
     "stateVersion": { "type": "integer", "minimum": 1 },
-    "status": { "enum": ["ACTIVE", "WAITING_ON_CHILD", "FEATURE_REPLAN_REQUIRED"] },
+    "status": { "enum": ["ACTIVE", "WAITING_ON_CHILD", "DELIVERY_TOPOLOGY_REQUIRED"] },
     "ceiling": { "$ref": "#/$defs/ceiling" },
     "activeAssignments": {
       "type": "array",
@@ -45,12 +45,12 @@
       "uniqueItems": true
     },
     "wip": { "$ref": "#/$defs/wip" },
-    "featureReplan": {
+    "deliveryTopology": {
       "type": ["object", "null"],
       "additionalProperties": false,
       "required": ["decision", "requestFingerprint", "decisionFingerprint"],
       "properties": {
-        "decision": { "enum": ["FEATURE_REPLAN_REQUIRED", "ATOMIC_CONTINUATION"] },
+        "decision": { "enum": ["DELIVERY_TOPOLOGY_REQUIRED", "ATOMIC_CONTINUATION"] },
         "requestFingerprint": { "$ref": "#/$defs/fingerprint" },
         "decisionFingerprint": { "$ref": "#/$defs/fingerprint" }
       }
@@ -67,15 +67,15 @@
       "then": { "properties": { "activeAssignments": { "maxItems": 0 } } }
     },
     {
-      "if": { "properties": { "status": { "const": "FEATURE_REPLAN_REQUIRED" } } },
+      "if": { "properties": { "status": { "const": "DELIVERY_TOPOLOGY_REQUIRED" } } },
       "then": {
         "properties": {
-          "featureReplan": {
+          "deliveryTopology": {
             "type": "object",
             "additionalProperties": false,
             "required": ["decision", "requestFingerprint", "decisionFingerprint"],
             "properties": {
-              "decision": { "const": "FEATURE_REPLAN_REQUIRED" },
+              "decision": { "const": "DELIVERY_TOPOLOGY_REQUIRED" },
               "requestFingerprint": { "$ref": "#/$defs/fingerprint" },
               "decisionFingerprint": { "$ref": "#/$defs/fingerprint" }
             }
@@ -86,31 +86,31 @@
   ],
   "$defs": {
     "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-    "featureKey": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "deliveryKey": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
     "token": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" },
     "action": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
     "owner": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["role", "taskId", "directExecutionParentTaskId"],
+      "required": ["role", "taskId", "parentTaskId"],
       "properties": {
-        "role": { "enum": ["STAGE_LEAD", "FEATURE_LEAD"] },
+        "role": { "enum": ["CO", "DO"] },
         "taskId": { "$ref": "#/$defs/token" },
-        "directExecutionParentTaskId": { "$ref": "#/$defs/token" }
+        "parentTaskId": { "$ref": "#/$defs/token" }
       }
     },
     "ceiling": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "maxActiveFeatureLeads",
-        "maxActiveImplementationTasksPerFeature",
-        "maxActiveFeatureReviewsPerFeature"
+        "maxActiveDeliveryOwners",
+        "maxActiveBoundedHelpersPerDelivery",
+        "maxActiveReviewVerifiersPerDelivery"
       ],
       "properties": {
-        "maxActiveFeatureLeads": { "enum": [1, 2, 3] },
-        "maxActiveImplementationTasksPerFeature": { "enum": [1, 2, 3] },
-        "maxActiveFeatureReviewsPerFeature": { "const": 1 }
+        "maxActiveDeliveryOwners": { "enum": [1, 2, 3] },
+        "maxActiveBoundedHelpersPerDelivery": { "enum": [1, 2, 3] },
+        "maxActiveReviewVerifiersPerDelivery": { "const": 1 }
       }
     },
     "activeAssignment": {
@@ -119,10 +119,10 @@
       "required": [
         "assignmentId",
         "requestFingerprint",
-        "directExecutionParentTaskId",
+        "parentTaskId",
         "childTaskId",
-        "childRole",
-        "featureKey",
+        "childKind",
+        "deliveryKey",
         "transitionId",
         "dispatchStateVersion",
         "expectedTypedResult",
@@ -134,10 +134,10 @@
       "properties": {
         "assignmentId": { "$ref": "#/$defs/fingerprint" },
         "requestFingerprint": { "$ref": "#/$defs/fingerprint" },
-        "directExecutionParentTaskId": { "$ref": "#/$defs/token" },
+        "parentTaskId": { "$ref": "#/$defs/token" },
         "childTaskId": { "$ref": "#/$defs/token" },
-        "childRole": { "enum": ["FEATURE_LEAD", "IMPLEMENTATION_TASK", "FEATURE_REVIEW"] },
-        "featureKey": { "$ref": "#/$defs/featureKey" },
+        "childKind": { "enum": ["DO", "BOUNDED_HELPER", "RV"] },
+        "deliveryKey": { "$ref": "#/$defs/deliveryKey" },
         "transitionId": { "$ref": "#/$defs/token" },
         "dispatchStateVersion": { "type": "integer", "minimum": 1 },
         "expectedTypedResult": { "$ref": "#/$defs/token" },
@@ -158,25 +158,25 @@
         "fileType": { "const": "DIRECTORY" }
       }
     },
-    "featureWip": {
+    "deliveryWip": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["featureKey", "activeImplementationTasks", "activeFeatureReviews"],
+      "required": ["deliveryKey", "activeBoundedHelpers", "activeReviewVerifiers"],
       "properties": {
-        "featureKey": { "$ref": "#/$defs/featureKey" },
-        "activeImplementationTasks": { "type": "integer", "minimum": 0 },
-        "activeFeatureReviews": { "type": "integer", "minimum": 0 }
+        "deliveryKey": { "$ref": "#/$defs/deliveryKey" },
+        "activeBoundedHelpers": { "type": "integer", "minimum": 0 },
+        "activeReviewVerifiers": { "type": "integer", "minimum": 0 }
       }
     },
     "wip": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["activeFeatureLeads", "features"],
+      "required": ["activeDeliveryOwners", "deliveries"],
       "properties": {
-        "activeFeatureLeads": { "type": "integer", "minimum": 0 },
-        "features": {
+        "activeDeliveryOwners": { "type": "integer", "minimum": 0 },
+        "deliveries": {
           "type": "array",
-          "items": { "$ref": "#/$defs/featureWip" },
+          "items": { "$ref": "#/$defs/deliveryWip" },
           "uniqueItems": true
         }
       }

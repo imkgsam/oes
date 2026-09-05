@@ -23,7 +23,7 @@ test('managed command invocation preserves exact executable and argument boundar
     'ls-remote',
     '--heads',
     'origin',
-    'refs/heads/codex/feature with spaces;still-one-argument'
+    'refs/heads/codex/delivery with spaces;still-one-argument'
   ])
   assert.deepEqual(invocation, {
     command: '/bin/sh',
@@ -35,7 +35,7 @@ test('managed command invocation preserves exact executable and argument boundar
       'ls-remote',
       '--heads',
       'origin',
-      'refs/heads/codex/feature with spaces;still-one-argument'
+      'refs/heads/codex/delivery with spaces;still-one-argument'
     ]
   })
 })
@@ -51,7 +51,7 @@ class ScenarioRunner implements CommandRunner {
   pullState = 'open'
   pullDraft = true
   pullBaseRef = 'main'
-  pullHeadRef = 'codex/feature/runtime'
+  pullHeadRef = 'codex/delivery/runtime'
   pullHeadSha: string
   pullTitle = 'Runtime'
   pullBody = 'Exact candidate'
@@ -75,7 +75,7 @@ class ScenarioRunner implements CommandRunner {
     if (command === 'git' && args[0] === 'remote') return ok('https://github.com/example/oes.git\n')
     if (command === 'git' && args[0] === 'rev-parse' && args[1] === 'HEAD')
       return ok(`${this.candidate}\n`)
-    if (command === 'git' && args[0] === 'branch') return ok('codex/feature/runtime\n')
+    if (command === 'git' && args[0] === 'branch') return ok('codex/delivery/runtime\n')
     if (command === 'git' && args[0] === 'ls-remote') {
       const ref = args.at(-1)
       const sha = ref === 'refs/heads/main' ? this.main : this.branchHead
@@ -328,7 +328,7 @@ test('an already complete publish amendment is satisfied without another push or
   assert.equal(
     remoteMutationSatisfied(binding, {
       ...truth,
-      pullRequest: { ...truth.pullRequest!, headRef: 'codex/feature/other' }
+      pullRequest: { ...truth.pullRequest!, headRef: 'codex/delivery/other' }
     }),
     false
   )
@@ -380,7 +380,7 @@ test('publish amendment rejects wrong PR number, ref, base, state, draft, or tit
   })
   const cases: Array<[string, Partial<PullRequestTruth>, RegExp]> = [
     ['number', { number: 41 }, /PULL_REQUEST_NUMBER_MISMATCH/],
-    ['head ref', { headRef: 'codex/feature/other' }, /PULL_REQUEST_BINDING_MISMATCH/],
+    ['head ref', { headRef: 'codex/delivery/other' }, /PULL_REQUEST_BINDING_MISMATCH/],
     ['base ref', { baseRef: 'develop' }, /PULL_REQUEST_BINDING_MISMATCH/],
     ['state', { state: 'CLOSED' }, /PULL_REQUEST_REF_REUSED/],
     ['draft', { draft: false }, /PULL_REQUEST_BINDING_MISMATCH/],

@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/coordination-child-cleanup-authorization-v2.json",
+  "title": "OES V2 coordination child cleanup authorization",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "authorizationFingerprint",
+    "status",
+    "rootAuthorization",
+    "expectedState",
+    "stateVersion",
+    "coordinationKey",
+    "coordinationOwnerTaskId",
+    "ownerTaskId",
+    "transitionId",
+    "confirmationFingerprint",
+    "ownerResourceBinding",
+    "resources",
+    "postcondition"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "kind": {
+      "const": "OES_COORDINATION_CHILD_CLEANUP_AUTHORIZATION"
+    },
+    "authorizationFingerprint": {
+      "$ref": "#/$defs/sha256"
+    },
+    "status": {
+      "const": "ISSUED"
+    },
+    "rootAuthorization": {
+      "$ref": "#/$defs/reference"
+    },
+    "expectedState": {
+      "const": "COORDINATION_CLEANUP_AUTHORIZED"
+    },
+    "stateVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "coordinationKey": {
+      "$ref": "#/$defs/key"
+    },
+    "coordinationOwnerTaskId": {
+      "type": "string",
+      "pattern": "^(?:/[A-Za-z0-9][A-Za-z0-9_-]*){2,}$"
+    },
+    "ownerTaskId": {
+      "type": "string",
+      "pattern": "^(?:/[A-Za-z0-9][A-Za-z0-9_-]*){2,}$"
+    },
+    "transitionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "confirmationFingerprint": {
+      "$ref": "#/$defs/sha256"
+    },
+    "ownerResourceBinding": {
+      "$ref": "#/$defs/ownerBinding"
+    },
+    "resources": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "$ref": "#/$defs/resource"
+      }
+    },
+    "postcondition": {
+      "const": "CHILD_SELF_CLEANUP"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "key": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "fingerprint"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "fingerprint": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "expectedSha"],
+      "properties": {
+        "kind": {
+          "enum": ["remote-branch", "local-branch", "worktree", "task-temp"]
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^(?:codex/(?:delivery|coordination)/[a-z0-9]+(?:-[a-z0-9]+)*|/(?!.*(?:^|/)\\.\\.?/).+)$"
+        },
+        "expectedSha": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{40}$"
+        }
+      }
+    },
+    "ownerBinding": {
+      "type": "object",
+      "required": [
+        "schemaVersion",
+        "kind",
+        "bindingFingerprint",
+        "resourceTopologyVersion",
+        "ownerTaskId",
+        "ownerClone",
+        "ownerRef",
+        "taskTempRoot"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "kind": {
+          "const": "OES_OWNER_RESOURCE_BINDING"
+        },
+        "bindingFingerprint": {
+          "$ref": "#/$defs/sha256"
+        },
+        "resourceTopologyVersion": {
+          "const": "owner-exclusive-v2"
+        },
+        "ownerTaskId": {
+          "type": "string",
+          "pattern": "^(?:/[A-Za-z0-9][A-Za-z0-9_-]*){2,}$"
+        },
+        "ownerClone": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "ownerRef": {
+          "type": "string",
+          "pattern": "^refs/heads/codex/(?:delivery|coordination)/[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "taskTempRoot": {
+          "type": "string",
+          "pattern": "^/"
+        }
+      }
+    }
+  }
+}

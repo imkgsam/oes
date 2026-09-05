@@ -16,7 +16,10 @@ import {
 const hash = (char: string) => char.repeat(64)
 const sha = (char: string) => char.repeat(40)
 const schema = JSON.parse(
-  readFileSync(join(import.meta.dirname, '..', '..', 'schemas', 'validation-plan.schema.json'), 'utf8')
+  readFileSync(
+    join(import.meta.dirname, '..', '..', 'schemas', 'validation-plan.schema.json'),
+    'utf8'
+  )
 ) as Record<string, unknown>
 
 const evidenceInput = (
@@ -67,7 +70,7 @@ const planInput = (
   commands: ValidationCommandRequest[]
 ): ValidationPlanInput => ({
   tier,
-  gateContext: tier === 'FULL_GATE' ? 'FEATURE' : 'NONE',
+  gateContext: tier === 'FULL_GATE' ? 'DELIVERY' : 'NONE',
   changedPaths: [],
   dependencyChanged: false,
   profileChanged: false,
@@ -143,7 +146,7 @@ test('intersecting paths run only matching commands and refresh unrelated comman
       '9',
       'FOCUSED_DEVELOPMENT',
       'packet',
-      'docs/plans/features/**',
+      'docs/plans/deliveries/**',
       sha('a'),
       sha('b')
     )
@@ -228,7 +231,7 @@ test('mixed tiers, invalid gate contexts, duplicate commands and candidate drift
   const invalidFocusedGate = planInput('FOCUSED_DEVELOPMENT', [
     command('focused', '8', 'FOCUSED_DEVELOPMENT', 'runtime', 'scripts/**')
   ])
-  invalidFocusedGate.gateContext = 'FEATURE'
+  invalidFocusedGate.gateContext = 'DELIVERY'
   assert.throws(
     () => createValidationPlan(invalidFocusedGate),
     /VALIDATION_PLAN_GATE_CONTEXT_INVALID/
@@ -251,7 +254,7 @@ test('altered persisted validation plans fail their self-hash check', () => {
   const plan = createValidationPlan(
     planInput('FULL_GATE', [command('full', '8', 'FULL_GATE', 'full', 'scripts/**')])
   )
-  plan.gateContext = 'STAGE'
+  plan.gateContext = 'COORDINATION'
   assert.throws(() => validateValidationPlan(plan), /VALIDATION_PLAN_FINGERPRINT_MISMATCH/)
 })
 
@@ -282,7 +285,7 @@ test('non-full persisted plans require NONE context in runtime and schema', () =
       command('focused', '8', 'FOCUSED_DEVELOPMENT', 'runtime', 'scripts/**')
     ])
   )
-  plan.gateContext = 'FEATURE'
+  plan.gateContext = 'DELIVERY'
   reseal(plan)
   assert.throws(() => validateValidationPlan(plan), /VALIDATION_PLAN_GATE_CONTEXT_INVALID/)
   assert.throws(() => validateJsonSchema(schema, plan), /JSON_SCHEMA_VALIDATION_FAILED/)

@@ -1,6 +1,6 @@
-# Design Workspace
+# DA Design Workspace
 
-本目录只保存当前尚未完全冻结、需要多轮讨论的设计主题。一个主题对应一个 Workspace；简单设计可以直接形成 Proposal Patch 或 Feature Packet。
+本目录只保存尚未冻结且需要跨多轮讨论的 active design topic。一个 topic 最多一个 Workspace；DA 维护讨论面，UD 是唯一 canonical design writer。
 
 ## Minimal template
 
@@ -8,16 +8,24 @@
 # <Design Topic>
 
 ## Objective
+
 ## Scope
+
+## Protected scope
+
 ## Current truth baseline
+
 ## Current proposed design
-## Human-confirmed items pending UD review
+
+## Human-confirmed Proposal boundary
+
 ## Open questions
-## Known conflicts
-## Intended truth-source changes
+
+## Intended canonical changes
+
+## Validation and rollback
+
 ## Next discussion point
 ```
 
-Workspace 每轮原位更新，不记录聊天、轮次和时间线。部分冻结后移除已回写正文，只保留 canonical reference；全部冻结并回写后进入 `READY_FOR_CLEANUP`，Human 确认后删除。
-
-`SUPERSEDED_BY_TRUTH_SOURCE` 标签不是独立删除证据；删除前执行 [文档治理](../../governance/document-governance.md) 定义的语义覆盖检查。
+Workspace 原位更新，不记录聊天或时间线。Human 确认 exact Proposal 后由 DA 提交 UD 审计；接受内容进入 canonical truth。全部有效内容回写后，在独立 cleanup 边界删除 Workspace。

@@ -1,4 +1,4 @@
-export const RESOURCE_TOPOLOGY_VERSIONS = ['pre-cutover-v1', 'stable-owner-exclusive-v1'] as const
+export const RESOURCE_TOPOLOGY_VERSIONS = ['owner-exclusive-v2'] as const
 
 export type ResourceTopologyVersion = (typeof RESOURCE_TOPOLOGY_VERSIONS)[number]
 
@@ -23,8 +23,8 @@ export interface OwnerResourceBinding {
   ownerRef: string
   artifactRoot: string
   taskTempRoot: string
-  featurePacket: string
-  featurePacketCheckpointPath: string
+  deliveryRecord: string
+  deliveryRecordCheckpointPath: string
   currentEvidenceManifestPath: string
   checkpointBundlePath: string
   gitBundlePath: string | null
@@ -39,8 +39,8 @@ export interface OwnerResourceObservation {
   ownerHeadSha: string | null
   artifactRootExists: boolean
   taskTempRootExists: boolean
-  liveFeaturePacketExists: boolean
-  featurePacketCheckpointExists: boolean
+  liveDeliveryRecordExists: boolean
+  deliveryRecordCheckpointExists: boolean
   currentEvidenceManifestExists: boolean
   checkpointBundleExists: boolean
   gitBundleExists: boolean
@@ -59,7 +59,7 @@ export interface OwnerCurrentEvidenceManifest {
   transitionId: string
   stateVersion: number
   resourceBindingFingerprint: string
-  featurePacket: OwnerEvidenceReference
+  deliveryRecord: OwnerEvidenceReference
   candidateSha: string | null
   evidence: OwnerEvidenceReference[]
   scratchPaths: string[]
@@ -74,7 +74,7 @@ export interface OwnerCheckpointBundle {
   resourceBindingFingerprint: string
   ownerRef: string
   headSha: string
-  featurePacket: OwnerEvidenceReference
+  deliveryRecord: OwnerEvidenceReference
   currentEvidenceManifest: OwnerResourceReference
   gitBundle: OwnerEvidenceReference | null
 }
@@ -126,7 +126,7 @@ export interface EffectiveOwnerResourceTopology {
   ownerResourceBinding: OwnerResourceReference | null
 }
 
-// These fields extend the existing runtime envelopes without changing their pre-cutover wire shape.
+// V2 owner-resource fields are shared by remote and cleanup envelopes.
 declare module './types.ts' {
   interface RemoteTrustRoots {
     resourceTopologyVersion?: ResourceTopologyVersion
@@ -134,35 +134,21 @@ declare module './types.ts' {
   }
 
   interface RemoteAuthorizationRoot {
-    resourceTopologyVersion?: 'stable-owner-exclusive-v1'
+    resourceTopologyVersion?: 'owner-exclusive-v2'
     ownerResourceBinding?: OwnerResourceReference
   }
 
   interface RemoteActionAuthorization {
-    resourceTopologyVersion?: 'stable-owner-exclusive-v1'
+    resourceTopologyVersion?: 'owner-exclusive-v2'
     ownerResourceBinding?: OwnerResourceReference
   }
 
   interface RemoteDriverBinding {
-    resourceTopologyVersion?: 'stable-owner-exclusive-v1'
+    resourceTopologyVersion?: 'owner-exclusive-v2'
     ownerResourceBinding?: OwnerResourceReference
   }
 
   interface EffectiveProfileReport {
     resourceTopology?: EffectiveOwnerResourceTopology
-  }
-
-  interface StageCleanupResource {
-    resourceTopologyVersion?: 'stable-owner-exclusive-v1'
-  }
-
-  interface TerminalFeatureCleanup {
-    resourceTopologyVersion?: 'stable-owner-exclusive-v1'
-    ownerResourceBinding?: OwnerResourceBinding
-  }
-
-  interface StageChildCleanupAuthorization {
-    resourceTopologyVersion?: 'stable-owner-exclusive-v1'
-    ownerResourceBinding?: OwnerResourceBinding
   }
 }

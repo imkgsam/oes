@@ -26,7 +26,7 @@
     "tier": {
       "enum": ["FOCUSED_DEVELOPMENT", "CANDIDATE_AFFECTED", "FULL_GATE"]
     },
-    "gateContext": { "enum": ["NONE", "FEATURE", "STAGE"] },
+    "gateContext": { "enum": ["NONE", "DELIVERY", "COORDINATION"] },
     "candidateSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
     "candidateTreeSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
     "changedPaths": {
@@ -130,9 +130,9 @@
     "dependencyCandidate": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["featureKey", "candidateSha", "candidateTreeSha"],
+      "required": ["deliveryKey", "candidateSha", "candidateTreeSha"],
       "properties": {
-        "featureKey": {
+        "deliveryKey": {
           "type": "string",
           "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
         },
@@ -197,7 +197,7 @@
       "if": { "properties": { "tier": { "const": "FULL_GATE" } } },
       "then": {
         "properties": {
-          "gateContext": { "enum": ["FEATURE", "STAGE"] },
+          "gateContext": { "enum": ["DELIVERY", "COORDINATION"] },
           "runActions": {
             "items": { "properties": { "tier": { "const": "FULL_GATE" } } }
           },

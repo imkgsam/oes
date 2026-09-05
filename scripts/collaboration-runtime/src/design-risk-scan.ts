@@ -3,7 +3,7 @@ import { fail } from './errors.ts'
 
 const SHA1_PATTERN = /^[0-9a-f]{40}$/
 const SHA256_PATTERN = /^[0-9a-f]{64}$/
-const FEATURE_KEY_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/
+const DELIVERY_KEY_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/
 
 export const DESIGN_RISK_SURFACES = [
   'CROSS_SERVICE_FACT_OWNERSHIP',
@@ -24,9 +24,9 @@ export interface DesignRiskSurfaceInput {
   gap: string | null
 }
 
-/** Supplies the complete bounded risk matrix for one feature. */
+/** Supplies the complete bounded risk matrix for one delivery. */
 export interface DesignRiskScanInput {
-  featureKey: string
+  deliveryKey: string
   truthBaseline: string
   scopeFingerprint: string
   surfaces: DesignRiskSurfaceInput[]
@@ -42,7 +42,7 @@ export interface DesignRiskGap {
 export interface DesignRiskScanResult {
   schemaVersion: 1
   kind: 'OES_DESIGN_RISK_SCAN_RESULT'
-  featureKey: string
+  deliveryKey: string
   truthBaseline: string
   scopeFingerprint: string
   result: 'EXISTING_TRUTH_SUFFICIENT' | 'DESIGN_GAP'
@@ -70,8 +70,8 @@ function requireTruthReference(path: string): void {
 
 /** Creates a deterministic two-result Design Risk Scan from every canonical surface. */
 export function createDesignRiskScan(input: DesignRiskScanInput): DesignRiskScanResult {
-  if (!FEATURE_KEY_PATTERN.test(input.featureKey))
-    fail('DESIGN_RISK_SCAN_FEATURE_KEY_INVALID', input.featureKey)
+  if (!DELIVERY_KEY_PATTERN.test(input.deliveryKey))
+    fail('DESIGN_RISK_SCAN_DELIVERY_KEY_INVALID', input.deliveryKey)
   if (!SHA1_PATTERN.test(input.truthBaseline))
     fail('DESIGN_RISK_SCAN_TRUTH_BASELINE_INVALID', input.truthBaseline)
   if (!SHA256_PATTERN.test(input.scopeFingerprint))
@@ -113,7 +113,7 @@ export function createDesignRiskScan(input: DesignRiskScanInput): DesignRiskScan
   const base = {
     schemaVersion: 1 as const,
     kind: 'OES_DESIGN_RISK_SCAN_RESULT' as const,
-    featureKey: input.featureKey,
+    deliveryKey: input.deliveryKey,
     truthBaseline: input.truthBaseline,
     scopeFingerprint: input.scopeFingerprint,
     result: gaps.length === 0 ? ('EXISTING_TRUTH_SUFFICIENT' as const) : ('DESIGN_GAP' as const),
@@ -129,7 +129,7 @@ export function createDesignRiskScan(input: DesignRiskScanInput): DesignRiskScan
 /** Verifies one persisted Design Risk Scan result has not been altered. */
 export function validateDesignRiskScan(result: DesignRiskScanResult): DesignRiskScanResult {
   const recreated = createDesignRiskScan({
-    featureKey: result.featureKey,
+    deliveryKey: result.deliveryKey,
     truthBaseline: result.truthBaseline,
     scopeFingerprint: result.scopeFingerprint,
     surfaces: result.surfaces

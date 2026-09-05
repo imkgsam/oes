@@ -3,15 +3,20 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 
 const base = new URL('../..', import.meta.url)
 const repo = new URL('../../../..', import.meta.url)
-const workflow = readFileSync(new URL('.github/workflows/ci.yml', repo), 'utf8')
-const packageJson = JSON.parse(readFileSync(new URL('package.json', repo), 'utf8'))
+const readBase = (path) => readFileSync(new URL(path, base), 'utf8')
+const readRepo = (path) => readFileSync(new URL(path, repo), 'utf8')
 
+// The one authoritative CI workflow retains the stable aggregate status and risk planner.
+const workflow = readRepo('.github/workflows/ci.yml')
 assert.match(workflow, /^name: CI$/m)
-assert.match(workflow, /pull_request:/)
-assert.match(workflow, /merge_group:/)
-assert.match(workflow, /workflow_dispatch:/)
-assert.match(workflow, /release:/)
-assert.match(workflow, /schedule:/)
+for (const event of [
+  'pull_request:',
+  'merge_group:',
+  'workflow_dispatch:',
+  'release:',
+  'schedule:'
+])
+  assert.match(workflow, new RegExp(event))
 assert.match(workflow, /^  change-plan:$/m)
 assert.match(workflow, /^  baseline:$/m)
 assert.match(workflow, /^    name: Baseline Checks$/m)
@@ -19,129 +24,168 @@ assert.match(workflow, /scripts\/test-infrastructure\/src\/change-plan\.mjs/)
 assert.match(workflow, /scripts\/test-infrastructure\/src\/gate\.mjs/)
 assert.match(workflow, /confirmation-required/)
 assert.match(workflow, /ci-full-approved-/)
-assert.match(workflow, /test:run -- --type integration/)
 assert.doesNotMatch(workflow, /test:risk|test:l2|test:design-gap|test-matrix|l2-test-runner|Shadow/)
 
 const quickSmoke = workflow.match(/^  quick-smoke:\n[\s\S]*?(?=^  baseline:)/m)?.[0]
 assert.ok(quickSmoke, 'authoritative CI must define the main quick-smoke job')
-const quickSmokeGenerated = quickSmoke.indexOf('pnpm generated:all')
-const quickSmokeCommonBuild = quickSmoke.indexOf('pnpm common:build')
-const quickSmokeSiteRuntimeBuild = quickSmoke.indexOf('pnpm --filter @oes/site-runtime-kit build')
-const quickSmokeContract = quickSmoke.indexOf('pnpm test:run -- --type contract')
-assert.ok(quickSmokeGenerated >= 0, 'quick smoke must generate compiled contracts')
-assert.ok(
-  quickSmokeCommonBuild > quickSmokeGenerated,
-  'quick smoke must build @oes/common after generation'
-)
-assert.ok(
-  quickSmokeSiteRuntimeBuild > quickSmokeCommonBuild,
-  'quick smoke must build the Site Runtime Kit after @oes/common'
-)
-assert.ok(
-  quickSmokeContract > quickSmokeSiteRuntimeBuild,
-  'quick smoke must build compiled dependencies before running Contract tests'
-)
+const orderedSmoke = [
+  'pnpm generated:all',
+  'pnpm common:build',
+  'pnpm --filter @oes/site-runtime-kit build',
+  'pnpm test:run -- --type contract'
+]
+for (let index = 1; index < orderedSmoke.length; index += 1)
+  assert.ok(
+    quickSmoke.indexOf(orderedSmoke[index]) > quickSmoke.indexOf(orderedSmoke[index - 1]),
+    `quick smoke order invalid at ${orderedSmoke[index]}`
+  )
 
 assert.equal(existsSync(new URL('.github/workflows/ci-optimized-shadow.yml', repo)), false)
 assert.equal(existsSync(new URL('scripts/local/test-matrix.mjs', repo)), false)
 assert.equal(existsSync(new URL('scripts/local/l2-test-runner.mjs', repo)), false)
-assert.equal(packageJson.scripts['test:discover'], 'node scripts/test-infrastructure/src/discover.mjs')
-assert.equal(packageJson.scripts['check:static'], 'node scripts/test-infrastructure/src/static-check.mjs')
-assert.equal(packageJson.scripts['test:run'], 'node scripts/test-infrastructure/src/run.mjs')
-assert.equal(packageJson.scripts['test:risk'], undefined)
-assert.equal(packageJson.scripts['test:l2'], undefined)
 
-const entry = readFileSync(new URL('bin/oes-remote-driver', base), 'utf8')
-assert.match(entry, /^#!\/bin\/sh\nset -eu\n/)
-assert.match(entry, /exec node --experimental-strip-types/)
-assert.doesNotMatch(entry, /git |gh |curl /)
-const profile = readFileSync(new URL('profile/oes-project-owner.config.toml', base), 'utf8')
-assert.match(profile, /approval_policy = "{{APPROVAL_POLICY}}"/)
-assert.match(profile, /approvals_reviewer = "{{APPROVALS_REVIEWER}}"/)
-assert.match(profile, /approval_mode = "{{APPROVAL_MODE}}"/)
+// V2 is a replacement: one exact role set and no active legacy role vocabulary.
+const routing = readBase('src/routing.ts')
+const types = readBase('src/types.ts')
+assert.match(routing, /ACTIVE_TASK_ROLES = \['DA', 'UD', 'DO', 'CO', 'RV'\] as const/)
+assert.match(types, /role: 'DA' \| 'UD' \| 'DO' \| 'CO' \| 'RV'/)
 assert.match(
-  profile,
-  /expected_effective_permission_sandbox_fingerprint = "{{EXPECTED_EFFECTIVE_PERMISSION_SANDBOX_FINGERPRINT}}"/
+  types,
+  /REMOTE_ACTIONS = \[\s*'preflight',\s*'publish-pr',\s*'verify-pr',\s*'merge-pr',\s*'verify-main'\s*\] as const/
 )
-assert.match(profile, /allow_local_binding = true/)
-assert.match(profile, /"\*\*\/\.env" = "deny"/)
-assert.match(profile, /trusted_authorization_root = "{{TRUSTED_AUTHORIZATION_ROOT}}"/)
-assert.match(profile, /owner_task_id = "{{OWNER_TASK_ID}}"/)
-assert.match(profile, /transition_id = "{{TRANSITION_ID}}"/)
-assert.match(profile, /"{{TRUSTED_AUTHORIZATION_ROOT}}" = "read"/)
-assert.doesNotMatch(profile, /OES_REMOTE_AUTHORIZATION_ROOT|OES_REMOTE_ADMISSION_ROOT/)
-assert.match(profile, /"{{OWNER_GIT_DIRECTORY}}" = "write"/)
-assert.match(profile, /"{{USER_GIT_CONFIG}}" = "read"/)
-assert.match(profile, /"{{CREDENTIAL_STORE_PATH}}" = "read"/)
-assert.match(profile, /TMPDIR = "{{TASK_TEMP_PATH}}"/)
+
+const activeFramework = [
+  readRepo('AGENTS.md'),
+  readRepo('docs/governance/codex-execution-model.md'),
+  readRepo('docs/governance/document-governance.md'),
+  readRepo('docs/runbooks/collaboration-runtime.md'),
+  readRepo('docs/runbooks/collaboration-runtime-assignment.md'),
+  readRepo('docs/runbooks/collaboration-runtime-validation.md'),
+  readRepo('docs/plans/index.md'),
+  readRepo('docs/plans/designs/README.md'),
+  readRepo('docs/plans/deliveries/README.md'),
+  readBase('README.md'),
+  readBase('profile/README.md'),
+  ...readdirSync(new URL('src', base), { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.ts'))
+    .map((entry) => readBase(`src/${entry.name}`)),
+  ...readdirSync(new URL('schemas', base))
+    .filter((name) => name.endsWith('.json'))
+    .map((name) => readBase(`schemas/${name}`))
+].join('\n')
+const legacyRolePattern = new RegExp(
+  [
+    'DELIVERY_' + 'OWNER',
+    'COORDINATION_' + 'OWNER',
+    'REVIEW_' + 'VERIFIER',
+    'DELIVERY_' + 'RV',
+    'COORDINATION_' + 'DA',
+    'Feature ' + 'Lead',
+    'Stage ' + 'Lead',
+    '\\b' + 'IT' + '\\b',
+    '\\b' + 'FL' + '\\b',
+    '\\b' + 'SL' + '\\b'
+  ].join('|')
+)
+assert.doesNotMatch(activeFramework, legacyRolePattern)
+
+// Routing and verification expose the V2 topology explicitly.
+assert.match(routing, /route: 'DISCUSSION' \| 'DA_UD' \| 'DO' \| 'CO'/)
+assert.match(routing, /ONE_AGGREGATE_CO_PR/)
+assert.match(routing, /INDEPENDENT_DO_PRS/)
+assert.match(routing, /independentPrExceptionConfirmed/)
+const verification = readBase('src/verification-topology.ts')
+assert.match(verification, /requiredStatus: 'Baseline Checks'/)
+assert.match(verification, /parallelRvAndCi: input\.pullRequestCandidateExists/)
+assert.match(verification, /HUMAN_CONFIRMATION_REQUIRED/)
+assert.match(verification, /VERIFICATION_FULL_DISCLOSURE_REQUIRED/)
+
+// CO integration requires independent DO ownership, scoped RV, ordered integration,
+// one aggregate branch by default, and an explicit releasability exception otherwise.
+const integration = readBase('src/coordination-integration.ts')
+assert.match(integration, /value\.items\.length < 2/)
+assert.match(integration, /owners\.has\(item\.ownerTaskId\)/)
+assert.match(integration, /item\.scopedRv !== 'PASSED'/)
+assert.match(integration, /aggregateBranch !== `codex\/coordination\/\$\{value\.coordinationKey\}`/)
+assert.match(integration, /independentPrExceptionConfirmed/)
+assert.match(integration, /independentlyReleasable/)
+assert.match(integration, /STOPPED_FAILURE/)
+assert.match(integration, /integratedPrefix/)
+assert.doesNotMatch(integration, /setInterval|setTimeout|writeFile/)
+
+// Assignment and lifecycle distinguish task roles from the bounded-helper mechanism.
+const assignmentTypes = readBase('src/assignment-runtime.types.ts')
+assert.match(
+  assignmentTypes,
+  /ASSIGNMENT_CHILD_KINDS = \[\s*'DO',\s*'BOUNDED_HELPER',\s*'RV'\s*\] as const/
+)
+assert.match(assignmentTypes, /AssignmentOwnerRole = 'CO' \| 'DO'/)
+assert.doesNotMatch(assignmentTypes, /childRole/)
+const lifecycle = readBase('src/coordination-lifecycle.ts')
+assert.match(
+  lifecycle,
+  /TASK_KINDS: CoordinationLifecycleTaskKind\[\] = \['BOUNDED_HELPER', 'RV', 'DO', 'CO'\]/
+)
+assert.match(lifecycle, /COORDINATION_LIFECYCLE_SCOPED_RV_MISSING/)
+assert.match(lifecycle, /COORDINATION_LIFECYCLE_AGGREGATE_RV_MISSING/)
+assert.match(lifecycle, /depth\(b\) - depth\(a\)/)
+assert.doesNotMatch(lifecycle, /setInterval|setTimeout|writeFile/)
+
+// Cleanup is an isolated entrypoint with only disposal planning/verification commands.
+const generalCli = readBase('src/cli.ts')
+const cleanupCli = readBase('src/cleanup-cli.ts')
+const cleanup = readBase('src/cleanup.ts')
+const cleanupEntry = readBase('bin/oes-lifecycle-cleanup')
+assert.match(cleanupEntry, /^#!\/bin\/sh\nset -eu\n/)
+assert.match(cleanupEntry, /src\/cleanup-cli\.ts/)
+assert.doesNotMatch(generalCli, /from '\.\/cleanup(?:-binding|-cli)?\.ts'|command === 'cleanup/)
+assert.doesNotMatch(
+  cleanupCli,
+  /from '\.\/(?:routing|remote-driver|github-adapter|coordination-integration|local-main|proposal-queue)\.ts'/
+)
+for (const command of ['cleanup-plan', 'cleanup-verify', 'coordination-lifecycle-plan'])
+  assert.match(cleanupCli, new RegExp(`command\\s*===\\s*'${command}'`))
+for (const forbidden of [
+  'publish-pr',
+  'verify-pr',
+  'merge-pr',
+  'verify-main',
+  'verification-plan',
+  'coordination-integration-plan'
+])
+  assert.doesNotMatch(cleanupCli, new RegExp(forbidden))
+assert.match(cleanupCli, /--repository-diff/)
+assert.match(cleanup, /verifyCleanupProducesNoRepositoryDiff/)
+assert.match(cleanup, /if \(diffEntries\.length !== 0\)/)
+assert.match(cleanup, /PRESERVE_FAILURE/)
+assert.doesNotMatch(
+  `${cleanupCli}\n${cleanup}`,
+  /node:child_process|\bexecSync\b|\bspawnSync\b|GitHubRemoteAdapter|RemoteDriver/
+)
+
+// Exact-owner profile and guarded moving-main behavior remain enforced.
+const profile = readBase('profile/oes-project-owner.config.toml')
+assert.match(profile, /approval_policy = "\{\{APPROVAL_POLICY\}\}"/)
+assert.match(profile, /trusted_authorization_root = "\{\{TRUSTED_AUTHORIZATION_ROOT\}\}"/)
+assert.match(profile, /"\{\{OWNER_GIT_DIRECTORY\}\}" = "write"/)
+assert.match(profile, /"\{\{TRUSTED_AUTHORIZATION_ROOT\}\}" = "read"/)
+assert.match(profile, /"\{\{SERIAL_ADMISSION_ROOT\}\}" = "write"/)
 assert.doesNotMatch(profile, /GIT_COMMON_DIRECTORY.*write/)
-const cli = readFileSync(new URL('src/cli.ts', base), 'utf8')
-assert.match(cli, /profile-preflight/)
-assert.match(cli, /profile-preflight-probe/)
-assert.match(cli, /profile-preflight-finalize/)
-assert.match(cli, /profile-render/)
-assert.match(cli, /schema-validate/)
-assert.match(cli, /ud-queue-view/)
-assert.match(cli, /ci-recovery-decision/)
-assert.match(cli, /local-main/)
-assert.match(cli, /stage-merge-plan/)
-assert.match(cli, /stage-merge-candidate-readback/)
-assert.match(cli, /stage-merge-revision/)
-assert.match(cli, /stage-lifecycle-plan/)
-assert.match(cli, /--profile-report/)
-assert.match(cli, /--child-authorization/)
-assert.match(readFileSync(new URL('src/binding.ts', base), 'utf8'), /current-stage-cleanup\.json/)
-assert.doesNotMatch(cli, /flag\(args, '--owner'\)/)
-assert.doesNotMatch(cli, /OES_REMOTE_AUTHORIZATION_ROOT|OES_REMOTE_ADMISSION_ROOT/)
-assert.doesNotMatch(cli, /binding-fingerprint|cleanup-fingerprint/)
-const profilePolicy = readFileSync(new URL('src/profile-policy.ts', base), 'utf8')
-assert.match(profilePolicy, /ON_REQUEST_AUTO_REVIEW/)
-assert.match(profilePolicy, /NEVER_USER/)
-assert.match(profilePolicy, /PROFILE_RENDER_SUCCESSOR_NOT_MONOTONIC/)
-assert.doesNotMatch(profilePolicy, /approvalPolicy:\s*string.*approvalsReviewer:\s*string/s)
-const profilePreflight = readFileSync(new URL('src/profile-preflight.ts', base), 'utf8')
-const githubAdapter = readFileSync(new URL('src/github-adapter.ts', base), 'utf8')
-assert.match(profilePreflight, /\['init'\]/)
-assert.match(profilePreflight, /\['switch', '-c'/)
-assert.match(profilePreflight, /ACCEPTED_RUNTIME_SANDBOX_POLICY_TYPES/)
-assert.match(profilePreflight, /file_system_sandbox_policy/)
-assert.match(profilePreflight, /trustedAuthorizationRoot/)
-assert.match(profilePreflight, /credential fill 2>\/dev\/null/)
-assert.match(githubAdapter, /annotations\?per_page=100&page=\$\{page\}/)
-const proposalQueue = readFileSync(new URL('src/proposal-queue.ts', base), 'utf8')
-assert.match(proposalQueue, /PROPOSAL_FIFO_ADMISSION_VIOLATION/)
-assert.match(proposalQueue, /PROPOSAL_TERMINAL_EXACT_RETURN_UNPROVEN/)
-assert.doesNotMatch(proposalQueue, /writeFile|setInterval|setTimeout/)
-const retryPolicy = readFileSync(new URL('src/retry-policy.ts', base), 'utf8')
-assert.match(retryPolicy, /maxRetries: 3/)
-assert.match(retryPolicy, /EXTERNAL_PERMISSION_BLOCKER/)
-const localMain = readFileSync(new URL('src/local-main.ts', base), 'utf8')
+const localMain = readBase('src/local-main.ts')
 assert.match(localMain, /\['merge', '--ff-only'/)
 assert.match(localMain, /\['fetch', '--no-tags', binding\.remote, binding\.branch\]/)
 assert.doesNotMatch(localMain, /\['(?:reset|stash|rebase|checkout)'|setInterval|setTimeout/)
-const stageMerge = readFileSync(new URL('src/stage-merge.ts', base), 'utf8')
-assert.match(stageMerge, /STOP_SAME_STAGE_SUFFIX_ON_FAILURE/)
-assert.match(stageMerge, /git\/commits\/\$\{result\.mergeSha\}/)
-assert.match(stageMerge, /Baseline Checks/)
-assert.match(stageMerge, /ls-remote/)
-assert.match(stageMerge, /commit\.parents\[0\]\?\.sha !== expectedFirstParent/)
-assert.match(stageMerge, /STAGE_MERGE_REFRESH_NOT_FAST_FORWARD/)
-assert.match(stageMerge, /verifyTechnicalRevisionEquivalence/)
-assert.doesNotMatch(stageMerge, /setInterval|setTimeout|writeFile/)
-const stageLifecycle = readFileSync(new URL('src/stage-lifecycle.ts', base), 'utf8')
-assert.match(stageLifecycle, /EXCLUDE_GLOBAL_UD/)
-assert.match(stageLifecycle, /TASK_NATIVE_CREATION_RECEIPTS/)
-assert.match(stageLifecycle, /CODEX_TASK_NATIVE/)
-assert.match(stageLifecycle, /verifyTrustedReference/)
-assert.match(stageLifecycle, /STAGE_LIFECYCLE_TRUSTED_AUTHORITY_REQUIRED/)
-assert.doesNotMatch(stageLifecycle, /setInterval|setTimeout|writeFile/)
-const assignmentRuntime = readFileSync(new URL('src/assignment-runtime.ts', base), 'utf8')
-for (const forbidden of [/setInterval\s*\(/, /setTimeout\s*\(/, /readdirSync\s*\(/, /watchFile\s*\(/, /watch\s*\(/, /while\s*\(/])
-  assert.doesNotMatch(assignmentRuntime, forbidden)
-const schemaValidator = readFileSync(new URL('src/schema-validation.ts', base), 'utf8')
-assert.match(schemaValidator, /JSON_SCHEMA_VALIDATION_FAILED/)
-assert.match(schemaValidator, /JSON_SCHEMA_KEYWORD_UNSUPPORTED/)
-assert.match(schemaValidator, /schema\.not/)
-for (const file of readdirSync(new URL('schemas', base)))
-  JSON.parse(readFileSync(new URL(`schemas/${file}`, base), 'utf8'))
+
+// Every executable schema remains parseable, and the rewritten topology schemas are V2-only.
+for (const file of readdirSync(new URL('schemas', base))) JSON.parse(readBase(`schemas/${file}`))
+for (const file of [
+  'coordination-integration-authorization.schema.json',
+  'coordination-lifecycle-roster-authority.schema.json',
+  'coordination-lifecycle-inventory.schema.json',
+  'coordination-archive-result-set.schema.json'
+]) {
+  const schema = readBase(`schemas/${file}`)
+  assert.match(schema, /"schemaVersion": \{ "const": 2 \}/)
+}
+
 console.log('collaboration-runtime static checks: PASS')

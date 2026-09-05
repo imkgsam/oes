@@ -41,7 +41,7 @@
       "$ref": "#/$defs/sha256"
     },
     "action": {
-      "enum": ["preflight", "publish-pr", "verify-pr", "merge-pr", "verify-main", "cleanup"]
+      "enum": ["preflight", "publish-pr", "verify-pr", "merge-pr", "verify-main"]
     },
     "owner": {
       "type": "object",
@@ -49,7 +49,7 @@
       "required": ["role", "taskId"],
       "properties": {
         "role": {
-          "enum": ["Direct owner", "Global Unified Design", "Feature Lead", "Stage Lead"]
+          "enum": ["DO", "UD", "DO", "CO"]
         },
         "taskId": {
           "type": "string",
@@ -160,14 +160,6 @@
     "cleanupAuthorizationFingerprint": {
       "$ref": "#/$defs/sha256"
     },
-    "cleanupResources": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/cleanupResource"
-      },
-      "minItems": 1,
-      "maxItems": 1
-    },
     "admission": {
       "type": "object",
       "additionalProperties": false,
@@ -196,7 +188,7 @@
       "$ref": "#/$defs/gitSha"
     },
     "resourceTopologyVersion": {
-      "const": "stable-owner-exclusive-v1"
+      "const": "owner-exclusive-v2"
     },
     "ownerResourceBinding": {
       "$ref": "#/$defs/reference"
@@ -213,18 +205,6 @@
       },
       "then": {
         "required": ["mergeAuthorizationFingerprint", "admission"]
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "action": {
-            "const": "cleanup"
-          }
-        }
-      },
-      "then": {
-        "required": ["cleanupAuthorizationFingerprint", "cleanupResources"]
       }
     },
     {
@@ -271,7 +251,7 @@
       "required": ["kind", "path", "expectedSha"],
       "properties": {
         "kind": {
-          "enum": ["remote-branch", "local-branch", "worktree", "feature-packet"]
+          "enum": ["remote-branch", "local-branch", "worktree", "delivery-record"]
         },
         "path": {
           "type": "string"

@@ -3,21 +3,20 @@ export const REMOTE_ACTIONS = [
   'publish-pr',
   'verify-pr',
   'merge-pr',
-  'verify-main',
-  'cleanup'
+  'verify-main'
 ] as const
 export type RemoteAction = (typeof REMOTE_ACTIONS)[number]
 
-export const REMOTE_STAGES = [
+export const REMOTE_PHASES = [
   'REMOTE_PREFLIGHT_VERIFIED',
   'REMOTE_MUTATION_RECORDED',
   'REMOTE_VERIFICATION_PENDING',
   'REMOTE_VERIFIED'
 ] as const
-export type RemoteStage = (typeof REMOTE_STAGES)[number]
+export type RemotePhase = (typeof REMOTE_PHASES)[number]
 
 export interface RemoteOwner {
-  role: 'Direct owner' | 'Global Unified Design' | 'Feature Lead' | 'Stage Lead'
+  role: 'DA' | 'UD' | 'DO' | 'CO' | 'RV'
   taskId: string
 }
 
@@ -28,12 +27,6 @@ export interface PullRequestBinding {
   requiredChecks: string[]
   title: string
   body: string
-}
-
-export interface CleanupResourceBinding {
-  kind: 'remote-branch' | 'local-branch' | 'worktree' | 'feature-packet'
-  path: string
-  expectedSha: string | null
 }
 
 export interface RemoteAdmissionBinding {
@@ -139,7 +132,6 @@ export interface RemoteDriverBinding {
   admission?: RemoteAdmissionBinding
   mergeAuthorizationFingerprint?: string
   cleanupAuthorizationFingerprint?: string
-  cleanupResources?: CleanupResourceBinding[]
 }
 
 export interface PullRequestTruth {
@@ -196,7 +188,6 @@ export interface RemoteReceipt {
   mergeCommitSha: string | null
   mergeGroupBaseSha?: string | null
   mergeGroupHeadSha?: string | null
-  cleanupResources?: CleanupResourceBinding[]
 }
 
 export interface RemoteVerification {
@@ -211,7 +202,7 @@ export interface RemoteCheckpoint {
   bindingFingerprint: string
   action: RemoteAction
   singleUseNonce: string
-  stage: RemoteStage
+  phase: RemotePhase
   receipt: RemoteReceipt | null
   remoteTruthFingerprint: string
   updatedAt: string
@@ -225,7 +216,7 @@ export interface RemoteDriverResult {
   ownerTaskId: string
   singleUseNonce: string
   status: 'REMOTE_VERIFICATION_PENDING' | 'REMOTE_VERIFIED'
-  stage: RemoteStage
+  phase: RemotePhase
   receipt: RemoteReceipt
   verification: RemoteVerification
   remoteTruth: RemoteTruth
@@ -389,7 +380,7 @@ export interface EvidenceKeyInput {
 
 /** Identifies one exact dependency candidate included in an evidence execution. */
 export interface DependencyCandidate {
-  featureKey: string
+  deliveryKey: string
   candidateSha: string
   candidateTreeSha: string
 }
@@ -425,80 +416,80 @@ export interface DriftAssessment {
   reason: string
 }
 
-export interface StageCleanupResource {
+export interface CoordinationCleanupResource {
   kind: 'remote-branch' | 'local-branch' | 'worktree' | 'task-temp'
   path: string
   expectedSha: string | null
 }
 
-export interface TerminalFeatureCleanup {
-  featureKey: string
+export interface TerminalDeliveryCleanup {
+  deliveryKey: string
   ownerTaskId: string
+  terminalState: 'MERGED' | 'ABANDONED'
   candidateSha: string
-  mergeSha: string
-  featurePacket: string
-  resources: StageCleanupResource[]
+  mergeSha: string | null
+  ownerResourceBinding: import('./resource-topology.types.ts').OwnerResourceBinding
+  resources: CoordinationCleanupResource[]
 }
 
-export interface StageCleanupAuthorization {
-  schemaVersion: 1
-  kind: 'OES_STAGE_CLEANUP_AUTHORIZATION'
+export interface CoordinationCleanupAuthorization {
+  schemaVersion: 2
+  kind: 'OES_COORDINATION_CLEANUP_AUTHORIZATION'
   authorizationFingerprint: string
   status: 'ISSUED'
-  expectedState: 'STAGE_CLEANUP_AUTHORIZED'
+  expectedState: 'COORDINATION_CLEANUP_AUTHORIZED'
   stateVersion: number
-  stageKey: string
-  stageOwnerTaskId: string
+  coordinationKey: string
+  coordinationOwnerTaskId: string
   transitionId: string
   confirmationFingerprint: string
-  terminalFeatures: TerminalFeatureCleanup[]
-  cleanupOnlyBranch: string
-  allowedDeletedFeaturePackets: string[]
+  terminalDeliveries: TerminalDeliveryCleanup[]
 }
 
-export interface StageChildCleanupAuthorization {
-  schemaVersion: 1
-  kind: 'OES_STAGE_CHILD_CLEANUP_AUTHORIZATION'
+export interface CoordinationChildCleanupAuthorization {
+  schemaVersion: 2
+  kind: 'OES_COORDINATION_CHILD_CLEANUP_AUTHORIZATION'
   authorizationFingerprint: string
   status: 'ISSUED'
   rootAuthorization: TrustedAuthorizationReference
-  expectedState: 'STAGE_CLEANUP_AUTHORIZED'
+  expectedState: 'COORDINATION_CLEANUP_AUTHORIZED'
   stateVersion: number
-  stageKey: string
-  stageOwnerTaskId: string
+  coordinationKey: string
+  coordinationOwnerTaskId: string
   ownerTaskId: string
   transitionId: string
   confirmationFingerprint: string
-  resources: StageCleanupResource[]
+  ownerResourceBinding: import('./resource-topology.types.ts').OwnerResourceBinding
+  resources: CoordinationCleanupResource[]
   postcondition: 'CHILD_SELF_CLEANUP'
 }
 
-export interface StageCleanupCurrentAuthorization {
-  schemaVersion: 1
-  kind: 'OES_STAGE_CLEANUP_CURRENT_AUTHORIZATION'
+export interface CoordinationCleanupCurrentAuthorization {
+  schemaVersion: 2
+  kind: 'OES_COORDINATION_CLEANUP_CURRENT_AUTHORIZATION'
   recordFingerprint: string
   status: 'ACTIVE' | 'INVALIDATED' | 'COMPLETED'
-  purpose: 'CHILD_SELF_CLEANUP' | 'STAGE_CLEANUP_VERIFY'
+  purpose: 'CHILD_SELF_CLEANUP' | 'COORDINATION_CLEANUP_VERIFY'
   rootAuthorization: TrustedAuthorizationReference
   childAuthorization: TrustedAuthorizationReference | null
-  stageKey: string
-  stageOwnerTaskId: string
+  coordinationKey: string
+  coordinationOwnerTaskId: string
   ownerTaskId: string
-  expectedState: 'STAGE_CLEANUP_AUTHORIZED'
+  expectedState: 'COORDINATION_CLEANUP_AUTHORIZED'
   stateVersion: number
   transitionId: string
   confirmationFingerprint: string
-  postcondition: 'CURRENT_STAGE_CLEANUP'
+  postcondition: 'CURRENT_COORDINATION_CLEANUP'
 }
 
-export interface ObservedCleanupResource extends StageCleanupResource {
+export interface ObservedCleanupResource extends CoordinationCleanupResource {
   exists: boolean
   clean: boolean
   actualSha: string | null
 }
 
 export interface CleanupResourceDecision {
-  resource: StageCleanupResource
+  resource: CoordinationCleanupResource
   decision: 'REMOVE' | 'ALREADY_ABSENT' | 'PRESERVE_FAILURE' | 'SKIP_COMPLETED'
   reason: string
   observedBefore: ObservedCleanupResource | null
@@ -507,7 +498,7 @@ export interface CleanupResourceDecision {
 }
 
 export interface CompletedCleanupResource {
-  resource: StageCleanupResource
+  resource: CoordinationCleanupResource
   observedAfter: ObservedCleanupResource
   completionFingerprint: string
 }
@@ -517,182 +508,142 @@ export interface CleanupDiffEntry {
   path: string
 }
 
-export interface StageMergeItem {
+export interface CoordinationDeliveryCandidate {
   order: number
-  featureKey: string
+  deliveryKey: string
   ownerTaskId: string
-  pullRequestNumber: number
-  integrationBase: string
+  baseSha: string
   candidateSha: string
   patchFingerprint: string
   contentFingerprint: string
-  scopeFingerprint: string
-  riskFingerprint: string
-  requiredChecks: ['Baseline Checks']
-  featureRi: 'PASSED'
+  dependencies: string[]
+  scopedRv: 'PASSED'
+  independentlyReleasable: boolean
 }
 
-export interface StageMergeAuthorization {
-  schemaVersion: 1
-  kind: 'OES_STAGE_MERGE_AUTHORIZATION'
+export interface CoordinationIntegrationAuthorization {
+  schemaVersion: 2
+  kind: 'OES_COORDINATION_INTEGRATION_AUTHORIZATION'
   authorizationFingerprint: string
   status: 'ISSUED'
-  expectedState: 'STAGE_MERGE_AUTHORIZED'
+  expectedState: 'COORDINATION_INTEGRATION_AUTHORIZED'
   stateVersion: number
-  stageKey: string
-  stageOwnerTaskId: string
+  coordinationKey: string
+  coordinationOwnerTaskId: string
   transitionId: string
   confirmationFingerprint: string
-  stageScopeFingerprint: string
-  stageRiskFingerprint: string
+  baseSha: string
+  aggregateBranch: string
+  prTopology: 'AGGREGATE' | 'INDEPENDENT'
+  independentPrExceptionConfirmed: boolean
   orderedSetFingerprint: string
-  stageRi: 'PASSED'
-  stopPoint: 'STOP_SAME_STAGE_SUFFIX_ON_FAILURE'
-  items: StageMergeItem[]
+  items: CoordinationDeliveryCandidate[]
 }
 
-export interface StageMergeItemResult {
+export interface CoordinationIntegrationItemResult {
   order: number
-  featureKey: string
+  deliveryKey: string
   candidateSha: string
-  effectiveHeadSha: string
-  technicalRevisionFingerprint: string | null
-  state: 'PENDING' | 'FAILED' | 'MERGED_VERIFIED'
-  acceptedMainSha: string | null
-  mergeSha: string | null
+  state: 'PENDING' | 'FAILED' | 'INTEGRATED_VERIFIED'
+  integratedSha: string | null
   failureCode: string | null
 }
 
-export interface StageMergePlan {
-  status: 'ADMIT_NEXT' | 'STOPPED_FAILURE' | 'COMPLETE'
-  healthyPrefix: string[]
-  nextItem: StageMergeItem | null
+export interface CoordinationIntegrationPlan {
+  status:
+    | 'INTEGRATE_NEXT'
+    | 'STOPPED_FAILURE'
+    | 'AGGREGATE_CANDIDATE_READY'
+    | 'INDEPENDENT_PRS_READY'
+  integratedPrefix: string[]
+  nextItem: CoordinationDeliveryCandidate | null
   blockedSuffix: string[]
-  failure: StageMergeItemResult | null
+  aggregateBranch: string
+  pullRequestCount: 1 | number
+  failure: CoordinationIntegrationItemResult | null
 }
 
-export interface StageMergeTechnicalRevision {
-  schemaVersion: 1
-  kind: 'OES_STAGE_MERGE_TECHNICAL_REVISION'
-  revisionFingerprint: string
-  stageAuthorizationFingerprint: string
-  featureKey: string
-  order: number
-  previousBase: string
-  latestMain: string
-  previousHead: string
-  refreshedHead: string
-  patchFingerprint: string
-  contentFingerprint: string
-  scopeFingerprint: string
-  riskFingerprint: string
-  orderedSetFingerprint: string
-  pullRequestNumber: number
-  pullRequestReadbackFingerprint: string
-  baselineCheckId: number
-  decision: 'TECHNICALLY_EQUIVALENT'
-}
+export type CoordinationLifecycleTaskKind = 'BOUNDED_HELPER' | 'RV' | 'DO' | 'CO'
 
-export interface StageMergeTechnicalRevisionInput {
-  featureKey: string
-  order: number
-  previousBase: string
-  latestMain: string
-  previousHead: string
-  refreshedHead: string
-  scopeFingerprint: string
-  riskFingerprint: string
-  orderedSetFingerprint: string
-}
-
-export type StageLifecycleRole =
-  | 'IT'
-  | 'FEATURE_RI'
-  | 'FL'
-  | 'STAGE_DESIGN'
-  | 'STAGE_RI'
-  | 'SL'
-  | 'GLOBAL_UD'
-
-export interface StageLifecycleTask {
+export interface CoordinationLifecycleTask {
   taskId: string
-  role: StageLifecycleRole
+  taskKind: CoordinationLifecycleTaskKind
   ownerTaskId: string | null
   state: 'TERMINAL' | 'ACTIVE' | 'UNKNOWN'
 }
 
-export interface StageLifecycleCreatedTask {
+export interface CoordinationLifecycleCreatedTask {
   taskId: string
-  role: StageLifecycleRole
+  taskKind: CoordinationLifecycleTaskKind
   ownerTaskId: string | null
   creationReceiptFingerprint: string
 }
 
-export interface StageLifecycleRosterAuthority {
-  schemaVersion: 1
-  kind: 'OES_STAGE_LIFECYCLE_ROSTER_AUTHORITY'
+export interface CoordinationLifecycleRosterAuthority {
+  schemaVersion: 2
+  kind: 'OES_COORDINATION_LIFECYCLE_ROSTER_AUTHORITY'
   authorityFingerprint: string
-  stageKey: string
-  stageOwnerTaskId: string
+  coordinationKey: string
+  coordinationOwnerTaskId: string
   transitionId: string
-  stageCleanupAuthorizationFingerprint: string
+  coordinationCleanupAuthorizationFingerprint: string
   source: 'TASK_NATIVE_CREATION_RECEIPTS'
-  createdRoster: StageLifecycleCreatedTask[]
+  createdRoster: CoordinationLifecycleCreatedTask[]
 }
 
-export interface StageLifecycleInventory {
-  schemaVersion: 1
-  kind: 'OES_STAGE_LIFECYCLE_INVENTORY'
+export interface CoordinationLifecycleInventory {
+  schemaVersion: 2
+  kind: 'OES_COORDINATION_LIFECYCLE_INVENTORY'
   inventoryFingerprint: string
-  stageKey: string
-  stageOwnerTaskId: string
+  coordinationKey: string
+  coordinationOwnerTaskId: string
   transitionId: string
-  stageCleanupAuthorizationFingerprint: string
+  coordinationCleanupAuthorizationFingerprint: string
   cleanupIntentDetected: true
-  stageExit: 'PASSED' | 'PENDING' | 'FAILED'
+  coordinationExit: 'PASSED' | 'PENDING' | 'FAILED'
   resourceCleanup: 'PENDING' | 'VERIFIED' | 'PARTIAL_FAILURE'
   rosterAuthorityFingerprint: string
   taskReadbackSource: 'CODEX_TASK_NATIVE'
   readbackRosterFingerprint: string
-  readbackRoster: StageLifecycleTask[]
+  readbackRoster: CoordinationLifecycleTask[]
   terminalTaskIds: string[]
 }
 
-export interface StageArchiveResult {
+export interface CoordinationArchiveResult {
   taskId: string
-  role: StageLifecycleRole
+  taskKind: CoordinationLifecycleTaskKind
   state: 'ARCHIVED' | 'FAILED'
   inventoryFingerprint: string
   taskNativeReadbackFingerprint: string
   resultFingerprint: string
 }
 
-export interface StageArchiveResultSet {
-  schemaVersion: 1
-  kind: 'OES_STAGE_ARCHIVE_RESULT_SET'
+export interface CoordinationArchiveResultSet {
+  schemaVersion: 2
+  kind: 'OES_COORDINATION_ARCHIVE_RESULT_SET'
   resultSetFingerprint: string
-  stageKey: string
-  stageOwnerTaskId: string
+  coordinationKey: string
+  coordinationOwnerTaskId: string
   transitionId: string
-  stageCleanupAuthorizationFingerprint: string
+  coordinationCleanupAuthorizationFingerprint: string
   inventoryFingerprint: string
-  results: StageArchiveResult[]
+  results: CoordinationArchiveResult[]
 }
 
-export interface StageArchiveDecision {
+export interface CoordinationArchiveDecision {
   taskId: string
-  role: StageLifecycleRole
-  decision: 'ARCHIVE' | 'SKIP_ARCHIVED' | 'PRESERVE_BLOCKED' | 'EXCLUDE_GLOBAL_UD'
+  taskKind: CoordinationLifecycleTaskKind
+  decision: 'ARCHIVE' | 'SKIP_ARCHIVED' | 'PRESERVE_BLOCKED'
   reason: string
 }
 
-export interface StageLifecyclePlan {
+export interface CoordinationLifecyclePlan {
   status:
-    | 'WAIT_STAGE_EXIT'
+    | 'WAIT_COORDINATION_EXIT'
     | 'WAIT_TERMINAL_ROSTER'
     | 'WAIT_RESOURCE_CLEANUP'
     | 'ARCHIVE_READY'
     | 'ARCHIVE_PARTIAL_FAILURE'
     | 'COMPLETE'
-  decisions: StageArchiveDecision[]
+  decisions: CoordinationArchiveDecision[]
 }

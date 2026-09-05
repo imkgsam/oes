@@ -204,13 +204,8 @@ export function loadProfileLaunchReceipt(
     typeof receipt.resourceTopology !== 'object' ||
     canonicalJson(Object.keys(receipt.resourceTopology).sort()) !==
       canonicalJson(['resourceTopologyVersion', 'ownerResourceBinding'].sort()) ||
-    !['pre-cutover-v1', 'stable-owner-exclusive-v1'].includes(
-      receipt.resourceTopology.resourceTopologyVersion
-    ) ||
-    (receipt.resourceTopology.resourceTopologyVersion === 'pre-cutover-v1' &&
-      receipt.resourceTopology.ownerResourceBinding !== null) ||
-    (receipt.resourceTopology.resourceTopologyVersion === 'stable-owner-exclusive-v1' &&
-      receipt.resourceTopology.ownerResourceBinding === null)
+    receipt.resourceTopology.resourceTopologyVersion !== 'owner-exclusive-v2' ||
+    receipt.resourceTopology.ownerResourceBinding === null
   )
     fail('PROFILE_LAUNCH_RECEIPT_TOPOLOGY_INVALID', reference.path)
   if (receipt.resourceTopology.ownerResourceBinding)

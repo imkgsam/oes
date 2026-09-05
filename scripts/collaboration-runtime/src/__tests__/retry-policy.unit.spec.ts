@@ -20,7 +20,7 @@ function ciTrust(root: string): RemoteTrustRoots {
     admissionRoot: join(root, 'admission'),
     profilePath: join(root, 'profile.toml'),
     profileSha256: 'a'.repeat(64),
-    ownerTaskId: '/root/fl/ci',
+    ownerTaskId: '/root/do/ci',
     profileTransitionId: 'ci-transition:1',
     profileExpectedState: 'DELIVERY_ACTIVE'
   }

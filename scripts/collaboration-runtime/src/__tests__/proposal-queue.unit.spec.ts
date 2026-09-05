@@ -19,8 +19,8 @@ function proposal(id: string, supersedesProposalId: string | null = null): Propo
     proposalId: id,
     proposalFingerprint: sha256(id),
     scope: `Scope ${id}`,
-    source: { role: 'Design Owner', taskId: `/root/design/${id}` },
-    returnTaskId: `/root/fl/${id}`,
+    source: { role: 'DA', taskId: `/root/design/${id}` },
+    returnTaskId: `/root/do/${id}`,
     supersedesProposalId
   }
 }
@@ -114,7 +114,7 @@ test('strict FIFO holds the UD critical section until terminal exact return', ()
     () =>
       deriveProposalQueue([
         ...processing,
-        receipt(first, 'TERMINAL', { returnTaskId: '/root/fl/wrong' })
+        receipt(first, 'TERMINAL', { returnTaskId: '/root/do/wrong' })
       ]),
     /PROPOSAL_RECEIPT_BINDING_MISMATCH/
   )
@@ -165,7 +165,7 @@ test('TERMINAL requires an exact typed result and delivery proof and replays onl
   )
 
   const wrongTarget = structuredClone(proof.delivery)
-  wrongTarget.returnTaskId = '/root/fl/wrong'
+  wrongTarget.returnTaskId = '/root/do/wrong'
   wrongTarget.deliveryFingerprint = objectFingerprint(
     wrongTarget as unknown as Record<string, unknown>,
     'deliveryFingerprint'

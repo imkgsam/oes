@@ -5,11 +5,7 @@ import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { canonicalJson, objectFingerprint, sha256 } from '../canonical.ts'
-import {
-  GitHubRemoteAdapter,
-  type CommandResult,
-  type CommandRunner
-} from '../github-adapter.ts'
+import { GitHubRemoteAdapter, type CommandResult, type CommandRunner } from '../github-adapter.ts'
 import { validateJsonSchema } from '../schema-validation.ts'
 import {
   planOwnerRecovery,
@@ -34,10 +30,9 @@ import type { RemoteTruth } from '../types.ts'
 import { remoteBinding } from './helpers.ts'
 
 const schema = (name: string) =>
-  JSON.parse(readFileSync(join(import.meta.dirname, '..', '..', 'schemas', name), 'utf8')) as Record<
-    string,
-    unknown
-  >
+  JSON.parse(
+    readFileSync(join(import.meta.dirname, '..', '..', 'schemas', name), 'utf8')
+  ) as Record<string, unknown>
 
 /** Runs one local Git command and returns its literal stdout. */
 function git(cwd: string, args: string[]): string {
@@ -53,20 +48,20 @@ function stableBinding(overrides: Partial<OwnerResourceBinding> = {}): OwnerReso
     schemaVersion: 1,
     kind: 'OES_OWNER_RESOURCE_BINDING',
     bindingFingerprint: '',
-    resourceTopologyVersion: 'stable-owner-exclusive-v1',
+    resourceTopologyVersion: 'owner-exclusive-v2',
     ownerTaskId,
     directParentTaskId: '22222222-2222-4222-8222-222222222222',
-    transitionId: 'stage:start:stable:1',
+    transitionId: 'coordination:start:stable:1',
     ownerClone: '/Users/fixture/.codex/oes/owners/11111111/oes',
     repositoryRoot: '/Users/fixture/.codex/oes/owners/11111111/oes',
     repositoryRemoteUrl: 'https://github.com/example/oes.git',
     ownerGitDirectory: '/Users/fixture/.codex/oes/owners/11111111/oes/.git',
-    ownerRef: 'refs/heads/codex/feature/runtime',
+    ownerRef: 'refs/heads/codex/delivery/runtime',
     artifactRoot: '/Users/fixture/.codex/oes/artifacts/11111111/runtime',
     taskTempRoot: `/private/tmp/${stableOwnerTaskTempLeaf(ownerTaskId)}`,
-    featurePacket: 'docs/plans/features/runtime.md',
-    featurePacketCheckpointPath:
-      '/Users/fixture/.codex/oes/artifacts/11111111/runtime/feature-packet.md',
+    deliveryRecord: 'docs/plans/deliveries/runtime.md',
+    deliveryRecordCheckpointPath:
+      '/Users/fixture/.codex/oes/artifacts/11111111/runtime/delivery-record.md',
     currentEvidenceManifestPath:
       '/Users/fixture/.codex/oes/artifacts/11111111/runtime/current-evidence-manifest.json',
     checkpointBundlePath:
@@ -74,11 +69,6 @@ function stableBinding(overrides: Partial<OwnerResourceBinding> = {}): OwnerReso
     gitBundlePath: '/Users/fixture/.codex/oes/artifacts/11111111/runtime/owner.bundle',
     ...overrides
   }
-  if (
-    binding.resourceTopologyVersion === 'pre-cutover-v1' &&
-    !Object.prototype.hasOwnProperty.call(overrides, 'repositoryRemoteUrl')
-  )
-    delete binding.repositoryRemoteUrl
   binding.bindingFingerprint = objectFingerprint(
     binding as unknown as Record<string, unknown>,
     'bindingFingerprint'
@@ -96,7 +86,7 @@ function manifest(binding: OwnerResourceBinding): OwnerCurrentEvidenceManifest {
     transitionId: binding.transitionId,
     stateVersion: 4,
     resourceBindingFingerprint: binding.bindingFingerprint,
-    featurePacket: { path: binding.featurePacketCheckpointPath, sha256: 'a'.repeat(64) },
+    deliveryRecord: { path: binding.deliveryRecordCheckpointPath, sha256: 'a'.repeat(64) },
     candidateSha: '1'.repeat(40),
     evidence: [],
     scratchPaths: [join(binding.taskTempRoot, 'tests')]
@@ -122,7 +112,7 @@ function checkpoint(
     resourceBindingFingerprint: binding.bindingFingerprint,
     ownerRef: binding.ownerRef,
     headSha: '1'.repeat(40),
-    featurePacket: current.featurePacket,
+    deliveryRecord: current.deliveryRecord,
     currentEvidenceManifest: {
       path: binding.currentEvidenceManifestPath,
       sha256: 'b'.repeat(64),
@@ -151,8 +141,8 @@ function observed(binding: OwnerResourceBinding): OwnerResourceObservation {
     ownerHeadSha: '1'.repeat(40),
     artifactRootExists: true,
     taskTempRootExists: true,
-    liveFeaturePacketExists: true,
-    featurePacketCheckpointExists: true,
+    liveDeliveryRecordExists: true,
+    deliveryRecordCheckpointExists: true,
     currentEvidenceManifestExists: true,
     checkpointBundleExists: true,
     gitBundleExists: binding.gitBundlePath !== null
@@ -190,7 +180,7 @@ test('stable durability rehashes every binding-selected Packet, manifest, checkp
   const packetBytes = '# Runtime\n'
   const gitBundleBytes = 'fixture git bundle bytes\n'
   const current = manifest(binding)
-  current.featurePacket.sha256 = sha256(packetBytes)
+  current.deliveryRecord.sha256 = sha256(packetBytes)
   current.manifestFingerprint = objectFingerprint(
     current as unknown as Record<string, unknown>,
     'manifestFingerprint'
@@ -207,7 +197,7 @@ test('stable durability rehashes every binding-selected Packet, manifest, checkp
   const artifacts = new Map<string, string>([
     [binding.currentEvidenceManifestPath, manifestBytes],
     [binding.checkpointBundlePath, checkpointBytes],
-    [binding.featurePacketCheckpointPath, packetBytes],
+    [binding.deliveryRecordCheckpointPath, packetBytes],
     [binding.gitBundlePath as string, gitBundleBytes]
   ])
   const readArtifact = (path: string): Uint8Array => Buffer.from(artifacts.get(path) ?? '')
@@ -249,82 +239,6 @@ test('owner topology schemas accept the exact binding, manifest, and checkpoint 
   )
 })
 
-test('stable topology rejects temporary and mixed pre-cutover roots', () => {
-  for (const sharedRoot of ['/private/tmp', realpathSync(tmpdir())]) {
-    const shared = stableBinding({ taskTempRoot: sharedRoot })
-    assert.throws(
-      () => validateOwnerResourceBinding(shared),
-      /STABLE_OWNER_TASK_TEMP_NOT_OWNER_EXCLUSIVE/
-    )
-    assert.throws(
-      () => validateJsonSchema(schema('owner-resource-binding.schema.json'), shared),
-      /JSON_SCHEMA_VALIDATION_FAILED/
-    )
-  }
-  assert.throws(
-    () => validateOwnerResourceBinding(stableBinding({ taskTempRoot: '/private/tmp/shared' })),
-    /STABLE_OWNER_TASK_TEMP_NOT_OWNER_EXCLUSIVE/
-  )
-  const nestedAncestor = stableBinding({
-    taskTempRoot: '/private/tmp/oes-shared-ancestor/oes-runtime-owner'
-  })
-  assert.throws(
-    () => validateOwnerResourceBinding(nestedAncestor),
-    /STABLE_OWNER_TASK_TEMP_NOT_OWNER_EXCLUSIVE/
-  )
-  assert.throws(
-    () => validateJsonSchema(schema('owner-resource-binding.schema.json'), nestedAncestor),
-    /JSON_SCHEMA_VALIDATION_FAILED/
-  )
-  assert.throws(
-    () =>
-      validateOwnerResourceBinding(
-        stableBinding({
-          repositoryRoot: '/private/tmp/oes-fl-runtime',
-          ownerClone: '/private/tmp/oes-fl-runtime',
-          ownerGitDirectory: '/private/tmp/oes-fl-runtime/.git'
-        })
-      ),
-    /STABLE_OWNER_RESOURCE_USES_TEMPORARY_ROOT/
-  )
-  assert.throws(
-    () =>
-      validateOwnerResourceBinding(
-        stableBinding({ repositoryRoot: '/Users/fixture/repositories/shared-oes' })
-      ),
-    /STABLE_OWNER_REPOSITORY_NOT_EXCLUSIVE_CLONE/
-  )
-  assert.throws(
-    () => validateOwnerResourceBinding(stableBinding({ ownerRef: 'refs/heads/runtime..lock' })),
-    /OWNER_RESOURCE_REF_INVALID/
-  )
-  const physicalTmp = realpathSync(tmpdir())
-  const physicalOwner = join(physicalTmp, 'oes-fl-runtime-physical-alias')
-  assert.throws(
-    () =>
-      validateOwnerResourceBinding(
-        stableBinding({
-          repositoryRoot: physicalOwner,
-          ownerClone: physicalOwner,
-          ownerGitDirectory: join(physicalOwner, '.git'),
-          artifactRoot: join(physicalTmp, 'oes-fl-runtime-physical-artifacts')
-        })
-      ),
-    /STABLE_OWNER_RESOURCE_USES_TEMPORARY_ROOT/
-  )
-  const legacy = stableBinding({
-    resourceTopologyVersion: 'pre-cutover-v1',
-    ownerClone: '/private/tmp/oes-fl-runtime',
-    ownerGitDirectory: '/private/tmp/oes-fl-runtime/.git',
-    artifactRoot: '/private/tmp/oes-fl-runtime-artifacts',
-    taskTempRoot: '/private/tmp/oes-fl-runtime-artifacts',
-    currentEvidenceManifestPath: '/private/tmp/oes-fl-runtime-artifacts/current.json',
-    checkpointBundlePath: '/private/tmp/oes-fl-runtime-artifacts/checkpoint.json',
-    gitBundlePath: null
-  })
-  assert.equal(validateOwnerResourceBinding(legacy).resourceTopologyVersion, 'pre-cutover-v1')
-})
-
 test('stable scratch identity is deterministically bound to the exact owner task', () => {
   const ownerA = stableBinding()
   const ownerBTaskId = '33333333-3333-4333-8333-333333333333'
@@ -335,8 +249,8 @@ test('stable scratch identity is deterministically bound to the exact owner task
     ownerGitDirectory: '/Users/fixture/.codex/oes/owners/33333333/oes/.git',
     artifactRoot: '/Users/fixture/.codex/oes/artifacts/33333333/runtime',
     taskTempRoot: ownerA.taskTempRoot,
-    featurePacketCheckpointPath:
-      '/Users/fixture/.codex/oes/artifacts/33333333/runtime/feature-packet.md',
+    deliveryRecordCheckpointPath:
+      '/Users/fixture/.codex/oes/artifacts/33333333/runtime/delivery-record.md',
     currentEvidenceManifestPath:
       '/Users/fixture/.codex/oes/artifacts/33333333/runtime/current-evidence-manifest.json',
     checkpointBundlePath:
@@ -387,7 +301,7 @@ test('stable reboot and temp loss restore only the exact owner and become idempo
     ownerRepositoryRemoteUrl: null,
     ownerRef: null,
     ownerHeadSha: null,
-    liveFeaturePacketExists: false,
+    liveDeliveryRecordExists: false,
     taskTempRootExists: false
   }
   const calls: string[] = []
@@ -402,7 +316,7 @@ test('stable reboot and temp loss restore only the exact owner and become idempo
         ownerRepositoryRemoteUrl: binding.repositoryRemoteUrl ?? null,
         ownerRef: binding.ownerRef,
         ownerHeadSha: bundle.headSha,
-        liveFeaturePacketExists: true
+        liveDeliveryRecordExists: true
       }
     },
     rebuildTaskTemp() {
@@ -463,18 +377,18 @@ test('system recovery restores the canonical origin accepted by remote preflight
   const source = join(root, 'source')
   const ownerClone = join(root, 'owner')
   const artifactRoot = join(root, 'artifacts')
-  mkdirSync(join(source, 'docs', 'plans', 'features'), { recursive: true })
+  mkdirSync(join(source, 'docs', 'plans', 'deliveries'), { recursive: true })
   mkdirSync(artifactRoot, { recursive: true })
-  git(source, ['init', '-b', 'codex/feature/runtime'])
+  git(source, ['init', '-b', 'codex/delivery/runtime'])
   git(source, ['config', 'user.email', 'runtime@example.test'])
   git(source, ['config', 'user.name', 'Runtime Test'])
   const packetBytes = '# Runtime\n'
-  writeFileSync(join(source, 'docs', 'plans', 'features', 'runtime.md'), packetBytes)
-  git(source, ['add', 'docs/plans/features/runtime.md'])
+  writeFileSync(join(source, 'docs', 'plans', 'deliveries', 'runtime.md'), packetBytes)
+  git(source, ['add', 'docs/plans/deliveries/runtime.md'])
   git(source, ['commit', '-m', 'fixture'])
   const headSha = git(source, ['rev-parse', 'HEAD'])
   const gitBundlePath = join(artifactRoot, 'owner.bundle')
-  git(source, ['bundle', 'create', gitBundlePath, 'codex/feature/runtime'])
+  git(source, ['bundle', 'create', gitBundlePath, 'codex/delivery/runtime'])
 
   const binding = stableBinding({
     repositoryRoot: ownerClone,
@@ -482,15 +396,15 @@ test('system recovery restores the canonical origin accepted by remote preflight
     ownerGitDirectory: join(ownerClone, '.git'),
     artifactRoot,
     taskTempRoot: scratch,
-    featurePacketCheckpointPath: join(artifactRoot, 'feature-packet.md'),
+    deliveryRecordCheckpointPath: join(artifactRoot, 'delivery-record.md'),
     currentEvidenceManifestPath: join(artifactRoot, 'current-evidence-manifest.json'),
     checkpointBundlePath: join(artifactRoot, 'checkpoint-bundle.json'),
     gitBundlePath
   })
-  writeFileSync(binding.featurePacketCheckpointPath, packetBytes)
+  writeFileSync(binding.deliveryRecordCheckpointPath, packetBytes)
   const current = manifest(binding)
   current.candidateSha = headSha
-  current.featurePacket.sha256 = sha256(packetBytes)
+  current.deliveryRecord.sha256 = sha256(packetBytes)
   current.manifestFingerprint = objectFingerprint(
     current as unknown as Record<string, unknown>,
     'manifestFingerprint'
@@ -589,7 +503,7 @@ test('system recovery restores the canonical origin accepted by remote preflight
     repositorySlug: 'example/oes',
     integrationBase: headSha,
     candidateSha: headSha,
-    headRef: 'codex/feature/runtime'
+    headRef: 'codex/delivery/runtime'
   })
   const truth: RemoteTruth = {
     branchHead: headSha,
@@ -608,172 +522,4 @@ test('system recovery restores the canonical origin accepted by remote preflight
     }
   }
   await new GitHubRemoteAdapter(runner).preflight(remote, truth)
-})
-
-test('pre-cutover loss preserves the exact original binding instead of creating replacement owner', () => {
-  const binding = stableBinding({
-    resourceTopologyVersion: 'pre-cutover-v1',
-    ownerTaskId: '/root/sl/fl-runtime',
-    directParentTaskId: '/root/sl',
-    ownerClone: '/private/tmp/oes-fl-runtime',
-    ownerGitDirectory: '/private/tmp/oes-fl-runtime/.git',
-    artifactRoot: '/private/tmp/oes-fl-runtime-artifacts',
-    taskTempRoot: '/private/tmp/oes-fl-runtime-artifacts',
-    currentEvidenceManifestPath: '/private/tmp/oes-fl-runtime-artifacts/current.json',
-    checkpointBundlePath: '/private/tmp/oes-fl-runtime-artifacts/checkpoint.json',
-    gitBundlePath: null
-  })
-  const current = manifest(binding)
-  const bundle = checkpoint(binding, current)
-  const plan = planOwnerRecovery({
-    ownerTaskId: binding.ownerTaskId,
-    transitionId: binding.transitionId,
-    ownerRef: binding.ownerRef,
-    binding,
-    manifest: current,
-    checkpointBundle: bundle,
-    observation: {
-      ...observed(binding),
-      ownerCloneExists: false,
-      ownerGitDirectory: null,
-      ownerGitCommonDirectory: null,
-      ownerRef: null,
-      ownerHeadSha: null,
-      liveFeaturePacketExists: false
-    }
-  })
-  assert.equal(plan.decision, 'RESOURCE_BINDING_MISMATCH')
-  assert.equal(plan.preserveBinding, true)
-})
-
-test('pre-cutover temp loss rebuilds only scratch at the original frozen path', async () => {
-  const binding = stableBinding({
-    resourceTopologyVersion: 'pre-cutover-v1',
-    ownerTaskId: '/root/sl/fl-runtime',
-    directParentTaskId: '/root/sl',
-    repositoryRoot: '/private/tmp/oes-fl-runtime',
-    ownerClone: '/private/tmp/oes-fl-runtime',
-    ownerGitDirectory: '/private/tmp/oes-fl-runtime/.git',
-    artifactRoot: '/private/tmp/oes-fl-runtime-artifacts',
-    taskTempRoot: '/private/tmp/oes-fl-runtime-artifacts',
-    featurePacketCheckpointPath: '/private/tmp/oes-fl-runtime-artifacts/feature-packet.md',
-    currentEvidenceManifestPath: '/private/tmp/oes-fl-runtime-artifacts/current.json',
-    checkpointBundlePath: '/private/tmp/oes-fl-runtime-artifacts/checkpoint.json',
-    gitBundlePath: null
-  })
-  const current = manifest(binding)
-  const bundle = checkpoint(binding, current)
-  let state = { ...observed(binding), taskTempRootExists: false }
-  const calls: string[] = []
-  const adapter: OwnerRecoveryAdapter = {
-    restoreCloneFromBundle() {
-      calls.push('unexpected-clone')
-    },
-    rebuildTaskTemp() {
-      calls.push('scratch')
-      state = { ...state, taskTempRootExists: true }
-    },
-    observe() {
-      return state
-    }
-  }
-  const plan = await recoverOwnerResources(
-    {
-      ownerTaskId: binding.ownerTaskId,
-      transitionId: binding.transitionId,
-      ownerRef: binding.ownerRef,
-      binding,
-      manifest: current,
-      checkpointBundle: bundle,
-      observation: state
-    },
-    adapter,
-    () => ({ manifest: current, checkpointBundle: bundle }),
-    () => {}
-  )
-  assert.equal(plan.decision, 'REBUILD_SCRATCH')
-  assert.deepEqual(calls, ['scratch'])
-})
-
-test('installed profile defaults legacy and rejects an unverified stable reference', () => {
-  const root = mkdtempSync(join(tmpdir(), 'oes-topology-profile-'))
-  const legacy = join(root, 'legacy.toml')
-  writeFileSync(
-    legacy,
-    '[collaboration_runtime]\nresource_topology_version="pre-cutover-v1"\nowner_resource_binding_path=""\nowner_resource_binding_sha256=""\nowner_resource_binding_fingerprint=""\n'
-  )
-  assert.deepEqual(readInstalledProfileResourceTopology(legacy), {
-    resourceTopologyVersion: 'pre-cutover-v1',
-    ownerResourceBinding: null
-  })
-
-  const mixed = join(root, 'mixed.toml')
-  writeFileSync(
-    mixed,
-    '[collaboration_runtime]\nowner_resource_binding_path="/Users/fixture/binding.json"\nowner_resource_binding_sha256="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"\nowner_resource_binding_fingerprint="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"\n'
-  )
-  assert.throws(
-    () => readInstalledProfileResourceTopology(mixed),
-    /PROFILE_RESOURCE_REFERENCE_WITHOUT_TOPOLOGY_VERSION/
-  )
-
-  const binding = stableBinding()
-  const bindingPath = join(root, 'binding.json')
-  const bytes = `${canonicalJson(binding)}\n`
-  writeFileSync(bindingPath, bytes)
-  const stable = join(root, 'stable.toml')
-  writeFileSync(
-    stable,
-    `[collaboration_runtime]\nresource_topology_version="stable-owner-exclusive-v1"\nowner_resource_binding_path=${JSON.stringify(bindingPath)}\nowner_resource_binding_sha256="${sha256(bytes)}"\nowner_resource_binding_fingerprint="${binding.bindingFingerprint}"\n`
-  )
-  assert.throws(
-    () =>
-      readInstalledProfileResourceTopology(
-        stable,
-        () => observed(binding),
-        () => ({
-          manifest: manifest(binding),
-          checkpointBundle: checkpoint(binding, manifest(binding))
-        })
-      ),
-    /ARTIFACT_PATH_OUTSIDE_BOUND_ROOT/
-  )
-
-  const acceptedReference = {
-    path: join(binding.artifactRoot, 'owner-resource-binding.json'),
-    sha256: 'd'.repeat(64),
-    fingerprint: binding.bindingFingerprint
-  }
-  writeFileSync(
-    stable,
-    `[collaboration_runtime]\nresource_topology_version="stable-owner-exclusive-v1"\nowner_resource_binding_path=${JSON.stringify(acceptedReference.path)}\nowner_resource_binding_sha256="${acceptedReference.sha256}"\nowner_resource_binding_fingerprint="${acceptedReference.fingerprint}"\n`
-  )
-  const current = manifest(binding)
-  const bundle = checkpoint(binding, current)
-  assert.deepEqual(
-    readInstalledProfileResourceTopology(
-      stable,
-      () => observed(binding),
-      () => ({ manifest: current, checkpointBundle: bundle }),
-      () => {},
-      () => binding,
-      (path) => path
-    ),
-    {
-      resourceTopologyVersion: 'stable-owner-exclusive-v1',
-      ownerResourceBinding: acceptedReference
-    }
-  )
-  assert.throws(
-    () =>
-      readInstalledProfileResourceTopology(
-        stable,
-        () => ({ ...observed(binding), ownerGitCommonDirectory: '/Users/fixture/shared/.git' }),
-        () => ({ manifest: current, checkpointBundle: bundle }),
-        () => {},
-        () => binding,
-        (path) => path
-      ),
-    /STABLE_OWNER_GIT_IDENTITY_MISMATCH/
-  )
 })

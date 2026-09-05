@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { canonicalJson, objectFingerprint, sha256 } from '../canonical.ts'
@@ -7,7 +7,7 @@ import type {
   RemoteAuthorizationRoot,
   RemoteDriverBinding,
   RemoteTrustRoots,
-  StageCleanupAuthorization
+  CoordinationCleanupAuthorization
 } from '../types.ts'
 
 const trustByBinding = new WeakMap<RemoteDriverBinding, RemoteTrustRoots>()
@@ -43,7 +43,9 @@ export function authorizeRemoteBinding(binding: RemoteDriverBinding): RemoteDriv
     artifactRoot: binding.artifactRoot,
     allowedActions: [binding.action],
     mergeAuthorizationFingerprint: binding.mergeAuthorizationFingerprint,
-    cleanupAuthorizationFingerprint: binding.cleanupAuthorizationFingerprint
+    cleanupAuthorizationFingerprint: binding.cleanupAuthorizationFingerprint,
+    resourceTopologyVersion: 'owner-exclusive-v2',
+    ownerResourceBinding: binding.ownerResourceBinding
   }
   rootRecord.recordFingerprint = objectFingerprint(
     rootRecord as unknown as Record<string, unknown>,
@@ -59,8 +61,9 @@ export function authorizeRemoteBinding(binding: RemoteDriverBinding): RemoteDriv
       invalidationPath: binding.invalidationPath,
       pullRequest: binding.pullRequest,
       admission: binding.admission ?? null,
-      cleanupResources: binding.cleanupResources ?? [],
-      expectedMergeSha: binding.expectedMergeSha ?? null
+      expectedMergeSha: binding.expectedMergeSha ?? null,
+      resourceTopologyVersion: binding.resourceTopologyVersion,
+      ownerResourceBinding: binding.ownerResourceBinding ?? null
     },
     '__none__'
   )
@@ -95,7 +98,9 @@ export function authorizeRemoteBinding(binding: RemoteDriverBinding): RemoteDriv
     resourceSetFingerprint,
     postcondition: 'FIXTURE_POSTCONDITION',
     mergeAuthorizationFingerprint: binding.mergeAuthorizationFingerprint,
-    cleanupAuthorizationFingerprint: binding.cleanupAuthorizationFingerprint
+    cleanupAuthorizationFingerprint: binding.cleanupAuthorizationFingerprint,
+    resourceTopologyVersion: 'owner-exclusive-v2',
+    ownerResourceBinding: binding.ownerResourceBinding
   }
   authority.authorizationFingerprint = objectFingerprint(
     authority as unknown as Record<string, unknown>,
@@ -120,21 +125,26 @@ export function authorizeRemoteBinding(binding: RemoteDriverBinding): RemoteDriv
     profileSha256: 'a'.repeat(64),
     ownerTaskId: binding.owner.taskId,
     profileTransitionId: binding.transitionId,
-    profileExpectedState: 'DELIVERY_ACTIVE'
+    profileExpectedState: 'DELIVERY_ACTIVE',
+    resourceTopologyVersion: 'owner-exclusive-v2',
+    ownerResourceBinding: binding.ownerResourceBinding
   })
   return binding
 }
 
-/** Creates one valid remote binding rooted in a disposable artifact directory. */
+/** Creates one valid V2 remote binding rooted in an owner-exclusive test clone. */
 export function remoteBinding(overrides: Partial<RemoteDriverBinding> = {}): RemoteDriverBinding {
-  const root = mkdtempSync(join(tmpdir(), 'oes-remote-driver-test-'))
-  const binding: RemoteDriverBinding = {
+  const parent = join(process.cwd(), '.tmp-collaboration-runtime-tests')
+  mkdirSync(parent, { recursive: true })
+  const root = mkdtempSync(join(parent, 'owner-'))
+  const artifactRoot = mkdtempSync(join(parent, 'artifacts-'))
+  const base: RemoteDriverBinding = {
     schemaVersion: 1,
     kind: 'OES_REMOTE_DRIVER_BINDING',
     bindingFingerprint: '',
     authorization: { path: '/pending', sha256: '0'.repeat(64), fingerprint: '0'.repeat(64) },
     action: 'publish-pr',
-    owner: { role: 'Feature Lead', taskId: '/root/fl' },
+    owner: { role: 'DO', taskId: '/root/do' },
     expectedState: 'LOCAL_REVIEW_PASSED',
     stateVersion: 3,
     transitionId: 'transition:3:publish',
@@ -144,12 +154,12 @@ export function remoteBinding(overrides: Partial<RemoteDriverBinding> = {}): Rem
     candidateSha: '3'.repeat(40),
     repositoryRoot: root,
     repositorySlug: 'example/oes',
-    artifactRoot: root,
-    checkpointPath: join(root, 'checkpoint.json'),
-    resultPath: join(root, 'result.json'),
-    invalidationPath: join(root, 'invalidated.json'),
+    artifactRoot,
+    checkpointPath: '',
+    resultPath: '',
+    invalidationPath: '',
     singleUseNonce: 'nonce-1',
-    headRef: 'codex/feature/runtime',
+    headRef: 'codex/delivery/runtime',
     baseRef: 'main',
     pullRequest: {
       baseRef: 'main',
@@ -162,52 +172,109 @@ export function remoteBinding(overrides: Partial<RemoteDriverBinding> = {}): Rem
     mergeMethod: 'merge',
     ...overrides
   }
-  return authorizeRemoteBinding(binding)
+  const ownerBinding = {
+    schemaVersion: 1 as const,
+    kind: 'OES_OWNER_RESOURCE_BINDING' as const,
+    bindingFingerprint: '',
+    resourceTopologyVersion: 'owner-exclusive-v2' as const,
+    ownerTaskId: base.owner.taskId,
+    directParentTaskId: '/root/parent',
+    transitionId: base.transitionId,
+    repositoryRoot: base.repositoryRoot,
+    repositoryRemoteUrl: `https://github.com/${base.repositorySlug}.git`,
+    ownerClone: base.repositoryRoot,
+    ownerGitDirectory: join(base.repositoryRoot, '.git'),
+    ownerRef: `refs/heads/${base.headRef}`,
+    artifactRoot: base.artifactRoot,
+    taskTempRoot: `/private/tmp/oes-owner-${sha256(base.owner.taskId)}`,
+    deliveryRecord: 'docs/plans/deliveries/runtime.md',
+    deliveryRecordCheckpointPath: join(base.artifactRoot, 'delivery-record.md'),
+    currentEvidenceManifestPath: join(base.artifactRoot, 'current.json'),
+    checkpointBundlePath: join(base.artifactRoot, 'bundle.json'),
+    gitBundlePath: join(base.artifactRoot, 'owner.bundle')
+  }
+  ownerBinding.bindingFingerprint = objectFingerprint(
+    ownerBinding as unknown as Record<string, unknown>,
+    'bindingFingerprint'
+  )
+  const ownerPath = join(base.artifactRoot, 'owner-resource-binding.json')
+  const ownerBytes = `${canonicalJson(ownerBinding)}\n`
+  writeFileSync(ownerPath, ownerBytes)
+  base.resourceTopologyVersion = 'owner-exclusive-v2'
+  base.ownerResourceBinding = {
+    path: ownerPath,
+    sha256: sha256(ownerBytes),
+    fingerprint: ownerBinding.bindingFingerprint
+  }
+  const actionRoot = join(base.artifactRoot, 'remote-actions', base.action, base.singleUseNonce)
+  base.checkpointPath = join(actionRoot, 'checkpoint.json')
+  base.resultPath = join(actionRoot, 'result.json')
+  base.invalidationPath = join(actionRoot, 'invalidated.json')
+  return authorizeRemoteBinding(base)
 }
 
-/** Creates one valid two-feature Stage cleanup authorization. */
-export function cleanupAuthorization(): StageCleanupAuthorization {
-  const value: StageCleanupAuthorization = {
-    schemaVersion: 1,
-    kind: 'OES_STAGE_CLEANUP_AUTHORIZATION',
+/** Creates one valid V2 two-DO terminal cleanup authorization. */
+export function cleanupAuthorization(): CoordinationCleanupAuthorization {
+  const binding = (key: string, ownerTaskId: string, sha: string) => ({
+    schemaVersion: 1 as const,
+    kind: 'OES_OWNER_RESOURCE_BINDING' as const,
+    bindingFingerprint: 'f'.repeat(64),
+    resourceTopologyVersion: 'owner-exclusive-v2' as const,
+    ownerTaskId,
+    directParentTaskId: '/root/co',
+    transitionId: 'coordination:cleanup:1',
+    repositoryRoot: '/fixture/oes',
+    repositoryRemoteUrl: 'https://github.com/example/oes.git',
+    ownerClone: `/private/tmp/oes-do-${key}`,
+    ownerGitDirectory: `/private/tmp/oes-do-${key}/.git`,
+    ownerRef: `refs/heads/codex/delivery/${key}`,
+    artifactRoot: `/private/tmp/oes-do-${key}-artifacts`,
+    taskTempRoot: `/private/tmp/oes-owner-${sha256(ownerTaskId)}`,
+    deliveryRecord: `docs/plans/deliveries/${key}.md`,
+    deliveryRecordCheckpointPath: `/private/tmp/oes-do-${key}-artifacts/delivery-record.md`,
+    currentEvidenceManifestPath: `/private/tmp/oes-do-${key}-artifacts/current.json`,
+    checkpointBundlePath: `/private/tmp/oes-do-${key}-artifacts/checkpoint.json`,
+    gitBundlePath: `/private/tmp/oes-do-${key}-artifacts/owner.bundle`
+  })
+  const terminal = (key: string, suffix: string) => {
+    const candidateSha = suffix.repeat(40)
+    const ownerTaskId = `/root/co/do-${key}`
+    const ownerResourceBinding = binding(key, ownerTaskId, candidateSha)
+    return {
+      deliveryKey: key,
+      ownerTaskId,
+      terminalState: 'MERGED' as const,
+      candidateSha,
+      mergeSha: String(Number(suffix) + 1).repeat(40),
+      ownerResourceBinding,
+      resources: [
+        {
+          kind: 'remote-branch' as const,
+          path: `codex/delivery/${key}`,
+          expectedSha: candidateSha
+        },
+        { kind: 'local-branch' as const, path: `codex/delivery/${key}`, expectedSha: candidateSha },
+        {
+          kind: 'worktree' as const,
+          path: ownerResourceBinding.ownerClone,
+          expectedSha: candidateSha
+        },
+        { kind: 'task-temp' as const, path: ownerResourceBinding.taskTempRoot, expectedSha: null }
+      ]
+    }
+  }
+  const value: CoordinationCleanupAuthorization = {
+    schemaVersion: 2,
+    kind: 'OES_COORDINATION_CLEANUP_AUTHORIZATION',
     authorizationFingerprint: '',
     status: 'ISSUED',
-    expectedState: 'STAGE_CLEANUP_AUTHORIZED',
+    expectedState: 'COORDINATION_CLEANUP_AUTHORIZED',
     stateVersion: 1,
-    stageKey: 'stage-1',
-    stageOwnerTaskId: '/root/sl',
-    transitionId: 'stage:cleanup:1',
+    coordinationKey: 'release',
+    coordinationOwnerTaskId: '/root/co',
+    transitionId: 'coordination:cleanup:1',
     confirmationFingerprint: 'a'.repeat(64),
-    cleanupOnlyBranch: 'codex/cleanup/stage-1',
-    allowedDeletedFeaturePackets: ['docs/plans/features/alpha.md', 'docs/plans/features/beta.md'],
-    terminalFeatures: [
-      {
-        featureKey: 'alpha',
-        ownerTaskId: '/root/sl/fl-alpha',
-        candidateSha: '1'.repeat(40),
-        mergeSha: '2'.repeat(40),
-        featurePacket: 'docs/plans/features/alpha.md',
-        resources: [
-          { kind: 'remote-branch', path: 'codex/feature/alpha', expectedSha: '1'.repeat(40) },
-          { kind: 'worktree', path: '/private/tmp/oes-fl-alpha', expectedSha: '1'.repeat(40) },
-          { kind: 'local-branch', path: 'codex/feature/alpha', expectedSha: '1'.repeat(40) },
-          { kind: 'task-temp', path: '/private/tmp/oes-fl-alpha-artifacts', expectedSha: null }
-        ]
-      },
-      {
-        featureKey: 'beta',
-        ownerTaskId: '/root/sl/fl-beta',
-        candidateSha: '3'.repeat(40),
-        mergeSha: '4'.repeat(40),
-        featurePacket: 'docs/plans/features/beta.md',
-        resources: [
-          { kind: 'remote-branch', path: 'codex/feature/beta', expectedSha: '3'.repeat(40) },
-          { kind: 'worktree', path: '/private/tmp/oes-fl-beta', expectedSha: '3'.repeat(40) },
-          { kind: 'local-branch', path: 'codex/feature/beta', expectedSha: '3'.repeat(40) },
-          { kind: 'task-temp', path: '/private/tmp/oes-fl-beta-artifacts', expectedSha: null }
-        ]
-      }
-    ]
+    terminalDeliveries: [terminal('alpha', '1'), terminal('beta', '3')]
   }
   value.authorizationFingerprint = objectFingerprint(
     value as unknown as Record<string, unknown>,

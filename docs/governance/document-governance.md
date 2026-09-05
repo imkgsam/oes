@@ -2,16 +2,16 @@
 
 ## 1. 目标
 
-OES 文档只保存当前有效的设计、契约、操作方法和活跃工作面。Git 保存历史；项目文档不保存线程记录、迁移过程、完成账本或庞大的阶段流水。
+OES 文档只保存当前有效的设计、契约、操作方法和活跃工作面。Git 保存历史；文档树不保存聊天记录、迁移流水、完成账本或 task registry。
 
-核心原则：
+核心规则：
 
-- 一个事实，一个规范真相源；
+- 一个事实只有一个规范真相源；
 - stable truth 与 active work 分离；
 - Index 只导航；
 - 当前状态原位更新；
-- 已被完整吸收的过程文件及时删除；
-- 删除前验证仍有效的唯一内容已进入正确真相源。
+- 已被吸收的过程文件在独立 cleanup 边界删除；
+- 删除前证明唯一有效内容已进入正确真相源。
 
 ## 2. 目标结构
 
@@ -19,26 +19,20 @@ OES 文档只保存当前有效的设计、契约、操作方法和活跃工作�
 docs/
 ├── index.md
 ├── architecture/
-│   ├── index.md
-│   ├── system/
-│   ├── services/
-│   ├── platforms/
-│   ├── collaborations/
-│   ├── frontends/
-│   └── terminals/
 ├── contracts/
 ├── adr/
 ├── governance/
 ├── runbooks/
 └── plans/
     ├── index.md
+    ├── intake.md
     ├── backlog.md
     ├── designs/
-    ├── stages/
-    └── features/
+    ├── deliveries/
+    └── features/     # pre-V2 historical records only
 ```
 
-不建立 `archive/`、history、migration ledger 或 task ledger。目录结构本身表达 stable/active 分类。
+不建立 archive、history、migration ledger 或 task ledger。`docs/plans/deliveries/` 是 V2 repository delivery record 的唯一 active 路径；不得恢复其他 active delivery packet 路径。
 
 ## 3. 稳定真相源
 
@@ -48,191 +42,97 @@ docs/
 - `architecture/services/<service-name>.md`：单服务职责、核心对象、拥有/不拥有的真相和主要协同引用；每个服务仅一份。
 - `architecture/platforms/`：身份、权限、信任、租户、事件、审计、AI 等跨域平台设计。
 - `architecture/collaborations/`：可复用的跨服务业务旅程与协同边界。
-- `architecture/frontends/`：稳定前端边界。
-- `architecture/terminals/`：PDA、kiosk 等终端边界。
+- `architecture/frontends/` 与 `architecture/terminals/`：稳定交互边界。
 
-其他文件只能引用服务真相，不重复定义服务对象、边界或命名。
+其他文件引用这些真相，不重复定义服务对象、边界或命名。
 
 ### 3.2 Contracts
 
-`docs/contracts/` 是规范性的黑盒业务语义，包括行为、输入输出含义、错误、权限、租户和兼容性边界。
-
-Proto、OpenAPI、schema 与生成类型是可执行契约表达。文档语义与机器契约发生差异时，视为契约缺陷并同步修正；实现代码不是另一个独立设计真相。
-
-索引只列当前受支持契约版本。服务目录 README 只做局部导航，不重复契约正文。
+`docs/contracts/` 保存规范性的黑盒业务语义，包括行为、输入输出、错误、权限、租户和兼容性边界。Proto、OpenAPI、schema 与生成类型是可执行表达；语义不一致视为契约缺陷并同步修正。
 
 ### 3.3 ADR
 
-ADR 解释“为什么选择当前高影响方案”，而 architecture 解释“当前方案是什么”。
+ADR 解释高影响选择的原因，architecture 解释当前方案。bounded context、新服务、跨服务通信、身份/权限/安全/租户模型，以及高成本且难撤销的选择可建立 ADR；普通交付、UI、内部重构、测试步骤和实现清单不建立 ADR。
 
-适用范围：
+### 3.4 Governance 与 runbook
 
-- bounded context 或新服务；
-- 跨服务通信模式；
-- 身份、权限、安全与租户模型；
-- 高成本、反直觉或未来难以撤销的选择。
+- `AGENTS.md` 与 `docs/governance/**` 定义当前协作、执行和文档纪律。
+- UD 是唯一 canonical design writer；DA 提交 Human-confirmed Proposal，UD 独立审计并把接受结论放入规范真相源。
+- DO、CO、RV、bounded helper、请求来源和父 task 都不成为 canonical design writer。
+- Runbook 只保存当前可执行的操作、故障处理与恢复步骤。
+- 技术 binding、task 状态、进度、一次性复盘和已完成治理项目不进入长期治理文档。
 
-普通 feature、UI、内部重构、测试步骤和实现清单不建立 ADR。完全被取代且已无当前解释价值的 ADR 在更新引用后删除；Git 保留历史。
+DA、UD、DO、CO、RV 的身份、可见性和 parent binding 遵循执行模型。Human-visible task 与 Git worktree 相互独立；host-local 操作不为可见性创建 repository record、branch、candidate 或 PR。
 
-### 3.4 Governance 与 Runbook
+## 4. Design Workspace 与 Proposal
 
-- Governance只定义当前协作、执行和文档纪律。
-- `AGENTS.md`、`docs/governance/**`及其他规范真相只由exact global UD写入。
-- UD只有两个Human-confirmed入口：Design Owner提交的semantic Proposal，以及语义影响精确为`NONE`的`CANONICAL_EDITORIAL_PATCH`。
-- Design Owner、source Direct、SL、FL、RI、请求来源、父task和host helper都不成为canonical writer。
-- Runbook只保存当前可执行的运维、故障处理与恢复步骤。
-- 已完成治理项目、一次性复盘、task状态和技术binding不进入长期治理文档。
-
-role task的标题、身份、Human可见性与parent binding遵循执行模型。Planner、Design、Direct、SL、FL、Feature RI和Stage RI必须在正常Codex项目任务列表中可发现、可打开、可继续；文档不得建立task registry、title migration ledger、隐藏owner清单或按标题推断owner的流程。
-
-Human-visible project task与Git worktree是独立概念。`HOST_LOCAL_OPERATION` role task使用project-associated local载体和task-local current evidence，不为可见性、状态或本机操作创建repository Packet、worktree、branch、candidate或PR。
-
-Planner的月、周、日项目组合建议是带生成时间和有效期的noncanonical task消息，不写入`docs/plans/`，不形成roadmap镜像、日报/周报/月报、task registry或第二状态源。需要冻结的稳定设计进入Design Owner → exact UD；Human选中的实现方向继续使用Direct、FL或SL的Packet和既有确认边界。
-
-### 3.5 Direct文档维护
-
-非规范语义的单一文档Change Set默认使用Direct，不创建Design、SL、FL、IT或RI。适用范围包括拼写、标点、排版、明确断链、导航和不改变行为/约束等级的说明修正。
-
-Architecture、ADR、Contract、`AGENTS.md`或Governance的语义变化始终进入Design Owner → exact UD。上述文件的纯编辑修正可以使用`CANONICAL_EDITORIAL_PATCH`，但任何`must/should/may`、owner、scope、权限、租户、事件、API、生命周期、默认值或行为含义变化都会使editorial分类失效。
-
-Direct文档验证只运行changed-path allowlist、`git diff --check`、相关Markdown link/UTF-8/绝对路径检查和语义影响声明。
-
-## 4. Design Workspace
-
-Design Workspace只用于Human确认Proposal Preview后仍需跨多轮维护的当前设计工作面，不是聊天记录、决策历史、task ledger或第二真相源。一次成型的设计可以不创建Workspace。
-
-一个主题最多一个active Workspace：
+需要跨多轮维护的未冻结设计可使用：
 
 ```text
 docs/plans/designs/<design-key>.md
 ```
 
-只保存：objective、scope/protected scope、truth references、current proposed design、open questions、intended canonical changes和next discussion point。每轮原位更新，不追加时间线或消息。
+Workspace 由 DA 维护，只保存 objective、scope/protected scope、truth references、current proposed design、open questions、intended canonical changes 和 next discussion point；每轮原位覆盖，不追加时间线。
 
-需要跨task恢复时可保存一个最小active locator，只含repository、design key、exact owner、Workspace和state。locator不轮询、不保留历史，cleanup时compare-and-delete。
+Human 确认 exact Proposal preview 后，DA 才形成 immutable Proposal 并提交 exact UD。UD 接受后更新 canonical truth；Design PR merge 与后续 delivery activation 分别确认。全部结论进入 canonical truth 后，Workspace 在独立 cleanup 边界删除。
 
-结论冻结后回写canonical truth并从Workspace移除；全部冻结后进入cleanup。删除前逐项证明仍有效内容已经进入canonical truth、active Packet或backlog。
+## 5. V2 Delivery Record
 
-## 5. Proposal Patch
-
-Proposal Preview是Design Owner基于latest truth向Human展示的完整只读方案，不是repository artifact。至少包含：
-
-1. 问题与目标；
-2. 规范结论和主要流程；
-3. intended canonical files；
-4. protected scope；
-5. in-flight兼容与post-merge route；
-6. 验证；
-7. stop point。
-
-Human确认exact Preview后，Design Owner才形成真实Git diff/commit形式的Proposal Patch并提交exact UD。一次确认授权Design Owner形成/验证/提交Proposal，也授权UD在接受时推进到`DESIGN_PR_READY`。Design PR merge、`NEW_DESIGN` delivery activation和cleanup分别确认；existing-delivery design gap合并后自动恢复原owner。
-
-机器必须在task-local evidence中绑定source Design Owner、canonical base、proposal commit、intended files、scope/protected scope、confirmation、entry type、existing-delivery return target和stop point。Human不需要查看或复述SHA、fingerprint、nonce、epoch、CAS或transition。语义、文件范围、protected scope、owner或stop point变化时重新展示完整Preview；纯技术binding重算不单独形成Human gate。
-
-Proposal及UD envelope只保留能独立证明以下事实的一份当前记录：
-
-- Human确认的是当前Preview；
-- Proposal parent/base与latest truth一致或明确使用approved moving-main规则；
-- cumulative diff只修改intended files；
-- source owner与exact UD正确；
-- entry-specific return target明确；
-- rollback和验证可复现。
-
-同一事实不得同时以多份长期manifest、receipt和binding文件重复表达。Git、task history或最终verification可重建的中间结果不另建过程账本。Revision使用append-only commit，不amend已审核Proposal。
-
-语义影响为`NONE`的`CANONICAL_EDITORIAL_PATCH`不是Proposal。它由source Direct确认exact files/hunks和source notice target后交UD；classification失效时返回source重新选择Design或继续讨论。
-
-## 6. Stage Packet
-
-一个`REPOSITORY_DELIVERY` SL对应一个compact active Stage Packet：
+一个 repository DO 对应一个 compact active record：
 
 ```text
-docs/plans/stages/<stage-key>.md
+docs/plans/deliveries/<delivery-key>.md
 ```
 
-Stage Packet只存在于SL本地coordination branch/worktree，不push、不创建产品PR、不合入main。只保存当前objective、scope/protected scope、integration base、FL引用与依赖、WIP、exit criteria、blocker和Human可见状态；全部FL/Feature RI/Stage RI完成后可保存一份current ordered merge set引用，逐项结果原位更新。状态原位覆盖，不保存聊天、时间线、task registry、watcher、technical receipt或IT candidate细节。
+record 只保存当前 objective、base SHA、scope/protected scope、dependencies、acceptance、candidate SHA、self-test evidence、RV result、PR/CI state、remaining risk、rollback 和 cleanup state。只有 exact DO 写自己的 record；状态原位覆盖，不写执行流水、task 消息或重复日志。
 
-Human正常进度以可见SL task为入口，Stage Packet提供可恢复的当前协调状态。全部FL、Feature RI与Stage RI完成后，SL展示一张绑定全部exact PR heads、集合和顺序的Stage merge卡；每个PR仍保持独立Merge Commit、验证、审计和回退边界。Stage exit通过且Human表达cleanup意图时，系统先只读盘点task-native created roster与全部owner资源，再展示一张批量cleanup卡；每个owner清理自己的exact资源，SL只汇总幂等结果并通过一个cleanup-only PR删除卡内terminal Feature Packets，最后清理Stage Packet和自身资源。created roster、terminal roster、cleanup与archive结果只保留一份task-local current evidence，不进入Stage Packet历史或长期registry。
+CO 的 decomposition、dependency order、integration contract、aggregate acceptance、scoped RV references 与 aggregate candidate 保存在 CO task-local current evidence。CO 默认生成一个 aggregate branch/PR，不建立第二套 repository coordination packet。若 Human 明确确认 independently releasable 的 independent-PR exception，各 DO record 仍分别绑定各自 candidate/PR。
 
-纯`HOST_LOCAL_OPERATION` Stage只在SL task-local current evidence中保存同等精简的objective、scope/protected scope、FL引用、依赖、WIP、exit criteria和blocker，不创建repository Stage Packet或协调worktree。
+Repository merge 和 main verification完成后，record 进入 terminal lifecycle disposal；删除 record 属于零新增内容的 cleanup 边界，不得借 cleanup 产生产品修改或其他 repository diff。
 
-## 7. Feature Packet
+## 6. Host-local work
 
-一个`REPOSITORY_DELIVERY` FL对应一个compact active Feature Packet：
+Host-local DO 只在 task-local current evidence 保存 scope/protected scope、精确资源、acceptance、verification 与 post-check；没有 repository 修改时不创建 delivery record、Git candidate 或 PR。破坏性操作绑定 exact operation candidate，完成后按同一 owner 的 child-first disposal 处理临时资源与 task。
 
-```text
-docs/plans/features/<feature-key>.md
-```
+## 7. Intake 与 Backlog
 
-FP只保存当前scope/protected scope、slices、依赖、acceptance、candidate、Feature RI和Human可见状态。只有FL写FP；状态原位覆盖，不写执行流水、重复测试输出或内部task消息。
+- `plans/intake.md` 是当前能力候选入口；它只保存尚未进入设计或交付的需求。
+- `plans/backlog.md` 只保存仍有效且明确延期的事项。
+- 进入稳定设计时路由到 DA；已设计且 cohesive 的实现路由到一个 DO；只有多个 independently ownable workstreams 且存在真实并行或 cross-delivery integration 时才路由到 CO。
+- 完成、取消或失效的条目直接删除；不保存 promoted/cancelled/completed 历史。
 
-一个FL同时最多一个Feature RI。IT的进度默认由FL和FP汇总；独立可恢复IT另建可见task。candidate验证只维护一份当前记录，输入未变的focused/affected evidence直接复用。有parent SL时，单个FL ready不产生merge授权，必须等待完整Stage merge set与Stage RI。
+## 8. Index
 
-feature merge和main验证通过后进入cleanup。standalone FL使用自己的cleanup卡；有parent SL时由一张Stage Cleanup卡统一授权全部owner，各owner仍只清理自己的exact资源。partial success保留且只重试失败项；未terminal、coverage不完整、owner不明、shared、active、dirty或SHA不匹配的FP和资源保持原状并报告。created/terminal roster核对完成后按IT/Feature RI、FL、Stage-related Design Owner、Stage RI、SL的依赖序archive，长期UD不进入archive roster。
-
-`HOST_LOCAL_OPERATION` FL只在task-local current evidence中保留当前scope/protected scope、精确资源清单、验收、review和post-check，不创建Feature Packet、Git candidate或PR。破坏性操作确认绑定的是当前精确操作候选而不是repository artifact；完成后按同一owner的cleanup边界处理task-local临时资源和task归档。
-
-## 8. Intake 与 Backlog
-
-- cutover完成后，带`capability-candidate` label的open GitHub Issue是尚未进入设计或实现的唯一intake真相；Human称其为“能力候选”。标题使用`[Capability] 能力名称`，正文只保存能力、业务价值/目标、当前问题和`暂不设计、暂不实现`。
-- 候选登记不创建Codex task、worktree、branch、Packet、PR或CI，也不在repository建立Issue镜像、roadmap、状态表或历史账本。Planner直接读取open候选。
-- Human选择进入Design或Direct后，只有exact owner task完成创建与接受才关闭候选；重复、取消或失效候选直接关闭。GitHub不可用时保持阻塞，不写本地影子记录。
-- `plans/backlog.md`：仍有效但明确延期的事项；完成、取消或失效后删除。
-
-迁移期间，既有`plans/intake.md`及其Index链接是明确的临时例外，并继续作为唯一可写intake。一次独立Human-confirmed Direct必须幂等创建label和全部既有Issue、逐项验证唯一链接，全部成功后才由一个PR删除旧文件和Index链接；该PR合入且main CI通过后，Issue入口才激活。任何中断都保留旧文件，禁止双写。
-
-不记录 `PROMOTED`、`CANCELLED` 或完成历史。
-
-## 9. Index
-
-Index 的唯一职责是告诉读者去哪里读取规范文件。
-
-允许内容：
-
-- 一到两句目录用途；
-- 当前规范文件名称与仓库相对链接；
-- 可选的一行非语义标签。
-
-禁止内容：
-
-- 实现状态、进度和 owner；
-- 服务对象或边界摘要；
-- `updatedAt` 与冻结阶段；
-- 历史清理结论和迁移说明；
-- future/designing 服务；
-- 长篇阅读顺序。
-
-导航最多两级：
+Index 只包含一到两句目录用途、当前规范文件名称和 repository-relative links。禁止进度、owner、状态镜像、`updatedAt`、迁移说明、长阅读顺序或 future truth。导航最多两级：
 
 ```text
 docs/index.md -> category/index.md -> canonical document
 ```
 
-active Design Workspace、Stage Packet 和 FP 由各自目录中的当前文件表示，不维护第二份状态表。Stage Packet 仅在 SL 本地分支出现，因此 `main` 上的空目录不代表状态。
+Active Workspace 与 Delivery Record 由目录中的当前文件表示，不维护第二状态表。
 
-## 10. 旧文档清理规则
+## 9. 历史文件
 
-清理采用逐文件语义归位，不做整批文本搬运：
+`docs/plans/features/` 下的既有文件是 pre-V2 historical records，不是 active route、template 或 owner authority。它们可保留原词作为历史证据，但任何新交付都使用 `docs/plans/deliveries/`。后续逐文件清理时：
 
-- 已存在于 canonical truth、active Workspace 或 FP：删除重复文件；
-- 仅包含 checklist、命令和文件清单：完成后删除；仍是当前操作则提取到 FP/runbook；
-- 包含仍有效的唯一稳定事实：提取最小事实到 architecture/contract/ADR/runbook 后删除；
-- 未冻结设计仍有价值：提取当前草稿到 active Workspace 后删除；
-- 当前 feature 仍在执行：提取 scope/acceptance/current candidate 到 FP 后删除。
+- 已存在于 canonical truth、active Workspace 或 Delivery Record：删除重复文件；
+- 仅包含完成 checklist、命令或流水：删除；
+- 包含唯一稳定事实：提取最小事实到 architecture/contract/ADR/runbook 后删除；
+- 包含仍有效的未冻结设计：提取当前草稿到 active Workspace 后删除。
 
-工具生成的临时 specs/plans 不进入稳定文档树。只按上述规则提取仍有效的唯一内容，任务完成后删除临时产物。
+不得整批搬运历史文本，也不得为清理建立 archive 或 ledger。
 
-旧治理文件收敛到 `codex-execution-model.md` 与本文；旧 plans 根目录的 draft、foundation plan、implementation plan 与 checklist 分别归入 canonical truth、Workspace、FP、runbook 或 backlog。
+## 10. 轻量验证
 
-## 11. 轻量验证
-
-Direct 文档维护只运行与 changed paths 和分类风险匹配的 focused checks；规范语义变化继续运行 Proposal/UD 验证。文档重构至少检查：
+文档变更至少检查：
 
 - 所有 Markdown 相对链接存在；
-- 每个稳定服务真相被索引且只出现一次；
-- canonical indexes 不含 `DESIGNING`、`DONE`、`HISTORICAL` 等状态；
-- 仓库文档不含本机 home 目录等绝对路径；
-- plans index 不枚举实现状态；
-- Stage Packet 未进入 remote refs 或 `main`，且不含 registry、历史或 IT candidate 细节；
-- superseded/closed 文件删除前完成语义覆盖检查；
+- stable truth 被索引且不重复；
+- active route 只出现 DA/UD/DO/CO/RV；
+- active delivery record 路径仅为 `docs/plans/deliveries/`；
+- repository 文档不含本机 home 目录；
+- plans index 不枚举实现进度；
+- cleanup 变更没有新增/修改 repository 内容；
 - `git diff --check` 通过。
+
+规范语义变化继续经过 DA/UD；纯 editorial 变更只运行与 changed paths 和风险匹配的 focused checks。
