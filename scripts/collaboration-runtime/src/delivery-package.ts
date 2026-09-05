@@ -807,7 +807,11 @@ export function verifyPackageCleanup(
   const placement = validatePackageCleanupPlacement(value, ownerBinding)
   if (pathEntryExists(value.packagePath))
     fail('PACKAGE_CLEANUP_ABSENCE_NOT_VERIFIED', value.packagePath)
-  if (placement.repositoryPhysical) verifyObservedRepositoryClean(placement.repositoryPhysical)
+  if (placement.repositoryPhysical && placement.gitDirectoryPhysical)
+    verifyObservedRepositoryClean(
+      placement.repositoryPhysical,
+      placement.gitDirectoryPhysical
+    )
   return { packagePath: value.packagePath, repositoryDiff: [], status: 'PACKAGE_CLEANUP_VERIFIED' }
 }
 
@@ -1533,7 +1537,7 @@ function reopenCompletedEvidence(context: EvidenceReopenContext): void {
 function validatePackageCleanupPlacement(
   value: DeliveryPackage | AggregateDeliveryPackage,
   ownerBinding: OwnerResourceBinding | null
-): { repositoryPhysical: string | null } {
+): { repositoryPhysical: string | null; gitDirectoryPhysical: string | null } {
   if (value.kind === 'OES_DELIVERY_PACKAGE') validateDeliveryPackage(value)
   else validateAggregateDeliveryPackage(value)
   const { artifactPhysical, packagePhysical } = validatePackageArtifactIdentity(
@@ -1545,13 +1549,18 @@ function validatePackageCleanupPlacement(
     if (ownerBinding !== null)
       fail('HOST_LOCAL_PACKAGE_REPOSITORY_BINDING_FORBIDDEN', value.ownerTaskId)
     requireRepositoryFreeArtifactRoot(artifactPhysical)
-    return { repositoryPhysical: null }
+    return { repositoryPhysical: null, gitDirectoryPhysical: null }
   }
   if (!ownerBinding) fail('PACKAGE_CLEANUP_OWNER_BINDING_REQUIRED', value.ownerTaskId)
   requireTrustedOwnerResourceBinding(ownerBinding)
   const repositoryPhysical = requireExactPhysicalPath(
     ownerBinding.repositoryRoot,
     'ownerBinding.repositoryRoot',
+    physicalIdentityForPotentialPath
+  )
+  const gitDirectoryPhysical = requireExactPhysicalPath(
+    ownerBinding.ownerGitDirectory,
+    'ownerBinding.ownerGitDirectory',
     physicalIdentityForPotentialPath
   )
   if (
@@ -1562,7 +1571,8 @@ function validatePackageCleanupPlacement(
     fail('PACKAGE_CLEANUP_OWNER_BINDING_MISMATCH', value.ownerTaskId)
   if (isWithin(repositoryPhysical, packagePhysical))
     fail('PACKAGE_CLEANUP_REPOSITORY_PATH_FORBIDDEN', value.packagePath)
-  return { repositoryPhysical }
+  verifyBoundRepositoryIdentity(repositoryPhysical, gitDirectoryPhysical)
+  return { repositoryPhysical, gitDirectoryPhysical }
 }
 
 /** Reopens every design source byte before completed DP evidence may be accepted. */
@@ -1596,7 +1606,7 @@ function requireRepositoryFreeArtifactRoot(artifactRoot: string): void {
   const result = spawnSync('git', ['rev-parse', '--absolute-git-dir'], {
     cwd,
     encoding: 'utf8',
-    env: { ...process.env, LC_ALL: 'C' }
+    env: controlledGitEnvironment()
   })
   if (result.error) fail('PACKAGE_CLEANUP_GIT_OBSERVATION_FAILED', result.error.message)
   if (result.status === 0) fail('HOST_LOCAL_PACKAGE_REPOSITORY_PATH_FORBIDDEN', artifactRoot)
@@ -1604,12 +1614,60 @@ function requireRepositoryFreeArtifactRoot(artifactRoot: string): void {
     fail('PACKAGE_CLEANUP_GIT_OBSERVATION_FAILED', `${result.status}:${result.stderr.trim()}`)
 }
 
-/** Observes the bound repository directly and requires a byte-empty porcelain result. */
-function verifyObservedRepositoryClean(repositoryRoot: string): void {
+/** Confirms that controlled Git resolves the explicitly bound worktree and Git directory identities. */
+function verifyBoundRepositoryIdentity(repositoryRoot: string, gitDirectory: string): void {
   const result = spawnSync(
     'git',
-    ['-C', repositoryRoot, 'status', '--porcelain=v1', '-z', '--untracked-files=all'],
-    { encoding: 'utf8', env: { ...process.env, LC_ALL: 'C' } }
+    [
+      `--git-dir=${gitDirectory}`,
+      `--work-tree=${repositoryRoot}`,
+      'rev-parse',
+      '--path-format=absolute',
+      '--show-toplevel',
+      '--absolute-git-dir'
+    ],
+    { encoding: 'utf8', env: controlledGitEnvironment() }
+  )
+  if (result.error || result.status !== 0)
+    fail(
+      'PACKAGE_CLEANUP_GIT_OBSERVATION_FAILED',
+      result.error?.message ?? `${result.status}:${result.stderr.trim()}`
+    )
+  const lines = result.stdout.trimEnd().split('\n')
+  if (lines.length !== 2)
+    fail('PACKAGE_CLEANUP_GIT_IDENTITY_MISMATCH', JSON.stringify(result.stdout))
+  const observedRepository = requireExactPhysicalPath(
+    resolve(lines[0]),
+    'gitObservation.repositoryRoot',
+    physicalIdentityForPotentialPath
+  )
+  const observedGitDirectory = requireExactPhysicalPath(
+    resolve(lines[1]),
+    'gitObservation.gitDirectory',
+    physicalIdentityForPotentialPath
+  )
+  if (observedRepository !== repositoryRoot || observedGitDirectory !== gitDirectory)
+    fail(
+      'PACKAGE_CLEANUP_GIT_IDENTITY_MISMATCH',
+      `${observedRepository}:${observedGitDirectory}`
+    )
+}
+
+/** Observes the explicitly bound repository and requires a byte-empty porcelain result. */
+function verifyObservedRepositoryClean(repositoryRoot: string, gitDirectory: string): void {
+  const result = spawnSync(
+    'git',
+    [
+      `--git-dir=${gitDirectory}`,
+      `--work-tree=${repositoryRoot}`,
+      '-c',
+      'core.fsmonitor=false',
+      'status',
+      '--porcelain=v1',
+      '-z',
+      '--untracked-files=all'
+    ],
+    { encoding: 'utf8', env: controlledGitEnvironment() }
   )
   if (result.error || result.status !== 0)
     fail(
@@ -1618,6 +1676,18 @@ function verifyObservedRepositoryClean(repositoryRoot: string): void {
     )
   if (result.stdout.length !== 0)
     fail('PACKAGE_CLEANUP_REPOSITORY_DIFF_NOT_EMPTY', JSON.stringify(result.stdout))
+}
+
+/** Supplies only deterministic process inputs and excludes inherited Git discovery/config overrides. */
+function controlledGitEnvironment(): NodeJS.ProcessEnv {
+  return {
+    PATH: process.env.PATH ?? '/usr/bin:/bin',
+    LC_ALL: 'C',
+    LANG: 'C',
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_CONFIG_GLOBAL: '/dev/null',
+    GIT_CONFIG_COUNT: '0'
+  }
 }
 
 /** Finds the nearest real directory from which repository membership can be observed. */

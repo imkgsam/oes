@@ -51,6 +51,20 @@ const notApplicable = () => ({
   evidence: null
 })
 
+/** Applies process Git overrides for one assertion and restores the exact prior environment. */
+function withGitEnvironment(overrides: Record<string, string>, action: () => void): void {
+  const prior = new Map(Object.keys(overrides).map((key) => [key, process.env[key]]))
+  try {
+    for (const [key, value] of Object.entries(overrides)) process.env[key] = value
+    action()
+  } finally {
+    for (const [key, value] of prior) {
+      if (value === undefined) delete process.env[key]
+      else process.env[key] = value
+    }
+  }
+}
+
 /** Writes one typed evidence envelope plus its exact source and returns the envelope reference. */
 function persistedEvidence(
   root: string,
@@ -332,6 +346,12 @@ test('host-local DP uses the same schema without Git candidate, PR, Merge Queue,
     () => planPackageCleanup(repositoryValue, null),
     /HOST_LOCAL_PACKAGE_REPOSITORY_PATH_FORBIDDEN/
   )
+  withGitEnvironment({ GIT_CEILING_DIRECTORIES: repositoryRoot }, () => {
+    assert.throws(
+      () => planPackageCleanup(repositoryValue, null),
+      /HOST_LOCAL_PACKAGE_REPOSITORY_PATH_FORBIDDEN/
+    )
+  })
   const invalid = deliveryUpdate(value)
   if (!invalid.execution.hostLocal) throw new Error('host-local fixture absent')
   ;(invalid.execution.hostLocal as { repositoryModified: boolean }).repositoryModified = true
@@ -814,6 +834,25 @@ test('package cleanup requires trusted physical repository placement and observe
   assert.throws(
     () => verifyPackageCleanup(value, binding),
     /PACKAGE_CLEANUP_REPOSITORY_DIFF_NOT_EMPTY/
+  )
+  const redirectRepository = join(root, 'redirect-repository')
+  mkdirSync(redirectRepository)
+  assert.equal(spawnSync('git', ['init', '-q', redirectRepository]).status, 0)
+  withGitEnvironment(
+    {
+      GIT_DIR: join(redirectRepository, '.git'),
+      GIT_WORK_TREE: redirectRepository,
+      GIT_INDEX_FILE: join(redirectRepository, '.git', 'redirect-index'),
+      GIT_CONFIG_COUNT: '1',
+      GIT_CONFIG_KEY_0: 'status.showUntrackedFiles',
+      GIT_CONFIG_VALUE_0: 'no'
+    },
+    () => {
+      assert.throws(
+        () => verifyPackageCleanup(value, binding),
+        /PACKAGE_CLEANUP_REPOSITORY_DIFF_NOT_EMPTY/
+      )
+    }
   )
   rmSync(join(repositoryRoot, 'unexpected.txt'))
 

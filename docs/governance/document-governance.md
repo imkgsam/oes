@@ -88,7 +88,7 @@ DP 只保存 activation-fixed objective、scope/protected scope、dependencies�
 
 CO 的 decomposition、dependency order、integration contract、aggregate acceptance、scoped RV references 与 aggregate candidate 保存在 CO stable artifact root 的 ADP。ADP 重开 Human-confirmed complete child roster，精确覆盖每个内部 DO DP，并把外部 dependency 作为独立 accepted identity 显式声明；缺失内部 child/dependency 时不得生成 Aggregate RV input。ADP 另绑定 accepted candidate SHA、aggregate RV/CI、merge、post-check 与 cleanup。CO 默认生成一个 aggregate branch/PR；若 Human 明确确认 independently releasable 的 independent-PR exception，各 DO DP 仍分别绑定各自 candidate/PR。
 
-Repository merge 和 main verification完成后，DP/ADP 进入 terminal lifecycle disposal；repository-mode package cleanup 必须重开 exact owner binding，确认 package 的 physical path 位于 bound repository 之外，并在删除后直接对该 bound repository 执行 Git status 观察，不能接受调用方声明的空 diff。Host-local package cleanup 必须观察 stable artifact root 不属于任何 Git repository。Package 与所有 ancestor 组件都使用 no-follow entry 检查；dangling link 仍是存在的 alias/unknown resource，不得当作 absent。删除 package 属于零新增内容的 cleanup 边界，不得借 cleanup 产生产品修改或其他 repository diff。
+Repository merge 和 main verification完成后，DP/ADP 进入 terminal lifecycle disposal；repository-mode package cleanup 必须重开 exact owner binding，确认 package 的 physical path 位于 bound repository 之外，并以 explicit worktree/Git-directory 参数和受控环境（排除继承的 Git repository/index/discovery/config overrides）对该 bound repository 执行 Git status 观察，不能接受调用方声明的空 diff。Host-local package cleanup 必须用同一受控环境观察 stable artifact root 不属于任何 Git repository。Package 与所有 ancestor 组件都使用 no-follow entry 检查；dangling link 仍是存在的 alias/unknown resource，不得当作 absent。删除 package 属于零新增内容的 cleanup 边界，不得借 cleanup 产生产品修改或其他 repository diff。
 
 ## 6. Host-local work
 
