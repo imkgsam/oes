@@ -1,19 +1,26 @@
-import { validateStageCleanupAuthorization, validateStageCleanupResource } from './binding.ts'
+import {
+  requireTrustedCoordinationCleanupAuthorization,
+  validateCoordinationCleanupAuthorization,
+  validateCoordinationCleanupResource
+} from './cleanup-binding.ts'
 import { objectFingerprint } from './canonical.ts'
 import { fail } from './errors.ts'
-import { validateStableOwnerTaskTempRoot } from './resource-topology.ts'
+import { physicalIdentityForPotentialPath, requireExactPhysicalPath } from './resource-topology.ts'
 import type {
   CleanupDiffEntry,
   CleanupResourceDecision,
   CompletedCleanupResource,
   ObservedCleanupResource,
-  StageCleanupAuthorization,
-  StageCleanupResource
+  CoordinationCleanupAuthorization,
+  CoordinationCleanupResource,
+  CoordinationCleanupResultSet
 } from './types.ts'
 
+const DIGEST = /^[0-9a-f]{64}$/
+
 /** Builds a stable identity for one cleanup resource. */
-function resourceKey(resource: StageCleanupResource): string {
-  return `${resource.resourceTopologyVersion ?? 'pre-cutover-v1'}:${resource.kind}:${resource.path}:${resource.expectedSha ?? 'NONE'}`
+function resourceKey(resource: CoordinationCleanupResource): string {
+  return `${resource.kind}:${resource.path}:${resource.expectedSha ?? 'NONE'}`
 }
 
 /** Requires one raw cleanup result object to contain no undeclared fields. */
@@ -30,17 +37,12 @@ function validateObservation(
   value: ObservedCleanupResource,
   field: string
 ): ObservedCleanupResource {
-  requireExactKeys(
-    value,
-    ['kind', 'path', 'expectedSha', 'resourceTopologyVersion', 'exists', 'clean', 'actualSha'],
-    field
-  )
-  validateStageCleanupResource(
+  requireExactKeys(value, ['kind', 'path', 'expectedSha', 'exists', 'clean', 'actualSha'], field)
+  validateCoordinationCleanupResource(
     {
       kind: value.kind,
       path: value.path,
-      expectedSha: value.expectedSha,
-      resourceTopologyVersion: value.resourceTopologyVersion
+      expectedSha: value.expectedSha
     },
     field
   )
@@ -52,21 +54,29 @@ function validateObservation(
   return value
 }
 
-/** Narrows one Stage batch to exact-owner resources and preserves missing or mismatched evidence. */
+/** Narrows one coordination batch to exact-owner resources and preserves missing or mismatched evidence. */
 export function planChildSelfCleanup(
-  authorizationInput: StageCleanupAuthorization,
+  authorizationInput: CoordinationCleanupAuthorization,
   ownerTaskId: string,
   observations: ObservedCleanupResource[],
   completedResources: CompletedCleanupResource[] = []
 ): CleanupResourceDecision[] {
-  const authorization = validateStageCleanupAuthorization(authorizationInput)
-  const owned = authorization.terminalFeatures.filter(
-    (feature) => feature.ownerTaskId === ownerTaskId
+  const authorization = validateCoordinationCleanupAuthorization(authorizationInput)
+  requireTrustedCoordinationCleanupAuthorization(authorization)
+  const owned = authorization.terminalDeliveries.filter(
+    (delivery) => delivery.ownerTaskId === ownerTaskId
   )
-  if (owned.length === 0) fail('CLEANUP_OWNER_NOT_IN_BATCH', ownerTaskId)
-  const allowed = new Map<string, StageCleanupResource>()
-  for (const feature of owned)
-    for (const resource of feature.resources) allowed.set(resourceKey(resource), resource)
+  const ownerDelivery =
+    ownerTaskId === authorization.coordinationOwner.ownerTaskId
+      ? [authorization.coordinationOwner]
+      : []
+  if (owned.length === 0 && ownerDelivery.length === 0)
+    fail('CLEANUP_OWNER_NOT_IN_BATCH', ownerTaskId)
+  const allowed = new Map<string, CoordinationCleanupResource>()
+  for (const delivery of owned)
+    for (const resource of delivery.resources) allowed.set(resourceKey(resource), resource)
+  for (const delivery of ownerDelivery)
+    for (const resource of delivery.resources) allowed.set(resourceKey(resource), resource)
   if (!Array.isArray(observations)) fail('CLEANUP_OBSERVATIONS_REQUIRED', ownerTaskId)
   const observed = new Map<string, ObservedCleanupResource>()
   for (const resource of observations) {
@@ -84,7 +94,7 @@ export function planChildSelfCleanup(
       ['resource', 'observedAfter', 'completionFingerprint'],
       'completedCleanupResource'
     )
-    validateStageCleanupResource(record.resource, 'completedCleanupResource.resource')
+    validateCoordinationCleanupResource(record.resource, 'completedCleanupResource.resource')
     validateObservation(record.observedAfter, 'completedCleanupResource.observedAfter')
     const key = resourceKey(record.resource)
     if (
@@ -103,6 +113,12 @@ export function planChildSelfCleanup(
     completed.set(key, record)
   }
   return [...allowed.entries()].map(([key, resource]) => {
+    if (!['remote-branch', 'local-branch'].includes(resource.kind))
+      requireExactPhysicalPath(
+        resource.path,
+        `cleanup.${resource.kind}`,
+        physicalIdentityForPotentialPath
+      )
     const prior = completed.get(key)
     if (prior)
       return {
@@ -146,15 +162,6 @@ export function planChildSelfCleanup(
         observedBefore: current,
         observedAfter: current
       }
-    if (
-      resource.kind === 'task-temp' &&
-      resource.resourceTopologyVersion === 'stable-owner-exclusive-v1'
-    )
-      validateStableOwnerTaskTempRoot(
-        resource.path,
-        ownerTaskId,
-        'cleanupRemoval.taskTempRoot'
-      )
     return {
       resource,
       decision: 'REMOVE',
@@ -165,60 +172,53 @@ export function planChildSelfCleanup(
   })
 }
 
-/** Verifies a cleanup-only PR diff contains only exact terminal packet deletions. */
-export function verifyCleanupOnlyDeletion(
-  authorizationInput: StageCleanupAuthorization,
+/** Structurally rejects every repository-content change during lifecycle cleanup. */
+export function verifyCleanupProducesNoRepositoryDiff(
+  authorizationInput: CoordinationCleanupAuthorization,
   diffEntries: CleanupDiffEntry[]
 ): void {
-  const authorization = validateStageCleanupAuthorization(authorizationInput)
-  if (!Array.isArray(diffEntries)) fail('CLEANUP_DIFF_REQUIRED', authorization.stageKey)
-  for (const entry of diffEntries) {
-    requireExactKeys(entry, ['status', 'path'], 'cleanupDiffEntry')
-    if (typeof entry.path !== 'string' || entry.path.length === 0)
-      fail('CLEANUP_DIFF_PATH_INVALID', String(entry.path))
-  }
-  const expected = [...authorization.allowedDeletedFeaturePackets].sort()
-  const deleted = diffEntries
-    .filter((entry) => entry.status === 'D')
-    .map((entry) => entry.path)
-    .sort()
-  if (diffEntries.some((entry) => entry.status !== 'D'))
-    fail('CLEANUP_ONLY_NON_DELETION_CHANGE', JSON.stringify(diffEntries))
-  if (new Set(deleted).size !== deleted.length)
-    fail('CLEANUP_ONLY_DUPLICATE_PATH', JSON.stringify(deleted))
-  if (expected.length !== deleted.length || expected.some((path, index) => path !== deleted[index]))
-    fail('CLEANUP_ONLY_DIFF_SCOPE_MISMATCH', JSON.stringify(deleted))
+  const authorization = validateCoordinationCleanupAuthorization(authorizationInput)
+  requireTrustedCoordinationCleanupAuthorization(authorization)
+  if (!Array.isArray(diffEntries)) fail('CLEANUP_DIFF_REQUIRED', authorization.coordinationKey)
+  if (diffEntries.length !== 0)
+    fail('CLEANUP_REPOSITORY_MUTATION_FORBIDDEN', JSON.stringify(diffEntries))
 }
 
 /** Verifies every exact child resource has a terminal, observed result before packet deletion. */
 export function verifyChildCleanupResults(
-  authorizationInput: StageCleanupAuthorization,
+  authorizationInput: CoordinationCleanupAuthorization,
   resultsByOwner: Record<string, CleanupResourceDecision[]>
 ): void {
-  const authorization = validateStageCleanupAuthorization(authorizationInput)
+  const authorization = validateCoordinationCleanupAuthorization(authorizationInput)
+  requireTrustedCoordinationCleanupAuthorization(authorization)
   if (
     typeof resultsByOwner !== 'object' ||
     resultsByOwner === null ||
     Array.isArray(resultsByOwner)
   )
-    fail('STAGE_CLEANUP_CHILD_RESULTS_INVALID', authorization.stageKey)
+    fail('COORDINATION_CLEANUP_CHILD_RESULTS_INVALID', authorization.coordinationKey)
   const expectedOwners = [
-    ...new Set(authorization.terminalFeatures.map((feature) => feature.ownerTaskId))
+    ...new Set(authorization.terminalDeliveries.map((delivery) => delivery.ownerTaskId)),
+    authorization.coordinationOwner.ownerTaskId
   ].sort()
   const actualOwners = Object.keys(resultsByOwner).sort()
   if (
     expectedOwners.length !== actualOwners.length ||
     expectedOwners.some((owner, index) => owner !== actualOwners[index])
   )
-    fail('STAGE_CLEANUP_CHILD_SET_MISMATCH', JSON.stringify(actualOwners))
+    fail('COORDINATION_CLEANUP_CHILD_SET_MISMATCH', JSON.stringify(actualOwners))
   for (const owner of expectedOwners) {
-    const expected = authorization.terminalFeatures
-      .filter((feature) => feature.ownerTaskId === owner)
-      .flatMap((feature) => feature.resources)
+    const expected = [
+      ...authorization.terminalDeliveries.filter((delivery) => delivery.ownerTaskId === owner),
+      ...(authorization.coordinationOwner.ownerTaskId === owner
+        ? [authorization.coordinationOwner]
+        : [])
+    ]
+      .flatMap((delivery) => delivery.resources)
       .map(resourceKey)
       .sort()
     const results = resultsByOwner[owner]
-    if (!Array.isArray(results)) fail('STAGE_CLEANUP_RESOURCE_RESULT_SET_MISMATCH', owner)
+    if (!Array.isArray(results)) fail('COORDINATION_CLEANUP_RESOURCE_RESULT_SET_MISMATCH', owner)
     const actual = results
       .map((result) => {
         requireExactKeys(
@@ -233,22 +233,22 @@ export function verifyChildCleanupResults(
           ],
           'cleanupResourceDecision'
         )
-        validateStageCleanupResource(result.resource, 'cleanupResourceDecision.resource')
+        validateCoordinationCleanupResource(result.resource, 'cleanupResourceDecision.resource')
         if (
           !['REMOVE', 'ALREADY_ABSENT', 'PRESERVE_FAILURE', 'SKIP_COMPLETED'].includes(
             result.decision
           )
         )
-          fail('STAGE_CLEANUP_RESULT_DECISION_INVALID', String(result.decision))
+          fail('COORDINATION_CLEANUP_RESULT_DECISION_INVALID', String(result.decision))
         if (typeof result.reason !== 'string' || result.reason.length === 0)
-          fail('STAGE_CLEANUP_RESULT_REASON_INVALID', result.resource.path)
+          fail('COORDINATION_CLEANUP_RESULT_REASON_INVALID', result.resource.path)
         if (
           result.completionFingerprint !== undefined &&
           !/^[0-9a-f]{64}$/.test(result.completionFingerprint)
         )
-          fail('STAGE_CLEANUP_COMPLETION_FINGERPRINT_INVALID', result.resource.path)
+          fail('COORDINATION_CLEANUP_COMPLETION_FINGERPRINT_INVALID', result.resource.path)
         if (result.decision !== 'SKIP_COMPLETED' && result.completionFingerprint !== undefined)
-          fail('STAGE_CLEANUP_UNEXPECTED_COMPLETION_FINGERPRINT', result.resource.path)
+          fail('COORDINATION_CLEANUP_UNEXPECTED_COMPLETION_FINGERPRINT', result.resource.path)
         if (result.observedBefore !== null)
           validateObservation(result.observedBefore, 'cleanupResourceDecision.observedBefore')
         if (result.observedAfter !== null)
@@ -257,16 +257,16 @@ export function verifyChildCleanupResults(
       })
       .sort()
     if (expected.length !== actual.length || expected.some((key, index) => key !== actual[index]))
-      fail('STAGE_CLEANUP_RESOURCE_RESULT_SET_MISMATCH', owner)
+      fail('COORDINATION_CLEANUP_RESOURCE_RESULT_SET_MISMATCH', owner)
     for (const result of results) {
       const boundKey = resourceKey(result.resource)
       if (
         (result.observedBefore && resourceKey(result.observedBefore) !== boundKey) ||
         (result.observedAfter && resourceKey(result.observedAfter) !== boundKey)
       )
-        fail('STAGE_CLEANUP_OBSERVATION_IDENTITY_MISMATCH', result.resource.path)
+        fail('COORDINATION_CLEANUP_OBSERVATION_IDENTITY_MISMATCH', result.resource.path)
       if (result.decision === 'PRESERVE_FAILURE')
-        fail('STAGE_CLEANUP_PARTIAL_FAILURE', result.resource.path)
+        fail('COORDINATION_CLEANUP_PARTIAL_FAILURE', result.resource.path)
       if (result.decision === 'REMOVE') {
         if (
           !result.observedBefore?.exists ||
@@ -275,10 +275,10 @@ export function verifyChildCleanupResults(
             result.observedBefore.actualSha !== result.resource.expectedSha) ||
           result.observedAfter?.exists !== false
         )
-          fail('STAGE_CLEANUP_REMOVAL_NOT_VERIFIED', result.resource.path)
+          fail('COORDINATION_CLEANUP_REMOVAL_NOT_VERIFIED', result.resource.path)
       } else if (result.decision === 'ALREADY_ABSENT') {
         if (result.observedBefore?.exists !== false || result.observedAfter?.exists !== false)
-          fail('STAGE_CLEANUP_ABSENCE_NOT_VERIFIED', result.resource.path)
+          fail('COORDINATION_CLEANUP_ABSENCE_NOT_VERIFIED', result.resource.path)
       } else if (result.decision === 'SKIP_COMPLETED') {
         const expectedFingerprint = result.observedAfter
           ? objectFingerprint(
@@ -291,8 +291,73 @@ export function verifyChildCleanupResults(
           result.observedAfter?.exists !== false ||
           result.completionFingerprint !== expectedFingerprint
         )
-          fail('STAGE_CLEANUP_COMPLETED_RESULT_INVALID', result.resource.path)
+          fail('COORDINATION_CLEANUP_COMPLETED_RESULT_INVALID', result.resource.path)
       }
     }
   }
+}
+
+/** Seals the exact child-plus-CO absence proof that the archive lifecycle must consume. */
+export function createCoordinationCleanupResultSet(
+  authorizationInput: CoordinationCleanupAuthorization,
+  resultsByOwner: Record<string, CleanupResourceDecision[]>,
+  repositoryDiff: CleanupDiffEntry[]
+): CoordinationCleanupResultSet {
+  const authorization = validateCoordinationCleanupAuthorization(authorizationInput)
+  requireTrustedCoordinationCleanupAuthorization(authorization)
+  verifyCleanupProducesNoRepositoryDiff(authorization, repositoryDiff)
+  verifyChildCleanupResults(authorization, resultsByOwner)
+  const raw: Omit<CoordinationCleanupResultSet, 'resultSetFingerprint'> = {
+    schemaVersion: 2,
+    kind: 'OES_COORDINATION_CLEANUP_RESULT_SET',
+    coordinationKey: authorization.coordinationKey,
+    coordinationOwnerTaskId: authorization.coordinationOwnerTaskId,
+    transitionId: authorization.transitionId,
+    coordinationCleanupAuthorizationFingerprint: authorization.authorizationFingerprint,
+    resultsByOwner: structuredClone(resultsByOwner),
+    repositoryDiff: structuredClone(repositoryDiff)
+  }
+  return {
+    ...raw,
+    resultSetFingerprint: objectFingerprint(raw as unknown as Record<string, unknown>, '__none__')
+  }
+}
+
+/** Revalidates one sealed absence proof against the exact current cleanup authorization. */
+export function validateCoordinationCleanupResultSet(
+  authorizationInput: CoordinationCleanupAuthorization,
+  value: CoordinationCleanupResultSet
+): CoordinationCleanupResultSet {
+  const authorization = validateCoordinationCleanupAuthorization(authorizationInput)
+  requireTrustedCoordinationCleanupAuthorization(authorization)
+  requireExactKeys(
+    value,
+    [
+      'schemaVersion',
+      'kind',
+      'resultSetFingerprint',
+      'coordinationKey',
+      'coordinationOwnerTaskId',
+      'transitionId',
+      'coordinationCleanupAuthorizationFingerprint',
+      'resultsByOwner',
+      'repositoryDiff'
+    ],
+    'coordinationCleanupResultSet'
+  )
+  if (
+    value.schemaVersion !== 2 ||
+    value.kind !== 'OES_COORDINATION_CLEANUP_RESULT_SET' ||
+    value.coordinationKey !== authorization.coordinationKey ||
+    value.coordinationOwnerTaskId !== authorization.coordinationOwnerTaskId ||
+    value.transitionId !== authorization.transitionId ||
+    value.coordinationCleanupAuthorizationFingerprint !== authorization.authorizationFingerprint ||
+    !DIGEST.test(value.resultSetFingerprint) ||
+    value.resultSetFingerprint !==
+      objectFingerprint(value as unknown as Record<string, unknown>, 'resultSetFingerprint')
+  )
+    fail('COORDINATION_CLEANUP_RESULT_SET_BINDING_MISMATCH', authorization.coordinationKey)
+  verifyCleanupProducesNoRepositoryDiff(authorization, value.repositoryDiff)
+  verifyChildCleanupResults(authorization, value.resultsByOwner)
+  return value
 }

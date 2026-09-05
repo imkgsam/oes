@@ -90,7 +90,7 @@ function trustFixture(root: string): RemoteTrustRoots {
     admissionRoot,
     profilePath: join(root, 'profile.toml'),
     profileSha256: 'a'.repeat(64),
-    ownerTaskId: '/root/fl/local-main',
+    ownerTaskId: '/root/do/local-main',
     profileTransitionId: 'local-main-sync:1',
     profileExpectedState: 'DELIVERY_ACTIVE'
   }
@@ -113,7 +113,7 @@ test('dirty, diverged, non-main, or active-operation checkout never exposes a sy
     'SYNC_ELIGIBLE'
   )
   for (const changed of [
-    { ...base, branch: 'codex/feature/other' },
+    { ...base, branch: 'codex/delivery/other' },
     { ...base, clean: false },
     { ...base, operationMarkers: ['MERGE_HEAD'] },
     { ...base, remoteUrl: '/fixture/changed.git' },
@@ -168,7 +168,7 @@ test('exact CLAIMED recovery and an interrupted temporary claim remain idempoten
         ownerTaskId: proof.confirmation.ownerTaskId,
         transitionId: proof.confirmation.transitionId,
         singleUseNonce: proof.confirmation.singleUseNonce,
-        stage: 'CLAIMED',
+        phase: 'CLAIMED',
         before: null,
         after: null
       }
@@ -215,18 +215,18 @@ test('exact CLAIMED recovery and an interrupted temporary claim remain idempoten
     assert.equal(new LocalMainController(runner).sync(binding, trust).status, 'SYNCED')
     assert.equal(runner.calls.filter((call) => call.startsWith('git fetch ')).length, 1)
     assert.equal(runner.calls.filter((call) => call.startsWith('git merge ')).length, 1)
-    const stored = JSON.parse(readFileSync(checkpointPath, 'utf8')) as { stage: string }
-    assert.equal(stored.stage, 'COMPLETED')
+    const stored = JSON.parse(readFileSync(checkpointPath, 'utf8')) as { phase: string }
+    assert.equal(stored.phase, 'COMPLETED')
   }
 })
 
-test('confirmed ff-only sync updates only designated main and preserves another FL worktree', () => {
+test('confirmed ff-only sync updates only designated main and preserves another DO worktree', () => {
   const root = mkdtempSync(join(tmpdir(), 'oes-local-main-test-'))
   const remote = join(root, 'remote.git')
   const seed = join(root, 'seed')
   const project = join(root, 'project')
   const publisher = join(root, 'publisher')
-  const feature = join(root, 'feature-worktree')
+  const delivery = join(root, 'delivery-worktree')
   git(root, 'init', '--bare', remote)
   git(root, 'init', '--initial-branch=main', seed)
   git(seed, 'config', 'user.email', 'fixture@example.test')
@@ -237,8 +237,8 @@ test('confirmed ff-only sync updates only designated main and preserves another 
   git(seed, 'remote', 'add', 'origin', remote)
   git(seed, 'push', '-u', 'origin', 'main')
   git(root, 'clone', '--branch', 'main', remote, project)
-  git(project, 'worktree', 'add', '-b', 'codex/feature/other', feature, 'HEAD')
-  const featureHead = git(feature, 'rev-parse', 'HEAD')
+  git(project, 'worktree', 'add', '-b', 'codex/delivery/other', delivery, 'HEAD')
+  const deliveryHead = git(delivery, 'rev-parse', 'HEAD')
 
   git(root, 'clone', '--branch', 'main', remote, publisher)
   git(publisher, 'config', 'user.email', 'fixture@example.test')
@@ -288,8 +288,8 @@ test('confirmed ff-only sync updates only designated main and preserves another 
   assert.equal(result.status, 'SYNCED')
   assert.equal(git(project, 'rev-parse', 'HEAD'), remoteMainSha)
   assert.equal(git(project, 'status', '--porcelain'), '')
-  assert.equal(git(feature, 'rev-parse', 'HEAD'), featureHead)
-  assert.equal(git(feature, 'branch', '--show-current'), 'codex/feature/other')
+  assert.equal(git(delivery, 'rev-parse', 'HEAD'), deliveryHead)
+  assert.equal(git(delivery, 'branch', '--show-current'), 'codex/delivery/other')
 
   const replay = controller.sync(sync, trust)
   assert.equal(replay.status, 'SYNCED')

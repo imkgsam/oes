@@ -97,7 +97,7 @@ interface LocalMainSyncCheckpoint {
   ownerTaskId: string
   transitionId: string
   singleUseNonce: string
-  stage: 'CLAIMED' | 'STARTED' | 'COMPLETED'
+  phase: 'CLAIMED' | 'STARTED' | 'COMPLETED'
   before: LocalMainObservation | null
   after: LocalMainObservation | null
 }
@@ -255,7 +255,7 @@ function validateLocalMainCheckpoint(
     !checkpoint ||
     checkpoint.schemaVersion !== 1 ||
     checkpoint.kind !== 'OES_LOCAL_MAIN_SYNC_CHECKPOINT' ||
-    !['CLAIMED', 'STARTED', 'COMPLETED'].includes(checkpoint.stage) ||
+    !['CLAIMED', 'STARTED', 'COMPLETED'].includes(checkpoint.phase) ||
     checkpoint.confirmationFingerprint !== confirmation.confirmationFingerprint ||
     checkpoint.ownerTaskId !== confirmation.ownerTaskId ||
     checkpoint.transitionId !== confirmation.transitionId ||
@@ -263,9 +263,9 @@ function validateLocalMainCheckpoint(
   )
     fail('LOCAL_MAIN_CHECKPOINT_INVALID', confirmation.confirmationFingerprint)
   const shapeValid =
-    (checkpoint.stage === 'CLAIMED' && checkpoint.before === null && checkpoint.after === null) ||
-    (checkpoint.stage === 'STARTED' && checkpoint.before !== null && checkpoint.after === null) ||
-    (checkpoint.stage === 'COMPLETED' && checkpoint.before !== null && checkpoint.after !== null)
+    (checkpoint.phase === 'CLAIMED' && checkpoint.before === null && checkpoint.after === null) ||
+    (checkpoint.phase === 'STARTED' && checkpoint.before !== null && checkpoint.after === null) ||
+    (checkpoint.phase === 'COMPLETED' && checkpoint.before !== null && checkpoint.after !== null)
   if (!shapeValid) fail('LOCAL_MAIN_CHECKPOINT_INVALID', confirmation.confirmationFingerprint)
   if (
     objectFingerprint(checkpoint as unknown as Record<string, unknown>, 'checkpointFingerprint') !==
@@ -348,8 +348,8 @@ export class LocalMainController {
       binding.expectedRemoteMainSha,
       binding.expectedRemoteUrl
     )
-    if (checkpoint.stage !== 'CLAIMED') {
-      if (checkpoint.stage === 'COMPLETED' && checkpoint.before) {
+    if (checkpoint.phase !== 'CLAIMED') {
+      if (checkpoint.phase === 'COMPLETED' && checkpoint.before) {
         if (
           beforeDecision.status !== 'ALREADY_SYNCED' ||
           before.localMainSha !== confirmation.expectedRemoteMainSha
@@ -358,7 +358,7 @@ export class LocalMainController {
         return { status: 'SYNCED', before: checkpoint.before, after: before }
       }
       if (
-        checkpoint.stage === 'STARTED' &&
+        checkpoint.phase === 'STARTED' &&
         checkpoint.before &&
         beforeDecision.status === 'ALREADY_SYNCED' &&
         before.localMainSha === confirmation.expectedRemoteMainSha
@@ -369,7 +369,7 @@ export class LocalMainController {
       }
     }
     if (
-      checkpoint.stage === 'CLAIMED' &&
+      checkpoint.phase === 'CLAIMED' &&
       beforeDecision.status === 'ALREADY_SYNCED' &&
       before.localMainSha === confirmation.expectedRemoteMainSha
     ) {
@@ -380,7 +380,7 @@ export class LocalMainController {
     if (beforeDecision.status !== 'SYNC_ELIGIBLE')
       fail('LOCAL_MAIN_SYNC_PRECONDITION_FAILED', beforeDecision.reasons.join(','))
 
-    if (checkpoint.stage === 'CLAIMED') {
+    if (checkpoint.phase === 'CLAIMED') {
       checkpoint = this.checkpoint(confirmation, 'STARTED', before, null)
       writeJsonAtomic(checkpointPath, checkpoint)
     }
@@ -423,7 +423,7 @@ export class LocalMainController {
   /** Seals one monotonic local-main checkpoint for response-loss recovery. */
   private checkpoint(
     confirmation: LocalMainSyncConfirmation,
-    stage: 'CLAIMED' | 'STARTED' | 'COMPLETED',
+    phase: 'CLAIMED' | 'STARTED' | 'COMPLETED',
     before: LocalMainObservation | null,
     after: LocalMainObservation | null
   ): LocalMainSyncCheckpoint {
@@ -435,7 +435,7 @@ export class LocalMainController {
       ownerTaskId: confirmation.ownerTaskId,
       transitionId: confirmation.transitionId,
       singleUseNonce: confirmation.singleUseNonce,
-      stage,
+      phase,
       before: structuredClone(before),
       after: structuredClone(after)
     }

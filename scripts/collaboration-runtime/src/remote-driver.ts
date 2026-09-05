@@ -15,7 +15,7 @@ import type {
   RemoteVerification
 } from './types.ts'
 
-const MUTATING_ACTIONS = new Set<RemoteAction>(['publish-pr', 'merge-pr', 'cleanup'])
+const MUTATING_ACTIONS = new Set<RemoteAction>(['publish-pr', 'merge-pr'])
 
 export interface RemoteAdapter {
   preflight(binding: RemoteDriverBinding, truth: RemoteTruth): Promise<void>
@@ -58,7 +58,6 @@ export function remoteMutationSatisfied(binding: RemoteDriverBinding, truth: Rem
       exactPull && truth.pullRequest?.state === 'MERGED' && truth.pullRequest.mergeCommitSha
     )
   }
-  if (binding.action === 'cleanup') return truth.branchHead === null
   return true
 }
 
@@ -88,8 +87,7 @@ function receiptFromTruth(
       mutationReceipt?.mergeGroupHeadSha ??
       (binding.admission?.mode === 'merge-queue' && truth.pullRequest?.state === 'MERGED'
         ? truth.pullRequest.mergeCommitSha
-        : (binding.admission?.mergeGroupSha ?? null)),
-    cleanupResources: binding.cleanupResources
+        : (binding.admission?.mergeGroupSha ?? null))
   }
 }
 
@@ -108,7 +106,7 @@ function writeVerifiedResult(
     ownerTaskId: binding.owner.taskId,
     singleUseNonce: binding.singleUseNonce,
     status: 'REMOTE_VERIFIED',
-    stage: 'REMOTE_VERIFIED',
+    phase: 'REMOTE_VERIFIED',
     receipt,
     verification,
     remoteTruth: truth,
@@ -134,7 +132,7 @@ function readVerifiedResult(binding: RemoteDriverBinding): RemoteDriverResult {
     result.singleUseNonce !== binding.singleUseNonce ||
     result.ownerTaskId !== binding.owner.taskId ||
     result.action !== binding.action ||
-    result.stage !== 'REMOTE_VERIFIED' ||
+    result.phase !== 'REMOTE_VERIFIED' ||
     result.receipt?.action !== binding.action ||
     result.status !== 'REMOTE_VERIFIED'
   )
@@ -178,7 +176,7 @@ export class RemoteDriver {
   private async runBound(binding: RemoteDriverBinding): Promise<RemoteDriverResult> {
     const store = new RemoteCheckpointStore(binding)
     let checkpoint = store.read()
-    if (checkpoint?.stage === 'REMOTE_VERIFIED') {
+    if (checkpoint?.phase === 'REMOTE_VERIFIED') {
       if (existsSync(binding.resultPath)) return readVerifiedResult(binding)
       const receipt = checkpoint.receipt
       if (!receipt) fail('REMOTE_RECEIPT_ABSENT', binding.action)
@@ -203,7 +201,7 @@ export class RemoteDriver {
 
     const mutating = MUTATING_ACTIONS.has(binding.action)
     let receipt = checkpoint.receipt
-    if (checkpoint.stage === 'REMOTE_PREFLIGHT_VERIFIED') {
+    if (checkpoint.phase === 'REMOTE_PREFLIGHT_VERIFIED') {
       if (mutating) {
         const alreadySatisfied = remoteMutationSatisfied(binding, truth)
         if (!alreadySatisfied) {
@@ -233,7 +231,7 @@ export class RemoteDriver {
 
     receipt = checkpoint.receipt ?? receipt
     if (!receipt) fail('REMOTE_RECEIPT_ABSENT', binding.action)
-    if (checkpoint.stage === 'REMOTE_MUTATION_RECORDED')
+    if (checkpoint.phase === 'REMOTE_MUTATION_RECORDED')
       checkpoint = store.advance('REMOTE_VERIFICATION_PENDING', truth, receipt)
 
     truth = await this.readTruth(binding)
@@ -250,7 +248,7 @@ export class RemoteDriver {
         ownerTaskId: binding.owner.taskId,
         singleUseNonce: binding.singleUseNonce,
         status: 'REMOTE_VERIFICATION_PENDING',
-        stage: 'REMOTE_VERIFICATION_PENDING',
+        phase: 'REMOTE_VERIFICATION_PENDING',
         receipt,
         verification,
         remoteTruth: truth,

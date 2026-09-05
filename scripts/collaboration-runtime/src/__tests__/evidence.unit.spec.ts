@@ -22,8 +22,8 @@ const input = (candidate = sha('1'), tree = sha('2')): CompleteEvidenceKeyInput 
   candidateSha: candidate,
   candidateTreeSha: tree,
   dependencyCandidates: [
-    { featureKey: 'zeta', candidateSha: sha('3'), candidateTreeSha: sha('4') },
-    { featureKey: 'alpha', candidateSha: sha('5'), candidateTreeSha: sha('6') }
+    { deliveryKey: 'zeta', candidateSha: sha('3'), candidateTreeSha: sha('4') },
+    { deliveryKey: 'alpha', candidateSha: sha('5'), candidateTreeSha: sha('6') }
   ],
   dependencyFingerprint: hash('a'),
   lockfileFingerprint: hash('b'),
@@ -49,7 +49,7 @@ const base = (): CompleteDriftAssessmentInput => ({
       pathPatterns: ['scripts/collaboration-runtime/src/**'],
       contractSensitive: true
     },
-    { id: 'cleanup', pathPatterns: ['docs/plans/features/**'], contractSensitive: false }
+    { id: 'cleanup', pathPatterns: ['docs/plans/deliveries/**'], contractSensitive: false }
   ],
   dependencyChanged: false,
   profileChanged: false,
@@ -63,7 +63,7 @@ test('complete evidence keys normalize dependency candidates and satisfy the exe
   const key = createEvidenceKey(input())
   assert.deepEqual(createEvidenceKey(sharedInput), key)
   assert.deepEqual(
-    key.dependencyCandidates.map((candidate) => candidate.featureKey),
+    key.dependencyCandidates.map((candidate) => candidate.deliveryKey),
     ['alpha', 'zeta']
   )
   assert.deepEqual(validateEvidenceKey(key), key)
@@ -199,10 +199,10 @@ test('tampered, incomplete and non-canonical evidence keys fail closed', () => {
   )
 })
 
-test('duplicate dependency feature keys and coverage ids fail closed', () => {
+test('duplicate dependency delivery keys and coverage ids fail closed', () => {
   const dependencyDuplicate = input()
   dependencyDuplicate.dependencyCandidates.push({
-    featureKey: 'alpha',
+    deliveryKey: 'alpha',
     candidateSha: sha('a'),
     candidateTreeSha: sha('b')
   })

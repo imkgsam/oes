@@ -6,6 +6,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   writeFileSync
 } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -292,6 +293,7 @@ function renderedProfile(
   profileGeneration = 1,
   predecessorLaunchReceipt: OwnerProfileRenderResult['launchReceipt'] | null = null
 ): OwnerProfileRenderResult {
+  root = realpathSync(root)
   const installedRoot = join(root, 'installed')
   const values = {
     OWNER_PATH: join(root, 'owner'),
@@ -304,7 +306,7 @@ function renderedProfile(
     USER_GIT_CONFIG: join(root, 'user.gitconfig'),
     CREDENTIAL_STORE_PATH: join(root, 'credential-store'),
     PACKAGE_CACHE_PATH: join(root, 'package-cache'),
-    RESOURCE_TOPOLOGY_VERSION: 'pre-cutover-v1',
+    RESOURCE_TOPOLOGY_VERSION: 'owner-exclusive-v2',
     OWNER_RESOURCE_BINDING_PATH: '',
     OWNER_RESOURCE_BINDING_SHA256: '',
     OWNER_RESOURCE_BINDING_FINGERPRINT: ''
@@ -320,6 +322,36 @@ function renderedProfile(
   ])
     mkdirSync(value, { recursive: true })
   writeFileSync(values.USER_GIT_CONFIG, '[credential]\n\thelper =\n')
+  const ownerBinding = {
+    schemaVersion: 1 as const,
+    kind: 'OES_OWNER_RESOURCE_BINDING' as const,
+    bindingFingerprint: '',
+    resourceTopologyVersion: 'owner-exclusive-v2' as const,
+    ownerTaskId,
+    directParentTaskId: '/root/parent',
+    transitionId,
+    repositoryRoot: values.OWNER_PATH,
+    repositoryRemoteUrl: 'https://github.com/example/oes.git',
+    ownerClone: values.OWNER_PATH,
+    ownerGitDirectory: values.OWNER_GIT_DIRECTORY,
+    ownerRef: 'refs/heads/codex/delivery/profile',
+    artifactRoot: values.ARTIFACT_PATH,
+    taskTempRoot: `/private/tmp/oes-owner-${sha256(ownerTaskId)}`,
+    deliveryPackagePath: join(values.ARTIFACT_PATH, 'delivery-package.json'),
+    currentEvidenceManifestPath: join(values.ARTIFACT_PATH, 'current.json'),
+    checkpointBundlePath: join(values.ARTIFACT_PATH, 'checkpoint.json'),
+    gitBundlePath: join(values.ARTIFACT_PATH, 'owner.bundle')
+  }
+  ownerBinding.bindingFingerprint = objectFingerprint(
+    ownerBinding as unknown as Record<string, unknown>,
+    'bindingFingerprint'
+  )
+  const bindingBytes = `${canonicalJson(ownerBinding)}\n`
+  const bindingPath = join(values.ARTIFACT_PATH, 'owner-resource-binding.json')
+  writeFileSync(bindingPath, bindingBytes)
+  values.OWNER_RESOURCE_BINDING_PATH = bindingPath
+  values.OWNER_RESOURCE_BINDING_SHA256 = sha256(bindingBytes)
+  values.OWNER_RESOURCE_BINDING_FINGERPRINT = ownerBinding.bindingFingerprint
   return renderOwnerProfileLaunch({
     approvalMode,
     ownerTaskId,
@@ -347,11 +379,11 @@ function trustedTelemetry(
 
 test('actual probe adapter records and verifies every delivery capability with zero normal prompts', async () => {
   const root = mkdtempSync(join(tmpdir(), 'oes-profile-test-'))
-  const rendered = renderedProfile(root, '/root/fl', 'handoff:1')
+  const rendered = renderedProfile(root, '/root/do', 'handoff:1')
   const telemetryPath = trustedTelemetry(rendered)
   const report = await runTwoPhaseFixture(
     {
-      ownerTaskId: '/root/fl',
+      ownerTaskId: '/root/do',
       transitionId: 'handoff:1',
       approvalMode: 'ON_REQUEST_AUTO_REVIEW',
       launchReceipt: rendered.launchReceipt,
@@ -370,7 +402,7 @@ test('actual probe adapter records and verifies every delivery capability with z
   assert.equal(report.observations.length, 8)
   assert.equal(verifyEffectiveProfileReport(report).telemetry.normalPermissionPromptCount, 0)
   for (const changed of [
-    { ...report, ownerTaskId: '/root/fl/rebound' },
+    { ...report, ownerTaskId: '/root/do/rebound' },
     { ...report, transitionId: 'handoff:stale' }
   ])
     assert.throws(
@@ -381,11 +413,11 @@ test('actual probe adapter records and verifies every delivery capability with z
 
 test('v2 writer supports NEVER_USER with zero approval events and executable schema readback', async () => {
   const root = mkdtempSync(join(tmpdir(), 'oes-profile-never-test-'))
-  const rendered = renderedProfile(root, '/root/fl', 'handoff:never', 'NEVER_USER')
+  const rendered = renderedProfile(root, '/root/do', 'handoff:never', 'NEVER_USER')
   const telemetryPath = trustedTelemetry(rendered, 'NEVER_USER')
   const report = await runTwoPhaseFixture(
     {
-      ownerTaskId: '/root/fl',
+      ownerTaskId: '/root/do',
       transitionId: 'handoff:never',
       approvalMode: 'NEVER_USER',
       launchReceipt: rendered.launchReceipt,
@@ -472,7 +504,7 @@ test('all v2 contexts reject permission drift, unmanaged access, and NEVER_USER 
 
 test('v2 preflight rejects unrestricted effective filesystem telemetry end to end', async () => {
   const root = mkdtempSync(join(tmpdir(), 'oes-profile-unrestricted-test-'))
-  const rendered = renderedProfile(root, '/root/fl', 'handoff:unrestricted', 'NEVER_USER')
+  const rendered = renderedProfile(root, '/root/do', 'handoff:unrestricted', 'NEVER_USER')
   const eventSource = join(
     dirname(rendered.installedProfile.path),
     'trusted-authorizations',
@@ -503,7 +535,7 @@ test('v2 preflight rejects unrestricted effective filesystem telemetry end to en
   await assert.rejects(
     runTwoPhaseFixture(
       {
-        ownerTaskId: '/root/fl',
+        ownerTaskId: '/root/do',
         transitionId: 'handoff:unrestricted',
         approvalMode: 'NEVER_USER',
         launchReceipt: rendered.launchReceipt,
@@ -553,10 +585,10 @@ test('effective fingerprint normalizes only the launcher arg0 filename', () => {
 
 test('renderer derives pairs atomically and enforces monotonic same-owner successors', () => {
   const root = mkdtempSync(join(tmpdir(), 'oes-profile-successor-test-'))
-  const first = renderedProfile(root, '/root/fl', 'profile:1')
+  const first = renderedProfile(root, '/root/do', 'profile:1')
   const second = renderedProfile(
     root,
-    '/root/fl',
+    '/root/do',
     'profile:2',
     'NEVER_USER',
     2,
@@ -573,19 +605,21 @@ test('renderer derives pairs atomically and enforces monotonic same-owner succes
       .split(/\r?\n/)
       .filter(
         (line) =>
-          !/^(approval_policy|approvals_reviewer|transition_id|approval_mode)\s*=/.test(line.trim())
+          !/^(approval_policy|approvals_reviewer|transition_id|approval_mode|owner_resource_binding_sha256|owner_resource_binding_fingerprint)\s*=/.test(
+            line.trim()
+          )
       )
   assert.deepEqual(
     invariantLines(first.installedProfile.path),
     invariantLines(second.installedProfile.path)
   )
   assert.throws(
-    () => renderedProfile(root, '/root/fl', 'profile:4', 'NEVER_USER', 4, first.launchReceipt),
+    () => renderedProfile(root, '/root/do', 'profile:4', 'NEVER_USER', 4, first.launchReceipt),
     /PROFILE_RENDER_SUCCESSOR_NOT_MONOTONIC/
   )
   const invalidRequest = {
     approvalMode: 'NEVER_USER',
-    ownerTaskId: '/root/fl',
+    ownerTaskId: '/root/do',
     transitionId: 'profile:3',
     profileGeneration: 3,
     predecessorLaunchReceipt: second.launchReceipt,
@@ -602,67 +636,13 @@ test('renderer derives pairs atomically and enforces monotonic same-owner succes
   )
 })
 
-test('v1 reader remains frozen to on-request auto-review and v2 fields stay forbidden', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'oes-profile-v1-reader-test-'))
-  const rendered = renderedProfile(root, '/root/fl', 'legacy:source')
-  const telemetryPath = trustedTelemetry(rendered)
-  const v2 = await runTwoPhaseFixture(
-    {
-      ownerTaskId: '/root/fl',
-      transitionId: 'legacy:source',
-      approvalMode: 'ON_REQUEST_AUTO_REVIEW',
-      launchReceipt: rendered.launchReceipt,
-      expectedState: 'HANDOFF_PENDING',
-      declaredCapabilities: ['filesystemWrite'],
-      profile: {
-        name: 'oes-profile',
-        permission: 'oes-owner',
-        path: rendered.installedProfile.path,
-        sha256: rendered.installedProfile.sha256
-      },
-      resultPath: join(root, 'v2.json')
-    },
-    new PassingProbe(root, telemetryPath)
-  )
-  const {
-    approvalMode: _mode,
-    launchReceipt: _receipt,
-    effectivePermissionSandboxFingerprint: _effective,
-    probeAttempt: _probeAttempt,
-    telemetry: v2Telemetry,
-    ...common
-  } = v2
-  const {
-    approvalMode: _telemetryMode,
-    effectivePermissionSandboxFingerprint: _telemetryEffective,
-    eventSourceFingerprint: _telemetrySource,
-    contexts: _contexts,
-    snapshotRecord: _snapshotRecord,
-    probeAttemptId: _probeAttemptId,
-    probeDraftFingerprint: _probeDraftFingerprint,
-    probeRequestFingerprint: _probeRequestFingerprint,
-    rolloutSessionId: _rolloutSessionId,
-    completedTurnId: _completedTurnId,
-    ...legacyTelemetry
-  } = v2Telemetry
-  const v1: EffectiveProfileReport = { ...common, schemaVersion: 1, telemetry: legacyTelemetry }
-  assert.equal(verifyEffectiveProfileReport(v1).schemaVersion, 1)
-  validateJsonSchema(effectiveProfileSchema, v1)
-  assert.throws(
-    () => validateJsonSchema(effectiveProfileSchema, { ...v1, approvalMode: 'NEVER_USER' }),
-    /not/
-  )
-  const neverPath = telemetry(root, 'NEVER_USER')
-  assert.throws(() => readApprovalTelemetry(neverPath), /APPROVAL_TELEMETRY_PROFILE_MISMATCH/)
-})
-
 test('profile verification reopens evidence, profile bytes, and telemetry', async () => {
   const root = mkdtempSync(join(tmpdir(), 'oes-profile-reopen-test-'))
-  const rendered = renderedProfile(root, '/root/fl', 'handoff:2')
+  const rendered = renderedProfile(root, '/root/do', 'handoff:2')
   const telemetryPath = trustedTelemetry(rendered)
   const report = await runTwoPhaseFixture(
     {
-      ownerTaskId: '/root/fl',
+      ownerTaskId: '/root/do',
       transitionId: 'handoff:2',
       approvalMode: 'ON_REQUEST_AUTO_REVIEW',
       launchReceipt: rendered.launchReceipt,
@@ -686,7 +666,7 @@ test('effective profile schema pairs stable topology with one sealed owner bindi
   const value = {
     schemaVersion: 1,
     kind: 'OES_EFFECTIVE_PROFILE_REPORT',
-    ownerTaskId: '/root/fl',
+    ownerTaskId: '/root/do',
     transitionId: 'handoff:stable',
     expectedState: 'HANDOFF_PENDING',
     declaredCapabilities: ['filesystemWrite'],
@@ -716,12 +696,16 @@ test('effective profile schema pairs stable topology with one sealed owner bindi
       normalPermissionPromptCount: 0
     },
     resourceTopology: {
-      resourceTopologyVersion: 'pre-cutover-v1',
-      ownerResourceBinding: null
+      resourceTopologyVersion: 'owner-exclusive-v2',
+      ownerResourceBinding: {
+        path: '/owner-binding.json',
+        sha256: 'd'.repeat(64),
+        fingerprint: 'e'.repeat(64)
+      }
     }
   }
   validateJsonSchema(effectiveProfileSchema, value)
-  value.resourceTopology.resourceTopologyVersion = 'stable-owner-exclusive-v1'
+  ;(value.resourceTopology as { ownerResourceBinding: unknown }).ownerResourceBinding = null
   assert.throws(() => validateJsonSchema(effectiveProfileSchema, value), /type|required/)
 })
 
@@ -837,10 +821,10 @@ test('system adapter consumes issuer-owned telemetry and detects a late approval
 
 test('two-phase preflight finalizes only after the completed target turn is issuer-sealed', async () => {
   const root = mkdtempSync(join(tmpdir(), 'oes-profile-two-phase-test-'))
-  const rendered = renderedProfile(root, '/root/fl', 'handoff:two-phase', 'NEVER_USER')
+  const rendered = renderedProfile(root, '/root/do', 'handoff:two-phase', 'NEVER_USER')
   const issuerSnapshot = trustedTelemetry(rendered, 'NEVER_USER')
   const request = {
-    ownerTaskId: '/root/fl',
+    ownerTaskId: '/root/do',
     transitionId: 'handoff:two-phase',
     approvalMode: 'NEVER_USER' as const,
     launchReceipt: rendered.launchReceipt,
@@ -894,7 +878,7 @@ test('two-phase preflight finalizes only after the completed target turn is issu
 
 test('finalizer rejects an older safe snapshot record and inspects the bad current turn', async () => {
   const root = mkdtempSync(join(tmpdir(), 'oes-profile-snapshot-replay-test-'))
-  const rendered = renderedProfile(root, '/root/fl', 'handoff:snapshot-replay', 'NEVER_USER')
+  const rendered = renderedProfile(root, '/root/do', 'handoff:snapshot-replay', 'NEVER_USER')
   const authorizationRoot = join(dirname(rendered.installedProfile.path), 'trusted-authorizations')
   const generated = telemetry(authorizationRoot, 'NEVER_USER')
   const safeSnapshot = join(authorizationRoot, 'older-safe.jsonl')
@@ -906,7 +890,7 @@ test('finalizer rejects an older safe snapshot record and inspects the bad curre
     `\n${JSON.stringify({ type: 'event_msg', payload: { type: 'exec_approval_request' } })}\n`
   )
   const request: PreflightRequest = {
-    ownerTaskId: '/root/fl',
+    ownerTaskId: '/root/do',
     transitionId: 'handoff:snapshot-replay',
     approvalMode: 'NEVER_USER',
     launchReceipt: rendered.launchReceipt,
@@ -940,12 +924,12 @@ test('finalizer rejects an older safe snapshot record and inspects the bad curre
   const currentRecord = sealSnapshotRecord(request, currentDraft, badSnapshot)
   assert.notEqual(currentRecord.sha256, oldRecord.sha256)
 
-  const legacyCallerSelectedRecord = finalizeEffectiveProfilePreflight as unknown as (
+  const untrustedCallerSelectedRecord = finalizeEffectiveProfilePreflight as unknown as (
     ...args: unknown[]
   ) => Promise<EffectiveProfileReport>
   assert.equal(finalizeEffectiveProfilePreflight.length, 3)
   await assert.rejects(
-    legacyCallerSelectedRecord(
+    untrustedCallerSelectedRecord(
       request,
       new PassingProbe(identicalSmoke, safeSnapshot),
       currentDraftPath,
@@ -1040,11 +1024,11 @@ test('failed system probes preserve combined stdout and stderr diagnostics', asy
 
 test('caller-writable profile reports cannot select remote trust roots', async () => {
   const root = mkdtempSync(join(tmpdir(), 'oes-runtime-trust-profile-test-'))
-  const rendered = renderedProfile(root, '/root/fl', 'delivery:1')
+  const rendered = renderedProfile(root, '/root/do', 'delivery:1')
   const telemetryPath = trustedTelemetry(rendered)
   const report = await runTwoPhaseFixture(
     {
-      ownerTaskId: '/root/fl',
+      ownerTaskId: '/root/do',
       transitionId: 'delivery:1',
       approvalMode: 'ON_REQUEST_AUTO_REVIEW',
       launchReceipt: rendered.launchReceipt,
@@ -1061,7 +1045,7 @@ test('caller-writable profile reports cannot select remote trust roots', async (
     new PassingProbe(root, telemetryPath)
   )
   for (const changed of [
-    { ...report, ownerTaskId: '/root/fl/rebound' },
+    { ...report, ownerTaskId: '/root/do/rebound' },
     { ...report, transitionId: 'delivery:stale' }
   ])
     assert.throws(

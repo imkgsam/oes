@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/aggregate-delivery-child-roster-v2.json",
+  "title": "OES V2 confirmed aggregate delivery child roster",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "rosterFingerprint",
+    "confirmationFingerprint",
+    "coordinationKey",
+    "ownerTaskId",
+    "executionMode",
+    "deliveries",
+    "externalDependencies"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "kind": { "const": "OES_AGGREGATE_DELIVERY_CHILD_ROSTER" },
+    "rosterFingerprint": { "$ref": "#/$defs/digest" },
+    "confirmationFingerprint": { "$ref": "#/$defs/digest" },
+    "coordinationKey": { "$ref": "#/$defs/key" },
+    "ownerTaskId": { "$ref": "#/$defs/token" },
+    "executionMode": { "enum": ["REPOSITORY", "HOST_LOCAL"] },
+    "deliveries": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/delivery" }
+    },
+    "externalDependencies": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/dependency" }
+    }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "key": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "token": { "type": "string", "minLength": 1 },
+    "delivery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deliveryKey", "ownerTaskId"],
+      "properties": {
+        "deliveryKey": { "$ref": "#/$defs/key" },
+        "ownerTaskId": { "$ref": "#/$defs/token" }
+      }
+    },
+    "dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deliveryKey", "acceptedCandidateSha", "acceptedOperationFingerprint"],
+      "properties": {
+        "deliveryKey": { "$ref": "#/$defs/key" },
+        "acceptedCandidateSha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" },
+        "acceptedOperationFingerprint": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}

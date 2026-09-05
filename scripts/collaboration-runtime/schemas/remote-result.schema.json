@@ -11,7 +11,7 @@
     "ownerTaskId",
     "singleUseNonce",
     "status",
-    "stage",
+    "phase",
     "receipt",
     "verification",
     "remoteTruth",
@@ -41,7 +41,7 @@
     "status": {
       "enum": ["REMOTE_VERIFICATION_PENDING", "REMOTE_VERIFIED"]
     },
-    "stage": {
+    "phase": {
       "enum": ["REMOTE_VERIFICATION_PENDING", "REMOTE_VERIFIED"]
     },
     "receipt": {
@@ -186,7 +186,7 @@
       "pattern": "^[0-9a-f]{40}$"
     },
     "action": {
-      "enum": ["preflight", "publish-pr", "verify-pr", "merge-pr", "verify-main", "cleanup"]
+      "enum": ["preflight", "publish-pr", "verify-pr", "merge-pr", "verify-main"]
     }
   }
 }

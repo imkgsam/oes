@@ -13,7 +13,7 @@
     "resourceBindingFingerprint",
     "ownerRef",
     "headSha",
-    "featurePacket",
+    "deliveryPackage",
     "currentEvidenceManifest",
     "gitBundle"
   ],
@@ -26,7 +26,7 @@
     "resourceBindingFingerprint": { "$ref": "#/$defs/sha256" },
     "ownerRef": { "type": "string", "pattern": "^refs/heads/" },
     "headSha": { "$ref": "#/$defs/gitSha" },
-    "featurePacket": { "$ref": "#/$defs/evidenceReference" },
+    "deliveryPackage": { "$ref": "#/$defs/evidenceReference" },
     "currentEvidenceManifest": { "$ref": "#/$defs/resourceReference" },
     "gitBundle": {
       "type": ["object", "null"],

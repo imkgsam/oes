@@ -11,7 +11,7 @@ import type {
 
 const SHA1_PATTERN = /^[0-9a-f]{40}$/
 const SHA256_PATTERN = /^[0-9a-f]{64}$/
-const FEATURE_KEY_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/
+const DELIVERY_KEY_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/
 
 const COMPLETE_INPUT_KEYS = [
   'candidateSha',
@@ -33,7 +33,7 @@ const COMPLETE_INPUT_KEYS = [
 
 export type { DependencyCandidate } from './types.ts'
 
-/** Retains the feature-local complete name while the shared public type is now equally complete. */
+/** Retains the delivery-local complete name while the shared public type is now equally complete. */
 export type CompleteEvidenceKeyInput = EvidenceKeyInput
 export type CompleteEvidenceKey = EvidenceKey
 export type CompleteDriftAssessmentInput = DriftAssessmentInput
@@ -92,17 +92,17 @@ function normalizeDependencyCandidates(value: unknown): DependencyCandidate[] {
     const record = candidate as Record<string, unknown>
     requireExactKeys(
       record,
-      ['featureKey', 'candidateSha', 'candidateTreeSha'],
+      ['deliveryKey', 'candidateSha', 'candidateTreeSha'],
       'EVIDENCE_DEPENDENCY_CANDIDATE_SHAPE_INVALID'
     )
-    const featureKey = requireIdentifier(
-      record.featureKey,
-      `dependencyCandidates[${index}].featureKey`
+    const deliveryKey = requireIdentifier(
+      record.deliveryKey,
+      `dependencyCandidates[${index}].deliveryKey`
     )
-    if (!FEATURE_KEY_PATTERN.test(featureKey))
-      fail('EVIDENCE_DEPENDENCY_FEATURE_KEY_INVALID', featureKey)
+    if (!DELIVERY_KEY_PATTERN.test(deliveryKey))
+      fail('EVIDENCE_DEPENDENCY_DELIVERY_KEY_INVALID', deliveryKey)
     return {
-      featureKey,
+      deliveryKey,
       candidateSha: requireSha1(record.candidateSha, `dependencyCandidates[${index}].candidateSha`),
       candidateTreeSha: requireSha1(
         record.candidateTreeSha,
@@ -112,10 +112,10 @@ function normalizeDependencyCandidates(value: unknown): DependencyCandidate[] {
   })
   const duplicate = normalized.find(
     (candidate, index) =>
-      normalized.findIndex((item) => item.featureKey === candidate.featureKey) !== index
+      normalized.findIndex((item) => item.deliveryKey === candidate.deliveryKey) !== index
   )
-  if (duplicate) fail('EVIDENCE_DEPENDENCY_CANDIDATE_DUPLICATE', duplicate.featureKey)
-  return normalized.sort((left, right) => left.featureKey.localeCompare(right.featureKey))
+  if (duplicate) fail('EVIDENCE_DEPENDENCY_CANDIDATE_DUPLICATE', duplicate.deliveryKey)
+  return normalized.sort((left, right) => left.deliveryKey.localeCompare(right.deliveryKey))
 }
 
 /** Normalizes and validates the exact risk coverage identity set. */

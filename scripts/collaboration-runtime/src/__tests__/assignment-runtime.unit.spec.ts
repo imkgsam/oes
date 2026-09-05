@@ -17,12 +17,12 @@ import {
   AssignmentRuntimeStore,
   createAssignmentResult,
   createAssignmentResultArtifact,
-  createFeatureReplanRequest,
-  createFeatureReplanSibling,
-  createStageWipAuthorityBinding,
-  decideFeatureReplan as decideFeatureReplanWithStage,
+  createDeliveryTopologyRequest,
+  createDeliveryTopologySibling,
+  createCoordinationWipAuthorityBinding,
+  decideDeliveryTopology as decideDeliveryTopologyWithCoordination,
   validateAssignmentRuntimeState,
-  validateFeatureReplanDecision as validateFeatureReplanDecisionWithStage
+  validateDeliveryTopologyDecision as validateDeliveryTopologyDecisionWithCoordination
 } from '../assignment-runtime.ts'
 import type {
   ActiveChildAssignment,
@@ -31,9 +31,9 @@ import type {
   AssignmentRuntimeInitialization,
   AssignmentRuntimeState,
   ChildAssignmentRequest,
-  FeatureReplanRequest,
-  FeatureReplanSibling,
-  StageWipAuthorityBinding
+  DeliveryTopologyRequest,
+  DeliveryTopologySibling,
+  CoordinationWipAuthorityBinding
 } from '../assignment-runtime.types.ts'
 import { canonicalJson, objectFingerprint, sha256 } from '../canonical.ts'
 import { validateJsonSchema } from '../schema-validation.ts'
@@ -45,37 +45,36 @@ const FP = {
   capability: 'd'.repeat(64)
 }
 
-const exactStageStates = new Map<string, AssignmentRuntimeState>()
+const exactCoordinationStates = new Map<string, AssignmentRuntimeState>()
 const defaultResultArtifactRoot = realpathSync(
   mkdtempSync(join(tmpdir(), 'oes-assignment-result-artifacts-'))
 )
 after(() => rmSync(defaultResultArtifactRoot, { recursive: true, force: true }))
 
 const schema = (name: string) =>
-  JSON.parse(readFileSync(join(import.meta.dirname, '..', '..', 'schemas', name), 'utf8')) as Record<
-    string,
-    unknown
-  >
+  JSON.parse(
+    readFileSync(join(import.meta.dirname, '..', '..', 'schemas', name), 'utf8')
+  ) as Record<string, unknown>
 
 /** Creates one task-owned state root and removes it after the test. */
-function runtime(t: TestContext, role: 'FEATURE_LEAD' | 'STAGE_LEAD' = 'FEATURE_LEAD') {
+function runtime(t: TestContext, role: 'DO' | 'CO' = 'DO') {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'oes-assignment-runtime-')))
   t.after(() => rmSync(root, { recursive: true, force: true }))
-  const store = new AssignmentRuntimeStore(root, 'feature-alpha')
+  const store = new AssignmentRuntimeStore(root, 'delivery-alpha')
   const initialization: AssignmentRuntimeInitialization = {
     owner: {
       role,
-      taskId: role === 'FEATURE_LEAD' ? 'task-fl-alpha' : 'task-sl-alpha',
-      directExecutionParentTaskId: 'task-parent'
+      taskId: role === 'DO' ? 'task-do-alpha' : 'task-sl-alpha',
+      parentTaskId: 'task-parent'
     },
-    stageKey: 'stage-alpha',
-    featureKey: 'feature-alpha',
+    coordinationKey: 'coordination-alpha',
+    deliveryKey: 'delivery-alpha',
     transitionId: 'transition:alpha',
     scopeFingerprint: FP.scope,
     ceiling: {
-      maxActiveFeatureLeads: 3,
-      maxActiveImplementationTasksPerFeature: 3,
-      maxActiveFeatureReviewsPerFeature: 1
+      maxActiveDeliveryOwners: 3,
+      maxActiveBoundedHelpersPerDelivery: 3,
+      maxActiveReviewVerifiersPerDelivery: 1
     },
     nextLegalAction: 'DISPATCH_CHILD'
   }
@@ -86,17 +85,16 @@ function runtime(t: TestContext, role: 'FEATURE_LEAD' | 'STAGE_LEAD' = 'FEATURE_
 function child(
   stateVersion: number,
   childTaskId: string,
-  childRole: ChildAssignmentRequest['childRole'] = 'IMPLEMENTATION_TASK',
+  childKind: ChildAssignmentRequest['childKind'] = 'BOUNDED_HELPER',
   overrides: Partial<ChildAssignmentRequest> = {}
 ): ChildAssignmentRequest {
   return {
     expectedStateVersion: stateVersion,
     childTaskId,
-    childRole,
-    featureKey: 'feature-alpha',
-    expectedTypedResult: childRole === 'FEATURE_REVIEW' ? 'FEATURE_RI_ACCEPTED' : 'SLICE_ACCEPTED',
-    nextLegalActionOnResult:
-      childRole === 'FEATURE_REVIEW' ? 'PREPARE_STAGE_REVIEW' : 'REVIEW_SLICE',
+    childKind,
+    deliveryKey: 'delivery-alpha',
+    expectedTypedResult: childKind === 'RV' ? 'SCOPED_RV_ACCEPTED' : 'SLICE_ACCEPTED',
+    nextLegalActionOnResult: childKind === 'RV' ? 'PREPARE_AGGREGATE_REVIEW' : 'REVIEW_SLICE',
     scopeFingerprint: FP.childScope,
     resultArtifactRoot: defaultResultArtifactRoot,
     ...overrides
@@ -110,7 +108,7 @@ function artifact(
 ): AssignmentResultArtifactPayload {
   return createAssignmentResultArtifact({
     assignmentId: assignment.assignmentId,
-    directExecutionParentTaskId: assignment.directExecutionParentTaskId,
+    parentTaskId: assignment.parentTaskId,
     childTaskId: assignment.childTaskId,
     transitionId: assignment.transitionId,
     dispatchStateVersion: assignment.dispatchStateVersion,
@@ -138,7 +136,7 @@ function result(
 ): AssignmentResult {
   return createAssignmentResult({
     assignmentId: assignment.assignmentId,
-    directExecutionParentTaskId: assignment.directExecutionParentTaskId,
+    parentTaskId: assignment.parentTaskId,
     childTaskId: assignment.childTaskId,
     transitionId: assignment.transitionId,
     dispatchStateVersion: assignment.dispatchStateVersion,
@@ -150,115 +148,119 @@ function result(
 
 /** Creates one complete independent sibling extraction binding. */
 function sibling(
-  featureKey = 'feature-beta',
-  writeSet = [`scripts/${featureKey}/**`],
+  deliveryKey = 'delivery-beta',
+  writeSet = [`scripts/${deliveryKey}/**`],
   independent = true
-): FeatureReplanSibling {
-  return createFeatureReplanSibling({
-    featureKey,
-    objective: `Deliver ${featureKey}`,
-    scope: [`scope:${featureKey}`],
+): DeliveryTopologySibling {
+  return createDeliveryTopologySibling({
+    deliveryKey,
+    objective: `Deliver ${deliveryKey}`,
+    scope: [`scope:${deliveryKey}`],
     protectedScope: ['preserve:owners'],
     writeSet,
     dependencies: [],
-    acceptance: [`accept:${featureKey}`],
+    acceptance: [`accept:${deliveryKey}`],
     requiredCapabilityFingerprint: FP.capability,
     independenceProof: {
       independentCandidate: independent,
-      independentFeatureReview: independent,
+      independentReviewVerification: independent,
       independentPullRequest: independent,
       safeIndependentMainMerge: independent
     }
   })
 }
 
-/** Creates one exact Stage-owned WIP authority and deletes its scratch store. */
-function stageAuthority(activeFeatureLeads = 1): StageWipAuthorityBinding {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), 'oes-assignment-stage-authority-')))
+/** Creates one exact coordination-owned WIP authority and deletes its scratch store. */
+function coordinationAuthority(activeDeliveryOwners = 1): CoordinationWipAuthorityBinding {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'oes-assignment-coordination-authority-')))
   try {
-    const store = new AssignmentRuntimeStore(root, 'stage-authority')
+    const store = new AssignmentRuntimeStore(root, 'coordination-authority')
     let state = store.initialize({
       owner: {
-        role: 'STAGE_LEAD',
+        role: 'CO',
         taskId: 'task-parent',
-        directExecutionParentTaskId: 'task-root'
+        parentTaskId: 'task-root'
       },
-      stageKey: 'stage-alpha',
-      featureKey: 'stage-authority',
+      coordinationKey: 'coordination-alpha',
+      deliveryKey: 'coordination-authority',
       transitionId: 'transition:alpha',
       scopeFingerprint: FP.scope,
       ceiling: {
-        maxActiveFeatureLeads: 3,
-        maxActiveImplementationTasksPerFeature: 3,
-        maxActiveFeatureReviewsPerFeature: 1
+        maxActiveDeliveryOwners: 3,
+        maxActiveBoundedHelpersPerDelivery: 3,
+        maxActiveReviewVerifiersPerDelivery: 1
       },
       nextLegalAction: 'DISPATCH_CHILD'
     })
-    for (let index = 0; index < activeFeatureLeads; index += 1) {
-      const featureKey = index === 0 ? 'feature-alpha' : `feature-active-${index + 1}`
+    for (let index = 0; index < activeDeliveryOwners; index += 1) {
+      const deliveryKey = index === 0 ? 'delivery-alpha' : `delivery-active-${index + 1}`
       state = store.dispatchChild(
-        child(state.stateVersion, `task-fl-authority-${index + 1}`, 'FEATURE_LEAD', {
-          featureKey
+        child(state.stateVersion, `task-do-authority-${index + 1}`, 'DO', {
+          deliveryKey
         })
       )
     }
-    const authority = createStageWipAuthorityBinding(state)
-    exactStageStates.set(authority.authorityFingerprint, state)
+    const authority = createCoordinationWipAuthorityBinding(state)
+    exactCoordinationStates.set(authority.authorityFingerprint, state)
     return authority
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
 }
 
-/** Returns the separately transported exact Stage state for one request. */
-function exactStageState(request: FeatureReplanRequest): AssignmentRuntimeState {
-  const state = exactStageStates.get(request.stageWipAuthority.authorityFingerprint)
-  if (!state) throw new Error('exact Stage state fixture absent')
+/** Returns the separately transported exact Coordination state for one request. */
+function exactCoordinationState(request: DeliveryTopologyRequest): AssignmentRuntimeState {
+  const state = exactCoordinationStates.get(request.coordinationWipAuthority.authorityFingerprint)
+  if (!state) throw new Error('exact Coordination state fixture absent')
   return state
 }
 
-/** Decides a fixture request only after authenticating its exact Stage state. */
-function decideFeatureReplan(request: FeatureReplanRequest) {
-  return decideFeatureReplanWithStage(request, exactStageState(request))
+/** Decides a fixture request only after authenticating its exact Coordination state. */
+function decideDeliveryTopology(request: DeliveryTopologyRequest) {
+  return decideDeliveryTopologyWithCoordination(request, exactCoordinationState(request))
 }
 
-/** Revalidates a fixture decision against its separately transported Stage state. */
-function validateFeatureReplanDecision(
-  decision: Parameters<typeof validateFeatureReplanDecisionWithStage>[0],
-  request: FeatureReplanRequest
+/** Revalidates a fixture decision against its separately transported Coordination state. */
+function validateDeliveryTopologyDecision(
+  decision: Parameters<typeof validateDeliveryTopologyDecisionWithCoordination>[0],
+  request: DeliveryTopologyRequest
 ) {
-  return validateFeatureReplanDecisionWithStage(decision, request, exactStageState(request))
+  return validateDeliveryTopologyDecisionWithCoordination(
+    decision,
+    request,
+    exactCoordinationState(request)
+  )
 }
 
 /** Creates a request containing every canonical replan binding. */
 function replanRequest(
   stateVersion: number,
-  proposedSiblings: FeatureReplanSibling[],
-  overrides: Partial<Parameters<typeof createFeatureReplanRequest>[0]> = {}
-): FeatureReplanRequest {
-  const activeFeatureLeads = overrides.oldTopology?.activeFeatureLeads ?? 1
-  return createFeatureReplanRequest({
-    stageLeadTaskId: 'task-parent',
-    featureLeadTaskId: 'task-fl-alpha',
-    stageKey: 'stage-alpha',
-    featureKey: 'feature-alpha',
+  proposedSiblings: DeliveryTopologySibling[],
+  overrides: Partial<Parameters<typeof createDeliveryTopologyRequest>[0]> = {}
+): DeliveryTopologyRequest {
+  const activeDeliveryOwners = overrides.oldTopology?.activeDeliveryOwners ?? 1
+  return createDeliveryTopologyRequest({
+    coordinationOwnerTaskId: 'task-parent',
+    deliveryOwnerTaskId: 'task-do-alpha',
+    coordinationKey: 'coordination-alpha',
+    deliveryKey: 'delivery-alpha',
     transitionId: 'transition:alpha',
     stateVersion,
     scopeFingerprint: FP.scope,
     rootAuthorizationFingerprint: FP.root,
-    stageWipAuthority: stageAuthority(activeFeatureLeads),
-    oldTopology: { activeFeatureLeads: 1, features: [] },
+    coordinationWipAuthority: coordinationAuthority(activeDeliveryOwners),
+    oldTopology: { activeDeliveryOwners: 1, deliveries: [] },
     delegationCeiling: {
-      maxActiveFeatureLeads: 3,
-      maxActiveImplementationTasksPerFeature: 3,
-      maxActiveFeatureReviewsPerFeature: 1
+      maxActiveDeliveryOwners: 3,
+      maxActiveBoundedHelpersPerDelivery: 3,
+      maxActiveReviewVerifiersPerDelivery: 1
     },
-    retainedWriteSet: ['scripts/feature-alpha/**'],
+    retainedWriteSet: ['scripts/delivery-alpha/**'],
     currentResources: {
-      ownerRef: 'refs/heads/codex/feature/feature-alpha',
-      ownerClone: '/private/tmp/oes-fl-feature-alpha',
-      taskTemp: '/private/tmp/oes-fl-feature-alpha-artifacts',
-      featurePacket: 'docs/plans/features/feature-alpha.md'
+      ownerRef: 'refs/heads/codex/delivery/delivery-alpha',
+      ownerClone: '/private/tmp/oes-do-delivery-alpha',
+      taskTemp: '/private/tmp/oes-do-delivery-alpha-artifacts',
+      deliveryPackagePath: '/private/tmp/oes-do-delivery-alpha-artifacts/delivery-package.json'
     },
     completedSlices: [
       {
@@ -277,7 +279,7 @@ test('initialization is exact, atomic, schema-valid, and idempotent', (t) => {
   const { store, initialization, state } = runtime(t)
   assert.equal(state.stateVersion, 1)
   assert.equal(state.status, 'ACTIVE')
-  assert.deepEqual(state.wip, { activeFeatureLeads: 0, features: [] })
+  assert.deepEqual(state.wip, { activeDeliveryOwners: 0, deliveries: [] })
   assert.equal(store.initialize(initialization).recordFingerprint, state.recordFingerprint)
   validateJsonSchema(schema('assignment-runtime-state.schema.json'), state)
   assert.throws(
@@ -288,30 +290,36 @@ test('initialization is exact, atomic, schema-valid, and idempotent', (t) => {
 
 test('WAITING_ON_CHILD survives a fresh store instance with exact route fields', (t) => {
   const { root, store, state } = runtime(t)
-  const waiting = store.dispatchChild(child(state.stateVersion, 'task-it-one'))
+  const waiting = store.dispatchChild(child(state.stateVersion, 'task-helper-one'))
   assert.equal(waiting.status, 'WAITING_ON_CHILD')
   assert.equal(waiting.nextLegalAction, 'CONSUME_DIRECT_ASSIGNMENT_RESULT')
-  assert.deepEqual(waiting.wip.features, [
-    { featureKey: 'feature-alpha', activeImplementationTasks: 1, activeFeatureReviews: 0 }
+  assert.deepEqual(waiting.wip.deliveries, [
+    { deliveryKey: 'delivery-alpha', activeBoundedHelpers: 1, activeReviewVerifiers: 0 }
   ])
   assert.deepEqual(
     {
-      directParent: waiting.activeAssignments[0].directExecutionParentTaskId,
+      directParent: waiting.activeAssignments[0].parentTaskId,
       child: waiting.activeAssignments[0].childTaskId,
       expected: waiting.activeAssignments[0].expectedTypedResult,
       next: waiting.activeAssignments[0].nextLegalActionOnResult
     },
     {
-      directParent: 'task-fl-alpha',
-      child: 'task-it-one',
+      directParent: 'task-do-alpha',
+      child: 'task-helper-one',
       expected: 'SLICE_ACCEPTED',
       next: 'REVIEW_SLICE'
     }
   )
-  const reopened = new AssignmentRuntimeStore(root, 'feature-alpha').load()
+  const reopened = new AssignmentRuntimeStore(root, 'delivery-alpha').load()
   assert.deepEqual(reopened, waiting)
-  assert.match(reopened.activeAssignments[0].resultArtifactRootIdentity.device, /^(?:0|[1-9][0-9]*)$/)
-  assert.match(reopened.activeAssignments[0].resultArtifactRootIdentity.inode, /^(?:0|[1-9][0-9]*)$/)
+  assert.match(
+    reopened.activeAssignments[0].resultArtifactRootIdentity.device,
+    /^(?:0|[1-9][0-9]*)$/
+  )
+  assert.match(
+    reopened.activeAssignments[0].resultArtifactRootIdentity.inode,
+    /^(?:0|[1-9][0-9]*)$/
+  )
   assert.deepEqual(reopened.activeAssignments[0].resultArtifactRootIdentity, {
     physicalPath: reopened.activeAssignments[0].resultArtifactRoot,
     device: reopened.activeAssignments[0].resultArtifactRootIdentity.device,
@@ -323,7 +331,7 @@ test('WAITING_ON_CHILD survives a fresh store instance with exact route fields',
 
 test('exact duplicate dispatch is idempotent and a conflicting active child fails closed', (t) => {
   const { store, state } = runtime(t)
-  const request = child(state.stateVersion, 'task-it-one')
+  const request = child(state.stateVersion, 'task-helper-one')
   const first = store.dispatchChild(request)
   const bytes = readFileSync(store.statePath)
   assert.deepEqual(store.dispatchChild(request), first)
@@ -331,7 +339,7 @@ test('exact duplicate dispatch is idempotent and a conflicting active child fail
   assert.throws(
     () =>
       store.dispatchChild(
-        child(first.stateVersion, 'task-it-one', 'IMPLEMENTATION_TASK', {
+        child(first.stateVersion, 'task-helper-one', 'BOUNDED_HELPER', {
           scopeFingerprint: '7'.repeat(64)
         })
       ),
@@ -342,7 +350,7 @@ test('exact duplicate dispatch is idempotent and a conflicting active child fail
 
 test('direct result applies once and exact replay after restart returns the original receipt', (t) => {
   const { root, store, state } = runtime(t)
-  const waiting = store.dispatchChild(child(state.stateVersion, 'task-it-one'))
+  const waiting = store.dispatchChild(child(state.stateVersion, 'task-helper-one'))
   const value = result(waiting.activeAssignments[0])
   validateJsonSchema(schema('assignment-result.schema.json'), value)
   validateJsonSchema(
@@ -357,14 +365,14 @@ test('direct result applies once and exact replay after restart returns the orig
   assert.equal(receipt.nextLegalAction, 'REVIEW_SLICE')
   validateJsonSchema(schema('assignment-runtime-state.schema.json'), after)
   const bytes = readFileSync(store.statePath)
-  const replayed = new AssignmentRuntimeStore(root, 'feature-alpha').consumeResult(value)
+  const replayed = new AssignmentRuntimeStore(root, 'delivery-alpha').consumeResult(value)
   assert.deepEqual(replayed, receipt)
   assert.deepEqual(readFileSync(store.statePath), bytes)
 })
 
 test('result artifacts must exist, remain physical children, and bind exact assignment content', (t) => {
   const { root, store, state } = runtime(t)
-  const waiting = store.dispatchChild(child(state.stateVersion, 'task-it-one'))
+  const waiting = store.dispatchChild(child(state.stateVersion, 'task-helper-one'))
   const assignment = waiting.activeAssignments[0]
   const before = readFileSync(store.statePath)
   const payload = artifact(assignment)
@@ -373,7 +381,7 @@ test('result artifacts must exist, remain physical children, and bind exact assi
   const missingPath = join(assignment.resultArtifactRoot, 'missing-result.json')
   const missing = createAssignmentResult({
     assignmentId: assignment.assignmentId,
-    directExecutionParentTaskId: assignment.directExecutionParentTaskId,
+    parentTaskId: assignment.parentTaskId,
     childTaskId: assignment.childTaskId,
     transitionId: assignment.transitionId,
     dispatchStateVersion: assignment.dispatchStateVersion,
@@ -397,7 +405,7 @@ test('result artifacts must exist, remain physical children, and bind exact assi
   symlinkSync(valid.resultArtifact.path, aliasPath)
   const aliased = createAssignmentResult({
     assignmentId: assignment.assignmentId,
-    directExecutionParentTaskId: assignment.directExecutionParentTaskId,
+    parentTaskId: assignment.parentTaskId,
     childTaskId: assignment.childTaskId,
     transitionId: assignment.transitionId,
     dispatchStateVersion: assignment.dispatchStateVersion,
@@ -413,7 +421,7 @@ test('result artifacts must exist, remain physical children, and bind exact assi
   writeFileSync(wrongOwnerPath, payloadBytes)
   const wrongOwner = createAssignmentResult({
     assignmentId: assignment.assignmentId,
-    directExecutionParentTaskId: assignment.directExecutionParentTaskId,
+    parentTaskId: assignment.parentTaskId,
     childTaskId: assignment.childTaskId,
     transitionId: assignment.transitionId,
     dispatchStateVersion: assignment.dispatchStateVersion,
@@ -426,7 +434,7 @@ test('result artifacts must exist, remain physical children, and bind exact assi
   )
   assert.deepEqual(readFileSync(store.statePath), before)
 
-  const mismatchedPayload = artifact(assignment, { childTaskId: 'task-it-other' })
+  const mismatchedPayload = artifact(assignment, { childTaskId: 'task-helper-other' })
   const mismatchedReference = writeArtifact(
     assignment,
     mismatchedPayload,
@@ -434,7 +442,7 @@ test('result artifacts must exist, remain physical children, and bind exact assi
   )
   const mismatched = createAssignmentResult({
     assignmentId: assignment.assignmentId,
-    directExecutionParentTaskId: assignment.directExecutionParentTaskId,
+    parentTaskId: assignment.parentTaskId,
     childTaskId: assignment.childTaskId,
     transitionId: assignment.transitionId,
     dispatchStateVersion: assignment.dispatchStateVersion,
@@ -461,7 +469,7 @@ test('replacing the dispatch-time result root preserves exact assignment and WIP
     rmSync(originalRoot, { recursive: true, force: true })
   })
   const waiting = store.dispatchChild(
-    child(state.stateVersion, 'task-it-replaced-root', 'IMPLEMENTATION_TASK', {
+    child(state.stateVersion, 'task-helper-replaced-root', 'BOUNDED_HELPER', {
       resultArtifactRoot: resultRoot
     })
   )
@@ -483,10 +491,10 @@ test('replacing the dispatch-time result root preserves exact assignment and WIP
 
 test('wrong-route, stale, unexpected, and unknown results preserve exact state bytes', (t) => {
   const { store, state } = runtime(t)
-  const waiting = store.dispatchChild(child(state.stateVersion, 'task-it-one'))
+  const waiting = store.dispatchChild(child(state.stateVersion, 'task-helper-one'))
   const assignment = waiting.activeAssignments[0]
   const cases: Array<[AssignmentResult, RegExp]> = [
-    [result(assignment, { directExecutionParentTaskId: 'task-wrong-parent' }), /WRONG_PARENT/],
+    [result(assignment, { parentTaskId: 'task-wrong-parent' }), /WRONG_PARENT/],
     [result(assignment, { childTaskId: 'task-wrong-child' }), /WRONG_CHILD/],
     [result(assignment, { transitionId: 'transition:wrong' }), /WRONG_TRANSITION/],
     [
@@ -505,7 +513,7 @@ test('wrong-route, stale, unexpected, and unknown results preserve exact state b
 
 test('a conflicting duplicate result fails without replacing the accepted tombstone', (t) => {
   const { store, state } = runtime(t)
-  const waiting = store.dispatchChild(child(state.stateVersion, 'task-it-one'))
+  const waiting = store.dispatchChild(child(state.stateVersion, 'task-helper-one'))
   const accepted = result(waiting.activeAssignments[0])
   store.consumeResult(accepted)
   const before = readFileSync(store.statePath)
@@ -522,114 +530,114 @@ test('a conflicting duplicate result fails without replacing the accepted tombst
 
 test('parallel child results may arrive in either order and recompute WIP after each result', (t) => {
   const { store, state } = runtime(t)
-  const one = store.dispatchChild(child(state.stateVersion, 'task-it-one'))
-  const two = store.dispatchChild(child(one.stateVersion, 'task-it-two'))
-  const review = store.dispatchChild(child(two.stateVersion, 'task-ri-one', 'FEATURE_REVIEW'))
-  assert.deepEqual(review.wip.features, [
-    { featureKey: 'feature-alpha', activeImplementationTasks: 2, activeFeatureReviews: 1 }
+  const one = store.dispatchChild(child(state.stateVersion, 'task-helper-one'))
+  const two = store.dispatchChild(child(one.stateVersion, 'task-helper-two'))
+  const review = store.dispatchChild(child(two.stateVersion, 'task-rv-one', 'RV'))
+  assert.deepEqual(review.wip.deliveries, [
+    { deliveryKey: 'delivery-alpha', activeBoundedHelpers: 2, activeReviewVerifiers: 1 }
   ])
   const secondAssignment = review.activeAssignments.find(
-    (assignment) => assignment.childTaskId === 'task-it-two'
+    (assignment) => assignment.childTaskId === 'task-helper-two'
   )!
   const secondReceipt = store.consumeResult(result(secondAssignment))
   assert.equal(secondReceipt.remainingAssignments, 2)
-  assert.deepEqual(secondReceipt.wip.features, [
-    { featureKey: 'feature-alpha', activeImplementationTasks: 1, activeFeatureReviews: 1 }
+  assert.deepEqual(secondReceipt.wip.deliveries, [
+    { deliveryKey: 'delivery-alpha', activeBoundedHelpers: 1, activeReviewVerifiers: 1 }
   ])
   const firstAssignment = review.activeAssignments.find(
-    (assignment) => assignment.childTaskId === 'task-it-one'
+    (assignment) => assignment.childTaskId === 'task-helper-one'
   )!
   store.consumeResult(result(firstAssignment))
   const reviewAssignment = review.activeAssignments.find(
-    (assignment) => assignment.childTaskId === 'task-ri-one'
+    (assignment) => assignment.childTaskId === 'task-rv-one'
   )!
   const finalReceipt = store.consumeResult(result(reviewAssignment))
   assert.equal(finalReceipt.remainingAssignments, 0)
   assert.equal(store.load().status, 'ACTIVE')
 })
 
-test('canonical 3 FL, 3 IT per feature, and 1 Feature RI ceilings never mutate on overflow', (t) => {
-  const feature = runtime(t)
-  let state = feature.state
+test('canonical 3 DOs, 3 bounded helpers per delivery, and 1 RV ceilings never mutate on overflow', (t) => {
+  const delivery = runtime(t)
+  let state = delivery.state
   for (let index = 1; index <= 3; index += 1)
-    state = feature.store.dispatchChild(child(state.stateVersion, `task-it-${index}`))
-  let before = readFileSync(feature.store.statePath)
+    state = delivery.store.dispatchChild(child(state.stateVersion, `task-helper-${index}`))
+  let before = readFileSync(delivery.store.statePath)
   assert.throws(
-    () => feature.store.dispatchChild(child(state.stateVersion, 'task-it-four')),
-    /IMPLEMENTATION_TASK_WIP_EXCEEDED/
+    () => delivery.store.dispatchChild(child(state.stateVersion, 'task-helper-four')),
+    /BOUNDED_HELPER_WIP_EXCEEDED/
   )
-  assert.deepEqual(readFileSync(feature.store.statePath), before)
-  state = feature.store.dispatchChild(child(state.stateVersion, 'task-ri-one', 'FEATURE_REVIEW'))
-  before = readFileSync(feature.store.statePath)
+  assert.deepEqual(readFileSync(delivery.store.statePath), before)
+  state = delivery.store.dispatchChild(child(state.stateVersion, 'task-rv-one', 'RV'))
+  before = readFileSync(delivery.store.statePath)
   assert.throws(
-    () => feature.store.dispatchChild(child(state.stateVersion, 'task-ri-two', 'FEATURE_REVIEW')),
-    /FEATURE_REVIEW_WIP_EXCEEDED/
+    () => delivery.store.dispatchChild(child(state.stateVersion, 'task-rv-two', 'RV')),
+    /RV_WIP_EXCEEDED/
   )
-  assert.deepEqual(readFileSync(feature.store.statePath), before)
+  assert.deepEqual(readFileSync(delivery.store.statePath), before)
 
-  const stage = runtime(t, 'STAGE_LEAD')
-  state = stage.state
+  const coordination = runtime(t, 'CO')
+  state = coordination.state
   for (let index = 1; index <= 3; index += 1)
-    state = stage.store.dispatchChild(
-      child(state.stateVersion, `task-fl-${index}`, 'FEATURE_LEAD', {
-        featureKey: `feature-${index}`
+    state = coordination.store.dispatchChild(
+      child(state.stateVersion, `task-do-${index}`, 'DO', {
+        deliveryKey: `delivery-${index}`
       })
     )
-  before = readFileSync(stage.store.statePath)
+  before = readFileSync(coordination.store.statePath)
   assert.throws(
     () =>
-      stage.store.dispatchChild(
-        child(state.stateVersion, 'task-fl-four', 'FEATURE_LEAD', {
-          featureKey: 'feature-four'
+      coordination.store.dispatchChild(
+        child(state.stateVersion, 'task-do-four', 'DO', {
+          deliveryKey: 'delivery-four'
         })
       ),
-    /FEATURE_LEAD_WIP_EXCEEDED/
+    /DO_WIP_EXCEEDED/
   )
-  assert.deepEqual(readFileSync(stage.store.statePath), before)
+  assert.deepEqual(readFileSync(coordination.store.statePath), before)
 })
 
-test('self-child and duplicate active Feature ownership fail before any state bytes change', (t) => {
-  const feature = runtime(t)
-  let before = readFileSync(feature.store.statePath)
+test('self-child and duplicate active Delivery Ownership fail before any state bytes change', (t) => {
+  const delivery = runtime(t)
+  let before = readFileSync(delivery.store.statePath)
   assert.throws(
-    () => feature.store.dispatchChild(child(feature.state.stateVersion, 'task-fl-alpha')),
+    () => delivery.store.dispatchChild(child(delivery.state.stateVersion, 'task-do-alpha')),
     /ASSIGNMENT_SELF_CHILD_ROUTE/
   )
-  assert.deepEqual(readFileSync(feature.store.statePath), before)
+  assert.deepEqual(readFileSync(delivery.store.statePath), before)
 
-  const stage = runtime(t, 'STAGE_LEAD')
-  const first = stage.store.dispatchChild(
-    child(stage.state.stateVersion, 'task-fl-first', 'FEATURE_LEAD', {
-      featureKey: 'feature-duplicate'
+  const coordination = runtime(t, 'CO')
+  const first = coordination.store.dispatchChild(
+    child(coordination.state.stateVersion, 'task-do-first', 'DO', {
+      deliveryKey: 'delivery-duplicate'
     })
   )
-  before = readFileSync(stage.store.statePath)
+  before = readFileSync(coordination.store.statePath)
   assert.throws(
     () =>
-      stage.store.dispatchChild(
-        child(first.stateVersion, 'task-fl-second', 'FEATURE_LEAD', {
-          featureKey: 'feature-duplicate'
+      coordination.store.dispatchChild(
+        child(first.stateVersion, 'task-do-second', 'DO', {
+          deliveryKey: 'delivery-duplicate'
         })
       ),
-    /ASSIGNMENT_DUPLICATE_ACTIVE_FEATURE_OWNER/
+    /ASSIGNMENT_DUPLICATE_ACTIVE_DO/
   )
-  assert.deepEqual(readFileSync(stage.store.statePath), before)
+  assert.deepEqual(readFileSync(coordination.store.statePath), before)
 })
 
-test('persisted self-routes and duplicate active Feature owners fail on reopen', (t) => {
-  const feature = runtime(t)
-  const featureWaiting = feature.store.dispatchChild(
-    child(feature.state.stateVersion, 'task-it-one')
+test('persisted self-routes and duplicate active Delivery Owners fail on reopen', (t) => {
+  const delivery = runtime(t)
+  const deliveryWaiting = delivery.store.dispatchChild(
+    child(delivery.state.stateVersion, 'task-helper-one')
   )
-  const selfRouted = structuredClone(featureWaiting)
+  const selfRouted = structuredClone(deliveryWaiting)
   const selfAssignment = selfRouted.activeAssignments[0]
   selfAssignment.childTaskId = selfRouted.owner.taskId
   selfAssignment.requestFingerprint = objectFingerprint(
     {
       expectedStateVersion: selfAssignment.dispatchStateVersion - 1,
       childTaskId: selfAssignment.childTaskId,
-      childRole: selfAssignment.childRole,
-      featureKey: selfAssignment.featureKey,
+      childKind: selfAssignment.childKind,
+      deliveryKey: selfAssignment.deliveryKey,
       expectedTypedResult: selfAssignment.expectedTypedResult,
       nextLegalActionOnResult: selfAssignment.nextLegalActionOnResult,
       scopeFingerprint: selfAssignment.scopeFingerprint,
@@ -647,28 +655,28 @@ test('persisted self-routes and duplicate active Feature owners fail on reopen',
   )
   assert.throws(() => validateAssignmentRuntimeState(selfRouted), /ASSIGNMENT_SELF_CHILD_ROUTE/)
 
-  const stage = runtime(t, 'STAGE_LEAD')
-  let stageState = stage.store.dispatchChild(
-    child(stage.state.stateVersion, 'task-fl-one', 'FEATURE_LEAD', {
-      featureKey: 'feature-one'
+  const coordination = runtime(t, 'CO')
+  let coordinationState = coordination.store.dispatchChild(
+    child(coordination.state.stateVersion, 'task-do-one', 'DO', {
+      deliveryKey: 'delivery-one'
     })
   )
-  stageState = stage.store.dispatchChild(
-    child(stageState.stateVersion, 'task-fl-two', 'FEATURE_LEAD', {
-      featureKey: 'feature-two'
+  coordinationState = coordination.store.dispatchChild(
+    child(coordinationState.stateVersion, 'task-do-two', 'DO', {
+      deliveryKey: 'delivery-two'
     })
   )
-  const duplicated = structuredClone(stageState)
+  const duplicated = structuredClone(coordinationState)
   const second = duplicated.activeAssignments.find(
-    (assignment) => assignment.childTaskId === 'task-fl-two'
+    (assignment) => assignment.childTaskId === 'task-do-two'
   )!
-  second.featureKey = 'feature-one'
+  second.deliveryKey = 'delivery-one'
   second.requestFingerprint = objectFingerprint(
     {
       expectedStateVersion: second.dispatchStateVersion - 1,
       childTaskId: second.childTaskId,
-      childRole: second.childRole,
-      featureKey: second.featureKey,
+      childKind: second.childKind,
+      deliveryKey: second.deliveryKey,
       expectedTypedResult: second.expectedTypedResult,
       nextLegalActionOnResult: second.nextLegalActionOnResult,
       scopeFingerprint: second.scopeFingerprint,
@@ -687,37 +695,34 @@ test('persisted self-routes and duplicate active Feature owners fail on reopen',
     duplicated as unknown as Record<string, unknown>,
     'recordFingerprint'
   )
-  assert.throws(
-    () => validateAssignmentRuntimeState(duplicated),
-    /ASSIGNMENT_DUPLICATE_ACTIVE_FEATURE_OWNER/
-  )
+  assert.throws(() => validateAssignmentRuntimeState(duplicated), /ASSIGNMENT_DUPLICATE_ACTIVE_DO/)
 })
 
 test('role-invalid dispatch, stale CAS, and immediate SQLite contention fail closed', (t) => {
   const { store, state } = runtime(t)
   const before = readFileSync(store.statePath)
   assert.throws(
-    () => store.dispatchChild(child(state.stateVersion, 'task-fl-one', 'FEATURE_LEAD')),
+    () => store.dispatchChild(child(state.stateVersion, 'task-do-one', 'DO')),
     /OWNER_CHILD_ROUTE_INVALID/
   )
   assert.throws(
     () =>
       store.dispatchChild(
-        child(state.stateVersion, 'task-it-other-feature', 'IMPLEMENTATION_TASK', {
-          featureKey: 'feature-other'
+        child(state.stateVersion, 'task-helper-other-delivery', 'BOUNDED_HELPER', {
+          deliveryKey: 'delivery-other'
         })
       ),
-    /FEATURE_OWNER_SCOPE_MISMATCH/
+    /DO_SCOPE_MISMATCH/
   )
   assert.throws(
-    () => store.dispatchChild(child(state.stateVersion + 1, 'task-it-one')),
+    () => store.dispatchChild(child(state.stateVersion + 1, 'task-helper-one')),
     /STATE_VERSION_MISMATCH/
   )
   const competing = new DatabaseSync(store.statePath)
   competing.exec('PRAGMA busy_timeout = 0; BEGIN IMMEDIATE')
   try {
     assert.throws(
-      () => store.dispatchChild(child(state.stateVersion, 'task-it-one')),
+      () => store.dispatchChild(child(state.stateVersion, 'task-helper-one')),
       /ASSIGNMENT_STATE_BUSY/
     )
   } finally {
@@ -729,16 +734,16 @@ test('role-invalid dispatch, stale CAS, and immediate SQLite contention fail clo
 
 test('tampered state fingerprint and recomputed but false WIP both fail on reopen', (t) => {
   const { store, state } = runtime(t)
-  const waiting = store.dispatchChild(child(state.stateVersion, 'task-it-one'))
+  const waiting = store.dispatchChild(child(state.stateVersion, 'task-helper-one'))
   const tampered = { ...waiting, nextLegalAction: 'WRONG_ACTION' }
   const database = new DatabaseSync(store.statePath)
   database
-    .prepare('UPDATE assignment_runtime_state SET record_json = ? WHERE feature_key = ?')
-    .run(JSON.stringify(tampered), 'feature-alpha')
+    .prepare('UPDATE assignment_runtime_state SET record_json = ? WHERE delivery_key = ?')
+    .run(JSON.stringify(tampered), 'delivery-alpha')
   assert.throws(() => store.load(), /ASSIGNMENT_STATE_FINGERPRINT_MISMATCH/)
   const falseWip: AssignmentRuntimeState = {
     ...waiting,
-    wip: { activeFeatureLeads: 0, features: [] },
+    wip: { activeDeliveryOwners: 0, deliveries: [] },
     recordFingerprint: ''
   }
   falseWip.recordFingerprint = objectFingerprint(
@@ -746,19 +751,16 @@ test('tampered state fingerprint and recomputed but false WIP both fail on reope
     'recordFingerprint'
   )
   database
-    .prepare('UPDATE assignment_runtime_state SET record_json = ? WHERE feature_key = ?')
-    .run(JSON.stringify(falseWip), 'feature-alpha')
+    .prepare('UPDATE assignment_runtime_state SET record_json = ? WHERE delivery_key = ?')
+    .run(JSON.stringify(falseWip), 'delivery-alpha')
   database.close()
   assert.throws(() => validateAssignmentRuntimeState(falseWip), /WIP_SNAPSHOT_MISMATCH/)
 })
 
 test('result-root device and inode remain canonical decimal strings across direct and SQLite validation', (t) => {
   const { store, state } = runtime(t)
-  const waiting = store.dispatchChild(child(state.stateVersion, 'task-it-one'))
-  const reseal = (
-    field: 'device' | 'inode',
-    value: string | number
-  ): AssignmentRuntimeState => {
+  const waiting = store.dispatchChild(child(state.stateVersion, 'task-helper-one'))
+  const reseal = (field: 'device' | 'inode', value: string | number): AssignmentRuntimeState => {
     const candidate = structuredClone(waiting)
     candidate.activeAssignments[0].resultArtifactRootIdentity[field] = value as never
     candidate.activeAssignments[0].assignmentId = objectFingerprint(
@@ -773,7 +775,7 @@ test('result-root device and inode remain canonical decimal strings across direc
   }
   const database = new DatabaseSync(store.statePath)
   const update = database.prepare(
-    'UPDATE assignment_runtime_state SET record_json = ? WHERE feature_key = ?'
+    'UPDATE assignment_runtime_state SET record_json = ? WHERE delivery_key = ?'
   )
   const largeDecimal = '18446744073709551615'
   for (const field of ['device', 'inode'] as const) {
@@ -783,11 +785,8 @@ test('result-root device and inode remain canonical decimal strings across direc
       largeDecimal
     )
     validateJsonSchema(schema('assignment-runtime-state.schema.json'), valid)
-    update.run(JSON.stringify(valid), 'feature-alpha')
-    assert.equal(
-      store.load().activeAssignments[0].resultArtifactRootIdentity[field],
-      largeDecimal
-    )
+    update.run(JSON.stringify(valid), 'delivery-alpha')
+    assert.equal(store.load().activeAssignments[0].resultArtifactRootIdentity[field], largeDecimal)
 
     const numeric = reseal(field, 123)
     assert.throws(
@@ -800,7 +799,7 @@ test('result-root device and inode remain canonical decimal strings across direc
         ? /ASSIGNMENT_RESULT_ARTIFACT_ROOT_DEVICE_INVALID/
         : /ASSIGNMENT_RESULT_ARTIFACT_ROOT_INODE_INVALID/
     )
-    update.run(JSON.stringify(numeric), 'feature-alpha')
+    update.run(JSON.stringify(numeric), 'delivery-alpha')
     assert.throws(
       () => store.load(),
       field === 'device'
@@ -811,86 +810,89 @@ test('result-root device and inode remain canonical decimal strings across direc
   database.close()
 })
 
-test('complete independent proof within the ceiling yields exact FEATURE_REPLAN_REQUIRED', () => {
+test('complete independent proof within the ceiling yields exact DELIVERY_TOPOLOGY_REQUIRED', () => {
   const request = replanRequest(1, [sibling()])
-  const decision = decideFeatureReplan(request)
-  assert.equal(decision.decision, 'FEATURE_REPLAN_REQUIRED')
-  assert.equal(decision.newTopology.activeFeatureLeads, 2)
-  assert.equal(decision.nextLegalAction, 'RETURN_FEATURE_REPLAN_REQUIRED_TO_DIRECT_PARENT')
+  const decision = decideDeliveryTopology(request)
+  assert.equal(decision.decision, 'DELIVERY_TOPOLOGY_REQUIRED')
+  assert.equal(decision.newTopology.activeDeliveryOwners, 2)
+  assert.equal(decision.nextLegalAction, 'RETURN_DELIVERY_TOPOLOGY_REQUIRED_TO_OWNER')
   assert.equal(decision.request.invalidationConditions.length, 9)
-  validateFeatureReplanDecision(decision, request)
-  validateJsonSchema(schema('assignment-feature-replan.schema.json'), request)
-  validateJsonSchema(schema('assignment-feature-replan.schema.json'), decision)
+  validateDeliveryTopologyDecision(decision, request)
+  validateJsonSchema(schema('assignment-delivery-topology.schema.json'), request)
+  validateJsonSchema(schema('assignment-delivery-topology.schema.json'), decision)
 })
 
-test('incomplete independence proof preserves one atomic Feature owner', () => {
-  const request = replanRequest(1, [sibling('feature-beta', ['scripts/beta/**'], false)])
-  const decision = decideFeatureReplan(request)
+test('incomplete independence proof preserves one atomic Delivery Owner', () => {
+  const request = replanRequest(1, [sibling('delivery-beta', ['scripts/beta/**'], false)])
+  const decision = decideDeliveryTopology(request)
   assert.equal(decision.decision, 'ATOMIC_CONTINUATION')
-  assert.equal(decision.newTopology.activeFeatureLeads, 1)
-  assert.equal(decision.nextLegalAction, 'CONTINUE_ORIGINAL_FEATURE_WITH_BOUNDED_ITS')
+  assert.equal(decision.newTopology.activeDeliveryOwners, 1)
+  assert.equal(decision.nextLegalAction, 'CONTINUE_ORIGINAL_DELIVERY_WITH_BOUNDED_HELPERS')
 })
 
 test('proven sibling WIP overflow and write conflicts fail instead of changing topology', () => {
   assert.throws(
     () =>
-      decideFeatureReplan(
+      decideDeliveryTopology(
         replanRequest(1, [sibling()], {
-          oldTopology: { activeFeatureLeads: 3, features: [] }
+          oldTopology: { activeDeliveryOwners: 3, deliveries: [] }
         })
       ),
-    /FEATURE_REPLAN_WIP_CEILING_EXCEEDED/
+    /DELIVERY_TOPOLOGY_WIP_CEILING_EXCEEDED/
   )
   assert.throws(
     () =>
-      decideFeatureReplan(
+      decideDeliveryTopology(
         replanRequest(1, [
-          sibling('feature-beta', ['scripts/shared/**']),
-          sibling('feature-gamma', ['scripts/shared/runtime.ts'])
+          sibling('delivery-beta', ['scripts/shared/**']),
+          sibling('delivery-gamma', ['scripts/shared/runtime.ts'])
         ])
       ),
-    /FEATURE_REPLAN_WRITE_SET_CONFLICT/
+    /DELIVERY_TOPOLOGY_WRITE_SET_CONFLICT/
   )
   assert.throws(
     () =>
-      decideFeatureReplan(
-        replanRequest(1, [sibling('feature-beta', ['scripts/feature-alpha/runtime/**'])])
+      decideDeliveryTopology(
+        replanRequest(1, [sibling('delivery-beta', ['scripts/delivery-alpha/runtime/**'])])
       ),
-    /FEATURE_REPLAN_RETAINED_WRITE_SET_CONFLICT/
+    /DELIVERY_TOPOLOGY_RETAINED_WRITE_SET_CONFLICT/
   )
   assert.throws(
-    () => sibling('feature-beta', ['scripts/shared/*.ts']),
-    /FEATURE_REPLAN_WRITE_RANGE_INVALID/
+    () => sibling('delivery-beta', ['scripts/shared/*.ts']),
+    /DELIVERY_TOPOLOGY_WRITE_RANGE_INVALID/
   )
 })
 
-test('Stage WIP authority rejects a false old topology before a replan decision', () => {
-  const authority = stageAuthority(3)
+test('Coordination WIP authority rejects a false old topology before a replan decision', () => {
+  const authority = coordinationAuthority(3)
   assert.throws(
     () =>
       replanRequest(1, [sibling()], {
-        stageWipAuthority: authority,
-        oldTopology: { activeFeatureLeads: 1, features: [] }
+        coordinationWipAuthority: authority,
+        oldTopology: { activeDeliveryOwners: 1, deliveries: [] }
       }),
-    /FEATURE_REPLAN_STAGE_AUTHORITY_MISMATCH/
+    /DELIVERY_TOPOLOGY_COORDINATION_AUTHORITY_MISMATCH/
   )
-  const tampered = { ...authority, stageStateVersion: authority.stageStateVersion + 1 }
+  const tampered = {
+    ...authority,
+    coordinationStateVersion: authority.coordinationStateVersion + 1
+  }
   assert.throws(
     () =>
       replanRequest(1, [sibling()], {
-        stageWipAuthority: tampered
+        coordinationWipAuthority: tampered
       }),
-    /FEATURE_REPLAN_STAGE_AUTHORITY_FINGERPRINT_MISMATCH/
+    /DELIVERY_TOPOLOGY_COORDINATION_AUTHORITY_FINGERPRINT_MISMATCH/
   )
 
   const exactRequest = replanRequest(1, [sibling()], {
-    oldTopology: { activeFeatureLeads: 3, features: [] }
+    oldTopology: { activeDeliveryOwners: 3, deliveries: [] }
   })
-  const exactState = exactStageState(exactRequest)
+  const exactState = exactCoordinationState(exactRequest)
   const forgedAuthority = {
-    ...exactRequest.stageWipAuthority,
-    activeFeatureLeads: 1,
-    activeFeatureKeys: ['feature-alpha'],
+    ...exactRequest.coordinationWipAuthority,
+    activeDeliveryOwners: 1,
+    activeDeliveryKeys: ['delivery-alpha'],
     authorityFingerprint: ''
   }
   forgedAuthority.authorityFingerprint = objectFingerprint(
@@ -904,87 +906,90 @@ test('Stage WIP authority rejects a false old topology before a replan decision'
     invalidationConditions: _invalidationConditions,
     ...exactInput
   } = exactRequest
-  const forgedRequest = createFeatureReplanRequest({
+  const forgedRequest = createDeliveryTopologyRequest({
     ...exactInput,
-    stageWipAuthority: forgedAuthority,
-    oldTopology: { activeFeatureLeads: 1, features: [] }
+    coordinationWipAuthority: forgedAuthority,
+    oldTopology: { activeDeliveryOwners: 1, deliveries: [] }
   })
   assert.throws(
-    () => decideFeatureReplanWithStage(forgedRequest, exactState),
-    /FEATURE_REPLAN_STAGE_AUTHORITY_NOT_EXACT_STATE/
+    () => decideDeliveryTopologyWithCoordination(forgedRequest, exactState),
+    /DELIVERY_TOPOLOGY_COORDINATION_AUTHORITY_NOT_EXACT_STATE/
   )
 })
 
 test('any exact replan binding change invalidates the prior decision', () => {
   const request = replanRequest(1, [sibling()])
-  const decision = decideFeatureReplan(request)
+  const decision = decideDeliveryTopology(request)
   const changed = replanRequest(2, [sibling()])
   assert.throws(
-    () => validateFeatureReplanDecision(decision, changed),
-    /FEATURE_REPLAN_DECISION_INVALIDATED/
+    () => validateDeliveryTopologyDecision(decision, changed),
+    /DELIVERY_TOPOLOGY_DECISION_INVALIDATED/
   )
   const tampered = { ...decision, reason: 'changed' }
   assert.throws(
-    () => validateFeatureReplanDecision(tampered, request),
-    /FEATURE_REPLAN_DECISION_FINGERPRINT_MISMATCH/
+    () => validateDeliveryTopologyDecision(tampered, request),
+    /DELIVERY_TOPOLOGY_DECISION_FINGERPRINT_MISMATCH/
   )
 })
 
 test('persisted replan marker is idempotent, blocks expansion, and preserves in-flight results', (t) => {
   const { store, state } = runtime(t)
-  const waiting = store.dispatchChild(child(state.stateVersion, 'task-it-one'))
+  const waiting = store.dispatchChild(child(state.stateVersion, 'task-helper-one'))
   const request = replanRequest(waiting.stateVersion, [sibling()], {
     oldTopology: {
-      activeFeatureLeads: 1,
-      features: [
-        { featureKey: 'feature-alpha', activeImplementationTasks: 1, activeFeatureReviews: 0 }
+      activeDeliveryOwners: 1,
+      deliveries: [
+        { deliveryKey: 'delivery-alpha', activeBoundedHelpers: 1, activeReviewVerifiers: 0 }
       ]
     }
   })
-  const decision = store.recordFeatureReplanDecision(request, exactStageState(request))
+  const decision = store.recordDeliveryTopologyDecision(request, exactCoordinationState(request))
   const marked = store.load()
-  assert.equal(marked.status, 'FEATURE_REPLAN_REQUIRED')
-  assert.equal(marked.featureReplan?.decisionFingerprint, decision.decisionFingerprint)
+  assert.equal(marked.status, 'DELIVERY_TOPOLOGY_REQUIRED')
+  assert.equal(marked.deliveryTopology?.decisionFingerprint, decision.decisionFingerprint)
   validateJsonSchema(schema('assignment-runtime-state.schema.json'), marked)
   const markedBytes = readFileSync(store.statePath)
-  assert.deepEqual(store.recordFeatureReplanDecision(request, exactStageState(request)), decision)
+  assert.deepEqual(
+    store.recordDeliveryTopologyDecision(request, exactCoordinationState(request)),
+    decision
+  )
   assert.deepEqual(readFileSync(store.statePath), markedBytes)
   assert.throws(
-    () => store.dispatchChild(child(marked.stateVersion, 'task-it-two')),
-    /DISPATCH_AFTER_FEATURE_REPLAN/
+    () => store.dispatchChild(child(marked.stateVersion, 'task-helper-two')),
+    /DISPATCH_AFTER_DELIVERY_TOPOLOGY/
   )
   const receipt = store.consumeResult(result(waiting.activeAssignments[0]))
   assert.equal(receipt.remainingAssignments, 0)
   const invalidated = store.load()
   assert.equal(invalidated.status, 'ACTIVE')
-  assert.equal(invalidated.featureReplan, null)
-  assert.equal(invalidated.nextLegalAction, 'REEVALUATE_FEATURE_REPLAN')
+  assert.equal(invalidated.deliveryTopology, null)
+  assert.equal(invalidated.nextLegalAction, 'REEVALUATE_DELIVERY_TOPOLOGY')
   validateJsonSchema(schema('assignment-runtime-state.schema.json'), invalidated)
   assert.throws(
-    () => store.recordFeatureReplanDecision(request, exactStageState(request)),
-    /FEATURE_REPLAN_STATE_VERSION_MISMATCH/
+    () => store.recordDeliveryTopologyDecision(request, exactCoordinationState(request)),
+    /DELIVERY_TOPOLOGY_STATE_VERSION_MISMATCH/
   )
 })
 
 test('atomic continuation marker remains dispatchable and is superseded only by a new state binding', (t) => {
   const { store, state } = runtime(t)
   const request = replanRequest(state.stateVersion, [])
-  const decision = store.recordFeatureReplanDecision(request, exactStageState(request))
+  const decision = store.recordDeliveryTopologyDecision(request, exactCoordinationState(request))
   assert.equal(decision.decision, 'ATOMIC_CONTINUATION')
   const recorded = store.load()
   assert.equal(recorded.status, 'ACTIVE')
-  const waiting = store.dispatchChild(child(recorded.stateVersion, 'task-it-one'))
+  const waiting = store.dispatchChild(child(recorded.stateVersion, 'task-helper-one'))
   assert.equal(waiting.status, 'WAITING_ON_CHILD')
-  assert.equal(waiting.featureReplan, null)
+  assert.equal(waiting.deliveryTopology, null)
   assert.throws(
-    () => store.recordFeatureReplanDecision(request, exactStageState(request)),
-    /FEATURE_REPLAN_STATE_VERSION_MISMATCH/
+    () => store.recordDeliveryTopologyDecision(request, exactCoordinationState(request)),
+    /DELIVERY_TOPOLOGY_STATE_VERSION_MISMATCH/
   )
 })
 
 test('schema and runtime both reject open or malformed assignment contracts', (t) => {
   const { store, state } = runtime(t)
-  const waiting = store.dispatchChild(child(state.stateVersion, 'task-it-one'))
+  const waiting = store.dispatchChild(child(state.stateVersion, 'task-helper-one'))
   const value = result(waiting.activeAssignments[0])
   assert.throws(
     () => validateJsonSchema(schema('assignment-result.schema.json'), { ...value, extra: true }),
@@ -1005,7 +1010,7 @@ test('schema and runtime both reject open or malformed assignment contracts', (t
     () =>
       createAssignmentResult({
         assignmentId: traversalResult.assignmentId,
-        directExecutionParentTaskId: traversalResult.directExecutionParentTaskId,
+        parentTaskId: traversalResult.parentTaskId,
         childTaskId: traversalResult.childTaskId,
         transitionId: traversalResult.transitionId,
         dispatchStateVersion: traversalResult.dispatchStateVersion,
@@ -1034,9 +1039,9 @@ test('schema and runtime both reject open or malformed assignment contracts', (t
   )
   const request = replanRequest(waiting.stateVersion, [sibling()], {
     oldTopology: {
-      activeFeatureLeads: 1,
-      features: [
-        { featureKey: 'feature-alpha', activeImplementationTasks: 1, activeFeatureReviews: 0 }
+      activeDeliveryOwners: 1,
+      deliveries: [
+        { deliveryKey: 'delivery-alpha', activeBoundedHelpers: 1, activeReviewVerifiers: 0 }
       ]
     }
   })
@@ -1045,13 +1050,13 @@ test('schema and runtime both reject open or malformed assignment contracts', (t
     invalidationConditions: request.invalidationConditions.slice(1)
   }
   assert.throws(
-    () => validateJsonSchema(schema('assignment-feature-replan.schema.json'), malformed),
+    () => validateJsonSchema(schema('assignment-delivery-topology.schema.json'), malformed),
     /minItems|contains/
   )
   const openWriteGlob = structuredClone(request)
   openWriteGlob.proposedSiblings[0].writeSet = ['scripts/shared/*.ts']
   assert.throws(
-    () => validateJsonSchema(schema('assignment-feature-replan.schema.json'), openWriteGlob),
+    () => validateJsonSchema(schema('assignment-delivery-topology.schema.json'), openWriteGlob),
     /pattern|not/
   )
 })

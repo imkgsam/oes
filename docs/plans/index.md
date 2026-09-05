@@ -2,6 +2,6 @@
 
 - [Intake](./intake.md)
 - [Backlog](./backlog.md)
-- [Design Workspaces](./designs/README.md)
-- [Stage Packet rules](../governance/document-governance.md#6-stage-packet)
-- [Feature Packets](./features/README.md)
+- [DA Design Workspaces](./designs/README.md)
+- [V2 Delivery Package history](./deliveries/README.md)
+- [Pre-V2 historical Delivery Package notes](./features/README.md)

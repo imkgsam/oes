@@ -11,7 +11,7 @@ import type { RiskCoverage } from './types.ts'
 
 export const VALIDATION_TIERS = ['FOCUSED_DEVELOPMENT', 'CANDIDATE_AFFECTED', 'FULL_GATE'] as const
 export type ValidationTier = (typeof VALIDATION_TIERS)[number]
-export type ValidationGateContext = 'NONE' | 'FEATURE' | 'STAGE'
+export type ValidationGateContext = 'NONE' | 'DELIVERY' | 'COORDINATION'
 
 /** Binds one runnable validation command to one exact evidence identity and coverage map. */
 export interface ValidationCommandRequest {
@@ -190,7 +190,7 @@ function requireCanonicalFingerprints(value: unknown, field: string): string[] {
 
 /** Enforces the exact gate context allowed by each lifecycle tier. */
 function validateGateContext(tier: ValidationTier, gateContext: ValidationGateContext): void {
-  if (tier === 'FULL_GATE' && !['FEATURE', 'STAGE'].includes(gateContext))
+  if (tier === 'FULL_GATE' && !['DELIVERY', 'COORDINATION'].includes(gateContext))
     fail('VALIDATION_PLAN_GATE_CONTEXT_INVALID', `${tier}:${gateContext}`)
   if (tier !== 'FULL_GATE' && gateContext !== 'NONE')
     fail('VALIDATION_PLAN_GATE_CONTEXT_INVALID', `${tier}:${gateContext}`)
@@ -348,7 +348,7 @@ export function validateValidationPlan(plan: ValidationPlan): ValidationPlan {
   if (!VALIDATION_TIERS.includes(record.tier as ValidationTier))
     fail('VALIDATION_PLAN_TIER_INVALID', String(record.tier))
   const tier = record.tier as ValidationTier
-  if (!['NONE', 'FEATURE', 'STAGE'].includes(String(record.gateContext)))
+  if (!['NONE', 'DELIVERY', 'COORDINATION'].includes(String(record.gateContext)))
     fail('VALIDATION_PLAN_GATE_CONTEXT_INVALID', String(record.gateContext))
   const gateContext = record.gateContext as ValidationGateContext
   validateGateContext(tier, gateContext)

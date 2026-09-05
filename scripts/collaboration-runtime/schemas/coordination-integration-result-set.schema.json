@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/coordination-integration-result-set-v2.json",
+  "title": "OES V2 trusted integration result set",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "resultSetFingerprint",
+    "authorizationFingerprint",
+    "coordinationKey",
+    "coordinationOwnerTaskId",
+    "transitionId",
+    "results"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "kind": { "const": "OES_COORDINATION_INTEGRATION_RESULT_SET" },
+    "resultSetFingerprint": { "$ref": "#/$defs/digest" },
+    "authorizationFingerprint": { "$ref": "#/$defs/digest" },
+    "coordinationKey": { "$ref": "#/$defs/key" },
+    "coordinationOwnerTaskId": { "type": "string", "minLength": 1 },
+    "transitionId": { "type": "string", "minLength": 1 },
+    "results": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/result" }
+    }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "key": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["order", "deliveryKey", "candidateSha", "state", "integratedSha", "failureCode"],
+      "properties": {
+        "order": { "type": "integer", "minimum": 0 },
+        "deliveryKey": { "$ref": "#/$defs/key" },
+        "candidateSha": { "$ref": "#/$defs/sha" },
+        "state": { "enum": ["PENDING", "FAILED", "INTEGRATED_VERIFIED"] },
+        "integratedSha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" },
+        "failureCode": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

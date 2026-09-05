@@ -1,0 +1,242 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/aggregate-delivery-package-v2.json",
+  "title": "OES V2 Aggregate Delivery Package",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "packageFingerprint",
+    "packageVersion",
+    "evidenceGeneration",
+    "invalidatedEvidence",
+    "coordinationKey",
+    "ownerTaskId",
+    "executionMode",
+    "artifactRoot",
+    "packagePath",
+    "confirmationFingerprint",
+    "childRoster",
+    "deliveryPackages",
+    "dependencyOrder",
+    "integrationContract",
+    "aggregateAcceptance",
+    "evidenceBasisFingerprint",
+    "execution"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "kind": { "const": "OES_AGGREGATE_DELIVERY_PACKAGE" },
+    "packageFingerprint": { "$ref": "#/$defs/digest" },
+    "packageVersion": { "type": "integer", "minimum": 1 },
+    "evidenceGeneration": { "type": "integer", "minimum": 1 },
+    "invalidatedEvidence": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "coordinationKey": { "$ref": "#/$defs/key" },
+    "ownerTaskId": { "type": "string", "minLength": 1 },
+    "executionMode": { "enum": ["REPOSITORY", "HOST_LOCAL"] },
+    "artifactRoot": { "$ref": "#/$defs/absolutePath" },
+    "packagePath": {
+      "type": "string",
+      "pattern": "^/.+/aggregate-delivery-package\\.json$"
+    },
+    "confirmationFingerprint": { "$ref": "#/$defs/digest" },
+    "childRoster": { "$ref": "#/$defs/reference" },
+    "deliveryPackages": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/deliveryPackage" }
+    },
+    "dependencyOrder": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/key" }
+    },
+    "integrationContract": { "$ref": "#/$defs/nonEmptyStringList" },
+    "aggregateAcceptance": { "$ref": "#/$defs/nonEmptyStringList" },
+    "evidenceBasisFingerprint": { "$ref": "#/$defs/digest" },
+    "execution": { "$ref": "#/$defs/execution" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "executionMode": { "const": "REPOSITORY" } } },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "repository": { "$ref": "#/$defs/repository" },
+              "hostLocal": { "const": null }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "executionMode": { "const": "HOST_LOCAL" } } },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "repository": { "const": null },
+              "hostLocal": { "$ref": "#/$defs/hostLocal" },
+              "aggregateCi": { "$ref": "#/$defs/notApplicableEvidence" }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "key": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "absolutePath": { "type": "string", "pattern": "^/" },
+    "nonEmptyStringList": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "fingerprint"],
+      "properties": {
+        "path": { "$ref": "#/$defs/absolutePath" },
+        "sha256": { "$ref": "#/$defs/digest" },
+        "fingerprint": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "nullableReference": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["path", "sha256", "fingerprint"],
+      "properties": {
+        "path": { "$ref": "#/$defs/absolutePath" },
+        "sha256": { "$ref": "#/$defs/digest" },
+        "fingerprint": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "deliveryPackage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deliveryKey",
+        "ownerTaskId",
+        "packagePath",
+        "packageSha256",
+        "packageFingerprint",
+        "acceptedCandidateSha",
+        "acceptedOperationFingerprint"
+      ],
+      "properties": {
+        "deliveryKey": { "$ref": "#/$defs/key" },
+        "ownerTaskId": { "type": "string", "minLength": 1 },
+        "packagePath": { "$ref": "#/$defs/absolutePath" },
+        "packageSha256": { "$ref": "#/$defs/digest" },
+        "packageFingerprint": { "$ref": "#/$defs/digest" },
+        "acceptedCandidateSha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" },
+        "acceptedOperationFingerprint": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "basisFingerprint", "evidence"],
+      "properties": {
+        "status": {
+          "enum": ["PENDING", "PASSED", "FAILED", "INVALIDATED", "NOT_APPLICABLE"]
+        },
+        "basisFingerprint": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+        "evidence": { "$ref": "#/$defs/nullableReference" }
+      }
+    },
+    "notApplicableEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "basisFingerprint", "evidence"],
+      "properties": {
+        "status": { "const": "NOT_APPLICABLE" },
+        "basisFingerprint": { "const": null },
+        "evidence": { "const": null }
+      }
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "baseSha",
+        "aggregateCandidateSha",
+        "aggregateBranch",
+        "pullRequestNumber",
+        "mergeQueueEntryId",
+        "mergeSha"
+      ],
+      "properties": {
+        "baseSha": { "$ref": "#/$defs/sha" },
+        "aggregateCandidateSha": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "aggregateBranch": {
+          "type": "string",
+          "pattern": "^codex/coordination/[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "pullRequestNumber": { "type": ["integer", "null"], "minimum": 1 },
+        "mergeQueueEntryId": { "type": ["string", "null"] },
+        "mergeSha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" }
+      }
+    },
+    "hostLocal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operationSetFingerprint",
+        "repositoryModified",
+        "realParallelism",
+        "crossOperationIntegration"
+      ],
+      "properties": {
+        "operationSetFingerprint": { "$ref": "#/$defs/digest" },
+        "repositoryModified": { "const": false },
+        "realParallelism": { "type": "boolean" },
+        "crossOperationIntegration": { "type": "boolean" }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "hostLocal",
+        "aggregateRv",
+        "aggregateCi",
+        "postCheck",
+        "remainingRisk",
+        "cleanup"
+      ],
+      "properties": {
+        "repository": { "type": ["object", "null"] },
+        "hostLocal": { "type": ["object", "null"] },
+        "aggregateRv": { "$ref": "#/$defs/evidence" },
+        "aggregateCi": { "$ref": "#/$defs/evidence" },
+        "postCheck": { "$ref": "#/$defs/evidence" },
+        "remainingRisk": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "cleanup": { "enum": ["PENDING", "VERIFIED"] }
+      }
+    }
+  }
+}

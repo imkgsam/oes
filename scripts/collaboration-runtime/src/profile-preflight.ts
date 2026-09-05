@@ -380,7 +380,7 @@ export function readApprovalTelemetry(
   let approvalEventCount = 0
   let normalPermissionPromptCount = 0
   const contexts: EffectivePermissionContext[] = []
-  const legacyPairs: { approvalPolicy: string; approvalsReviewer: string }[] = []
+  const observedPairs: { approvalPolicy: string; approvalsReviewer: string }[] = []
   const turnFingerprints = new Map<string, string>()
   let contextIndex = 0
   for (const line of bytes.toString('utf8').split(/\r?\n/)) {
@@ -398,7 +398,7 @@ export function readApprovalTelemetry(
     if (event.type === 'turn_context' && payload) {
       const approvalPolicy = String(payload.approval_policy)
       const approvalsReviewer = String(payload.approvals_reviewer)
-      legacyPairs.push({ approvalPolicy, approvalsReviewer })
+      observedPairs.push({ approvalPolicy, approvalsReviewer })
       if (expectation) {
         const permissionProfile =
           payload.permission_profile && typeof payload.permission_profile === 'object'
@@ -468,11 +468,11 @@ export function readApprovalTelemetry(
     if (['request_user_input', 'user_approval_request'].includes(String(payloadType)))
       normalPermissionPromptCount += 1
   }
-  if (!legacyPairs.length) fail('APPROVAL_TELEMETRY_CONTEXT_MISSING', eventSource)
+  if (!observedPairs.length) fail('APPROVAL_TELEMETRY_CONTEXT_MISSING', eventSource)
   const pair = expectation
     ? approvalPair(expectation.approvalMode)
     : { approvalPolicy: 'on-request' as const, approvalsReviewer: 'auto_review' as const }
-  const mismatch = legacyPairs.find(
+  const mismatch = observedPairs.find(
     (context) =>
       context.approvalPolicy !== pair.approvalPolicy ||
       context.approvalsReviewer !== pair.approvalsReviewer
@@ -556,10 +556,9 @@ export function verifyEffectiveProfileReport(
       `${report.ownerTaskId}:${report.transitionId}`
     )
   const installedTopology = readInstalledProfileResourceTopology(report.profile.path)
-  if (report.resourceTopology === undefined) {
-    if (installedTopology.resourceTopologyVersion !== 'pre-cutover-v1')
-      fail('STABLE_PROFILE_REPORT_TOPOLOGY_MISSING', report.ownerTaskId)
-  } else if (canonicalJson(report.resourceTopology) !== canonicalJson(installedTopology))
+  if (report.resourceTopology === undefined)
+    fail('V2_PROFILE_REPORT_TOPOLOGY_MISSING', report.ownerTaskId)
+  else if (canonicalJson(report.resourceTopology) !== canonicalJson(installedTopology))
     fail('PROFILE_RESOURCE_TOPOLOGY_READBACK_MISMATCH', report.ownerTaskId)
   const declared = new Set(report.declaredCapabilities)
   const observed = new Map<CapabilityName, CapabilityObservation>()

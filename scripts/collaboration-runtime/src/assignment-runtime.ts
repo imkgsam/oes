@@ -15,8 +15,8 @@ import { DatabaseSync } from 'node:sqlite'
 import { canonicalJson, objectFingerprint, sha256 } from './canonical.ts'
 import { fail } from './errors.ts'
 import {
-  ASSIGNMENT_CHILD_ROLES,
-  FEATURE_REPLAN_INVALIDATION_CONDITIONS,
+  ASSIGNMENT_CHILD_KINDS,
+  DELIVERY_TOPOLOGY_INVALIDATION_CONDITIONS,
   type ActiveChildAssignment,
   type AssignmentResult,
   type AssignmentResultArtifactPayload,
@@ -30,27 +30,27 @@ import {
   type AssignmentWipSnapshot,
   type ChildAssignmentRequest,
   type CompletedSliceBinding,
-  type FeatureOwnerResources,
-  type FeatureReplanDecision,
-  type FeatureReplanRequest,
-  type FeatureReplanRequestInput,
-  type FeatureReplanSibling,
-  type FeatureReplanSiblingInput,
-  type FeatureWipSnapshot,
-  type StageWipAuthorityBinding
+  type DeliveryOwnerResources,
+  type DeliveryTopologyDecision,
+  type DeliveryTopologyRequest,
+  type DeliveryTopologyRequestInput,
+  type DeliveryTopologySibling,
+  type DeliveryTopologySiblingInput,
+  type DeliveryWipSnapshot,
+  type CoordinationWipAuthorityBinding
 } from './assignment-runtime.types.ts'
 
 const FINGERPRINT = /^[0-9a-f]{64}$/
 const GIT_SHA = /^[0-9a-f]{40}$/
-const FEATURE_KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+const DELIVERY_KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const TOKEN = /^[A-Za-z0-9][A-Za-z0-9._:/-]*$/
 const ACTION = /^[A-Z][A-Z0-9_]*$/
 const UNSIGNED_INTEGER = /^(?:0|[1-9][0-9]*)$/
 const REPOSITORY_WRITE_RANGE = /^[A-Za-z0-9._@-]+(?:\/[A-Za-z0-9._@-]+)*(?:\/\*\*)?$/
 const CANONICAL_MAXIMUMS: AssignmentWipCeiling = {
-  maxActiveFeatureLeads: 3,
-  maxActiveImplementationTasksPerFeature: 3,
-  maxActiveFeatureReviewsPerFeature: 1
+  maxActiveDeliveryOwners: 3,
+  maxActiveBoundedHelpersPerDelivery: 3,
+  maxActiveReviewVerifiersPerDelivery: 1
 }
 
 /** Requires an object to contain exactly the declared runtime fields. */
@@ -91,10 +91,10 @@ function requireStateVersion(value: unknown, field: string): asserts value is nu
   if (!Number.isInteger(value) || Number(value) < 1) fail('ASSIGNMENT_INVALID_STATE_VERSION', field)
 }
 
-/** Requires one feature or Stage key. */
-function requireFeatureKey(value: unknown, field: string): asserts value is string {
-  if (typeof value !== 'string' || !FEATURE_KEY.test(value))
-    fail('ASSIGNMENT_INVALID_FEATURE_KEY', field)
+/** Requires one delivery or Coordination key. */
+function requireDeliveryKey(value: unknown, field: string): asserts value is string {
+  if (typeof value !== 'string' || !DELIVERY_KEY.test(value))
+    fail('ASSIGNMENT_INVALID_DELIVERY_KEY', field)
 }
 
 /** Requires one explicit next action without embedding an interpreter payload. */
@@ -125,8 +125,7 @@ function validateResultArtifactRootIdentity(
     fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_DEVICE_INVALID', field)
   if (typeof value.inode !== 'string' || !UNSIGNED_INTEGER.test(value.inode))
     fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_INODE_INVALID', field)
-  if (value.fileType !== 'DIRECTORY')
-    fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_TYPE_INVALID', field)
+  if (value.fileType !== 'DIRECTORY') fail('ASSIGNMENT_RESULT_ARTIFACT_ROOT_TYPE_INVALID', field)
   return value
 }
 
@@ -240,7 +239,7 @@ function normalizeWriteRanges(values: unknown, field: string, allowEmpty = false
       !REPOSITORY_WRITE_RANGE.test(value) ||
       segments.some((segment) => ['.', '..'].includes(segment))
     )
-      fail('FEATURE_REPLAN_WRITE_RANGE_INVALID', `${field}:${value}`)
+      fail('DELIVERY_TOPOLOGY_WRITE_RANGE_INVALID', `${field}:${value}`)
   }
   return normalized
 }
@@ -250,21 +249,21 @@ function validateCeiling(ceiling: AssignmentWipCeiling): AssignmentWipCeiling {
   requireExactKeys(
     ceiling,
     [
-      'maxActiveFeatureLeads',
-      'maxActiveImplementationTasksPerFeature',
-      'maxActiveFeatureReviewsPerFeature'
+      'maxActiveDeliveryOwners',
+      'maxActiveBoundedHelpersPerDelivery',
+      'maxActiveReviewVerifiersPerDelivery'
     ],
     'ceiling'
   )
   if (
-    !Number.isInteger(ceiling.maxActiveFeatureLeads) ||
-    ceiling.maxActiveFeatureLeads < 1 ||
-    ceiling.maxActiveFeatureLeads > CANONICAL_MAXIMUMS.maxActiveFeatureLeads ||
-    !Number.isInteger(ceiling.maxActiveImplementationTasksPerFeature) ||
-    ceiling.maxActiveImplementationTasksPerFeature < 1 ||
-    ceiling.maxActiveImplementationTasksPerFeature >
-      CANONICAL_MAXIMUMS.maxActiveImplementationTasksPerFeature ||
-    ceiling.maxActiveFeatureReviewsPerFeature !== 1
+    !Number.isInteger(ceiling.maxActiveDeliveryOwners) ||
+    ceiling.maxActiveDeliveryOwners < 1 ||
+    ceiling.maxActiveDeliveryOwners > CANONICAL_MAXIMUMS.maxActiveDeliveryOwners ||
+    !Number.isInteger(ceiling.maxActiveBoundedHelpersPerDelivery) ||
+    ceiling.maxActiveBoundedHelpersPerDelivery < 1 ||
+    ceiling.maxActiveBoundedHelpersPerDelivery >
+      CANONICAL_MAXIMUMS.maxActiveBoundedHelpersPerDelivery ||
+    ceiling.maxActiveReviewVerifiersPerDelivery !== 1
   )
     fail('ASSIGNMENT_WIP_CEILING_INVALID', canonicalJson(ceiling))
   return { ...ceiling }
@@ -272,44 +271,44 @@ function validateCeiling(ceiling: AssignmentWipCeiling): AssignmentWipCeiling {
 
 /** Derives the complete WIP snapshot from active assignments only. */
 export function deriveAssignmentWip(assignments: ActiveChildAssignment[]): AssignmentWipSnapshot {
-  const byFeature = new Map<string, FeatureWipSnapshot>()
-  let activeFeatureLeads = 0
+  const byDelivery = new Map<string, DeliveryWipSnapshot>()
+  let activeDeliveryOwners = 0
   for (const assignment of assignments) {
-    if (assignment.childRole === 'FEATURE_LEAD') {
-      activeFeatureLeads += 1
+    if (assignment.childKind === 'DO') {
+      activeDeliveryOwners += 1
       continue
     }
-    const current = byFeature.get(assignment.featureKey) ?? {
-      featureKey: assignment.featureKey,
-      activeImplementationTasks: 0,
-      activeFeatureReviews: 0
+    const current = byDelivery.get(assignment.deliveryKey) ?? {
+      deliveryKey: assignment.deliveryKey,
+      activeBoundedHelpers: 0,
+      activeReviewVerifiers: 0
     }
-    if (assignment.childRole === 'IMPLEMENTATION_TASK') current.activeImplementationTasks += 1
-    if (assignment.childRole === 'FEATURE_REVIEW') current.activeFeatureReviews += 1
-    byFeature.set(assignment.featureKey, current)
+    if (assignment.childKind === 'BOUNDED_HELPER') current.activeBoundedHelpers += 1
+    if (assignment.childKind === 'RV') current.activeReviewVerifiers += 1
+    byDelivery.set(assignment.deliveryKey, current)
   }
   return {
-    activeFeatureLeads,
-    features: [...byFeature.values()].sort((left, right) =>
-      left.featureKey.localeCompare(right.featureKey)
+    activeDeliveryOwners,
+    deliveries: [...byDelivery.values()].sort((left, right) =>
+      left.deliveryKey.localeCompare(right.deliveryKey)
     )
   }
 }
 
 /** Fails before persistence when any derived WIP count exceeds its ceiling. */
 function requireWipWithinCeiling(wip: AssignmentWipSnapshot, ceiling: AssignmentWipCeiling): void {
-  if (wip.activeFeatureLeads > ceiling.maxActiveFeatureLeads)
-    fail('ASSIGNMENT_FEATURE_LEAD_WIP_EXCEEDED', String(wip.activeFeatureLeads))
-  for (const feature of wip.features) {
-    if (feature.activeImplementationTasks > ceiling.maxActiveImplementationTasksPerFeature)
+  if (wip.activeDeliveryOwners > ceiling.maxActiveDeliveryOwners)
+    fail('ASSIGNMENT_DO_WIP_EXCEEDED', String(wip.activeDeliveryOwners))
+  for (const delivery of wip.deliveries) {
+    if (delivery.activeBoundedHelpers > ceiling.maxActiveBoundedHelpersPerDelivery)
       fail(
-        'ASSIGNMENT_IMPLEMENTATION_TASK_WIP_EXCEEDED',
-        `${feature.featureKey}:${feature.activeImplementationTasks}`
+        'ASSIGNMENT_BOUNDED_HELPER_WIP_EXCEEDED',
+        `${delivery.deliveryKey}:${delivery.activeBoundedHelpers}`
       )
-    if (feature.activeFeatureReviews > ceiling.maxActiveFeatureReviewsPerFeature)
+    if (delivery.activeReviewVerifiers > ceiling.maxActiveReviewVerifiersPerDelivery)
       fail(
-        'ASSIGNMENT_FEATURE_REVIEW_WIP_EXCEEDED',
-        `${feature.featureKey}:${feature.activeFeatureReviews}`
+        'ASSIGNMENT_RV_WIP_EXCEEDED',
+        `${delivery.deliveryKey}:${delivery.activeReviewVerifiers}`
       )
   }
 }
@@ -321,10 +320,10 @@ function validateActiveAssignment(assignment: ActiveChildAssignment): void {
     [
       'assignmentId',
       'requestFingerprint',
-      'directExecutionParentTaskId',
+      'parentTaskId',
       'childTaskId',
-      'childRole',
-      'featureKey',
+      'childKind',
+      'deliveryKey',
       'transitionId',
       'dispatchStateVersion',
       'expectedTypedResult',
@@ -337,11 +336,11 @@ function validateActiveAssignment(assignment: ActiveChildAssignment): void {
   )
   requireFingerprint(assignment.assignmentId, 'activeAssignment.assignmentId')
   requireFingerprint(assignment.requestFingerprint, 'activeAssignment.requestFingerprint')
-  requireToken(assignment.directExecutionParentTaskId, 'activeAssignment.directParent')
+  requireToken(assignment.parentTaskId, 'activeAssignment.directParent')
   requireToken(assignment.childTaskId, 'activeAssignment.childTaskId')
-  if (!ASSIGNMENT_CHILD_ROLES.includes(assignment.childRole))
-    fail('ASSIGNMENT_CHILD_ROLE_INVALID', String(assignment.childRole))
-  requireFeatureKey(assignment.featureKey, 'activeAssignment.featureKey')
+  if (!ASSIGNMENT_CHILD_KINDS.includes(assignment.childKind))
+    fail('ASSIGNMENT_CHILD_ROLE_INVALID', String(assignment.childKind))
+  requireDeliveryKey(assignment.deliveryKey, 'activeAssignment.deliveryKey')
   requireToken(assignment.transitionId, 'activeAssignment.transitionId')
   requireStateVersion(assignment.dispatchStateVersion, 'activeAssignment.dispatchStateVersion')
   requireToken(assignment.expectedTypedResult, 'activeAssignment.expectedTypedResult')
@@ -361,8 +360,8 @@ function validateActiveAssignment(assignment: ActiveChildAssignment): void {
     {
       expectedStateVersion: assignment.dispatchStateVersion - 1,
       childTaskId: assignment.childTaskId,
-      childRole: assignment.childRole,
-      featureKey: assignment.featureKey,
+      childKind: assignment.childKind,
+      deliveryKey: assignment.deliveryKey,
       expectedTypedResult: assignment.expectedTypedResult,
       nextLegalActionOnResult: assignment.nextLegalActionOnResult,
       scopeFingerprint: assignment.scopeFingerprint,
@@ -374,15 +373,15 @@ function validateActiveAssignment(assignment: ActiveChildAssignment): void {
     fail('ASSIGNMENT_REQUEST_FINGERPRINT_MISMATCH', assignment.assignmentId)
 }
 
-/** Rejects self-routes and duplicate active Feature ownership before state is trusted. */
+/** Rejects self-routes and duplicate active Delivery Ownership before state is trusted. */
 function validateActiveOwnerRoutes(state: AssignmentRuntimeState): void {
   if (state.activeAssignments.some((assignment) => assignment.childTaskId === state.owner.taskId))
     fail('ASSIGNMENT_SELF_CHILD_ROUTE', state.owner.taskId)
-  const featureKeys = state.activeAssignments
-    .filter((assignment) => assignment.childRole === 'FEATURE_LEAD')
-    .map((assignment) => assignment.featureKey)
-  if (new Set(featureKeys).size !== featureKeys.length)
-    fail('ASSIGNMENT_DUPLICATE_ACTIVE_FEATURE_OWNER', state.stageKey)
+  const deliveryKeys = state.activeAssignments
+    .filter((assignment) => assignment.childKind === 'DO')
+    .map((assignment) => assignment.deliveryKey)
+  if (new Set(deliveryKeys).size !== deliveryKeys.length)
+    fail('ASSIGNMENT_DUPLICATE_ACTIVE_DO', state.coordinationKey)
 }
 
 /** Verifies one immutable result receipt retained for transition-local idempotency. */
@@ -423,8 +422,8 @@ export function validateAssignmentRuntimeState(
       'kind',
       'recordFingerprint',
       'owner',
-      'stageKey',
-      'featureKey',
+      'coordinationKey',
+      'deliveryKey',
       'transitionId',
       'scopeFingerprint',
       'stateVersion',
@@ -433,7 +432,7 @@ export function validateAssignmentRuntimeState(
       'activeAssignments',
       'resultTombstones',
       'wip',
-      'featureReplan',
+      'deliveryTopology',
       'nextLegalAction'
     ],
     'runtimeState'
@@ -447,17 +446,17 @@ export function validateAssignmentRuntimeState(
   )
   if (stateFingerprint !== state.recordFingerprint)
     fail('ASSIGNMENT_STATE_FINGERPRINT_MISMATCH', stateFingerprint)
-  requireExactKeys(state.owner, ['role', 'taskId', 'directExecutionParentTaskId'], 'owner')
-  if (!['STAGE_LEAD', 'FEATURE_LEAD'].includes(state.owner.role))
+  requireExactKeys(state.owner, ['role', 'taskId', 'parentTaskId'], 'owner')
+  if (!['CO', 'DO'].includes(state.owner.role))
     fail('ASSIGNMENT_OWNER_ROLE_INVALID', state.owner.role)
   requireToken(state.owner.taskId, 'owner.taskId')
-  requireToken(state.owner.directExecutionParentTaskId, 'owner.directExecutionParentTaskId')
-  requireFeatureKey(state.stageKey, 'runtimeState.stageKey')
-  requireFeatureKey(state.featureKey, 'runtimeState.featureKey')
+  requireToken(state.owner.parentTaskId, 'owner.parentTaskId')
+  requireDeliveryKey(state.coordinationKey, 'runtimeState.coordinationKey')
+  requireDeliveryKey(state.deliveryKey, 'runtimeState.deliveryKey')
   requireToken(state.transitionId, 'runtimeState.transitionId')
   requireFingerprint(state.scopeFingerprint, 'runtimeState.scopeFingerprint')
   requireStateVersion(state.stateVersion, 'runtimeState.stateVersion')
-  if (!['ACTIVE', 'WAITING_ON_CHILD', 'FEATURE_REPLAN_REQUIRED'].includes(state.status))
+  if (!['ACTIVE', 'WAITING_ON_CHILD', 'DELIVERY_TOPOLOGY_REQUIRED'].includes(state.status))
     fail('ASSIGNMENT_STATE_STATUS_INVALID', state.status)
   validateCeiling(state.ceiling)
   if (!Array.isArray(state.activeAssignments) || !Array.isArray(state.resultTombstones))
@@ -465,44 +464,44 @@ export function validateAssignmentRuntimeState(
   for (const assignment of state.activeAssignments) {
     validateActiveAssignment(assignment)
     if (
-      assignment.directExecutionParentTaskId !== state.owner.taskId ||
+      assignment.parentTaskId !== state.owner.taskId ||
       assignment.transitionId !== state.transitionId
     )
       fail('ASSIGNMENT_STATE_ROUTE_MISMATCH', assignment.assignmentId)
     if (
-      (state.owner.role === 'STAGE_LEAD' && assignment.childRole !== 'FEATURE_LEAD') ||
-      (state.owner.role === 'FEATURE_LEAD' && assignment.childRole === 'FEATURE_LEAD')
+      (state.owner.role === 'CO' && assignment.childKind !== 'DO') ||
+      (state.owner.role === 'DO' && assignment.childKind === 'DO')
     )
-      fail('ASSIGNMENT_OWNER_CHILD_ROUTE_INVALID', assignment.childRole)
-    if (state.owner.role === 'FEATURE_LEAD' && assignment.featureKey !== state.featureKey)
-      fail('ASSIGNMENT_FEATURE_OWNER_SCOPE_MISMATCH', assignment.featureKey)
+      fail('ASSIGNMENT_OWNER_CHILD_ROUTE_INVALID', assignment.childKind)
+    if (state.owner.role === 'DO' && assignment.deliveryKey !== state.deliveryKey)
+      fail('ASSIGNMENT_DO_SCOPE_MISMATCH', assignment.deliveryKey)
     if (assignment.dispatchStateVersion > state.stateVersion)
       fail('ASSIGNMENT_DISPATCH_VERSION_FUTURE', assignment.assignmentId)
   }
   const assignmentIds = state.activeAssignments.map((assignment) => assignment.assignmentId)
   if (new Set(assignmentIds).size !== assignmentIds.length)
-    fail('ASSIGNMENT_DUPLICATE_ACTIVE_ID', state.featureKey)
+    fail('ASSIGNMENT_DUPLICATE_ACTIVE_ID', state.deliveryKey)
   const activeChildren = state.activeAssignments.map((assignment) => assignment.childTaskId)
   if (new Set(activeChildren).size !== activeChildren.length)
-    fail('ASSIGNMENT_DUPLICATE_ACTIVE_CHILD', state.featureKey)
+    fail('ASSIGNMENT_DUPLICATE_ACTIVE_CHILD', state.deliveryKey)
   const activeRequests = state.activeAssignments.map((assignment) => assignment.requestFingerprint)
   if (new Set(activeRequests).size !== activeRequests.length)
-    fail('ASSIGNMENT_DUPLICATE_ACTIVE_REQUEST', state.featureKey)
+    fail('ASSIGNMENT_DUPLICATE_ACTIVE_REQUEST', state.deliveryKey)
   validateActiveOwnerRoutes(state)
   for (const tombstone of state.resultTombstones) {
     requireExactKeys(tombstone, ['assignment', 'resultFingerprint', 'receipt'], 'resultTombstone')
     validateActiveAssignment(tombstone.assignment)
     if (
-      tombstone.assignment.directExecutionParentTaskId !== state.owner.taskId ||
+      tombstone.assignment.parentTaskId !== state.owner.taskId ||
       tombstone.assignment.transitionId !== state.transitionId ||
       tombstone.assignment.dispatchStateVersion > state.stateVersion
     )
       fail('ASSIGNMENT_TOMBSTONE_ROUTE_MISMATCH', tombstone.assignment.assignmentId)
     if (
-      (state.owner.role === 'STAGE_LEAD' && tombstone.assignment.childRole !== 'FEATURE_LEAD') ||
-      (state.owner.role === 'FEATURE_LEAD' &&
-        (tombstone.assignment.childRole === 'FEATURE_LEAD' ||
-          tombstone.assignment.featureKey !== state.featureKey))
+      (state.owner.role === 'CO' && tombstone.assignment.childKind !== 'DO') ||
+      (state.owner.role === 'DO' &&
+        (tombstone.assignment.childKind === 'DO' ||
+          tombstone.assignment.deliveryKey !== state.deliveryKey))
     )
       fail('ASSIGNMENT_TOMBSTONE_OWNER_SCOPE_MISMATCH', tombstone.assignment.assignmentId)
     requireFingerprint(tombstone.resultFingerprint, 'resultTombstone.resultFingerprint')
@@ -513,10 +512,9 @@ export function validateAssignmentRuntimeState(
     )
       fail('ASSIGNMENT_TOMBSTONE_RECEIPT_MISMATCH', tombstone.assignment.assignmentId)
     const receiptWipCount =
-      tombstone.receipt.wip.activeFeatureLeads +
-      tombstone.receipt.wip.features.reduce(
-        (total, feature) =>
-          total + feature.activeImplementationTasks + feature.activeFeatureReviews,
+      tombstone.receipt.wip.activeDeliveryOwners +
+      tombstone.receipt.wip.deliveries.reduce(
+        (total, delivery) => total + delivery.activeBoundedHelpers + delivery.activeReviewVerifiers,
         0
       )
     if (receiptWipCount !== tombstone.receipt.remainingAssignments)
@@ -536,43 +534,53 @@ export function validateAssignmentRuntimeState(
     new Set(completedIds).size !== completedIds.length ||
     completedIds.some((id) => assignmentIds.includes(id))
   )
-    fail('ASSIGNMENT_TOMBSTONE_ID_CONFLICT', state.featureKey)
+    fail('ASSIGNMENT_TOMBSTONE_ID_CONFLICT', state.deliveryKey)
   if (new Set(completedRequests).size !== completedRequests.length)
-    fail('ASSIGNMENT_TOMBSTONE_REQUEST_CONFLICT', state.featureKey)
+    fail('ASSIGNMENT_TOMBSTONE_REQUEST_CONFLICT', state.deliveryKey)
   if (completedRequests.some((request) => activeRequests.includes(request)))
-    fail('ASSIGNMENT_ACTIVE_COMPLETED_REQUEST_CONFLICT', state.featureKey)
+    fail('ASSIGNMENT_ACTIVE_COMPLETED_REQUEST_CONFLICT', state.deliveryKey)
   if (
     [...assignmentIds].sort().join() !== assignmentIds.join() ||
     [...completedIds].sort().join() !== completedIds.join()
   )
-    fail('ASSIGNMENT_STATE_COLLECTION_ORDER_INVALID', state.featureKey)
+    fail('ASSIGNMENT_STATE_COLLECTION_ORDER_INVALID', state.deliveryKey)
   const derived = deriveAssignmentWip(state.activeAssignments)
   if (canonicalJson(derived) !== canonicalJson(state.wip))
-    fail('ASSIGNMENT_WIP_SNAPSHOT_MISMATCH', state.featureKey)
+    fail('ASSIGNMENT_WIP_SNAPSHOT_MISMATCH', state.deliveryKey)
   requireWipWithinCeiling(derived, state.ceiling)
   requireAction(state.nextLegalAction, 'runtimeState.nextLegalAction')
-  if (state.featureReplan !== null) {
+  if (state.deliveryTopology !== null) {
     requireExactKeys(
-      state.featureReplan,
+      state.deliveryTopology,
       ['decision', 'requestFingerprint', 'decisionFingerprint'],
-      'featureReplan'
+      'deliveryTopology'
     )
-    if (!['FEATURE_REPLAN_REQUIRED', 'ATOMIC_CONTINUATION'].includes(state.featureReplan.decision))
-      fail('FEATURE_REPLAN_DECISION_INVALID', state.featureReplan.decision)
-    requireFingerprint(state.featureReplan.requestFingerprint, 'featureReplan.requestFingerprint')
-    requireFingerprint(state.featureReplan.decisionFingerprint, 'featureReplan.decisionFingerprint')
+    if (
+      !['DELIVERY_TOPOLOGY_REQUIRED', 'ATOMIC_CONTINUATION'].includes(
+        state.deliveryTopology.decision
+      )
+    )
+      fail('DELIVERY_TOPOLOGY_DECISION_INVALID', state.deliveryTopology.decision)
+    requireFingerprint(
+      state.deliveryTopology.requestFingerprint,
+      'deliveryTopology.requestFingerprint'
+    )
+    requireFingerprint(
+      state.deliveryTopology.decisionFingerprint,
+      'deliveryTopology.decisionFingerprint'
+    )
   }
   const expectedStatus =
-    state.featureReplan?.decision === 'FEATURE_REPLAN_REQUIRED'
-      ? 'FEATURE_REPLAN_REQUIRED'
+    state.deliveryTopology?.decision === 'DELIVERY_TOPOLOGY_REQUIRED'
+      ? 'DELIVERY_TOPOLOGY_REQUIRED'
       : state.activeAssignments.length
         ? 'WAITING_ON_CHILD'
         : 'ACTIVE'
   if (state.status !== expectedStatus)
     fail('ASSIGNMENT_STATE_MARKER_MISMATCH', `${state.status}/${expectedStatus}`)
   if (
-    state.status === 'FEATURE_REPLAN_REQUIRED' &&
-    state.nextLegalAction !== 'RETURN_FEATURE_REPLAN_REQUIRED_TO_DIRECT_PARENT'
+    state.status === 'DELIVERY_TOPOLOGY_REQUIRED' &&
+    state.nextLegalAction !== 'RETURN_DELIVERY_TOPOLOGY_REQUIRED_TO_OWNER'
   )
     fail('ASSIGNMENT_NEXT_ACTION_STATE_MISMATCH', state.nextLegalAction)
   return state
@@ -586,7 +594,7 @@ export function createAssignmentResultArtifact(
     input,
     [
       'assignmentId',
-      'directExecutionParentTaskId',
+      'parentTaskId',
       'childTaskId',
       'transitionId',
       'dispatchStateVersion',
@@ -617,7 +625,7 @@ export function validateAssignmentResultArtifact(
       'kind',
       'artifactFingerprint',
       'assignmentId',
-      'directExecutionParentTaskId',
+      'parentTaskId',
       'childTaskId',
       'transitionId',
       'dispatchStateVersion',
@@ -630,10 +638,7 @@ export function validateAssignmentResultArtifact(
     fail('ASSIGNMENT_RESULT_ARTIFACT_KIND_INVALID', artifact.kind)
   requireFingerprint(artifact.artifactFingerprint, 'assignmentResultArtifact.artifactFingerprint')
   requireFingerprint(artifact.assignmentId, 'assignmentResultArtifact.assignmentId')
-  requireToken(
-    artifact.directExecutionParentTaskId,
-    'assignmentResultArtifact.directExecutionParentTaskId'
-  )
+  requireToken(artifact.parentTaskId, 'assignmentResultArtifact.parentTaskId')
   requireToken(artifact.childTaskId, 'assignmentResultArtifact.childTaskId')
   requireToken(artifact.transitionId, 'assignmentResultArtifact.transitionId')
   requireStateVersion(
@@ -651,13 +656,13 @@ export function validateAssignmentResultArtifact(
   return artifact
 }
 
-/** Builds and fingerprints one direct assignment result envelope. */
+/** Builds and fingerprints one bounded assignment result envelope. */
 export function createAssignmentResult(input: AssignmentResultInput): AssignmentResult {
   requireExactKeys(
     input,
     [
       'assignmentId',
-      'directExecutionParentTaskId',
+      'parentTaskId',
       'childTaskId',
       'transitionId',
       'dispatchStateVersion',
@@ -687,7 +692,7 @@ export function validateAssignmentResult(result: AssignmentResult): AssignmentRe
       'kind',
       'resultFingerprint',
       'assignmentId',
-      'directExecutionParentTaskId',
+      'parentTaskId',
       'childTaskId',
       'transitionId',
       'dispatchStateVersion',
@@ -700,7 +705,7 @@ export function validateAssignmentResult(result: AssignmentResult): AssignmentRe
     fail('ASSIGNMENT_RESULT_KIND_INVALID', result.kind)
   requireFingerprint(result.resultFingerprint, 'assignmentResult.resultFingerprint')
   requireFingerprint(result.assignmentId, 'assignmentResult.assignmentId')
-  requireToken(result.directExecutionParentTaskId, 'assignmentResult.directParent')
+  requireToken(result.parentTaskId, 'assignmentResult.directParent')
   requireToken(result.childTaskId, 'assignmentResult.childTaskId')
   requireToken(result.transitionId, 'assignmentResult.transitionId')
   requireStateVersion(result.dispatchStateVersion, 'assignmentResult.dispatchStateVersion')
@@ -800,7 +805,7 @@ function reopenAssignmentResultArtifact(
     fail('ASSIGNMENT_RESULT_ARTIFACT_REFERENCE_MISMATCH', result.resultArtifact.path)
   const exactBinding = {
     assignmentId: assignment.assignmentId,
-    directExecutionParentTaskId: assignment.directExecutionParentTaskId,
+    parentTaskId: assignment.parentTaskId,
     childTaskId: assignment.childTaskId,
     transitionId: assignment.transitionId,
     dispatchStateVersion: assignment.dispatchStateVersion,
@@ -809,7 +814,7 @@ function reopenAssignmentResultArtifact(
   }
   const artifactBinding = {
     assignmentId: artifact.assignmentId,
-    directExecutionParentTaskId: artifact.directExecutionParentTaskId,
+    parentTaskId: artifact.parentTaskId,
     childTaskId: artifact.childTaskId,
     transitionId: artifact.transitionId,
     dispatchStateVersion: artifact.dispatchStateVersion,
@@ -820,7 +825,7 @@ function reopenAssignmentResultArtifact(
     fail('ASSIGNMENT_RESULT_ARTIFACT_ASSIGNMENT_MISMATCH', assignment.assignmentId)
   const envelopeBinding = {
     assignmentId: result.assignmentId,
-    directExecutionParentTaskId: result.directExecutionParentTaskId,
+    parentTaskId: result.parentTaskId,
     childTaskId: result.childTaskId,
     transitionId: result.transitionId,
     dispatchStateVersion: result.dispatchStateVersion,
@@ -828,7 +833,7 @@ function reopenAssignmentResultArtifact(
   }
   const artifactEnvelopeBinding = {
     assignmentId: artifact.assignmentId,
-    directExecutionParentTaskId: artifact.directExecutionParentTaskId,
+    parentTaskId: artifact.parentTaskId,
     childTaskId: artifact.childTaskId,
     transitionId: artifact.transitionId,
     dispatchStateVersion: artifact.dispatchStateVersion,
@@ -840,11 +845,13 @@ function reopenAssignmentResultArtifact(
 }
 
 /** Builds a normalized sibling extraction binding and its scope fingerprint. */
-export function createFeatureReplanSibling(input: FeatureReplanSiblingInput): FeatureReplanSibling {
+export function createDeliveryTopologySibling(
+  input: DeliveryTopologySiblingInput
+): DeliveryTopologySibling {
   requireExactKeys(
     input,
     [
-      'featureKey',
+      'deliveryKey',
       'objective',
       'scope',
       'protectedScope',
@@ -854,26 +861,26 @@ export function createFeatureReplanSibling(input: FeatureReplanSiblingInput): Fe
       'requiredCapabilityFingerprint',
       'independenceProof'
     ],
-    'featureReplanSiblingInput'
+    'deliveryTopologySiblingInput'
   )
-  requireFeatureKey(input.featureKey, 'sibling.featureKey')
+  requireDeliveryKey(input.deliveryKey, 'sibling.deliveryKey')
   if (typeof input.objective !== 'string' || input.objective.length === 0)
-    fail('FEATURE_REPLAN_OBJECTIVE_INVALID', input.featureKey)
+    fail('DELIVERY_TOPOLOGY_OBJECTIVE_INVALID', input.deliveryKey)
   requireFingerprint(input.requiredCapabilityFingerprint, 'sibling.requiredCapabilityFingerprint')
   requireExactKeys(
     input.independenceProof,
     [
       'independentCandidate',
-      'independentFeatureReview',
+      'independentReviewVerification',
       'independentPullRequest',
       'safeIndependentMainMerge'
     ],
     'sibling.independenceProof'
   )
   if (Object.values(input.independenceProof).some((value) => typeof value !== 'boolean'))
-    fail('FEATURE_REPLAN_PROOF_INVALID', input.featureKey)
+    fail('DELIVERY_TOPOLOGY_PROOF_INVALID', input.deliveryKey)
   const core = {
-    featureKey: input.featureKey,
+    deliveryKey: input.deliveryKey,
     objective: input.objective,
     scope: normalizeStrings(input.scope, 'sibling.scope'),
     protectedScope: normalizeStrings(input.protectedScope, 'sibling.protectedScope'),
@@ -889,35 +896,35 @@ export function createFeatureReplanSibling(input: FeatureReplanSiblingInput): Fe
   }
 }
 
-/** Extracts an exact self-hashed Stage WIP authority from one validated Stage-owned state. */
-export function createStageWipAuthorityBinding(
-  stageState: AssignmentRuntimeState
-): StageWipAuthorityBinding {
-  validateAssignmentRuntimeState(stageState)
-  if (stageState.owner.role !== 'STAGE_LEAD')
-    fail('FEATURE_REPLAN_STAGE_AUTHORITY_ROLE_INVALID', stageState.owner.role)
-  const featureAssignments = stageState.activeAssignments.filter(
-    (assignment) => assignment.childRole === 'FEATURE_LEAD'
+/** Extracts an exact self-hashed Coordination WIP authority from one validated coordination-owned state. */
+export function createCoordinationWipAuthorityBinding(
+  coordinationState: AssignmentRuntimeState
+): CoordinationWipAuthorityBinding {
+  validateAssignmentRuntimeState(coordinationState)
+  if (coordinationState.owner.role !== 'CO')
+    fail('DELIVERY_TOPOLOGY_COORDINATION_AUTHORITY_ROLE_INVALID', coordinationState.owner.role)
+  const deliveryAssignments = coordinationState.activeAssignments.filter(
+    (assignment) => assignment.childKind === 'DO'
   )
-  const activeFeatureKeys = featureAssignments
-    .map((assignment) => assignment.featureKey)
+  const activeDeliveryKeys = deliveryAssignments
+    .map((assignment) => assignment.deliveryKey)
     .sort((left, right) => left.localeCompare(right))
   if (
-    featureAssignments.length !== stageState.wip.activeFeatureLeads ||
-    new Set(activeFeatureKeys).size !== activeFeatureKeys.length
+    deliveryAssignments.length !== coordinationState.wip.activeDeliveryOwners ||
+    new Set(activeDeliveryKeys).size !== activeDeliveryKeys.length
   )
-    fail('FEATURE_REPLAN_STAGE_AUTHORITY_WIP_INVALID', stageState.stageKey)
+    fail('DELIVERY_TOPOLOGY_COORDINATION_AUTHORITY_WIP_INVALID', coordinationState.coordinationKey)
   const base = {
     schemaVersion: 1 as const,
-    kind: 'OES_STAGE_WIP_AUTHORITY_BINDING' as const,
-    stageLeadTaskId: stageState.owner.taskId,
-    stageKey: stageState.stageKey,
-    transitionId: stageState.transitionId,
-    stageStateVersion: stageState.stateVersion,
-    stageStateFingerprint: stageState.recordFingerprint,
-    activeFeatureLeads: stageState.wip.activeFeatureLeads,
-    activeFeatureKeys,
-    ceiling: { ...stageState.ceiling }
+    kind: 'OES_COORDINATION_WIP_AUTHORITY_BINDING' as const,
+    coordinationOwnerTaskId: coordinationState.owner.taskId,
+    coordinationKey: coordinationState.coordinationKey,
+    transitionId: coordinationState.transitionId,
+    coordinationStateVersion: coordinationState.stateVersion,
+    coordinationStateFingerprint: coordinationState.recordFingerprint,
+    activeDeliveryOwners: coordinationState.wip.activeDeliveryOwners,
+    activeDeliveryKeys,
+    ceiling: { ...coordinationState.ceiling }
   }
   return {
     ...base,
@@ -925,74 +932,90 @@ export function createStageWipAuthorityBinding(
   }
 }
 
-/** Reopens the exact Stage WIP authority binding and its self-hash. */
-function validateStageWipAuthorityBinding(
-  authority: StageWipAuthorityBinding
-): StageWipAuthorityBinding {
+/** Reopens the exact Coordination WIP authority binding and its self-hash. */
+function validateCoordinationWipAuthorityBinding(
+  authority: CoordinationWipAuthorityBinding
+): CoordinationWipAuthorityBinding {
   requireExactKeys(
     authority,
     [
       'schemaVersion',
       'kind',
       'authorityFingerprint',
-      'stageLeadTaskId',
-      'stageKey',
+      'coordinationOwnerTaskId',
+      'coordinationKey',
       'transitionId',
-      'stageStateVersion',
-      'stageStateFingerprint',
-      'activeFeatureLeads',
-      'activeFeatureKeys',
+      'coordinationStateVersion',
+      'coordinationStateFingerprint',
+      'activeDeliveryOwners',
+      'activeDeliveryKeys',
       'ceiling'
     ],
-    'stageWipAuthority'
+    'coordinationWipAuthority'
   )
-  if (authority.schemaVersion !== 1 || authority.kind !== 'OES_STAGE_WIP_AUTHORITY_BINDING')
-    fail('FEATURE_REPLAN_STAGE_AUTHORITY_KIND_INVALID', authority.kind)
-  requireFingerprint(authority.authorityFingerprint, 'stageWipAuthority.authorityFingerprint')
-  requireToken(authority.stageLeadTaskId, 'stageWipAuthority.stageLeadTaskId')
-  requireFeatureKey(authority.stageKey, 'stageWipAuthority.stageKey')
-  requireToken(authority.transitionId, 'stageWipAuthority.transitionId')
-  requireStateVersion(authority.stageStateVersion, 'stageWipAuthority.stageStateVersion')
-  requireFingerprint(authority.stageStateFingerprint, 'stageWipAuthority.stageStateFingerprint')
-  if (!Number.isInteger(authority.activeFeatureLeads) || authority.activeFeatureLeads < 1)
-    fail('FEATURE_REPLAN_STAGE_AUTHORITY_WIP_INVALID', authority.stageKey)
-  const activeFeatureKeys = normalizeStrings(
-    authority.activeFeatureKeys,
-    'stageWipAuthority.activeFeatureKeys'
+  if (authority.schemaVersion !== 1 || authority.kind !== 'OES_COORDINATION_WIP_AUTHORITY_BINDING')
+    fail('DELIVERY_TOPOLOGY_COORDINATION_AUTHORITY_KIND_INVALID', authority.kind)
+  requireFingerprint(
+    authority.authorityFingerprint,
+    'coordinationWipAuthority.authorityFingerprint'
   )
-  activeFeatureKeys.forEach((key) => requireFeatureKey(key, 'stageWipAuthority.activeFeatureKey'))
-  if (activeFeatureKeys.length !== authority.activeFeatureLeads)
-    fail('FEATURE_REPLAN_STAGE_AUTHORITY_WIP_INVALID', authority.stageKey)
+  requireToken(
+    authority.coordinationOwnerTaskId,
+    'coordinationWipAuthority.coordinationOwnerTaskId'
+  )
+  requireDeliveryKey(authority.coordinationKey, 'coordinationWipAuthority.coordinationKey')
+  requireToken(authority.transitionId, 'coordinationWipAuthority.transitionId')
+  requireStateVersion(
+    authority.coordinationStateVersion,
+    'coordinationWipAuthority.coordinationStateVersion'
+  )
+  requireFingerprint(
+    authority.coordinationStateFingerprint,
+    'coordinationWipAuthority.coordinationStateFingerprint'
+  )
+  if (!Number.isInteger(authority.activeDeliveryOwners) || authority.activeDeliveryOwners < 1)
+    fail('DELIVERY_TOPOLOGY_COORDINATION_AUTHORITY_WIP_INVALID', authority.coordinationKey)
+  const activeDeliveryKeys = normalizeStrings(
+    authority.activeDeliveryKeys,
+    'coordinationWipAuthority.activeDeliveryKeys'
+  )
+  activeDeliveryKeys.forEach((key) =>
+    requireDeliveryKey(key, 'coordinationWipAuthority.activeDeliveryKey')
+  )
+  if (activeDeliveryKeys.length !== authority.activeDeliveryOwners)
+    fail('DELIVERY_TOPOLOGY_COORDINATION_AUTHORITY_WIP_INVALID', authority.coordinationKey)
   validateCeiling(authority.ceiling)
-  if (authority.activeFeatureLeads > authority.ceiling.maxActiveFeatureLeads)
-    fail('FEATURE_REPLAN_STAGE_AUTHORITY_WIP_INVALID', authority.stageKey)
+  if (authority.activeDeliveryOwners > authority.ceiling.maxActiveDeliveryOwners)
+    fail('DELIVERY_TOPOLOGY_COORDINATION_AUTHORITY_WIP_INVALID', authority.coordinationKey)
   const actual = objectFingerprint(
     authority as unknown as Record<string, unknown>,
     'authorityFingerprint'
   )
   if (actual !== authority.authorityFingerprint)
-    fail('FEATURE_REPLAN_STAGE_AUTHORITY_FINGERPRINT_MISMATCH', authority.stageKey)
+    fail('DELIVERY_TOPOLOGY_COORDINATION_AUTHORITY_FINGERPRINT_MISMATCH', authority.coordinationKey)
   return authority
 }
 
-/** Authenticates one persisted authority against the exact Stage-owned runtime state. */
-export function verifyStageWipAuthorityBinding(
-  authorityInput: StageWipAuthorityBinding,
-  exactStageState: AssignmentRuntimeState
-): StageWipAuthorityBinding {
-  const authority = validateStageWipAuthorityBinding(authorityInput)
-  const expected = createStageWipAuthorityBinding(exactStageState)
+/** Authenticates one persisted authority against the exact coordination-owned runtime state. */
+export function verifyCoordinationWipAuthorityBinding(
+  authorityInput: CoordinationWipAuthorityBinding,
+  exactCoordinationState: AssignmentRuntimeState
+): CoordinationWipAuthorityBinding {
+  const authority = validateCoordinationWipAuthorityBinding(authorityInput)
+  const expected = createCoordinationWipAuthorityBinding(exactCoordinationState)
   if (canonicalJson(authority) !== canonicalJson(expected))
-    fail('FEATURE_REPLAN_STAGE_AUTHORITY_NOT_EXACT_STATE', authority.stageKey)
+    fail('DELIVERY_TOPOLOGY_COORDINATION_AUTHORITY_NOT_EXACT_STATE', authority.coordinationKey)
   return authority
 }
 
 /** Validates one normalized sibling and its complete extraction fingerprint. */
-function validateFeatureReplanSibling(sibling: FeatureReplanSibling): FeatureReplanSibling {
+function validateDeliveryTopologySibling(
+  sibling: DeliveryTopologySibling
+): DeliveryTopologySibling {
   requireExactKeys(
     sibling,
     [
-      'featureKey',
+      'deliveryKey',
       'objective',
       'scope',
       'protectedScope',
@@ -1003,40 +1026,40 @@ function validateFeatureReplanSibling(sibling: FeatureReplanSibling): FeatureRep
       'independenceProof',
       'scopeFingerprint'
     ],
-    'featureReplanSibling'
+    'deliveryTopologySibling'
   )
   const { scopeFingerprint, ...input } = sibling
-  const recreated = createFeatureReplanSibling(input)
+  const recreated = createDeliveryTopologySibling(input)
   requireFingerprint(sibling.scopeFingerprint, 'sibling.scopeFingerprint')
   if (recreated.scopeFingerprint !== scopeFingerprint)
-    fail('FEATURE_REPLAN_SIBLING_FINGERPRINT_MISMATCH', sibling.featureKey)
+    fail('DELIVERY_TOPOLOGY_SIBLING_FINGERPRINT_MISMATCH', sibling.deliveryKey)
   return sibling
 }
 
 /** Validates a WIP snapshot used as an exact topology binding. */
 function validateWipSnapshot(wip: AssignmentWipSnapshot, field: string): AssignmentWipSnapshot {
-  requireExactKeys(wip, ['activeFeatureLeads', 'features'], field)
-  if (!Number.isInteger(wip.activeFeatureLeads) || wip.activeFeatureLeads < 0)
-    fail('ASSIGNMENT_WIP_SNAPSHOT_INVALID', `${field}.activeFeatureLeads`)
-  if (!Array.isArray(wip.features)) fail('ASSIGNMENT_WIP_SNAPSHOT_INVALID', `${field}.features`)
-  for (const feature of wip.features) {
+  requireExactKeys(wip, ['activeDeliveryOwners', 'deliveries'], field)
+  if (!Number.isInteger(wip.activeDeliveryOwners) || wip.activeDeliveryOwners < 0)
+    fail('ASSIGNMENT_WIP_SNAPSHOT_INVALID', `${field}.activeDeliveryOwners`)
+  if (!Array.isArray(wip.deliveries)) fail('ASSIGNMENT_WIP_SNAPSHOT_INVALID', `${field}.deliveries`)
+  for (const delivery of wip.deliveries) {
     requireExactKeys(
-      feature,
-      ['featureKey', 'activeImplementationTasks', 'activeFeatureReviews'],
-      `${field}.feature`
+      delivery,
+      ['deliveryKey', 'activeBoundedHelpers', 'activeReviewVerifiers'],
+      `${field}.delivery`
     )
-    requireFeatureKey(feature.featureKey, `${field}.featureKey`)
+    requireDeliveryKey(delivery.deliveryKey, `${field}.deliveryKey`)
     if (
-      !Number.isInteger(feature.activeImplementationTasks) ||
-      feature.activeImplementationTasks < 0 ||
-      !Number.isInteger(feature.activeFeatureReviews) ||
-      feature.activeFeatureReviews < 0
+      !Number.isInteger(delivery.activeBoundedHelpers) ||
+      delivery.activeBoundedHelpers < 0 ||
+      !Number.isInteger(delivery.activeReviewVerifiers) ||
+      delivery.activeReviewVerifiers < 0
     )
-      fail('ASSIGNMENT_WIP_SNAPSHOT_INVALID', feature.featureKey)
+      fail('ASSIGNMENT_WIP_SNAPSHOT_INVALID', delivery.deliveryKey)
   }
-  const keys = wip.features.map((feature) => feature.featureKey)
+  const keys = wip.deliveries.map((delivery) => delivery.deliveryKey)
   if (new Set(keys).size !== keys.length || [...keys].sort().join() !== keys.join())
-    fail('ASSIGNMENT_WIP_FEATURE_ORDER_INVALID', field)
+    fail('ASSIGNMENT_WIP_DELIVERY_ORDER_INVALID', field)
   return wip
 }
 
@@ -1062,28 +1085,34 @@ function normalizeCompletedSlice(slice: CompletedSliceBinding): CompletedSliceBi
 }
 
 /** Validates one exact owner resource set without mutating any referenced locator. */
-function validateResources(resources: FeatureOwnerResources): FeatureOwnerResources {
-  requireExactKeys(resources, ['ownerRef', 'ownerClone', 'taskTemp', 'featurePacket'], 'resources')
+function validateResources(resources: DeliveryOwnerResources): DeliveryOwnerResources {
+  requireExactKeys(
+    resources,
+    ['ownerRef', 'ownerClone', 'taskTemp', 'deliveryPackagePath'],
+    'resources'
+  )
   for (const [key, value] of Object.entries(resources))
     if (typeof value !== 'string' || value.length === 0)
-      fail('FEATURE_REPLAN_RESOURCE_INVALID', key)
+      fail('DELIVERY_TOPOLOGY_RESOURCE_INVALID', key)
   return { ...resources }
 }
 
-/** Builds a complete exact Feature topology decision request. */
-export function createFeatureReplanRequest(input: FeatureReplanRequestInput): FeatureReplanRequest {
+/** Builds a complete exact Delivery topology decision request. */
+export function createDeliveryTopologyRequest(
+  input: DeliveryTopologyRequestInput
+): DeliveryTopologyRequest {
   requireExactKeys(
     input,
     [
-      'stageLeadTaskId',
-      'featureLeadTaskId',
-      'stageKey',
-      'featureKey',
+      'coordinationOwnerTaskId',
+      'deliveryOwnerTaskId',
+      'coordinationKey',
+      'deliveryKey',
       'transitionId',
       'stateVersion',
       'scopeFingerprint',
       'rootAuthorizationFingerprint',
-      'stageWipAuthority',
+      'coordinationWipAuthority',
       'oldTopology',
       'delegationCeiling',
       'retainedWriteSet',
@@ -1091,17 +1120,19 @@ export function createFeatureReplanRequest(input: FeatureReplanRequestInput): Fe
       'completedSlices',
       'proposedSiblings'
     ],
-    'featureReplanRequestInput'
+    'deliveryTopologyRequestInput'
   )
-  requireToken(input.stageLeadTaskId, 'request.stageLeadTaskId')
-  requireToken(input.featureLeadTaskId, 'request.featureLeadTaskId')
-  requireFeatureKey(input.stageKey, 'request.stageKey')
-  requireFeatureKey(input.featureKey, 'request.featureKey')
+  requireToken(input.coordinationOwnerTaskId, 'request.coordinationOwnerTaskId')
+  requireToken(input.deliveryOwnerTaskId, 'request.deliveryOwnerTaskId')
+  requireDeliveryKey(input.coordinationKey, 'request.coordinationKey')
+  requireDeliveryKey(input.deliveryKey, 'request.deliveryKey')
   requireToken(input.transitionId, 'request.transitionId')
   requireStateVersion(input.stateVersion, 'request.stateVersion')
   requireFingerprint(input.scopeFingerprint, 'request.scopeFingerprint')
   requireFingerprint(input.rootAuthorizationFingerprint, 'request.rootAuthorizationFingerprint')
-  const stageWipAuthority = validateStageWipAuthorityBinding(input.stageWipAuthority)
+  const coordinationWipAuthority = validateCoordinationWipAuthorityBinding(
+    input.coordinationWipAuthority
+  )
   const oldTopology = validateWipSnapshot(input.oldTopology, 'request.oldTopology')
   const delegationCeiling = validateCeiling(input.delegationCeiling)
   const retainedWriteSet = normalizeWriteRanges(
@@ -1110,51 +1141,51 @@ export function createFeatureReplanRequest(input: FeatureReplanRequestInput): Fe
     true
   )
   if (
-    stageWipAuthority.stageLeadTaskId !== input.stageLeadTaskId ||
-    stageWipAuthority.stageKey !== input.stageKey ||
-    stageWipAuthority.transitionId !== input.transitionId ||
-    stageWipAuthority.activeFeatureLeads !== oldTopology.activeFeatureLeads ||
-    canonicalJson(stageWipAuthority.ceiling) !== canonicalJson(delegationCeiling) ||
-    !stageWipAuthority.activeFeatureKeys.includes(input.featureKey)
+    coordinationWipAuthority.coordinationOwnerTaskId !== input.coordinationOwnerTaskId ||
+    coordinationWipAuthority.coordinationKey !== input.coordinationKey ||
+    coordinationWipAuthority.transitionId !== input.transitionId ||
+    coordinationWipAuthority.activeDeliveryOwners !== oldTopology.activeDeliveryOwners ||
+    canonicalJson(coordinationWipAuthority.ceiling) !== canonicalJson(delegationCeiling) ||
+    !coordinationWipAuthority.activeDeliveryKeys.includes(input.deliveryKey)
   )
-    fail('FEATURE_REPLAN_STAGE_AUTHORITY_MISMATCH', input.featureKey)
+    fail('DELIVERY_TOPOLOGY_COORDINATION_AUTHORITY_MISMATCH', input.deliveryKey)
   requireWipWithinCeiling(oldTopology, delegationCeiling)
-  if (oldTopology.activeFeatureLeads < 1)
-    fail('FEATURE_REPLAN_ORIGINAL_FEATURE_MISSING', input.featureKey)
+  if (oldTopology.activeDeliveryOwners < 1)
+    fail('DELIVERY_TOPOLOGY_ORIGINAL_DELIVERY_MISSING', input.deliveryKey)
   const currentResources = validateResources(input.currentResources)
   if (!Array.isArray(input.completedSlices) || !Array.isArray(input.proposedSiblings))
-    fail('FEATURE_REPLAN_COLLECTION_INVALID', input.featureKey)
+    fail('DELIVERY_TOPOLOGY_COLLECTION_INVALID', input.deliveryKey)
   const completedSlices = input.completedSlices
     .map(normalizeCompletedSlice)
     .sort((left, right) => left.sliceId.localeCompare(right.sliceId))
   const completedIds = completedSlices.map((slice) => slice.sliceId)
   if (new Set(completedIds).size !== completedIds.length)
-    fail('FEATURE_REPLAN_DUPLICATE_SLICE', input.featureKey)
+    fail('DELIVERY_TOPOLOGY_DUPLICATE_SLICE', input.deliveryKey)
   const proposedSiblings = input.proposedSiblings
-    .map(validateFeatureReplanSibling)
-    .sort((left, right) => left.featureKey.localeCompare(right.featureKey))
-  const siblingKeys = proposedSiblings.map((sibling) => sibling.featureKey)
-  if (new Set(siblingKeys).size !== siblingKeys.length || siblingKeys.includes(input.featureKey))
-    fail('FEATURE_REPLAN_DUPLICATE_FEATURE', input.featureKey)
+    .map(validateDeliveryTopologySibling)
+    .sort((left, right) => left.deliveryKey.localeCompare(right.deliveryKey))
+  const siblingKeys = proposedSiblings.map((sibling) => sibling.deliveryKey)
+  if (new Set(siblingKeys).size !== siblingKeys.length || siblingKeys.includes(input.deliveryKey))
+    fail('DELIVERY_TOPOLOGY_DUPLICATE_DELIVERY', input.deliveryKey)
   const base = {
     schemaVersion: 1 as const,
-    kind: 'OES_FEATURE_REPLAN_REQUEST' as const,
-    stageLeadTaskId: input.stageLeadTaskId,
-    featureLeadTaskId: input.featureLeadTaskId,
-    stageKey: input.stageKey,
-    featureKey: input.featureKey,
+    kind: 'OES_DELIVERY_TOPOLOGY_REQUEST' as const,
+    coordinationOwnerTaskId: input.coordinationOwnerTaskId,
+    deliveryOwnerTaskId: input.deliveryOwnerTaskId,
+    coordinationKey: input.coordinationKey,
+    deliveryKey: input.deliveryKey,
     transitionId: input.transitionId,
     stateVersion: input.stateVersion,
     scopeFingerprint: input.scopeFingerprint,
     rootAuthorizationFingerprint: input.rootAuthorizationFingerprint,
-    stageWipAuthority,
+    coordinationWipAuthority,
     oldTopology,
     delegationCeiling,
     retainedWriteSet,
     currentResources,
     completedSlices,
     proposedSiblings,
-    invalidationConditions: [...FEATURE_REPLAN_INVALIDATION_CONDITIONS]
+    invalidationConditions: [...DELIVERY_TOPOLOGY_INVALIDATION_CONDITIONS]
   }
   return {
     ...base,
@@ -1163,22 +1194,24 @@ export function createFeatureReplanRequest(input: FeatureReplanRequestInput): Fe
 }
 
 /** Recomputes every nested fingerprint of one persisted replan request. */
-export function validateFeatureReplanRequest(request: FeatureReplanRequest): FeatureReplanRequest {
+export function validateDeliveryTopologyRequest(
+  request: DeliveryTopologyRequest
+): DeliveryTopologyRequest {
   requireExactKeys(
     request,
     [
       'schemaVersion',
       'kind',
       'requestFingerprint',
-      'stageLeadTaskId',
-      'featureLeadTaskId',
-      'stageKey',
-      'featureKey',
+      'coordinationOwnerTaskId',
+      'deliveryOwnerTaskId',
+      'coordinationKey',
+      'deliveryKey',
       'transitionId',
       'stateVersion',
       'scopeFingerprint',
       'rootAuthorizationFingerprint',
-      'stageWipAuthority',
+      'coordinationWipAuthority',
       'oldTopology',
       'delegationCeiling',
       'retainedWriteSet',
@@ -1187,16 +1220,16 @@ export function validateFeatureReplanRequest(request: FeatureReplanRequest): Fea
       'proposedSiblings',
       'invalidationConditions'
     ],
-    'featureReplanRequest'
+    'deliveryTopologyRequest'
   )
-  if (request.schemaVersion !== 1 || request.kind !== 'OES_FEATURE_REPLAN_REQUEST')
-    fail('FEATURE_REPLAN_REQUEST_KIND_INVALID', request.kind)
+  if (request.schemaVersion !== 1 || request.kind !== 'OES_DELIVERY_TOPOLOGY_REQUEST')
+    fail('DELIVERY_TOPOLOGY_REQUEST_KIND_INVALID', request.kind)
   requireFingerprint(request.requestFingerprint, 'request.requestFingerprint')
   if (
     canonicalJson(request.invalidationConditions) !==
-    canonicalJson(FEATURE_REPLAN_INVALIDATION_CONDITIONS)
+    canonicalJson(DELIVERY_TOPOLOGY_INVALIDATION_CONDITIONS)
   )
-    fail('FEATURE_REPLAN_INVALIDATION_SET_MISMATCH', request.featureKey)
+    fail('DELIVERY_TOPOLOGY_INVALIDATION_SET_MISMATCH', request.deliveryKey)
   const {
     schemaVersion: _schemaVersion,
     kind: _kind,
@@ -1204,9 +1237,9 @@ export function validateFeatureReplanRequest(request: FeatureReplanRequest): Fea
     invalidationConditions: _invalidationConditions,
     ...input
   } = request
-  const recreated = createFeatureReplanRequest(input)
+  const recreated = createDeliveryTopologyRequest(input)
   if (recreated.requestFingerprint !== request.requestFingerprint)
-    fail('FEATURE_REPLAN_REQUEST_FINGERPRINT_MISMATCH', request.featureKey)
+    fail('DELIVERY_TOPOLOGY_REQUEST_FINGERPRINT_MISMATCH', request.deliveryKey)
   return request
 }
 
@@ -1223,22 +1256,22 @@ function writeRangesOverlap(left: string, right: string): boolean {
 }
 
 /** Produces the bounded automatic replan or atomic-continuation decision. */
-export function decideFeatureReplan(
-  request: FeatureReplanRequest,
-  exactStageState: AssignmentRuntimeState
-): FeatureReplanDecision {
-  validateFeatureReplanRequest(request)
-  verifyStageWipAuthorityBinding(request.stageWipAuthority, exactStageState)
+export function decideDeliveryTopology(
+  request: DeliveryTopologyRequest,
+  exactCoordinationState: AssignmentRuntimeState
+): DeliveryTopologyDecision {
+  validateDeliveryTopologyRequest(request)
+  verifyCoordinationWipAuthorityBinding(request.coordinationWipAuthority, exactCoordinationState)
   const independent =
     request.proposedSiblings.length > 0 &&
     request.proposedSiblings.every((sibling) =>
       Object.values(sibling.independenceProof).every((value) => value === true)
     )
   if (independent) {
-    const newActiveFeatureLeads =
-      request.oldTopology.activeFeatureLeads + request.proposedSiblings.length
-    if (newActiveFeatureLeads > request.delegationCeiling.maxActiveFeatureLeads)
-      fail('FEATURE_REPLAN_WIP_CEILING_EXCEEDED', String(newActiveFeatureLeads))
+    const newActiveDeliveryOwners =
+      request.oldTopology.activeDeliveryOwners + request.proposedSiblings.length
+    if (newActiveDeliveryOwners > request.delegationCeiling.maxActiveDeliveryOwners)
+      fail('DELIVERY_TOPOLOGY_WIP_CEILING_EXCEEDED', String(newActiveDeliveryOwners))
     for (let left = 0; left < request.proposedSiblings.length; left += 1)
       for (let right = left + 1; right < request.proposedSiblings.length; right += 1)
         if (
@@ -1247,8 +1280,8 @@ export function decideFeatureReplan(
           )
         )
           fail(
-            'FEATURE_REPLAN_WRITE_SET_CONFLICT',
-            `${request.proposedSiblings[left].featureKey}/${request.proposedSiblings[right].featureKey}`
+            'DELIVERY_TOPOLOGY_WRITE_SET_CONFLICT',
+            `${request.proposedSiblings[left].deliveryKey}/${request.proposedSiblings[right].deliveryKey}`
           )
     for (const sibling of request.proposedSiblings)
       if (
@@ -1256,25 +1289,27 @@ export function decideFeatureReplan(
           request.retainedWriteSet.some((retained) => writeRangesOverlap(extracted, retained))
         )
       )
-        fail('FEATURE_REPLAN_RETAINED_WRITE_SET_CONFLICT', sibling.featureKey)
+        fail('DELIVERY_TOPOLOGY_RETAINED_WRITE_SET_CONFLICT', sibling.deliveryKey)
   }
   const base = {
     schemaVersion: 1 as const,
-    kind: 'OES_FEATURE_REPLAN_DECISION' as const,
-    decision: independent ? ('FEATURE_REPLAN_REQUIRED' as const) : ('ATOMIC_CONTINUATION' as const),
+    kind: 'OES_DELIVERY_TOPOLOGY_DECISION' as const,
+    decision: independent
+      ? ('DELIVERY_TOPOLOGY_REQUIRED' as const)
+      : ('ATOMIC_CONTINUATION' as const),
     request,
     newTopology: {
-      activeFeatureLeads:
-        request.oldTopology.activeFeatureLeads +
+      activeDeliveryOwners:
+        request.oldTopology.activeDeliveryOwners +
         (independent ? request.proposedSiblings.length : 0),
-      features: request.oldTopology.features.map((feature) => ({ ...feature }))
+      deliveries: request.oldTopology.deliveries.map((delivery) => ({ ...delivery }))
     },
     nextLegalAction: independent
-      ? ('RETURN_FEATURE_REPLAN_REQUIRED_TO_DIRECT_PARENT' as const)
-      : ('CONTINUE_ORIGINAL_FEATURE_WITH_BOUNDED_ITS' as const),
+      ? ('RETURN_DELIVERY_TOPOLOGY_REQUIRED_TO_OWNER' as const)
+      : ('CONTINUE_ORIGINAL_DELIVERY_WITH_BOUNDED_HELPERS' as const),
     reason: independent
       ? 'all sibling deliveries are independently candidateable, reviewable, publishable, safely mergeable, and within the frozen ceiling'
-      : 'the current slices remain one atomic feature under the original Feature Lead'
+      : 'the current slices remain one atomic delivery under the original Delivery Owner'
   }
   return {
     ...base,
@@ -1283,11 +1318,11 @@ export function decideFeatureReplan(
 }
 
 /** Revalidates one decision against the exact current request binding. */
-export function validateFeatureReplanDecision(
-  decision: FeatureReplanDecision,
-  currentRequest: FeatureReplanRequest,
-  exactStageState: AssignmentRuntimeState
-): FeatureReplanDecision {
+export function validateDeliveryTopologyDecision(
+  decision: DeliveryTopologyDecision,
+  currentRequest: DeliveryTopologyRequest,
+  exactCoordinationState: AssignmentRuntimeState
+): DeliveryTopologyDecision {
   requireExactKeys(
     decision,
     [
@@ -1300,35 +1335,35 @@ export function validateFeatureReplanDecision(
       'nextLegalAction',
       'reason'
     ],
-    'featureReplanDecision'
+    'deliveryTopologyDecision'
   )
-  if (decision.schemaVersion !== 1 || decision.kind !== 'OES_FEATURE_REPLAN_DECISION')
-    fail('FEATURE_REPLAN_DECISION_KIND_INVALID', decision.kind)
+  if (decision.schemaVersion !== 1 || decision.kind !== 'OES_DELIVERY_TOPOLOGY_DECISION')
+    fail('DELIVERY_TOPOLOGY_DECISION_KIND_INVALID', decision.kind)
   requireFingerprint(decision.decisionFingerprint, 'decision.decisionFingerprint')
-  validateFeatureReplanRequest(decision.request)
-  validateFeatureReplanRequest(currentRequest)
+  validateDeliveryTopologyRequest(decision.request)
+  validateDeliveryTopologyRequest(currentRequest)
   if (decision.request.requestFingerprint !== currentRequest.requestFingerprint)
-    fail('FEATURE_REPLAN_DECISION_INVALIDATED', currentRequest.requestFingerprint)
-  const recreated = decideFeatureReplan(decision.request, exactStageState)
+    fail('DELIVERY_TOPOLOGY_DECISION_INVALIDATED', currentRequest.requestFingerprint)
+  const recreated = decideDeliveryTopology(decision.request, exactCoordinationState)
   if (
     recreated.decisionFingerprint !== decision.decisionFingerprint ||
     canonicalJson(recreated) !== canonicalJson(decision)
   )
-    fail('FEATURE_REPLAN_DECISION_FINGERPRINT_MISMATCH', decision.decisionFingerprint)
+    fail('DELIVERY_TOPOLOGY_DECISION_FINGERPRINT_MISMATCH', decision.decisionFingerprint)
   return decision
 }
 
 /** Owns one exact persisted assignment state; it never discovers other owners. */
 export class AssignmentRuntimeStore {
   readonly artifactRoot: string
-  readonly featureKey: string
+  readonly deliveryKey: string
   readonly statePath: string
 
-  constructor(artifactRoot: string, featureKey: string) {
-    requireFeatureKey(featureKey, 'store.featureKey')
+  constructor(artifactRoot: string, deliveryKey: string) {
+    requireDeliveryKey(deliveryKey, 'store.deliveryKey')
     this.artifactRoot = resolve(artifactRoot)
-    this.featureKey = featureKey
-    this.statePath = join(this.artifactRoot, 'assignment-runtime', `${featureKey}.sqlite`)
+    this.deliveryKey = deliveryKey
+    this.statePath = join(this.artifactRoot, 'assignment-runtime', `${deliveryKey}.sqlite`)
   }
 
   /** Initializes one immutable owner binding or idempotently reopens the exact existing state. */
@@ -1339,16 +1374,16 @@ export class AssignmentRuntimeStore {
       if (existing) {
         const immutable = {
           owner: existing.owner,
-          stageKey: existing.stageKey,
-          featureKey: existing.featureKey,
+          coordinationKey: existing.coordinationKey,
+          deliveryKey: existing.deliveryKey,
           transitionId: existing.transitionId,
           scopeFingerprint: existing.scopeFingerprint,
           ceiling: existing.ceiling
         }
         const requested = {
           owner: input.owner,
-          stageKey: input.stageKey,
-          featureKey: input.featureKey,
+          coordinationKey: input.coordinationKey,
+          deliveryKey: input.deliveryKey,
           transitionId: input.transitionId,
           scopeFingerprint: input.scopeFingerprint,
           ceiling: input.ceiling
@@ -1364,8 +1399,8 @@ export class AssignmentRuntimeStore {
           kind: 'OES_ASSIGNMENT_RUNTIME_STATE',
           recordFingerprint: '',
           owner: { ...input.owner },
-          stageKey: input.stageKey,
-          featureKey: input.featureKey,
+          coordinationKey: input.coordinationKey,
+          deliveryKey: input.deliveryKey,
           transitionId: input.transitionId,
           scopeFingerprint: input.scopeFingerprint,
           stateVersion: 1,
@@ -1373,8 +1408,8 @@ export class AssignmentRuntimeStore {
           ceiling: { ...input.ceiling },
           activeAssignments: [],
           resultTombstones: [],
-          wip: { activeFeatureLeads: 0, features: [] },
-          featureReplan: null,
+          wip: { activeDeliveryOwners: 0, deliveries: [] },
+          deliveryTopology: null,
           nextLegalAction: input.nextLegalAction
         },
         null
@@ -1419,15 +1454,15 @@ export class AssignmentRuntimeStore {
           'ASSIGNMENT_STATE_VERSION_MISMATCH',
           `${request.expectedStateVersion}/${state.stateVersion}`
         )
-      if (state.status === 'FEATURE_REPLAN_REQUIRED')
-        fail('ASSIGNMENT_DISPATCH_AFTER_FEATURE_REPLAN', request.childTaskId)
+      if (state.status === 'DELIVERY_TOPOLOGY_REQUIRED')
+        fail('ASSIGNMENT_DISPATCH_AFTER_DELIVERY_TOPOLOGY', request.childTaskId)
       if (
-        (state.owner.role === 'STAGE_LEAD' && request.childRole !== 'FEATURE_LEAD') ||
-        (state.owner.role === 'FEATURE_LEAD' && request.childRole === 'FEATURE_LEAD')
+        (state.owner.role === 'CO' && request.childKind !== 'DO') ||
+        (state.owner.role === 'DO' && request.childKind === 'DO')
       )
-        fail('ASSIGNMENT_OWNER_CHILD_ROUTE_INVALID', request.childRole)
-      if (state.owner.role === 'FEATURE_LEAD' && request.featureKey !== state.featureKey)
-        fail('ASSIGNMENT_FEATURE_OWNER_SCOPE_MISMATCH', request.featureKey)
+        fail('ASSIGNMENT_OWNER_CHILD_ROUTE_INVALID', request.childKind)
+      if (state.owner.role === 'DO' && request.deliveryKey !== state.deliveryKey)
+        fail('ASSIGNMENT_DO_SCOPE_MISMATCH', request.deliveryKey)
       if (
         state.activeAssignments.some((assignment) => assignment.childTaskId === request.childTaskId)
       )
@@ -1435,23 +1470,23 @@ export class AssignmentRuntimeStore {
       if (request.childTaskId === state.owner.taskId)
         fail('ASSIGNMENT_SELF_CHILD_ROUTE', request.childTaskId)
       if (
-        request.childRole === 'FEATURE_LEAD' &&
+        request.childKind === 'DO' &&
         state.activeAssignments.some(
           (assignment) =>
-            assignment.childRole === 'FEATURE_LEAD' && assignment.featureKey === request.featureKey
+            assignment.childKind === 'DO' && assignment.deliveryKey === request.deliveryKey
         )
       )
-        fail('ASSIGNMENT_DUPLICATE_ACTIVE_FEATURE_OWNER', request.featureKey)
+        fail('ASSIGNMENT_DUPLICATE_ACTIVE_DO', request.deliveryKey)
       const dispatchStateVersion = state.stateVersion + 1
       const resultArtifactRootIdentity = captureResultArtifactRootIdentity(
         request.resultArtifactRoot
       )
       const base = {
         requestFingerprint,
-        directExecutionParentTaskId: state.owner.taskId,
+        parentTaskId: state.owner.taskId,
         childTaskId: request.childTaskId,
-        childRole: request.childRole,
-        featureKey: request.featureKey,
+        childKind: request.childKind,
+        deliveryKey: request.deliveryKey,
         transitionId: state.transitionId,
         dispatchStateVersion,
         expectedTypedResult: request.expectedTypedResult,
@@ -1477,7 +1512,7 @@ export class AssignmentRuntimeStore {
           status: 'WAITING_ON_CHILD',
           activeAssignments,
           wip,
-          featureReplan: null,
+          deliveryTopology: null,
           nextLegalAction: 'CONSUME_DIRECT_ASSIGNMENT_RESULT'
         },
         state.stateVersion
@@ -1502,8 +1537,8 @@ export class AssignmentRuntimeStore {
         (candidate) => candidate.assignmentId === result.assignmentId
       )
       if (!assignment) fail('ASSIGNMENT_RESULT_STALE_OR_UNKNOWN', result.assignmentId)
-      if (result.directExecutionParentTaskId !== state.owner.taskId)
-        fail('ASSIGNMENT_RESULT_WRONG_PARENT', result.directExecutionParentTaskId)
+      if (result.parentTaskId !== state.owner.taskId)
+        fail('ASSIGNMENT_RESULT_WRONG_PARENT', result.parentTaskId)
       if (result.childTaskId !== assignment.childTaskId)
         fail('ASSIGNMENT_RESULT_WRONG_CHILD', result.childTaskId)
       if (result.transitionId !== state.transitionId)
@@ -1539,7 +1574,7 @@ export class AssignmentRuntimeStore {
       ].sort((left, right) =>
         left.assignment.assignmentId.localeCompare(right.assignment.assignmentId)
       )
-      const replanInvalidated = state.featureReplan !== null
+      const replanInvalidated = state.deliveryTopology !== null
       this.persistState(
         database,
         {
@@ -1549,9 +1584,9 @@ export class AssignmentRuntimeStore {
           activeAssignments,
           resultTombstones,
           wip,
-          featureReplan: null,
+          deliveryTopology: null,
           nextLegalAction: replanInvalidated
-            ? 'REEVALUATE_FEATURE_REPLAN'
+            ? 'REEVALUATE_DELIVERY_TOPOLOGY'
             : activeAssignments.length
               ? 'CONSUME_DIRECT_ASSIGNMENT_RESULT'
               : assignment.nextLegalActionOnResult
@@ -1562,56 +1597,55 @@ export class AssignmentRuntimeStore {
     })
   }
 
-  /** Evaluates and persists one exact bounded topology decision for this Feature owner. */
-  recordFeatureReplanDecision(
-    request: FeatureReplanRequest,
-    exactStageState: AssignmentRuntimeState
-  ): FeatureReplanDecision {
-    const decision = decideFeatureReplan(request, exactStageState)
+  /** Evaluates and persists one exact bounded topology decision for this Delivery Owner. */
+  recordDeliveryTopologyDecision(
+    request: DeliveryTopologyRequest,
+    exactCoordinationState: AssignmentRuntimeState
+  ): DeliveryTopologyDecision {
+    const decision = decideDeliveryTopology(request, exactCoordinationState)
     return this.withWriteTransaction((database) => {
       const state = this.requireSelectedState(database)
       if (
-        state.featureReplan?.decisionFingerprint === decision.decisionFingerprint &&
+        state.deliveryTopology?.decisionFingerprint === decision.decisionFingerprint &&
         state.stateVersion === request.stateVersion + 1
       )
         return decision
-      if (state.featureReplan?.decision === 'FEATURE_REPLAN_REQUIRED')
-        fail('FEATURE_REPLAN_ALREADY_RECORDED', state.featureReplan.decisionFingerprint)
-      if (state.owner.role !== 'FEATURE_LEAD')
-        fail('FEATURE_REPLAN_OWNER_ROLE_INVALID', state.owner.role)
+      if (state.deliveryTopology?.decision === 'DELIVERY_TOPOLOGY_REQUIRED')
+        fail('DELIVERY_TOPOLOGY_ALREADY_RECORDED', state.deliveryTopology.decisionFingerprint)
+      if (state.owner.role !== 'DO') fail('DELIVERY_TOPOLOGY_OWNER_ROLE_INVALID', state.owner.role)
       if (
-        request.featureLeadTaskId !== state.owner.taskId ||
-        request.stageLeadTaskId !== state.owner.directExecutionParentTaskId
+        request.deliveryOwnerTaskId !== state.owner.taskId ||
+        request.coordinationOwnerTaskId !== state.owner.parentTaskId
       )
-        fail('FEATURE_REPLAN_ROUTE_MISMATCH', request.featureLeadTaskId)
+        fail('DELIVERY_TOPOLOGY_ROUTE_MISMATCH', request.deliveryOwnerTaskId)
       if (
-        request.stageKey !== state.stageKey ||
-        request.featureKey !== state.featureKey ||
+        request.coordinationKey !== state.coordinationKey ||
+        request.deliveryKey !== state.deliveryKey ||
         request.transitionId !== state.transitionId ||
         request.scopeFingerprint !== state.scopeFingerprint
       )
-        fail('FEATURE_REPLAN_BINDING_MISMATCH', request.requestFingerprint)
+        fail('DELIVERY_TOPOLOGY_BINDING_MISMATCH', request.requestFingerprint)
       if (request.stateVersion !== state.stateVersion)
-        fail('FEATURE_REPLAN_STATE_VERSION_MISMATCH', String(request.stateVersion))
+        fail('DELIVERY_TOPOLOGY_STATE_VERSION_MISMATCH', String(request.stateVersion))
       if (canonicalJson(request.delegationCeiling) !== canonicalJson(state.ceiling))
-        fail('FEATURE_REPLAN_CEILING_MISMATCH', request.featureKey)
-      const storedFeature = state.wip.features.find(
-        (feature) => feature.featureKey === state.featureKey
+        fail('DELIVERY_TOPOLOGY_CEILING_MISMATCH', request.deliveryKey)
+      const storedDelivery = state.wip.deliveries.find(
+        (delivery) => delivery.deliveryKey === state.deliveryKey
       ) ?? {
-        featureKey: state.featureKey,
-        activeImplementationTasks: 0,
-        activeFeatureReviews: 0
+        deliveryKey: state.deliveryKey,
+        activeBoundedHelpers: 0,
+        activeReviewVerifiers: 0
       }
-      const requestedFeature = request.oldTopology.features.find(
-        (feature) => feature.featureKey === state.featureKey
+      const requestedDelivery = request.oldTopology.deliveries.find(
+        (delivery) => delivery.deliveryKey === state.deliveryKey
       ) ?? {
-        featureKey: state.featureKey,
-        activeImplementationTasks: 0,
-        activeFeatureReviews: 0
+        deliveryKey: state.deliveryKey,
+        activeBoundedHelpers: 0,
+        activeReviewVerifiers: 0
       }
-      if (canonicalJson(storedFeature) !== canonicalJson(requestedFeature))
-        fail('FEATURE_REPLAN_TOPOLOGY_MISMATCH', request.featureKey)
-      const featureReplan = {
+      if (canonicalJson(storedDelivery) !== canonicalJson(requestedDelivery))
+        fail('DELIVERY_TOPOLOGY_TOPOLOGY_MISMATCH', request.deliveryKey)
+      const deliveryTopology = {
         decision: decision.decision,
         requestFingerprint: request.requestFingerprint,
         decisionFingerprint: decision.decisionFingerprint
@@ -1623,14 +1657,14 @@ export class AssignmentRuntimeStore {
           ...state,
           stateVersion: state.stateVersion + 1,
           status:
-            decision.decision === 'FEATURE_REPLAN_REQUIRED'
-              ? 'FEATURE_REPLAN_REQUIRED'
+            decision.decision === 'DELIVERY_TOPOLOGY_REQUIRED'
+              ? 'DELIVERY_TOPOLOGY_REQUIRED'
               : waiting
                 ? 'WAITING_ON_CHILD'
                 : 'ACTIVE',
-          featureReplan,
+          deliveryTopology,
           nextLegalAction:
-            decision.decision === 'FEATURE_REPLAN_REQUIRED'
+            decision.decision === 'DELIVERY_TOPOLOGY_REQUIRED'
               ? decision.nextLegalAction
               : waiting
                 ? 'CONSUME_DIRECT_ASSIGNMENT_RESULT'
@@ -1648,8 +1682,8 @@ export class AssignmentRuntimeStore {
       input,
       [
         'owner',
-        'stageKey',
-        'featureKey',
+        'coordinationKey',
+        'deliveryKey',
         'transitionId',
         'scopeFingerprint',
         'ceiling',
@@ -1657,15 +1691,15 @@ export class AssignmentRuntimeStore {
       ],
       'initialization'
     )
-    requireExactKeys(input.owner, ['role', 'taskId', 'directExecutionParentTaskId'], 'owner')
-    if (!['STAGE_LEAD', 'FEATURE_LEAD'].includes(input.owner.role))
+    requireExactKeys(input.owner, ['role', 'taskId', 'parentTaskId'], 'owner')
+    if (!['CO', 'DO'].includes(input.owner.role))
       fail('ASSIGNMENT_OWNER_ROLE_INVALID', input.owner.role)
     requireToken(input.owner.taskId, 'owner.taskId')
-    requireToken(input.owner.directExecutionParentTaskId, 'owner.directExecutionParentTaskId')
-    requireFeatureKey(input.stageKey, 'initialization.stageKey')
-    requireFeatureKey(input.featureKey, 'initialization.featureKey')
-    if (input.featureKey !== this.featureKey)
-      fail('ASSIGNMENT_STORE_FEATURE_MISMATCH', input.featureKey)
+    requireToken(input.owner.parentTaskId, 'owner.parentTaskId')
+    requireDeliveryKey(input.coordinationKey, 'initialization.coordinationKey')
+    requireDeliveryKey(input.deliveryKey, 'initialization.deliveryKey')
+    if (input.deliveryKey !== this.deliveryKey)
+      fail('ASSIGNMENT_STORE_DELIVERY_MISMATCH', input.deliveryKey)
     requireToken(input.transitionId, 'initialization.transitionId')
     requireFingerprint(input.scopeFingerprint, 'initialization.scopeFingerprint')
     validateCeiling(input.ceiling)
@@ -1679,8 +1713,8 @@ export class AssignmentRuntimeStore {
       [
         'expectedStateVersion',
         'childTaskId',
-        'childRole',
-        'featureKey',
+        'childKind',
+        'deliveryKey',
         'expectedTypedResult',
         'nextLegalActionOnResult',
         'scopeFingerprint',
@@ -1690,9 +1724,9 @@ export class AssignmentRuntimeStore {
     )
     requireStateVersion(request.expectedStateVersion, 'request.expectedStateVersion')
     requireToken(request.childTaskId, 'request.childTaskId')
-    if (!ASSIGNMENT_CHILD_ROLES.includes(request.childRole))
-      fail('ASSIGNMENT_CHILD_ROLE_INVALID', request.childRole)
-    requireFeatureKey(request.featureKey, 'request.featureKey')
+    if (!ASSIGNMENT_CHILD_KINDS.includes(request.childKind))
+      fail('ASSIGNMENT_CHILD_ROLE_INVALID', request.childKind)
+    requireDeliveryKey(request.deliveryKey, 'request.deliveryKey')
     requireToken(request.expectedTypedResult, 'request.expectedTypedResult')
     requireAction(request.nextLegalActionOnResult, 'request.nextLegalActionOnResult')
     requireFingerprint(request.scopeFingerprint, 'request.scopeFingerprint')
@@ -1716,7 +1750,7 @@ export class AssignmentRuntimeStore {
       transactionActive = true
       database.exec(
         'CREATE TABLE IF NOT EXISTS assignment_runtime_state (' +
-          'feature_key TEXT PRIMARY KEY NOT NULL, ' +
+          'delivery_key TEXT PRIMARY KEY NOT NULL, ' +
           'state_version INTEGER NOT NULL, ' +
           'record_json TEXT NOT NULL)'
       )
@@ -1739,7 +1773,7 @@ export class AssignmentRuntimeStore {
     }
   }
 
-  /** Selects and validates the one exact feature row from the task-owned database. */
+  /** Selects and validates the one exact delivery row from the task-owned database. */
   private selectState(database: DatabaseSync): AssignmentRuntimeState | null {
     const table = database
       .prepare(
@@ -1750,19 +1784,19 @@ export class AssignmentRuntimeStore {
     const row = database
       .prepare(
         'SELECT state_version AS stateVersion, record_json AS recordJson ' +
-          'FROM assignment_runtime_state WHERE feature_key = ?'
+          'FROM assignment_runtime_state WHERE delivery_key = ?'
       )
-      .get(this.featureKey) as { stateVersion: number; recordJson: string } | undefined
+      .get(this.deliveryKey) as { stateVersion: number; recordJson: string } | undefined
     if (!row) return null
     const state = validateAssignmentRuntimeState(
       JSON.parse(row.recordJson) as AssignmentRuntimeState
     )
-    if (state.featureKey !== this.featureKey || state.stateVersion !== row.stateVersion)
-      fail('ASSIGNMENT_SQLITE_ROW_BINDING_MISMATCH', this.featureKey)
+    if (state.deliveryKey !== this.deliveryKey || state.stateVersion !== row.stateVersion)
+      fail('ASSIGNMENT_SQLITE_ROW_BINDING_MISMATCH', this.deliveryKey)
     return state
   }
 
-  /** Requires the initialized exact feature row inside a mutation transaction. */
+  /** Requires the initialized exact delivery row inside a mutation transaction. */
   private requireSelectedState(database: DatabaseSync): AssignmentRuntimeState {
     const state = this.selectState(database)
     if (!state) fail('ASSIGNMENT_STATE_NOT_FOUND', this.statePath)
@@ -1796,17 +1830,22 @@ export class AssignmentRuntimeStore {
       expectedPreviousStateVersion === null
         ? database
             .prepare(
-              'INSERT INTO assignment_runtime_state(feature_key, state_version, record_json) ' +
+              'INSERT INTO assignment_runtime_state(delivery_key, state_version, record_json) ' +
                 'VALUES (?, ?, ?)'
             )
-            .run(this.featureKey, normalized.stateVersion, recordJson)
+            .run(this.deliveryKey, normalized.stateVersion, recordJson)
         : database
             .prepare(
               'UPDATE assignment_runtime_state SET state_version = ?, record_json = ? ' +
-                'WHERE feature_key = ? AND state_version = ?'
+                'WHERE delivery_key = ? AND state_version = ?'
             )
-            .run(normalized.stateVersion, recordJson, this.featureKey, expectedPreviousStateVersion)
-    if (Number(result.changes) !== 1) fail('ASSIGNMENT_STATE_VERSION_CAS_FAILED', this.featureKey)
+            .run(
+              normalized.stateVersion,
+              recordJson,
+              this.deliveryKey,
+              expectedPreviousStateVersion
+            )
+    if (Number(result.changes) !== 1) fail('ASSIGNMENT_STATE_VERSION_CAS_FAILED', this.deliveryKey)
     const reopened = this.requireSelectedState(database)
     if (canonicalJson(reopened) !== canonicalJson(normalized))
       fail('ASSIGNMENT_STATE_TRANSACTION_READBACK_MISMATCH', this.statePath)

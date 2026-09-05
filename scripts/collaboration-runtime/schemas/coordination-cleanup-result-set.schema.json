@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/coordination-cleanup-result-set-v2.json",
+  "title": "OES V2 coordination cleanup absence proof",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "resultSetFingerprint",
+    "coordinationKey",
+    "coordinationOwnerTaskId",
+    "transitionId",
+    "coordinationCleanupAuthorizationFingerprint",
+    "resultsByOwner",
+    "repositoryDiff"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "kind": { "const": "OES_COORDINATION_CLEANUP_RESULT_SET" },
+    "resultSetFingerprint": { "$ref": "#/$defs/sha256" },
+    "coordinationKey": { "$ref": "#/$defs/key" },
+    "coordinationOwnerTaskId": { "$ref": "#/$defs/token" },
+    "transitionId": { "$ref": "#/$defs/token" },
+    "coordinationCleanupAuthorizationFingerprint": { "$ref": "#/$defs/sha256" },
+    "resultsByOwner": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "$ref": "#/$defs/decision" }
+      }
+    },
+    "repositoryDiff": {
+      "type": "array",
+      "maxItems": 0,
+      "items": { "$ref": "#/$defs/diff" }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "key": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "token": { "type": "string", "minLength": 1 },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "expectedSha"],
+      "properties": {
+        "kind": {
+          "enum": ["remote-branch", "local-branch", "worktree", "task-temp", "delivery-package"]
+        },
+        "path": { "type": "string", "minLength": 1 },
+        "expectedSha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "expectedSha", "exists", "clean", "actualSha"],
+      "properties": {
+        "kind": {
+          "enum": ["remote-branch", "local-branch", "worktree", "task-temp", "delivery-package"]
+        },
+        "path": { "type": "string", "minLength": 1 },
+        "expectedSha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" },
+        "exists": { "type": "boolean" },
+        "clean": { "type": "boolean" },
+        "actualSha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resource", "decision", "reason", "observedBefore", "observedAfter"],
+      "properties": {
+        "resource": { "$ref": "#/$defs/resource" },
+        "decision": {
+          "enum": ["REMOVE", "ALREADY_ABSENT", "PRESERVE_FAILURE", "SKIP_COMPLETED"]
+        },
+        "reason": { "type": "string", "minLength": 1 },
+        "observedBefore": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["kind", "path", "expectedSha", "exists", "clean", "actualSha"],
+          "properties": {
+            "kind": {
+              "enum": ["remote-branch", "local-branch", "worktree", "task-temp", "delivery-package"]
+            },
+            "path": { "type": "string", "minLength": 1 },
+            "expectedSha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" },
+            "exists": { "type": "boolean" },
+            "clean": { "type": "boolean" },
+            "actualSha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" }
+          }
+        },
+        "observedAfter": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["kind", "path", "expectedSha", "exists", "clean", "actualSha"],
+          "properties": {
+            "kind": {
+              "enum": ["remote-branch", "local-branch", "worktree", "task-temp", "delivery-package"]
+            },
+            "path": { "type": "string", "minLength": 1 },
+            "expectedSha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" },
+            "exists": { "type": "boolean" },
+            "clean": { "type": "boolean" },
+            "actualSha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" }
+          }
+        },
+        "completionFingerprint": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "diff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "path"],
+      "properties": {
+        "status": { "enum": ["A", "C", "D", "M", "R", "T", "U", "X", "B"] },
+        "path": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

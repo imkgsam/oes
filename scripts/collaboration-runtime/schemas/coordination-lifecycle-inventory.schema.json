@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/coordination-lifecycle-inventory-v2.json",
+  "title": "OES V2 CO lifecycle task-native inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "inventoryFingerprint",
+    "coordinationKey",
+    "coordinationOwnerTaskId",
+    "transitionId",
+    "coordinationCleanupAuthorizationFingerprint",
+    "cleanupIntentDetected",
+    "coordinationExit",
+    "resourceCleanup",
+    "cleanupResult",
+    "rosterAuthorityFingerprint",
+    "taskReadbackSource",
+    "readbackRosterFingerprint",
+    "readbackRoster",
+    "terminalTaskIds"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "kind": { "const": "OES_COORDINATION_LIFECYCLE_INVENTORY" },
+    "inventoryFingerprint": { "$ref": "#/$defs/sha256" },
+    "coordinationKey": { "$ref": "#/$defs/key" },
+    "coordinationOwnerTaskId": { "$ref": "#/$defs/token" },
+    "transitionId": { "$ref": "#/$defs/token" },
+    "coordinationCleanupAuthorizationFingerprint": { "$ref": "#/$defs/sha256" },
+    "cleanupIntentDetected": { "const": true },
+    "coordinationExit": { "enum": ["PASSED", "PENDING", "FAILED"] },
+    "resourceCleanup": { "enum": ["PENDING", "VERIFIED", "PARTIAL_FAILURE"] },
+    "cleanupResult": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["path", "sha256", "fingerprint"],
+      "properties": {
+        "path": { "$ref": "#/$defs/absolutePath" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "fingerprint": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "rosterAuthorityFingerprint": { "$ref": "#/$defs/sha256" },
+    "taskReadbackSource": { "const": "CODEX_TASK_NATIVE" },
+    "readbackRosterFingerprint": { "$ref": "#/$defs/sha256" },
+    "readbackRoster": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/task" }
+    },
+    "terminalTaskIds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/token" }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "key": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "token": { "type": "string", "minLength": 1 },
+    "absolutePath": { "type": "string", "pattern": "^/" },
+    "taskKind": { "enum": ["BOUNDED_HELPER", "RV", "DO", "CO"] },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskId", "taskKind", "ownerTaskId", "state"],
+      "properties": {
+        "taskId": { "$ref": "#/$defs/token" },
+        "taskKind": { "$ref": "#/$defs/taskKind" },
+        "ownerTaskId": { "type": ["string", "null"], "minLength": 1 },
+        "state": { "enum": ["TERMINAL", "ACTIVE", "UNKNOWN"] }
+      }
+    }
+  }
+}

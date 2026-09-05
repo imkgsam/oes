@@ -316,11 +316,6 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
           ],
           cwd
         )
-    } else if (binding.action === 'cleanup') {
-      if (truth.branchHead !== null && truth.branchHead !== binding.candidateSha)
-        fail('CLEANUP_REMOTE_SHA_MISMATCH', truth.branchHead)
-      if (truth.branchHead !== null)
-        checked(this.runner, this.git, ['push', 'origin', `:refs/heads/${binding.headRef}`], cwd)
     } else fail('READ_ONLY_ACTION_MUTATION_REQUESTED', binding.action)
     const after = await this.readTruth(binding)
     return {
@@ -337,8 +332,7 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
         after.mergeQueueEntry?.headSha ??
         (binding.admission?.mode === 'merge-queue'
           ? (after.pullRequest?.mergeCommitSha ?? null)
-          : null),
-      cleanupResources: binding.cleanupResources
+          : null)
     }
   }
 
@@ -453,17 +447,7 @@ export class GitHubRemoteAdapter implements RemoteAdapter {
         literalResult: truth
       }
     }
-    const exactResource = binding.cleanupResources?.[0]
-    const passed =
-      truth.branchHead === null &&
-      exactResource?.kind === 'remote-branch' &&
-      exactResource.path === binding.headRef &&
-      exactResource.expectedSha === binding.candidateSha
-    return {
-      passed,
-      status: passed ? 'CLEANUP_VERIFIED' : 'CLEANUP_PENDING',
-      literalResult: { branchHead: truth.branchHead, resource: exactResource }
-    }
+    fail('REMOTE_VERIFICATION_ACTION_UNKNOWN', binding.action)
   }
 
   /** Requires the live pull identity and immutable presentation to match the binding. */

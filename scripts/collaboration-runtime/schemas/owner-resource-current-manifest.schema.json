@@ -12,7 +12,7 @@
     "transitionId",
     "stateVersion",
     "resourceBindingFingerprint",
-    "featurePacket",
+    "deliveryPackage",
     "candidateSha",
     "evidence",
     "scratchPaths"
@@ -25,7 +25,7 @@
     "transitionId": { "type": "string", "minLength": 1 },
     "stateVersion": { "type": "integer", "minimum": 1 },
     "resourceBindingFingerprint": { "$ref": "#/$defs/sha256" },
-    "featurePacket": { "$ref": "#/$defs/evidenceReference" },
+    "deliveryPackage": { "$ref": "#/$defs/evidenceReference" },
     "candidateSha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40}$" },
     "evidence": {
       "type": "array",

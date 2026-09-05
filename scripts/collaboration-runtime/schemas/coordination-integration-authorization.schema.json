@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/coordination-integration-authorization-v2.json",
+  "title": "OES V2 CO integration authorization",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "authorizationFingerprint",
+    "status",
+    "expectedState",
+    "stateVersion",
+    "coordinationKey",
+    "coordinationOwnerTaskId",
+    "transitionId",
+    "confirmationFingerprint",
+    "baseSha",
+    "aggregateBranch",
+    "prTopology",
+    "independentPrExceptionConfirmed",
+    "orderedSetFingerprint",
+    "items"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "kind": { "const": "OES_COORDINATION_INTEGRATION_AUTHORIZATION" },
+    "authorizationFingerprint": { "$ref": "#/$defs/sha256" },
+    "status": { "const": "ISSUED" },
+    "expectedState": { "const": "COORDINATION_INTEGRATION_AUTHORIZED" },
+    "stateVersion": { "type": "integer", "minimum": 1 },
+    "coordinationKey": { "$ref": "#/$defs/key" },
+    "coordinationOwnerTaskId": { "$ref": "#/$defs/token" },
+    "transitionId": { "$ref": "#/$defs/token" },
+    "confirmationFingerprint": { "$ref": "#/$defs/sha256" },
+    "baseSha": { "$ref": "#/$defs/gitSha" },
+    "aggregateBranch": {
+      "type": "string",
+      "pattern": "^codex/coordination/[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "prTopology": { "enum": ["AGGREGATE", "INDEPENDENT"] },
+    "independentPrExceptionConfirmed": { "type": "boolean" },
+    "orderedSetFingerprint": { "$ref": "#/$defs/sha256" },
+    "items": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/item" }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "gitSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "key": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "token": { "type": "string", "minLength": 1 },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "order",
+        "deliveryKey",
+        "ownerTaskId",
+        "baseSha",
+        "candidateSha",
+        "patchFingerprint",
+        "contentFingerprint",
+        "dependencies",
+        "scopedRv",
+        "independentlyReleasable"
+      ],
+      "properties": {
+        "order": { "type": "integer", "minimum": 0 },
+        "deliveryKey": { "$ref": "#/$defs/key" },
+        "ownerTaskId": { "$ref": "#/$defs/token" },
+        "baseSha": { "$ref": "#/$defs/gitSha" },
+        "candidateSha": { "$ref": "#/$defs/gitSha" },
+        "patchFingerprint": { "$ref": "#/$defs/sha256" },
+        "contentFingerprint": { "$ref": "#/$defs/sha256" },
+        "dependencies": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/key" }
+        },
+        "scopedRv": { "$ref": "#/$defs/reference" },
+        "independentlyReleasable": { "type": "boolean" }
+      }
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "fingerprint"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^/" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "fingerprint": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

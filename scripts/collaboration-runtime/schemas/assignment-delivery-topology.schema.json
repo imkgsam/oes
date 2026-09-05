@@ -1,23 +1,23 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://oes.local/schemas/assignment-feature-replan.schema.json",
-  "title": "OES bounded Feature topology decision",
+  "$id": "https://oes.local/schemas/assignment-delivery-topology.schema.json",
+  "title": "OES bounded Delivery topology decision",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "kind"],
   "properties": {
     "schemaVersion": { "const": 1 },
-    "kind": { "enum": ["OES_FEATURE_REPLAN_REQUEST", "OES_FEATURE_REPLAN_DECISION"] },
+    "kind": { "enum": ["OES_DELIVERY_TOPOLOGY_REQUEST", "OES_DELIVERY_TOPOLOGY_DECISION"] },
     "requestFingerprint": { "$ref": "#/$defs/fingerprint" },
-    "stageLeadTaskId": { "$ref": "#/$defs/token" },
-    "featureLeadTaskId": { "$ref": "#/$defs/token" },
-    "stageKey": { "$ref": "#/$defs/featureKey" },
-    "featureKey": { "$ref": "#/$defs/featureKey" },
+    "coordinationOwnerTaskId": { "$ref": "#/$defs/token" },
+    "deliveryOwnerTaskId": { "$ref": "#/$defs/token" },
+    "coordinationKey": { "$ref": "#/$defs/deliveryKey" },
+    "deliveryKey": { "$ref": "#/$defs/deliveryKey" },
     "transitionId": { "$ref": "#/$defs/token" },
     "stateVersion": { "type": "integer", "minimum": 1 },
     "scopeFingerprint": { "$ref": "#/$defs/fingerprint" },
     "rootAuthorizationFingerprint": { "$ref": "#/$defs/fingerprint" },
-    "stageWipAuthority": { "$ref": "#/$defs/stageWipAuthority" },
+    "coordinationWipAuthority": { "$ref": "#/$defs/coordinationWipAuthority" },
     "oldTopology": { "$ref": "#/$defs/wip" },
     "delegationCeiling": { "$ref": "#/$defs/ceiling" },
     "retainedWriteSet": { "$ref": "#/$defs/writeSet" },
@@ -34,31 +34,31 @@
     },
     "invalidationConditions": { "$ref": "#/$defs/invalidationConditions" },
     "decisionFingerprint": { "$ref": "#/$defs/fingerprint" },
-    "decision": { "enum": ["FEATURE_REPLAN_REQUIRED", "ATOMIC_CONTINUATION"] },
+    "decision": { "enum": ["DELIVERY_TOPOLOGY_REQUIRED", "ATOMIC_CONTINUATION"] },
     "request": { "$ref": "#/$defs/request" },
     "newTopology": { "$ref": "#/$defs/wip" },
     "nextLegalAction": {
       "enum": [
-        "RETURN_FEATURE_REPLAN_REQUIRED_TO_DIRECT_PARENT",
-        "CONTINUE_ORIGINAL_FEATURE_WITH_BOUNDED_ITS"
+        "RETURN_DELIVERY_TOPOLOGY_REQUIRED_TO_OWNER",
+        "CONTINUE_ORIGINAL_DELIVERY_WITH_BOUNDED_HELPERS"
       ]
     },
     "reason": { "type": "string", "minLength": 1 }
   },
   "allOf": [
     {
-      "if": { "properties": { "kind": { "const": "OES_FEATURE_REPLAN_REQUEST" } } },
+      "if": { "properties": { "kind": { "const": "OES_DELIVERY_TOPOLOGY_REQUEST" } } },
       "then": { "$ref": "#/$defs/request" }
     },
     {
-      "if": { "properties": { "kind": { "const": "OES_FEATURE_REPLAN_DECISION" } } },
+      "if": { "properties": { "kind": { "const": "OES_DELIVERY_TOPOLOGY_DECISION" } } },
       "then": { "$ref": "#/$defs/decisionRecord" }
     }
   ],
   "$defs": {
     "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "gitSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
-    "featureKey": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "deliveryKey": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
     "token": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" },
     "stringList": {
       "type": "array",
@@ -86,71 +86,71 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "maxActiveFeatureLeads",
-        "maxActiveImplementationTasksPerFeature",
-        "maxActiveFeatureReviewsPerFeature"
+        "maxActiveDeliveryOwners",
+        "maxActiveBoundedHelpersPerDelivery",
+        "maxActiveReviewVerifiersPerDelivery"
       ],
       "properties": {
-        "maxActiveFeatureLeads": { "enum": [1, 2, 3] },
-        "maxActiveImplementationTasksPerFeature": { "enum": [1, 2, 3] },
-        "maxActiveFeatureReviewsPerFeature": { "const": 1 }
+        "maxActiveDeliveryOwners": { "enum": [1, 2, 3] },
+        "maxActiveBoundedHelpersPerDelivery": { "enum": [1, 2, 3] },
+        "maxActiveReviewVerifiersPerDelivery": { "const": 1 }
       }
     },
-    "featureWip": {
+    "deliveryWip": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["featureKey", "activeImplementationTasks", "activeFeatureReviews"],
+      "required": ["deliveryKey", "activeBoundedHelpers", "activeReviewVerifiers"],
       "properties": {
-        "featureKey": { "$ref": "#/$defs/featureKey" },
-        "activeImplementationTasks": { "type": "integer", "minimum": 0 },
-        "activeFeatureReviews": { "type": "integer", "minimum": 0 }
+        "deliveryKey": { "$ref": "#/$defs/deliveryKey" },
+        "activeBoundedHelpers": { "type": "integer", "minimum": 0 },
+        "activeReviewVerifiers": { "type": "integer", "minimum": 0 }
       }
     },
     "wip": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["activeFeatureLeads", "features"],
+      "required": ["activeDeliveryOwners", "deliveries"],
       "properties": {
-        "activeFeatureLeads": { "type": "integer", "minimum": 0 },
-        "features": {
+        "activeDeliveryOwners": { "type": "integer", "minimum": 0 },
+        "deliveries": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "$ref": "#/$defs/featureWip" }
+          "items": { "$ref": "#/$defs/deliveryWip" }
         }
       }
     },
-    "stageWipAuthority": {
+    "coordinationWipAuthority": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "schemaVersion",
         "kind",
         "authorityFingerprint",
-        "stageLeadTaskId",
-        "stageKey",
+        "coordinationOwnerTaskId",
+        "coordinationKey",
         "transitionId",
-        "stageStateVersion",
-        "stageStateFingerprint",
-        "activeFeatureLeads",
-        "activeFeatureKeys",
+        "coordinationStateVersion",
+        "coordinationStateFingerprint",
+        "activeDeliveryOwners",
+        "activeDeliveryKeys",
         "ceiling"
       ],
       "properties": {
         "schemaVersion": { "const": 1 },
-        "kind": { "const": "OES_STAGE_WIP_AUTHORITY_BINDING" },
+        "kind": { "const": "OES_COORDINATION_WIP_AUTHORITY_BINDING" },
         "authorityFingerprint": { "$ref": "#/$defs/fingerprint" },
-        "stageLeadTaskId": { "$ref": "#/$defs/token" },
-        "stageKey": { "$ref": "#/$defs/featureKey" },
+        "coordinationOwnerTaskId": { "$ref": "#/$defs/token" },
+        "coordinationKey": { "$ref": "#/$defs/deliveryKey" },
         "transitionId": { "$ref": "#/$defs/token" },
-        "stageStateVersion": { "type": "integer", "minimum": 1 },
-        "stageStateFingerprint": { "$ref": "#/$defs/fingerprint" },
-        "activeFeatureLeads": { "enum": [1, 2, 3] },
-        "activeFeatureKeys": {
+        "coordinationStateVersion": { "type": "integer", "minimum": 1 },
+        "coordinationStateFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "activeDeliveryOwners": { "enum": [1, 2, 3] },
+        "activeDeliveryKeys": {
           "type": "array",
           "minItems": 1,
           "maxItems": 3,
           "uniqueItems": true,
-          "items": { "$ref": "#/$defs/featureKey" }
+          "items": { "$ref": "#/$defs/deliveryKey" }
         },
         "ceiling": { "$ref": "#/$defs/ceiling" }
       }
@@ -158,12 +158,12 @@
     "resources": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["ownerRef", "ownerClone", "taskTemp", "featurePacket"],
+      "required": ["ownerRef", "ownerClone", "taskTemp", "deliveryPackagePath"],
       "properties": {
         "ownerRef": { "type": "string", "minLength": 1 },
         "ownerClone": { "type": "string", "minLength": 1 },
         "taskTemp": { "type": "string", "minLength": 1 },
-        "featurePacket": { "type": "string", "minLength": 1 }
+        "deliveryPackagePath": { "type": "string", "pattern": "^/" }
       }
     },
     "completedSlice": {
@@ -186,13 +186,13 @@
       "additionalProperties": false,
       "required": [
         "independentCandidate",
-        "independentFeatureReview",
+        "independentReviewVerification",
         "independentPullRequest",
         "safeIndependentMainMerge"
       ],
       "properties": {
         "independentCandidate": { "type": "boolean" },
-        "independentFeatureReview": { "type": "boolean" },
+        "independentReviewVerification": { "type": "boolean" },
         "independentPullRequest": { "type": "boolean" },
         "safeIndependentMainMerge": { "type": "boolean" }
       }
@@ -201,7 +201,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "featureKey",
+        "deliveryKey",
         "objective",
         "scope",
         "protectedScope",
@@ -213,7 +213,7 @@
         "scopeFingerprint"
       ],
       "properties": {
-        "featureKey": { "$ref": "#/$defs/featureKey" },
+        "deliveryKey": { "$ref": "#/$defs/deliveryKey" },
         "objective": { "type": "string", "minLength": 1 },
         "scope": { "$ref": "#/$defs/stringList" },
         "protectedScope": { "$ref": "#/$defs/stringList" },
@@ -237,7 +237,7 @@
       "items": {
         "enum": [
           "OWNER_OR_PARENT_CHANGED",
-          "STAGE_OR_FEATURE_KEY_CHANGED",
+          "COORDINATION_OR_DELIVERY_KEY_CHANGED",
           "TRANSITION_OR_STATE_VERSION_CHANGED",
           "SCOPE_OR_PROTECTED_SCOPE_CHANGED",
           "ROOT_AUTHORIZATION_CHANGED",
@@ -249,7 +249,7 @@
       },
       "allOf": [
         { "contains": { "const": "OWNER_OR_PARENT_CHANGED" } },
-        { "contains": { "const": "STAGE_OR_FEATURE_KEY_CHANGED" } },
+        { "contains": { "const": "COORDINATION_OR_DELIVERY_KEY_CHANGED" } },
         { "contains": { "const": "TRANSITION_OR_STATE_VERSION_CHANGED" } },
         { "contains": { "const": "SCOPE_OR_PROTECTED_SCOPE_CHANGED" } },
         { "contains": { "const": "ROOT_AUTHORIZATION_CHANGED" } },
@@ -266,15 +266,15 @@
         "schemaVersion",
         "kind",
         "requestFingerprint",
-        "stageLeadTaskId",
-        "featureLeadTaskId",
-        "stageKey",
-        "featureKey",
+        "coordinationOwnerTaskId",
+        "deliveryOwnerTaskId",
+        "coordinationKey",
+        "deliveryKey",
         "transitionId",
         "stateVersion",
         "scopeFingerprint",
         "rootAuthorizationFingerprint",
-        "stageWipAuthority",
+        "coordinationWipAuthority",
         "oldTopology",
         "delegationCeiling",
         "retainedWriteSet",
@@ -285,17 +285,17 @@
       ],
       "properties": {
         "schemaVersion": { "const": 1 },
-        "kind": { "const": "OES_FEATURE_REPLAN_REQUEST" },
+        "kind": { "const": "OES_DELIVERY_TOPOLOGY_REQUEST" },
         "requestFingerprint": { "$ref": "#/$defs/fingerprint" },
-        "stageLeadTaskId": { "$ref": "#/$defs/token" },
-        "featureLeadTaskId": { "$ref": "#/$defs/token" },
-        "stageKey": { "$ref": "#/$defs/featureKey" },
-        "featureKey": { "$ref": "#/$defs/featureKey" },
+        "coordinationOwnerTaskId": { "$ref": "#/$defs/token" },
+        "deliveryOwnerTaskId": { "$ref": "#/$defs/token" },
+        "coordinationKey": { "$ref": "#/$defs/deliveryKey" },
+        "deliveryKey": { "$ref": "#/$defs/deliveryKey" },
         "transitionId": { "$ref": "#/$defs/token" },
         "stateVersion": { "type": "integer", "minimum": 1 },
         "scopeFingerprint": { "$ref": "#/$defs/fingerprint" },
         "rootAuthorizationFingerprint": { "$ref": "#/$defs/fingerprint" },
-        "stageWipAuthority": { "$ref": "#/$defs/stageWipAuthority" },
+        "coordinationWipAuthority": { "$ref": "#/$defs/coordinationWipAuthority" },
         "oldTopology": { "$ref": "#/$defs/wip" },
         "delegationCeiling": { "$ref": "#/$defs/ceiling" },
         "retainedWriteSet": { "$ref": "#/$defs/writeSet" },
@@ -328,15 +328,15 @@
       ],
       "properties": {
         "schemaVersion": { "const": 1 },
-        "kind": { "const": "OES_FEATURE_REPLAN_DECISION" },
+        "kind": { "const": "OES_DELIVERY_TOPOLOGY_DECISION" },
         "decisionFingerprint": { "$ref": "#/$defs/fingerprint" },
-        "decision": { "enum": ["FEATURE_REPLAN_REQUIRED", "ATOMIC_CONTINUATION"] },
+        "decision": { "enum": ["DELIVERY_TOPOLOGY_REQUIRED", "ATOMIC_CONTINUATION"] },
         "request": { "$ref": "#/$defs/request" },
         "newTopology": { "$ref": "#/$defs/wip" },
         "nextLegalAction": {
           "enum": [
-            "RETURN_FEATURE_REPLAN_REQUIRED_TO_DIRECT_PARENT",
-            "CONTINUE_ORIGINAL_FEATURE_WITH_BOUNDED_ITS"
+            "RETURN_DELIVERY_TOPOLOGY_REQUIRED_TO_OWNER",
+            "CONTINUE_ORIGINAL_DELIVERY_WITH_BOUNDED_HELPERS"
           ]
         },
         "reason": { "type": "string", "minLength": 1 }

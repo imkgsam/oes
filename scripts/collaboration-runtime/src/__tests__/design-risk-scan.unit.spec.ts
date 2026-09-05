@@ -13,7 +13,10 @@ import {
 import { validateJsonSchema } from '../schema-validation.ts'
 
 const schema = JSON.parse(
-  readFileSync(join(import.meta.dirname, '..', '..', 'schemas', 'design-risk-scan.schema.json'), 'utf8')
+  readFileSync(
+    join(import.meta.dirname, '..', '..', 'schemas', 'design-risk-scan.schema.json'),
+    'utf8'
+  )
 ) as Record<string, unknown>
 
 const surface = (id: (typeof DESIGN_RISK_SURFACES)[number]): DesignRiskSurfaceInput => ({
@@ -24,7 +27,7 @@ const surface = (id: (typeof DESIGN_RISK_SURFACES)[number]): DesignRiskSurfaceIn
 })
 
 const input = (): DesignRiskScanInput => ({
-  featureKey: 'risk-tiered-evidence-validation',
+  deliveryKey: 'risk-tiered-evidence-validation',
   truthBaseline: '1'.repeat(40),
   scopeFingerprint: '2'.repeat(64),
   surfaces: DESIGN_RISK_SURFACES.map(surface)

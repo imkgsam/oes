@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oes.local/schemas/collaboration-runtime/coordination-scoped-rv-result-v2.json",
+  "title": "OES V2 exact scoped RV result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "resultFingerprint",
+    "status",
+    "coordinationKey",
+    "deliveryKey",
+    "deliveryOwnerTaskId",
+    "reviewerTaskId",
+    "candidateSha",
+    "patchFingerprint",
+    "contentFingerprint"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "kind": { "const": "OES_COORDINATION_SCOPED_RV_RESULT" },
+    "resultFingerprint": { "$ref": "#/$defs/digest" },
+    "status": { "const": "PASSED" },
+    "coordinationKey": { "$ref": "#/$defs/key" },
+    "deliveryKey": { "$ref": "#/$defs/key" },
+    "deliveryOwnerTaskId": { "type": "string", "minLength": 1 },
+    "reviewerTaskId": { "type": "string", "minLength": 1 },
+    "candidateSha": { "$ref": "#/$defs/sha" },
+    "patchFingerprint": { "$ref": "#/$defs/digest" },
+    "contentFingerprint": { "$ref": "#/$defs/digest" }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "key": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" }
+  }
+}

@@ -1,15 +1,6 @@
 #!/usr/bin/env node
-import {
-  loadRemoteBinding,
-  loadTrustedStageChildCleanupAuthorization,
-  loadTrustedStageCleanupAuthorization
-} from './binding.ts'
+import { loadRemoteBinding } from './binding.ts'
 import { canonicalJson, readJson, writeJsonAtomic } from './canonical.ts'
-import {
-  planChildSelfCleanup,
-  verifyChildCleanupResults,
-  verifyCleanupOnlyDeletion
-} from './cleanup.ts'
 import { assessDrift, createEvidenceKey } from './evidence.ts'
 import { RuntimeContractError, fail } from './errors.ts'
 import { GitHubRemoteAdapter, SpawnCommandRunner } from './github-adapter.ts'
@@ -27,34 +18,33 @@ import {
 } from './profile-preflight.ts'
 import { validateJsonSchema } from './schema-validation.ts'
 import {
-  createTechnicalRevision,
-  planStageMerge,
-  readStageMergeCandidateFingerprints
-} from './stage-merge.ts'
+  createAggregateRvInput,
+  loadAggregateDeliveryPackageReference,
+  renderPackagePrSummary,
+  validateAggregateDeliveryPackage,
+  validateAggregateRvInput,
+  validateDeliveryPackage
+} from './delivery-package.ts'
 import {
-  loadTrustedStageArchiveResults,
-  loadTrustedStageLifecycleInventory,
-  loadTrustedStageLifecycleRosterAuthority,
-  planStageLifecycle
-} from './stage-lifecycle.ts'
+  loadTrustedCoordinationIntegrationAuthorization,
+  loadTrustedCoordinationIntegrationResults,
+  planCoordinationIntegration
+} from './coordination-integration.ts'
 import { RemoteDriver } from './remote-driver.ts'
+import { decideRouting, type RoutingDecisionInput } from './routing.ts'
+import {
+  createVerificationTopology,
+  type VerificationTopologyInput
+} from './verification-topology.ts'
 import {
   CiRecoveryController,
   FileCiRecoveryReceiptStore,
   type CiRecoveryInput
 } from './retry-policy.ts'
 import type {
-  CleanupDiffEntry,
-  CleanupResourceDecision,
-  CompletedCleanupResource,
   DriftAssessmentInput,
   EffectiveProfileReport,
   EvidenceKeyInput,
-  ObservedCleanupResource,
-  StageMergeAuthorization,
-  StageMergeItemResult,
-  StageMergeTechnicalRevision,
-  StageMergeTechnicalRevisionInput,
   TrustedAuthorizationReference
 } from './types.ts'
 
@@ -73,6 +63,14 @@ function emit(value: unknown): void {
 /** Runs one collaboration-runtime subcommand. */
 async function main(args: string[]): Promise<void> {
   const command = args[0]
+  if (command === 'route') {
+    emit(decideRouting(readJson<RoutingDecisionInput>(flag(args, '--input'))))
+    return
+  }
+  if (command === 'verification-plan') {
+    emit(createVerificationTopology(readJson<VerificationTopologyInput>(flag(args, '--input'))))
+    return
+  }
   if (command === 'validate-binding') {
     const profileReport = verifyEffectiveProfileReport(
       readJson<EffectiveProfileReport>(flag(args, '--profile-report'))
@@ -144,7 +142,7 @@ async function main(args: string[]): Promise<void> {
       status: 'PROFILE_VERIFIED',
       ownerTaskId: report.ownerTaskId,
       schemaVersion: report.schemaVersion,
-      approvalMode: report.approvalMode ?? 'ON_REQUEST_AUTO_REVIEW_LEGACY',
+      approvalMode: report.approvalMode,
       normalPermissionPromptCount: 0
     })
     return
@@ -196,97 +194,58 @@ async function main(args: string[]): Promise<void> {
     }
     return
   }
-  if (command === 'cleanup-plan') {
+  if (command === 'coordination-integration-plan') {
     const profileReport = verifyEffectiveProfileReport(
       readJson<EffectiveProfileReport>(flag(args, '--profile-report'))
     )
     const trust = loadRemoteTrustRootsFromProfileReport(profileReport)
-    const { root: authorization, child } = loadTrustedStageChildCleanupAuthorization(
-      flag(args, '--authorization'),
-      flag(args, '--child-authorization'),
+    const { authorization, repositoryRoot } = loadTrustedCoordinationIntegrationAuthorization(
+      readJson<TrustedAuthorizationReference>(flag(args, '--authorization')),
       trust
     )
-    const observations = readJson<ObservedCleanupResource[]>(flag(args, '--observed'))
-    const output = flag(args, '--output')
-    const completedPath = args.includes('--completed') ? flag(args, '--completed') : null
-    const completed = completedPath ? readJson<CompletedCleanupResource[]>(completedPath) : []
-    const plan = planChildSelfCleanup(authorization, child.ownerTaskId, observations, completed)
-    writeJsonAtomic(output, plan)
-    emit(plan)
-    return
-  }
-  if (command === 'cleanup-verify') {
-    const profileReport = verifyEffectiveProfileReport(
-      readJson<EffectiveProfileReport>(flag(args, '--profile-report'))
+    const results = loadTrustedCoordinationIntegrationResults(
+      readJson<TrustedAuthorizationReference>(flag(args, '--results')),
+      authorization,
+      trust
     )
-    const trust = loadRemoteTrustRootsFromProfileReport(profileReport)
-    const authorization = loadTrustedStageCleanupAuthorization(flag(args, '--authorization'), trust)
-    if (authorization.stageOwnerTaskId !== trust.ownerTaskId)
-      fail('STAGE_CLEANUP_VERIFIER_OWNER_MISMATCH', trust.ownerTaskId)
-    const diff = readJson<CleanupDiffEntry[]>(flag(args, '--diff'))
-    const childResults = readJson<Record<string, CleanupResourceDecision[]>>(
-      flag(args, '--child-results')
-    )
-    verifyCleanupOnlyDeletion(authorization, diff)
-    verifyChildCleanupResults(authorization, childResults)
-    emit({ status: 'STAGE_CLEANUP_VERIFIED', stageKey: authorization.stageKey })
-    return
-  }
-  if (command === 'stage-merge-plan') {
-    const authorization = readJson<StageMergeAuthorization>(flag(args, '--authorization'))
-    const results = readJson<StageMergeItemResult[]>(flag(args, '--results'))
-    const revisions = args.includes('--technical-revisions')
-      ? readJson<StageMergeTechnicalRevision[]>(flag(args, '--technical-revisions'))
-      : []
-    emit(planStageMerge(authorization, results, revisions, flag(args, '--repository-root')))
-    return
-  }
-  if (command === 'stage-merge-candidate-readback') {
     emit(
-      readStageMergeCandidateFingerprints(
-        flag(args, '--repository-root'),
-        flag(args, '--base'),
-        flag(args, '--head')
+      planCoordinationIntegration(
+        authorization,
+        results,
+        repositoryRoot,
+        new SpawnCommandRunner()
       )
     )
     return
   }
-  if (command === 'stage-merge-revision') {
-    const authorization = readJson<StageMergeAuthorization>(flag(args, '--authorization'))
-    const input = readJson<StageMergeTechnicalRevisionInput>(flag(args, '--input'))
-    const revision = createTechnicalRevision(authorization, input, flag(args, '--repository-root'))
-    if (args.includes('--output')) writeJsonAtomic(flag(args, '--output'), revision)
-    emit(revision)
+  if (command === 'delivery-package-validate') {
+    const value = readJson<Record<string, unknown>>(flag(args, '--package'))
+    const packageValue = value.kind === 'OES_DELIVERY_PACKAGE'
+      ? validateDeliveryPackage(value as never)
+      : validateAggregateDeliveryPackage(value as never)
+    emit({ status: 'PACKAGE_VALID', kind: packageValue.kind, packageFingerprint: packageValue.packageFingerprint })
     return
   }
-  if (command === 'stage-lifecycle-plan') {
-    const profileReport = verifyEffectiveProfileReport(
-      readJson<EffectiveProfileReport>(flag(args, '--profile-report'))
-    )
-    const trust = loadRemoteTrustRootsFromProfileReport(profileReport)
-    const cleanup = loadTrustedStageCleanupAuthorization(flag(args, '--authorization'), trust)
-    const rosterAuthority = loadTrustedStageLifecycleRosterAuthority(
-      readJson<TrustedAuthorizationReference>(flag(args, '--roster-authority')),
-      cleanup,
-      trust
-    )
-    const inventory = loadTrustedStageLifecycleInventory(
-      readJson<TrustedAuthorizationReference>(flag(args, '--inventory')),
-      rosterAuthority,
-      cleanup,
-      trust
-    )
-    const priorResults = args.includes('--prior-results')
-      ? loadTrustedStageArchiveResults(
-          readJson<TrustedAuthorizationReference>(flag(args, '--prior-results')),
-          inventory,
-          cleanup,
-          trust
-        )
-      : []
-    const plan = planStageLifecycle(rosterAuthority, inventory, priorResults)
-    if (args.includes('--output')) writeJsonAtomic(flag(args, '--output'), plan)
-    emit(plan)
+  if (command === 'delivery-package-summary') {
+    const value = readJson<Record<string, unknown>>(flag(args, '--package'))
+    emit({ summary: renderPackagePrSummary(
+      value.kind === 'OES_DELIVERY_PACKAGE'
+        ? validateDeliveryPackage(value as never)
+        : validateAggregateDeliveryPackage(value as never)
+    ) })
+    return
+  }
+  if (command === 'aggregate-rv-input') {
+    const reference = readJson<TrustedAuthorizationReference>(flag(args, '--package-reference'))
+    const aggregate = loadAggregateDeliveryPackageReference(reference)
+    const input = createAggregateRvInput(reference, aggregate)
+    if (args.includes('--existing'))
+      validateAggregateRvInput(
+        readJson<Record<string, unknown>>(flag(args, '--existing')) as never,
+        reference,
+        aggregate
+      )
+    emit(input)
     return
   }
   fail('CLI_COMMAND_UNKNOWN', command ?? 'NONE')
