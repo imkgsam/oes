@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { spawnSync } from 'node:child_process'
 import {
   mkdirSync,
   mkdtempSync,
@@ -128,7 +129,7 @@ function repositoryDraft(): Parameters<typeof createDeliveryPackage>[0] {
       scope: ['runtime and schemas'],
       nonGoals: ['merge'],
       acceptance: ['focused checks pass'],
-      designReferences: [reference('/stable/design/proposal.json', 'b')],
+      designReferences: [],
       protectedScope: ['unrelated product code'],
       dependencies: [],
       writeSet: ['scripts/collaboration-runtime/**'],
@@ -284,8 +285,11 @@ test('scope, design, dependency, and candidate changes invalidate bound DP evide
 })
 
 test('host-local DP uses the same schema without Git candidate, PR, Merge Queue, or remote CI', () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'oes-host-local-package-test-')))
   const draft = repositoryDraft()
   draft.executionMode = 'HOST_LOCAL'
+  draft.artifactRoot = join(root, 'artifacts')
+  draft.packagePath = join(draft.artifactRoot, 'delivery-package.json')
   draft.activation.writeSet = []
   draft.activation.dependencies = []
   draft.execution.repository = null
@@ -297,6 +301,8 @@ test('host-local DP uses the same schema without Git candidate, PR, Merge Queue,
   }
   draft.execution.ci = notApplicable()
   const value = createDeliveryPackage(draft)
+  mkdirSync(value.artifactRoot)
+  writeFileSync(value.packagePath, `${canonicalJson(value)}\n`)
   validateJsonSchema(schema('delivery-package.schema.json'), value)
   assert.equal(value.execution.repository, null)
   assert.equal(value.execution.ci.status, 'NOT_APPLICABLE')
@@ -304,7 +310,28 @@ test('host-local DP uses the same schema without Git candidate, PR, Merge Queue,
     packagePath: value.packagePath,
     decision: 'REMOVE_EXTERNAL_PACKAGE'
   })
-  assert.equal(verifyPackageCleanup(value, null, []).status, 'PACKAGE_CLEANUP_VERIFIED')
+  rmSync(value.packagePath)
+  assert.equal(verifyPackageCleanup(value, null).status, 'PACKAGE_CLEANUP_VERIFIED')
+
+  const repositoryRoot = join(root, 'repository')
+  const repositoryArtifacts = join(repositoryRoot, 'docs')
+  mkdirSync(repositoryArtifacts, { recursive: true })
+  assert.equal(spawnSync('git', ['init', '-q', repositoryRoot]).status, 0)
+  const repositoryDraftValue = repositoryDraft()
+  repositoryDraftValue.executionMode = 'HOST_LOCAL'
+  repositoryDraftValue.artifactRoot = repositoryArtifacts
+  repositoryDraftValue.packagePath = join(repositoryArtifacts, 'delivery-package.json')
+  repositoryDraftValue.activation.writeSet = []
+  repositoryDraftValue.activation.dependencies = []
+  repositoryDraftValue.execution.repository = null
+  repositoryDraftValue.execution.hostLocal = structuredClone(draft.execution.hostLocal)
+  repositoryDraftValue.execution.ci = notApplicable()
+  const repositoryValue = createDeliveryPackage(repositoryDraftValue)
+  writeFileSync(repositoryValue.packagePath, `${canonicalJson(repositoryValue)}\n`)
+  assert.throws(
+    () => planPackageCleanup(repositoryValue, null),
+    /HOST_LOCAL_PACKAGE_REPOSITORY_PATH_FORBIDDEN/
+  )
   const invalid = deliveryUpdate(value)
   if (!invalid.execution.hostLocal) throw new Error('host-local fixture absent')
   ;(invalid.execution.hostLocal as { repositoryModified: boolean }).repositoryModified = true
@@ -313,12 +340,21 @@ test('host-local DP uses the same schema without Git candidate, PR, Merge Queue,
 
 test('ADP binds every DP, dependency order, integration contract, accepted candidates, and exact RV input', () => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'oes-package-rv-test-')))
+  const childDesigns: { path: string; bytes: string }[] = []
   const childReferences = ['api', 'web'].map((deliveryKey, index) => {
     const draft = repositoryDraft()
     draft.deliveryKey = deliveryKey
     draft.ownerTaskId = `/root/co-release/do-${deliveryKey}`
     draft.artifactRoot = join(root, deliveryKey)
     draft.packagePath = join(draft.artifactRoot, 'delivery-package.json')
+    mkdirSync(draft.artifactRoot, { recursive: true })
+    const designPath = join(draft.artifactRoot, 'design.md')
+    const designBytes = `design:${deliveryKey}\n`
+    writeFileSync(designPath, designBytes)
+    draft.activation.designReferences = [
+      { path: designPath, sha256: sha256(designBytes), fingerprint: sha256(designBytes) }
+    ]
+    childDesigns.push({ path: designPath, bytes: designBytes })
     draft.execution.selfTest = pending()
     if (!draft.execution.repository) throw new Error('repository fixture absent')
     draft.execution.repository.branch = `codex/delivery/${deliveryKey}`
@@ -551,6 +587,13 @@ test('ADP binds every DP, dependency order, integration contract, accepted candi
     /PACKAGE_EVIDENCE_APPLICABILITY_MISMATCH/
   )
 
+  writeFileSync(childDesigns[0].path, 'changed design bytes\n')
+  assert.throws(
+    () => loadAggregateDeliveryPackageReference(aggregateReference),
+    /DELIVERY_DESIGN_REFERENCE_SHA_MISMATCH/
+  )
+  writeFileSync(childDesigns[0].path, childDesigns[0].bytes)
+
   const firstPackage = JSON.parse(
     readFileSync(childReferences[0].packagePath, 'utf8')
   ) as DeliveryPackage
@@ -747,6 +790,7 @@ test('package cleanup requires trusted physical repository placement and observe
   const artifactRoot = join(root, 'artifacts')
   mkdirSync(repositoryRoot)
   mkdirSync(artifactRoot)
+  assert.equal(spawnSync('git', ['init', '-q', repositoryRoot]).status, 0)
   const draft = repositoryDraft()
   draft.artifactRoot = artifactRoot
   draft.packagePath = join(artifactRoot, 'delivery-package.json')
@@ -761,18 +805,25 @@ test('package cleanup requires trusted physical repository placement and observe
   })
   assert.throws(() => planPackageCleanup(value, null), /PACKAGE_CLEANUP_OWNER_BINDING_REQUIRED/)
   rmSync(value.packagePath)
-  assert.deepEqual(verifyPackageCleanup(value, binding, []), {
+  assert.deepEqual(verifyPackageCleanup(value, binding), {
     packagePath: value.packagePath,
     repositoryDiff: [],
     status: 'PACKAGE_CLEANUP_VERIFIED'
   })
+  writeFileSync(join(repositoryRoot, 'unexpected.txt'), 'unexpected repository change\n')
   assert.throws(
-    () => verifyPackageCleanup(value, binding, [{ status: 'M', path: 'README.md' }]),
+    () => verifyPackageCleanup(value, binding),
     /PACKAGE_CLEANUP_REPOSITORY_DIFF_NOT_EMPTY/
   )
+  rmSync(join(repositoryRoot, 'unexpected.txt'))
 
   const insideRepository = join(repositoryRoot, 'delivery-package.json')
   writeFileSync(insideRepository, '{}\n')
   symlinkSync(insideRepository, value.packagePath)
   assert.throws(() => planPackageCleanup(value, binding), /OWNER_RESOURCE_PHYSICAL_PATH_ALIAS/)
+  rmSync(value.packagePath)
+  rmSync(insideRepository)
+  symlinkSync(join(root, 'missing-package.json'), value.packagePath)
+  assert.throws(() => planPackageCleanup(value, binding), /OWNER_RESOURCE_PHYSICAL_PATH_ALIAS/)
+  assert.throws(() => verifyPackageCleanup(value, binding), /OWNER_RESOURCE_PHYSICAL_PATH_ALIAS/)
 })

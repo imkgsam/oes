@@ -1,6 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync
+} from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -10,8 +18,10 @@ import { validateJsonSchema } from '../schema-validation.ts'
 import {
   planOwnerRecovery,
   loadOwnerDurabilityArtifacts,
+  physicalIdentityForPotentialPath,
   readInstalledProfileResourceTopology,
   recoverOwnerResources,
+  requireExactPhysicalPath,
   resolveOwnerTransitionBinding,
   stableOwnerTaskTempLeaf,
   SystemOwnerRecoveryAdapter,
@@ -33,6 +43,27 @@ const schema = (name: string) =>
   JSON.parse(
     readFileSync(join(import.meta.dirname, '..', '..', 'schemas', name), 'utf8')
   ) as Record<string, unknown>
+
+test('physical identity rejects dangling leaf and ancestor symlink aliases', () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'oes-dangling-identity-test-')))
+  const danglingLeaf = join(root, 'dangling-leaf')
+  symlinkSync(join(root, 'missing-leaf-target'), danglingLeaf)
+  assert.notEqual(physicalIdentityForPotentialPath(danglingLeaf), danglingLeaf)
+  assert.throws(
+    () => requireExactPhysicalPath(danglingLeaf, 'danglingLeaf', physicalIdentityForPotentialPath),
+    /OWNER_RESOURCE_PHYSICAL_PATH_ALIAS/
+  )
+
+  const danglingAncestor = join(root, 'dangling-ancestor')
+  const descendant = join(danglingAncestor, 'child', 'resource')
+  symlinkSync(join(root, 'missing-ancestor-target'), danglingAncestor)
+  assert.notEqual(physicalIdentityForPotentialPath(descendant), descendant)
+  assert.throws(
+    () =>
+      requireExactPhysicalPath(descendant, 'danglingAncestor', physicalIdentityForPotentialPath),
+    /OWNER_RESOURCE_PHYSICAL_PATH_ALIAS/
+  )
+})
 
 /** Runs one local Git command and returns its literal stdout. */
 function git(cwd: string, args: string[]): string {

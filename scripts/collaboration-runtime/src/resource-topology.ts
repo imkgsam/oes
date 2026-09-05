@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, realpathSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -65,16 +65,38 @@ function isStrictlyWithin(root: string, candidate: string): boolean {
   return resolve(root) !== resolve(candidate) && isWithin(root, candidate)
 }
 
-/** Resolves an absent target through its nearest existing parent to one physical identity. */
+/** Returns whether one path entry exists without following a dangling symbolic link. */
+function pathEntryExists(path: string): boolean {
+  try {
+    lstatSync(path)
+    return true
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return false
+    throw error
+  }
+}
+
+/** Resolves a target through its nearest no-follow entry and exposes dangling aliases. */
 export function physicalIdentityForPotentialPath(path: string): string {
   const target = resolve(path)
   let existing = target
-  while (!existsSync(existing)) {
+  while (!pathEntryExists(existing)) {
     const parent = dirname(existing)
     if (parent === existing) fail('OWNER_RESOURCE_PHYSICAL_PARENT_ABSENT', path)
     existing = parent
   }
-  return resolve(realpathSync(existing), relative(existing, target))
+  try {
+    return resolve(realpathSync(existing), relative(existing, target))
+  } catch (error) {
+    if (lstatSync(existing).isSymbolicLink())
+      return resolve(
+        dirname(existing),
+        `.oes-dangling-symlink-${basename(existing)}`,
+        relative(existing, target)
+      )
+    throw error
+  }
 }
 
 /** Returns whether a physical path belongs to disposable process or system temporary storage. */

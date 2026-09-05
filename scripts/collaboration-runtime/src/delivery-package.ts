@@ -1,5 +1,6 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { isAbsolute, relative, resolve, sep } from 'node:path'
+import { lstatSync, readFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { canonicalJson, objectFingerprint, sha256 } from './canonical.ts'
 import { fail } from './errors.ts'
 import {
@@ -7,7 +8,7 @@ import {
   requireExactPhysicalPath,
   requireTrustedOwnerResourceBinding
 } from './resource-topology.ts'
-import type { CleanupDiffEntry, TrustedAuthorizationReference } from './types.ts'
+import type { TrustedAuthorizationReference } from './types.ts'
 import type { OwnerResourceBinding } from './resource-topology.types.ts'
 
 export type DeliveryExecutionMode = 'REPOSITORY' | 'HOST_LOCAL'
@@ -612,6 +613,7 @@ export function loadDeliveryPackageReference(
     fail('DELIVERY_PACKAGE_REFERENCE_SHA_MISMATCH', reference.deliveryKey)
   const value = validateDeliveryPackage(JSON.parse(bytes.toString('utf8')) as DeliveryPackage)
   validatePackageArtifactIdentity(value.artifactRoot, value.packagePath, value.deliveryKey)
+  reopenDesignReferences(value.activation.designReferences, value.deliveryKey)
   if (
     value.deliveryKey !== reference.deliveryKey ||
     value.ownerTaskId !== reference.ownerTaskId ||
@@ -800,13 +802,12 @@ export function planPackageCleanup(
 /** Verifies actual package absence and an observed empty repository diff after disposal. */
 export function verifyPackageCleanup(
   value: DeliveryPackage | AggregateDeliveryPackage,
-  ownerBinding: OwnerResourceBinding | null,
-  repositoryDiff: CleanupDiffEntry[]
+  ownerBinding: OwnerResourceBinding | null
 ): { packagePath: string; repositoryDiff: []; status: 'PACKAGE_CLEANUP_VERIFIED' } {
-  validatePackageCleanupPlacement(value, ownerBinding)
-  if (existsSync(value.packagePath)) fail('PACKAGE_CLEANUP_ABSENCE_NOT_VERIFIED', value.packagePath)
-  if (!Array.isArray(repositoryDiff) || repositoryDiff.length !== 0)
-    fail('PACKAGE_CLEANUP_REPOSITORY_DIFF_NOT_EMPTY', JSON.stringify(repositoryDiff))
+  const placement = validatePackageCleanupPlacement(value, ownerBinding)
+  if (pathEntryExists(value.packagePath))
+    fail('PACKAGE_CLEANUP_ABSENCE_NOT_VERIFIED', value.packagePath)
+  if (placement.repositoryPhysical) verifyObservedRepositoryClean(placement.repositoryPhysical)
   return { packagePath: value.packagePath, repositoryDiff: [], status: 'PACKAGE_CLEANUP_VERIFIED' }
 }
 
@@ -1532,7 +1533,7 @@ function reopenCompletedEvidence(context: EvidenceReopenContext): void {
 function validatePackageCleanupPlacement(
   value: DeliveryPackage | AggregateDeliveryPackage,
   ownerBinding: OwnerResourceBinding | null
-): void {
+): { repositoryPhysical: string | null } {
   if (value.kind === 'OES_DELIVERY_PACKAGE') validateDeliveryPackage(value)
   else validateAggregateDeliveryPackage(value)
   const { artifactPhysical, packagePhysical } = validatePackageArtifactIdentity(
@@ -1543,7 +1544,8 @@ function validatePackageCleanupPlacement(
   if (value.executionMode === 'HOST_LOCAL') {
     if (ownerBinding !== null)
       fail('HOST_LOCAL_PACKAGE_REPOSITORY_BINDING_FORBIDDEN', value.ownerTaskId)
-    return
+    requireRepositoryFreeArtifactRoot(artifactPhysical)
+    return { repositoryPhysical: null }
   }
   if (!ownerBinding) fail('PACKAGE_CLEANUP_OWNER_BINDING_REQUIRED', value.ownerTaskId)
   requireTrustedOwnerResourceBinding(ownerBinding)
@@ -1560,6 +1562,87 @@ function validatePackageCleanupPlacement(
     fail('PACKAGE_CLEANUP_OWNER_BINDING_MISMATCH', value.ownerTaskId)
   if (isWithin(repositoryPhysical, packagePhysical))
     fail('PACKAGE_CLEANUP_REPOSITORY_PATH_FORBIDDEN', value.packagePath)
+  return { repositoryPhysical }
+}
+
+/** Reopens every design source byte before completed DP evidence may be accepted. */
+function reopenDesignReferences(
+  references: TrustedAuthorizationReference[],
+  deliveryKey: string
+): void {
+  const paths = new Set<string>()
+  for (const reference of references) {
+    if (paths.has(reference.path)) fail('DELIVERY_DESIGN_REFERENCE_DUPLICATE', deliveryKey)
+    requireExactPhysicalPath(
+      reference.path,
+      'activation.designReference.path',
+      physicalIdentityForPotentialPath
+    )
+    let bytes: Buffer
+    try {
+      bytes = readFileSync(reference.path)
+    } catch {
+      fail('DELIVERY_DESIGN_REFERENCE_ABSENT', reference.path)
+    }
+    if (sha256(bytes) !== reference.sha256)
+      fail('DELIVERY_DESIGN_REFERENCE_SHA_MISMATCH', reference.path)
+    paths.add(reference.path)
+  }
+}
+
+/** Rejects a host-local artifact root that is inside any Git worktree or repository. */
+function requireRepositoryFreeArtifactRoot(artifactRoot: string): void {
+  const cwd = nearestExistingDirectory(artifactRoot)
+  const result = spawnSync('git', ['rev-parse', '--absolute-git-dir'], {
+    cwd,
+    encoding: 'utf8',
+    env: { ...process.env, LC_ALL: 'C' }
+  })
+  if (result.error) fail('PACKAGE_CLEANUP_GIT_OBSERVATION_FAILED', result.error.message)
+  if (result.status === 0) fail('HOST_LOCAL_PACKAGE_REPOSITORY_PATH_FORBIDDEN', artifactRoot)
+  if (result.status !== 128 || !result.stderr.includes('not a git repository'))
+    fail('PACKAGE_CLEANUP_GIT_OBSERVATION_FAILED', `${result.status}:${result.stderr.trim()}`)
+}
+
+/** Observes the bound repository directly and requires a byte-empty porcelain result. */
+function verifyObservedRepositoryClean(repositoryRoot: string): void {
+  const result = spawnSync(
+    'git',
+    ['-C', repositoryRoot, 'status', '--porcelain=v1', '-z', '--untracked-files=all'],
+    { encoding: 'utf8', env: { ...process.env, LC_ALL: 'C' } }
+  )
+  if (result.error || result.status !== 0)
+    fail(
+      'PACKAGE_CLEANUP_GIT_OBSERVATION_FAILED',
+      result.error?.message ?? `${result.status}:${result.stderr.trim()}`
+    )
+  if (result.stdout.length !== 0)
+    fail('PACKAGE_CLEANUP_REPOSITORY_DIFF_NOT_EMPTY', JSON.stringify(result.stdout))
+}
+
+/** Finds the nearest real directory from which repository membership can be observed. */
+function nearestExistingDirectory(path: string): string {
+  let current = path
+  while (!pathEntryExists(current)) {
+    const parent = dirname(current)
+    if (parent === current) fail('PACKAGE_CLEANUP_PHYSICAL_PARENT_ABSENT', path)
+    current = parent
+  }
+  const stats = lstatSync(current)
+  if (stats.isSymbolicLink()) fail('OWNER_RESOURCE_PHYSICAL_PATH_ALIAS', 'package.artifactRoot')
+  return stats.isDirectory() ? current : dirname(current)
+}
+
+/** Returns whether one filesystem entry exists without following dangling symlinks. */
+function pathEntryExists(path: string): boolean {
+  try {
+    lstatSync(path)
+    return true
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return false
+    fail('PACKAGE_CLEANUP_PATH_OBSERVATION_FAILED', path)
+  }
 }
 
 /** Reopens one package and stable root as exact physical identities. */
