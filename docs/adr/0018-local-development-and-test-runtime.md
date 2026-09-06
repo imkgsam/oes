@@ -43,6 +43,9 @@ OES 同时需要保持既有架构边界：local business service 继续作为 h
     abnormal cleanup、CI reproduction 和 rollback。
 11. Main 以一个候选原子切换所有 supported entry、CI internal path、configuration、test 和 runbook；
     不保留 active legacy/v2 mode。
+12. Implementation candidate 在切换前只读盘点并分类现有 OES Compose project/container/network/
+    volume，交付 deterministic dry-run、sealed exact-identity cleanup plan 和 residue check；真实主机
+    删除只在独立 Human-confirmed Cleanup boundary 执行。
 
 完整 profile、provider、lifecycle、permission、migration、A0 和 rollback contract 以
 [Local Development And Test Runtime](../architecture/platforms/local-development-and-test-runtime.md)
@@ -65,6 +68,8 @@ OES 同时需要保持既有架构边界：local business service 继续作为 h
 
 - Cutover 必须同时迁移当前 pnpm/CI entry、dotenv、Compose lifecycle、fixed-port test、migration、
   seed/fixture 和 runbook；部分切换会制造两个 authority，因此不被接受。
+- 现有主机可能同时包含有效 DEV data、active owner resource、idle legacy residue 和无法证明归属的
+  object；新 launcher 可用不等于这些资源已安全 reconcile。
 - Shared TEST provider 需要可靠的 logical provisioning、lease reconciliation 和 per-run denial；
   仅有名称前缀或 numeric Redis DB 不构成隔离。
 - Dynamic endpoint 要求全部 host process 通过 manifest injection 启动；直接执行依赖 stale `.env`
@@ -106,8 +111,15 @@ business debugging，也可能用 fake 错报 Journey complete。
 
 Implementation 可在 isolated candidate 中验证，`main` 在合并前继续执行当前 runbook。Cutover
 candidate 必须对 runtime/configuration/entry 做 repository-wide zero-reference check，先备份 DEV
-data，重建 disposable TEST data，并在 exact candidate 上完成 self-test、A0、independent RV 和
-`CI / Baseline Checks`。合并需要之后独立的 Human confirmation。
+data，重建 disposable TEST data，交付一次性 legacy host-resource inventory/reconciliation tool、
+dry-run、sealed cleanup plan、rewritten runbook 与 residue check，并在 exact candidate 上完成
+self-test、A0、independent RV 和 `CI / Baseline Checks`。合并需要之后独立的 Human confirmation。
+
+实际删除主机上的 confirmed-idle legacy OES resource 是后续独立 Cleanup confirmation boundary。
+Apply 前必须重开 exact Docker identity/labels/state/attachment/owner evidence；active、unknown、shared、
+dirty、mismatched 或证据不足资源保留并报告。最终 migration acceptance 要求 confirmed-idle legacy
+resource 归零，且每个保留项都有 exact identity 与理由；Design/implementation delivery 不能借
+cutover、startup 或 merge 自动删除历史资源。
 
 Rollback 是 whole-candidate Git revert，并在需要时恢复 cutover 前 DEV snapshot；不得选择性恢复
 legacy entry、generated `.env` 或 fixed-port path。

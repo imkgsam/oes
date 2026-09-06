@@ -3,7 +3,9 @@
 > Current executable state: these commands operate the pre-cutover local Compose proof. The accepted
 > target [Local Development And Test Runtime](../architecture/platforms/local-development-and-test-runtime.md)
 > assigns NATS as shared in `DEV`, one-per-run when selected in local Integration, and job-private in
-> CI. The future atomic cutover rewrites this runbook; no parallel V2 mode is currently active.
+> CI. The future atomic cutover rewrites this runbook; no parallel V2 mode is currently active, and
+> these commands do not authorize host-wide deletion of historical NATS containers, networks, or
+> volumes.
 
 ## Scope and boundary
 

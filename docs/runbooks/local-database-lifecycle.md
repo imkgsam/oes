@@ -77,3 +77,10 @@ pnpm db:rollback
 ```
 
 Rollback validates the saved task key, Compose project, resource fingerprint, owner labels, and exact resource inventory before deleting the current task's containers, volumes, networks, and local lifecycle state. Foreign, shared, legacy, dirty, or mismatched resources fail closed and remain untouched.
+
+`db:rollback` is scoped to that one current task-owned stack. It is not the future one-time host-wide
+legacy reconciliation tool and does not authorize deletion of historical OES Compose projects or
+unmatched resources. The atomic V2 cutover must replace this runbook with read-only inventory/dry-run,
+DEV backup/migration, sealed exact-identity cleanup-plan apply, and residue-check commands defined by
+[the runtime migration boundary](../architecture/platforms/local-development-and-test-runtime.md#151-legacy-host-resource-reconciliation);
+real host deletion still requires the separate Collaboration Framework V2 Cleanup confirmation.

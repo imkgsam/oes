@@ -3,7 +3,8 @@
 > Current executable state: these commands operate the pre-cutover Compose trust bootstrap. The
 > accepted target [Local Development And Test Runtime](../architecture/platforms/local-development-and-test-runtime.md)
 > uses stable `DEV`, per-run local Integration, and per-job CI certificate material. The future atomic
-> cutover rewrites this runbook; no parallel V2 mode is currently active.
+> cutover rewrites this runbook; no parallel V2 mode is currently active, and these commands do not
+> authorize host-wide deletion of historical trust containers, networks, or volumes.
 
 ## Purpose and boundary
 

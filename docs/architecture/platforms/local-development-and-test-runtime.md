@@ -313,13 +313,74 @@ Cutover candidate 必须同时：
   stale test 与 obsolete executable documentation；
 - 对 runtime entry/config reference 做 repository-wide zero-reference check；
 - 在切换前备份 DEV data，并重建 disposable TEST data；
+- 交付一次性、可审计的 legacy host-resource reconciliation/cleanup 工具、read-only inventory、
+  dry-run plan、confirmed cleanup apply 与 post-cleanup residue check；
+- 原子改写受影响 runbook，使 operator 可以从 exact inventory 生成计划，并在独立 Cleanup
+  confirmation 后执行同一 sealed plan；
 - 不混入 business schema change、seed semantics change、business fix、service containerization 或
   unrelated refactor。
+
+### 15.1 Legacy host-resource reconciliation
+
+现有主机资源不是因为新 launcher 已交付就自动脱离 OES ownership。切换前，implementation
+candidate 必须以只读方式盘点当前可观察到的 OES Compose project、container、network、volume，
+并记录 Docker object ID、type/name、Compose/project labels、OES owner labels、active/stopped state、
+attachment/mount、对应 task/lease/manifest evidence 与 observation time。名称或 prefix 只能作为
+发现线索，不能单独证明 owner 或删除资格；inventory 不读取或输出 credential/private data。
+
+每个 observed resource 必须恰好进入以下一类：
+
+| Classification | Required disposition |
+| --- | --- |
+| `VALID_DEV_DATA` | 在切换前完成可验证 backup；按新 DEV owner/database/bucket contract migration 或 restore，并保留 source/backup/target binding。 |
+| `ACTIVE_OWNER_HELD` | 保留；绑定 exact active task/lease/owner 和阻止清理的 evidence。 |
+| `CONFIRMED_IDLE_LEGACY_RESIDUE` | 进入 sealed cleanup plan；只有 exact identity 重新打开且独立 Cleanup confirmation 有效时删除。 |
+| `UNKNOWN_OR_INSUFFICIENT_EVIDENCE` | fail closed 保留；记录 exact identity、缺失证据和后续 owner resolution action。 |
+
+Known shared provider 有 active lease/owner 时归入 `ACTIVE_OWNER_HELD`，承载有效持久 DEV data 时
+归入 `VALID_DEV_DATA`；缺少上述证据时归入 `UNKNOWN_OR_INSUFFICIENT_EVIDENCE`。只有同时证明属于
+旧 lifecycle、没有 active lease/attachment 且不是待迁移 DEV data，才能归入
+`CONFIRMED_IDLE_LEGACY_RESIDUE`。
+
+Implementation candidate 交付的 reconciliation tool 必须：
+
+- 默认和 `dry-run` 都是 read-only，产生 deterministic inventory、classification、planned action、
+  reason 与 evidence digest；
+- 把 backup/migration、preserve、delete 和 residue expectation 明确区分，不能把 stopped、unused、
+  name match 或 label match 单独当成 delete proof；
+- 生成 sealed exact-identity cleanup plan，并在 apply 前重新读取 object ID、labels、state、mount/
+  attachment、owner/lease evidence；任一 drift/mismatch 转为 preserve-and-report；
+- child-first 删除已确认属于旧 OES lifecycle 且 idle 的 container、Compose project membership、
+  network 和 temporary volume，不删除仍被 attachment/mount 使用的 parent/shared resource；
+- 验证 DEV backup/migration 后才允许旧 persistent DEV source 进入 delete plan；
+- cleanup 后重新盘点全部发现面，证明 planned object 的 disposition 与 literal output/exit status，
+  并报告所有保留项；
+- 不在 launcher startup、Design PR、implementation merge 或普通 test command 中自动清理历史资源。
+
+Tool、inventory schema、dry-run plan、runbook 和验证 evidence 属于 implementation delivery；对真实
+主机执行 delete 仍是 [Collaboration Framework V2](../../governance/codex-execution-model.md) 的独立
+`Cleanup` confirmation boundary。该边界只执行已经交付并验证的工具与 sealed plan，不创建新 task、
+delivery、PR、merge、CI、product fix 或 repository diff。未获得 Cleanup confirmation 时，只允许
+read-only inventory/dry-run、delivery activation 已授权并验证的 DEV backup/migration，以及
+preserve report；不执行 legacy resource delete。
+
+### 15.2 Final migration acceptance
 
 只有 exact-candidate self-test、A0、independent RV 和 `CI / Baseline Checks` 均通过，且获得之后
 独立的 Human merge confirmation，candidate 才可合并。Implementation acceptance 必须包含 A0 的
 完整 literal evidence、权限 denial、stable rerun、normal/abnormal cleanup、residue observation、
-CI reproduction 和 rollback drill。
+CI reproduction 和 rollback drill。原子切换后的最终 migration acceptance 还要求：
+
+- legacy runtime executable/config/test/document reference zero check 通过；
+- sealed cleanup plan 中所有 `CONFIRMED_IDLE_LEGACY_RESIDUE` 在独立 Cleanup confirmation 后归零；
+- 已迁移 DEV data 的 source、backup、target 和 restore verification 可重开；
+- 每个保留的 `ACTIVE_OWNER_HELD` 或 `UNKNOWN_OR_INSUFFICIENT_EVIDENCE` resource 都有 exact identity、
+  classification、owner/evidence 或证据缺口、保留原因和后续动作；
+- 不得把未识别、活动或证据不足 resource 重新标记为“非 OES”来制造 zero-residue 结论。
+
+若仍存在 confirmed-idle legacy OES resource，最终 migration 尚未完成；若仅保留 active/unknown/
+shared/insufficient-evidence resource，报告必须明确它们不属于已获授权的 deletion set，且不因
+新 runtime 可用而被静默忽略。
 
 Rollback 是 whole-candidate Git revert；若 DEV migration/seed 已影响持久数据，则同时恢复切换前
 DEV snapshot。Rollback 不选择性恢复 legacy file、旧 `.env` 或固定端口路径。Historical ADR 保留
