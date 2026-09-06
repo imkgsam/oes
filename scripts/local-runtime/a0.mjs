@@ -6,6 +6,8 @@ import { fingerprint, writeAtomic } from './src/canonical.mjs'
 import { resolveCredentialReference } from './src/credentials.mjs'
 import { environmentForOwner, reopenManifest } from './src/manifest.mjs'
 import { reconcileRuntime, startRuntime, withRuntime } from './src/orchestrator.mjs'
+import { cleanupDockerResource, observeDockerResourceResidue, provisionDockerProvider } from './src/docker-driver.mjs'
+import { cleanupSimulatedResource, provisionSimulatedProvider } from './src/simulation-driver.mjs'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const IMAGES = Object.freeze({
@@ -60,6 +62,85 @@ function secretValues(...environments) {
     if (/_URL$/u.test(key)) { try { const parsed = new URL(value); if (parsed.password) values.push(decodeURIComponent(parsed.password)) } catch {} }
   }
   return values
+}
+
+/** Lists files beneath one path without following symlinks. */
+function listFiles(root) {
+  if (!fs.existsSync(root)) return []
+  const output = []
+  const visit = (current) => {
+    const stat = fs.lstatSync(current)
+    if (stat.isSymbolicLink() || stat.isFile()) { output.push(current); return }
+    for (const entry of fs.readdirSync(current)) visit(path.join(current, entry))
+  }
+  visit(root)
+  return output
+}
+
+/** Reopens every run-owned residue surface after reconciliation. */
+function observeRunResidue({ stateRoot, driver, manifest }) {
+  const runDirectory = path.join(stateRoot, 'runs', manifest.taskKey, manifest.runId)
+  const privateFiles = ['provider', 'credentials'].flatMap((name) => listFiles(path.join(runDirectory, name))).map((file) => path.relative(runDirectory, file))
+  const leasePath = path.join(stateRoot, 'leases', manifest.devStackId, `${manifest.taskKey}--${manifest.runId}.json`)
+  const queue = path.join(stateRoot, 'semaphore', 'queue')
+  const fifoTickets = fs.existsSync(queue) ? fs.readdirSync(queue).filter((entry) => entry.endsWith('.json')).filter((entry) => {
+    try { const value = JSON.parse(fs.readFileSync(path.join(queue, entry), 'utf8')); return value.taskKey === manifest.taskKey && value.runId === manifest.runId } catch { return false }
+  }) : []
+  const dockerObjects = []
+  if (driver === 'docker') for (const [kind, args] of Object.entries({
+    container: ['ps', '-aq'],
+    volume: ['volume', 'ls', '-q'],
+    network: ['network', 'ls', '-q']
+  })) {
+    const result = spawnSync('docker', [...args, '--filter', 'label=oes.runtime.version=2', '--filter', `label=oes.runtime.task-key=${manifest.taskKey}`, '--filter', `label=oes.runtime.run-id=${manifest.runId}`], { encoding: 'utf8', timeout: 30000 })
+    invariant(result.status === 0, `residue-${kind}-inspection-${manifest.runId}`)
+    dockerObjects.push({ kind, objectIds: result.stdout.trim().split(/\s+/u).filter(Boolean), exitStatus: result.status, stdout: result.stdout, stderr: result.stderr })
+  }
+  const logicalResources = manifest.resources.filter((resource) => resource.scope === 'RUN').map((resource) => driver === 'docker'
+    ? observeDockerResourceResidue(resource)
+    : { key: `${resource.provider}:${resource.kind}:${resource.objectId}`, applicable: true, present: Boolean(resource.path && fs.existsSync(resource.path)), observation: resource.path || 'NO_FILESYSTEM_SURFACE' })
+  const normalCleanupPath = path.join(runDirectory, 'cleanup.json')
+  const cleanupPath = fs.existsSync(normalCleanupPath) ? normalCleanupPath : path.join(runDirectory, 'failed-cleanup.json')
+  const cleanup = JSON.parse(fs.readFileSync(cleanupPath, 'utf8'))
+  const cleanupResult = cleanup.result || (cleanup.cleanupResults?.every((entry) => entry.exitStatus === 0) ? 'RECONCILED_AFTER_FAILURE' : 'PRESERVED_WITH_FINDINGS')
+  const observation = { runId: manifest.runId, privateFiles, leasePresent: fs.existsSync(leasePath), fifoTickets, dockerObjects, logicalResources, cleanupPath, cleanupResult }
+  invariant(privateFiles.length === 0, `residue-private-files-${manifest.runId}`)
+  invariant(!observation.leasePresent, `residue-lease-${manifest.runId}`)
+  invariant(fifoTickets.length === 0, `residue-fifo-${manifest.runId}`)
+  invariant(dockerObjects.every((entry) => entry.objectIds.length === 0), `residue-docker-${manifest.runId}`)
+  invariant(logicalResources.every((entry) => !entry.present), `residue-logical-${manifest.runId}`)
+  invariant(['RECONCILED', 'RECONCILED_AFTER_FAILURE'].includes(cleanupResult), `residue-cleanup-record-${manifest.runId}`)
+  return observation
+}
+
+/** Forces one partial allocation failure and proves exact rollback plus residue closure. */
+async function rollbackDrill({ stateRoot, driver, batch }) {
+  const runId = `a0_${batch}_rollback`
+  const baseProvision = driver === 'docker' ? provisionDockerProvider : provisionSimulatedProvider
+  const cleanupResource = driver === 'docker' ? cleanupDockerResource : cleanupSimulatedResource
+  let completedProviders = 0
+  let primaryFailureObserved = false
+  try {
+    await startRuntime({ root, profile: 'LOCAL_INTEGRATION', testClass: 'integration', owners: ['auth-service'], capabilities: ['cache', 'network-trust'], taskKey: 'local_runtime_a0', runId, stateRoot, driver }, {
+      provisionProvider: async (provider, context) => {
+        if (completedProviders === 1) throw new Error('A0_ROLLBACK_SENTINEL')
+        const result = await baseProvision(provider, context)
+        completedProviders += 1
+        return result
+      },
+      cleanupResource
+    })
+  } catch (error) { primaryFailureObserved = /A0_ROLLBACK_SENTINEL/u.test(String(error)) }
+  invariant(primaryFailureObserved, 'rollback-primary-failure-preserved')
+  const runDirectory = path.join(stateRoot, 'runs', 'local_runtime_a0', runId)
+  const transactionPath = path.join(runDirectory, 'transaction.json')
+  const failedCleanupPath = path.join(runDirectory, 'failed-cleanup.json')
+  const transaction = JSON.parse(fs.readFileSync(transactionPath, 'utf8'))
+  const failedCleanup = JSON.parse(fs.readFileSync(failedCleanupPath, 'utf8'))
+  invariant(failedCleanup.cleanupResults.every((entry) => entry.exitStatus === 0), 'rollback-cleanup-exit-status')
+  const manifest = { ...transaction, lifecycle: 'REGISTERED', manifestFingerprint: fingerprint({ ...transaction, lifecycle: 'REGISTERED' }) }
+  const residue = observeRunResidue({ stateRoot, driver, manifest: { ...manifest, resources: transaction.resources } })
+  return { runId, primaryFailureObserved, completedProviders, transactionPath, failedCleanupPath, cleanupExitStatuses: failedCleanup.cleanupResults.map((entry) => entry.exitStatus), residue, result: 'PASSED' }
 }
 
 /** Starts two local runs concurrently and retains both exact cleanup closures. */
@@ -232,14 +313,18 @@ async function runFull({ stateRoot, driver, batch, output }) {
     const cleanupA2 = cleanup(a2, 'stable-rerun-a')
     const cleanupB2 = cleanup(b2, 'stable-rerun-b')
 
-    const ephemeralRunIds = [a1.manifest.runId, b1.manifest.runId, abnormalRunId, nacos.runId, otel.runId, ci.manifest.runId, a2.manifest.runId, b2.manifest.runId]
-    const residue = []
-    if (driver === 'docker') for (const runId of ephemeralRunIds) {
-      const result = spawnSync('docker', ['ps', '-aq', '--filter', 'label=oes.runtime.version=2', '--filter', 'label=oes.runtime.task-key=local_runtime_a0', '--filter', `label=oes.runtime.run-id=${runId}`], { encoding: 'utf8' })
-      const objectIds = result.stdout.trim().split(/\s+/u).filter(Boolean)
-      invariant(result.status === 0 && objectIds.length === 0, `ephemeral-residue-${runId}`)
-      residue.push({ runId, objectIds, exitStatus: result.status })
-    }
+    const rollback = await rollbackDrill({ stateRoot, driver, batch })
+    const reconciledManifests = [
+      a1Manifest,
+      b1Manifest,
+      reopenManifest(path.join(stateRoot, 'runs', 'local_runtime_a0', abnormalRunId, 'manifest.json'), { taskKey: 'local_runtime_a0', runId: abnormalRunId }),
+      reopenManifest(nacos.manifestPath, { taskKey: 'local_runtime_a0', runId: nacos.runId }),
+      reopenManifest(otel.manifestPath, { taskKey: 'local_runtime_a0', runId: otel.runId }),
+      ci.manifest,
+      a2.manifest,
+      b2.manifest
+    ]
+    const residue = reconciledManifests.map((manifest) => observeRunResidue({ stateRoot, driver, manifest }))
     const raw = {
       schemaVersion: 2,
       kind: 'OES_LOCAL_RUNTIME_A0',
@@ -258,6 +343,7 @@ async function runFull({ stateRoot, driver, batch, output }) {
       ci: { runId: ci.manifest.runId, manifestPath: ci.file, manifestFingerprint: ci.manifest.manifestFingerprint, cleanup: ciCleanup },
       commandLog,
       residue,
+      rollback,
       sharedProvidersPreserved: ['postgres', 'minio'],
       exitStatus: 0
     }

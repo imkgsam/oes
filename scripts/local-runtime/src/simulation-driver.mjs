@@ -17,7 +17,7 @@ export async function provisionSimulatedProvider(provider, context) {
   const providerOwners = context.providerOwners?.[provider] || context.owners
   for (const owner of providerOwners) {
     const persistent = context.profile === 'DEV'
-    const suffix = sha256(`${persistent ? context.devStackId : context.runId}:${owner}:${provider}`).slice(0, 12)
+    const suffix = sha256(`${persistent ? context.devStackId : `${context.taskKey}:${context.runId}`}:${owner}:${provider}`).slice(0, 12)
     const allocationPath = path.join(resourceRoot, `${suffix}.json`)
     writeAtomic(allocationPath, { provider, owner, taskKey: context.taskKey, runId: context.runId })
     allocations.push({ provider, kind: 'simulated-logical', scope: persistent ? 'SHARED' : 'RUN', owner, objectId: sha256(allocationPath), path: allocationPath, cleanup: persistent ? 'PRESERVE_SHARED' : 'DELETE_EXACT' })

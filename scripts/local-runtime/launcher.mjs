@@ -98,7 +98,7 @@ export async function main(argv = process.argv.slice(2)) {
       process.removeListener('SIGINT', interrupt)
       process.removeListener('SIGTERM', interrupt)
       if (processes) await stopDevelopmentProcesses(processes.children)
-      if (started) reconcileRuntime({ manifestPath: started.file, cleanupResource: started.cleanup, releaseSlot: started.releaseSlot })
+      if (started) reconcileRuntime({ manifestPath: started.file, cleanupResource: started.cleanup, releaseSlot: started.releaseSlot, releaseDevLock: started.releaseDevLock })
     }
     return
   }
@@ -165,7 +165,7 @@ export async function main(argv = process.argv.slice(2)) {
   }
   if (subcommand === 'legacy-plan') {
     const inventory = JSON.parse(fs.readFileSync(path.resolve(options.inventory), 'utf8'))
-    const value = planLegacyCleanup(inventory)
+    const value = planLegacyCleanup(inventory, { ownerTaskId: options['owner-task-id'] })
     if (options.output) writeLegacyArtifact(options.output, value)
     emit(value)
     return
@@ -178,9 +178,11 @@ export async function main(argv = process.argv.slice(2)) {
     return
   }
   if (subcommand === 'legacy-apply') {
-    const plan = JSON.parse(fs.readFileSync(path.resolve(options.plan), 'utf8'))
-    const confirmation = JSON.parse(fs.readFileSync(path.resolve(options.confirmation), 'utf8'))
-    const value = applyLegacyCleanup({ plan, confirmation })
+    const planPath = path.resolve(options.plan)
+    const confirmationPath = path.resolve(options.confirmation)
+    const plan = JSON.parse(fs.readFileSync(planPath, 'utf8'))
+    const confirmation = JSON.parse(fs.readFileSync(confirmationPath, 'utf8'))
+    const value = applyLegacyCleanup({ plan, planPath, confirmation, confirmationPath })
     if (options.output) writeLegacyArtifact(options.output, value)
     emit(value)
     return

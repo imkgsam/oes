@@ -112,6 +112,7 @@ Inventory and dry-run are read-only:
 ```bash
 pnpm runtime:legacy:inventory -- --output /ABSOLUTE/inventory.json
 pnpm runtime:legacy:plan -- --inventory /ABSOLUTE/inventory.json \
+  --owner-task-id /ROLE/TASK_ID \
   --output /ABSOLUTE/cleanup-plan.json
 pnpm runtime:legacy:backup -- --inventory /ABSOLUTE/inventory.json \
   --output /ABSOLUTE/dev-backups
@@ -129,7 +130,7 @@ pnpm runtime:legacy:apply -- --plan /ABSOLUTE/cleanup-plan.json \
   --output /ABSOLUTE/cleanup-result.json
 ```
 
-Apply reopens object ID, labels, state, attachments, mounts, owner/lease evidence, and plan fingerprint. Drift becomes preserve-and-report. This delivery, launcher startup, tests, CI, merge, and ordinary reconciliation never invoke legacy apply.
+The confirmation file is not a caller-authored approval flag. It must bind `ownerTaskId`, `stateVersion`, `transitionId`, the Human confirmation fingerprint, an absolute byte-hashed plan reference, and an absolute byte-hashed `OES_LEGACY_CLEANUP_CURRENT_BINDING` produced by the collaboration boundary. Apply reopens that current binding and every `CONFIRMED_IDLE_LEGACY_RESIDUE` lifecycle-evidence reference before it reopens object ID, labels, state, attachments, and mounts. Drift becomes preserve-and-report. This delivery, launcher startup, tests, CI, merge, and ordinary reconciliation never invoke legacy apply.
 
 ## 10. Rollback
 

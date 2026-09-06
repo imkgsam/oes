@@ -31,6 +31,9 @@ export function exactResourceToken(value, size = 24) {
   return `${token(value, Math.max(1, size - hash.length - 1))}-${hash}`
 }
 
+/** Binds every run-owned identity to its accountable task and run pair. */
+export function exactRunIdentity(context) { return `${context.taskKey}:${context.runId}` }
+
 /** Runs Docker without exposing secret-bearing arguments in evidence. */
 function docker(args, options = {}) { return runChecked('docker', args, options) }
 
@@ -79,6 +82,9 @@ function publishedPort(name, target) {
   return Number(match[1])
 }
 
+/** Reopens every target port's current Docker-authorized loopback publication. */
+function publishedPorts(name, targets) { return Object.fromEntries(targets.map((target) => [String(target), publishedPort(name, target)])) }
+
 /** Polls one predicate until readiness or a bounded timeout. */
 async function waitReady(check, description, timeoutMs = 120000) {
   const started = Date.now()
@@ -105,6 +111,23 @@ function labels(context, scope, provider) {
 /** Converts labels to exact Docker create arguments. */
 function labelArgs(values) { return Object.entries(values).flatMap(([key, value]) => ['--label', `${key}=${value}`]) }
 
+/** Recognizes Docker's explicit host-port allocation failures without masking other restart errors. */
+export function isPublishedPortCollision(error) {
+  return /port is already allocated|address already in use|failed to bind host port/iu.test(`${error?.stdout || ''}\n${error?.stderr || ''}\n${error?.message || ''}`)
+}
+
+/** Builds one complete Docker create command from sealed provider inputs. */
+function sharedContainerArgs({ name, resourceLabels, image, ports, command, environment, volume, volumeTarget, mounts, tmpfs, network }) {
+  const args = ['run', '--detach', '--name', name, ...labelArgs(resourceLabels), ...ports.flatMap((port) => ['--publish', `127.0.0.1::${port}`])]
+  if (network) args.push('--network', network, '--network-alias', resourceLabels['oes.runtime.provider'])
+  if (volume) args.push('--volume', `${volume.name}:${volumeTarget}`)
+  for (const mount of mounts) args.push('--volume', mount)
+  for (const target of tmpfs) args.push('--tmpfs', target)
+  for (const [key, value] of Object.entries(environment)) args.push('--env', `${key}=${value}`)
+  args.push(image, ...command)
+  return args
+}
+
 /** Requires a reopened resource to retain its sealed Docker identity and labels. */
 export function assertDockerIdentity(resource) {
   const observed = inspectContainer(resource.name)
@@ -119,29 +142,50 @@ async function ensureSharedContainer({ context, provider, image, targetPort, tar
   const name = `oes-v2-${token(context.devStackId)}-${pool}-${provider}`
   const providerDirectory = path.join(context.stateRoot, 'shared', context.devStackId, provider)
   const identityPath = path.join(providerDirectory, 'identity.json')
+  const ports = targetPorts || [targetPort]
   if (fs.existsSync(identityPath)) {
     const expected = JSON.parse(fs.readFileSync(identityPath, 'utf8'))
     const observed = assertDockerIdentity(expected)
-    if (!observed.State.Running) docker(['start', name])
-    return { resource: expected, created: false, providerDirectory }
+    const wasStopped = !observed.State.Running
+    if (!observed.State.Running) {
+      try {
+        docker(['start', name])
+      } catch (error) {
+        if (!isPublishedPortCollision(error)) throw error
+        const transactionPath = path.join(providerDirectory, 'restart-transaction.json')
+        writeAtomic(transactionPath, { schemaVersion: 2, kind: 'OES_SHARED_PROVIDER_PORT_REALLOCATION', lifecycle: 'ALLOCATING', provider, name, previousObjectId: expected.objectId, labels: expected.labels })
+        assertDockerIdentity(expected)
+        docker(['rm', expected.objectId])
+        const args = sharedContainerArgs({ name, resourceLabels: expected.labels, image, ports, command, environment, volume: expected.volume, volumeTarget, mounts, tmpfs, network })
+        docker(args, { timeout: 180000 })
+        const replacement = inspectContainer(name)
+        const resource = { ...expected, objectId: replacement.Id, publishedPorts: publishedPorts(name, ports) }
+        writeAtomic(identityPath, resource)
+        writeAtomic(transactionPath, { schemaVersion: 2, kind: 'OES_SHARED_PROVIDER_PORT_REALLOCATION', lifecycle: 'REGISTERED', provider, name, previousObjectId: expected.objectId, replacementObjectId: resource.objectId, labels: expected.labels })
+        fs.rmSync(transactionPath)
+        return { resource, created: false, portReallocated: true, providerDirectory }
+      }
+    }
+    const currentPublishedPorts = publishedPorts(name, ports)
+    const portReallocated = wasStopped && fingerprint(expected.publishedPorts || {}) !== fingerprint(currentPublishedPorts)
+    const resource = { ...expected, publishedPorts: currentPublishedPorts }
+    if (fingerprint(resource) !== fingerprint(expected)) writeAtomic(identityPath, resource)
+    if (portReallocated) {
+      const event = { schemaVersion: 2, kind: 'OES_SHARED_PROVIDER_PORT_REALLOCATION', lifecycle: 'REGISTERED', provider, name, objectId: resource.objectId, previousPublishedPorts: expected.publishedPorts || null, publishedPorts: currentPublishedPorts }
+      writeAtomic(path.join(providerDirectory, 'last-port-reallocation.json'), { ...event, recordFingerprint: fingerprint(event) })
+    }
+    return { resource, created: false, portReallocated, providerDirectory }
   }
   fs.mkdirSync(providerDirectory, { recursive: true, mode: 0o700 })
   const resourceLabels = labels(context, 'SHARED', provider)
   const volume = volumeTarget ? createManagedVolume(`${name}-data`, resourceLabels) : null
-  const ports = targetPorts || [targetPort]
-  const args = ['run', '--detach', '--name', name, ...labelArgs(resourceLabels), ...ports.flatMap((port) => ['--publish', `127.0.0.1::${port}`])]
-  if (network) args.push('--network', network, '--network-alias', provider)
-  if (volume) args.push('--volume', `${volume.name}:${volumeTarget}`)
-  for (const mount of mounts) args.push('--volume', mount)
-  for (const target of tmpfs) args.push('--tmpfs', target)
-  for (const [key, value] of Object.entries(environment)) args.push('--env', `${key}=${value}`)
-  args.push(image, ...command)
+  const args = sharedContainerArgs({ name, resourceLabels, image, ports, command, environment, volume, volumeTarget, mounts, tmpfs, network })
   try { docker(args, { timeout: 180000 }) } catch (error) {
     if (volume) deleteManagedVolume(volume)
     throw error
   }
   const observed = inspectContainer(name)
-  const resource = { provider, scope: 'SHARED', kind: 'container', name, objectId: observed.Id, labels: resourceLabels, volume, cleanup: 'PRESERVE_SHARED' }
+  const resource = { provider, scope: 'SHARED', kind: 'container', name, objectId: observed.Id, labels: resourceLabels, volume, publishedPorts: publishedPorts(name, ports), cleanup: 'PRESERVE_SHARED' }
   writeAtomic(identityPath, resource)
   return { resource, created: true, providerDirectory }
 }
@@ -168,7 +212,7 @@ function ensureSharedNetwork(context, provider) {
 
 /** Creates one run-owned provider container with dynamic endpoint authority. */
 async function createRunContainer({ context, provider, image, targetPort, targetPorts, command = [], environment = {}, volumeTarget, mounts = [], network }) {
-  const name = `oes-v2-${exactResourceToken(context.runId)}-${provider}`
+  const name = `oes-v2-${exactResourceToken(exactRunIdentity(context))}-${provider}`
   const resourceLabels = labels(context, 'RUN', provider)
   const volume = volumeTarget ? createManagedVolume(`${name}-data`, resourceLabels) : null
   const ports = targetPorts || [targetPort]
@@ -261,7 +305,7 @@ async function provisionPostgres(context, shared) {
   const allocations = []
   for (const owner of ownersFor(context, 'postgres')) {
     const persistent = context.profile === 'DEV'
-    const identity = persistent ? context.devStackId : context.runId
+    const identity = persistent ? context.devStackId : exactRunIdentity(context)
     const suffix = sha256(`${identity}:${owner}`).slice(0, 12)
     const database = `oes_${suffix}_${token(owner, 20).replaceAll('-', '_')}`
     const migrator = `m_${suffix}`
@@ -323,7 +367,7 @@ async function provisionMinio(context, shared) {
   for (const owner of ownersFor(context, 'minio')) {
     if (owner !== 'asset-service') throw new Error(`MINIO_OWNER_DENIED owner=${owner}`)
     const persistent = context.profile === 'DEV'
-    const identity = persistent ? context.devStackId : context.runId
+    const identity = persistent ? context.devStackId : exactRunIdentity(context)
     const suffix = sha256(`${identity}:${owner}`).slice(0, 12)
     const bucket = `oes-${suffix}`
     const accessKey = `a${suffix}`
@@ -355,7 +399,7 @@ async function provisionRedis(context, shared) {
   const ownerEnvironments = {}
   const allocations = []
   for (const owner of ownersFor(context, 'redis')) {
-    const identity = shared ? context.devStackId : context.runId
+    const identity = shared ? context.devStackId : exactRunIdentity(context)
     const suffix = sha256(`${identity}:${owner}`).slice(0, 12)
     const eventScope = sha256(identity).slice(0, 12)
     const user = `u_${suffix}`
@@ -376,7 +420,7 @@ async function provisionRedis(context, shared) {
 /** Starts shared DEV or run-private NATS with frozen topology and owner-scoped credentials. */
 async function provisionNats(context, shared) {
   const secret = () => `s${randomSecret(24).replace(/[^a-zA-Z0-9]/gu, '')}`
-  const identity = shared ? context.devStackId : context.runId
+  const identity = shared ? context.devStackId : exactRunIdentity(context)
   const credentialsPath = shared ? path.join(context.stateRoot, 'shared', context.devStackId, 'nats', 'credentials.json') : null
   const stored = credentialsPath && fs.existsSync(credentialsPath) ? JSON.parse(fs.readFileSync(credentialsPath, 'utf8')) : null
   const credentials = stored || {
@@ -435,7 +479,7 @@ async function provisionMtls(context, shared) {
   const caKey = path.join(directory, 'ca.key')
   const ca = path.join(directory, 'ca.pem')
   if (!fs.existsSync(caKey) || !fs.existsSync(ca)) {
-    runChecked('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-subj', `/CN=oes-${shared ? token(context.devStackId) : exactResourceToken(context.runId)}`, '-keyout', caKey, '-out', ca, '-days', shared ? '3650' : '2'], { timeout: 60000 })
+    runChecked('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-subj', `/CN=oes-${shared ? token(context.devStackId) : exactResourceToken(exactRunIdentity(context))}`, '-keyout', caKey, '-out', ca, '-days', shared ? '3650' : '2'], { timeout: 60000 })
     fs.chmodSync(caKey, 0o600)
   }
   const ownerEnvironments = {}
@@ -447,7 +491,7 @@ async function provisionMtls(context, shared) {
     const csr = path.join(ownerDirectory, 'request.csr')
     const cert = path.join(ownerDirectory, 'cert.pem')
     const ext = path.join(ownerDirectory, 'ext.cnf')
-    const spiffe = shared ? `spiffe://local.oes.internal/ns/oes/sa/${owner}` : `spiffe://local.oes.internal/run/${context.runId}/sa/${owner}`
+    const spiffe = shared ? `spiffe://local.oes.internal/ns/oes/sa/${owner}` : `spiffe://local.oes.internal/task/${context.taskKey}/run/${context.runId}/sa/${owner}`
     const dnsNames = [`${owner}.localhost`, ...(owner === 'auth-service' ? ['issuer.local.oes.internal'] : [])]
     const subjectAltName = [`URI:${spiffe}`, ...dnsNames.map((name) => `DNS:${name}`)].join(',')
     writeAtomic(ext, `subjectAltName=${subjectAltName}\nextendedKeyUsage=clientAuth,serverAuth\n`)
@@ -459,7 +503,8 @@ async function provisionMtls(context, shared) {
     }
     fs.chmodSync(key, 0o600)
     ownerEnvironments[owner] = { OES_GRPC_TLS_ENABLED: 'true', OES_GRPC_TLS_MIN_VERSION: 'TLSv1.2', OES_GRPC_TLS_CA_PATH: ca, OES_GRPC_TLS_CERT_PATH: cert, OES_GRPC_TLS_KEY_PATH: key, OES_WORKLOAD_SPIFFE_ID: spiffe }
-    certificates.push({ provider: 'mtls', kind: 'certificate', scope: shared ? 'SHARED' : 'RUN', owner, ca, cert, key, spiffe, cleanup: shared ? 'PRESERVE_SHARED' : 'DELETE_FILES_EXACT' })
+    const files = [key, csr, cert, ext].map((file) => ({ path: file, sha256: sha256(fs.readFileSync(file)) }))
+    certificates.push({ provider: 'mtls', kind: 'certificate', scope: shared ? 'SHARED' : 'RUN', owner, ca, cert, key, spiffe, files, cleanup: shared ? 'PRESERVE_SHARED' : 'DELETE_FILES_EXACT' })
   }
   const reference = writeCredentialBundle(context.runDirectory, 'mtls', ownerEnvironments)
   return { resources: certificates, endpoints: [{ provider: 'mtls', authority: `filesystem:${sha256(fs.readFileSync(ca))}`, ready: true, owners: ownersFor(context, 'mtls'), environment: { OES_GRPC_TLS_ENABLED: 'true' }, credentialReference: reference }] }
@@ -533,14 +578,14 @@ async function provisionNacos(context, shared) {
     const reference = writeCredentialBundle(context.runDirectory, 'nacos', ownerEnvironments)
     return { resources: [network, mysql, nacos], endpoints: [{ provider: 'nacos', authority: `docker:${nacos.objectId}:8848/tcp`, host: '127.0.0.1', port, ready: true, owners: ownersFor(context, 'nacos'), environment: { NACOS_SERVER: `127.0.0.1:${port}` }, credentialReference: reference }] }
   }
-  const network = `oes-v2-${exactResourceToken(context.runId)}-nacos`
+  const network = `oes-v2-${exactResourceToken(exactRunIdentity(context))}-nacos`
   const networkLabels = labels(context, 'RUN', 'nacos')
   docker(['network', 'create', ...labelArgs(networkLabels), network])
   const rootPassword = randomSecret()
   const nacosPassword = randomSecret()
   const mysql = await createRunContainer({ context, provider: 'nacos-mysql', image: IMAGES.mysql, targetPort: 3306, network, environment: { MYSQL_ROOT_PASSWORD: rootPassword, MYSQL_DATABASE: 'nacos', MYSQL_USER: 'nacos', MYSQL_PASSWORD: nacosPassword }, mounts: [`${path.join(context.root, 'docker/nacos/mysql-schema.sql')}:/docker-entrypoint-initdb.d/01-nacos-schema.sql:ro`], volumeTarget: '/var/lib/mysql' })
   await waitReady(() => docker(['exec', mysql.name, 'mysqladmin', 'ping', '-h', '127.0.0.1', '-u', 'root', `-p${rootPassword}`, '--silent']).status === 0, 'nacos-mysql', 180000)
-  const username = `runtime_${sha256(context.runId).slice(0, 8)}`
+  const username = `runtime_${sha256(exactRunIdentity(context)).slice(0, 8)}`
   const password = randomSecret(24)
   const passwordHash = runChecked('htpasswd', ['-bnBC', '10', '', password]).stdout.trim().replace(/^:/u, '')
   docker(['exec', '-e', `MYSQL_PWD=${nacosPassword}`, mysql.name, 'mysql', '-h', '127.0.0.1', '-u', 'nacos', 'nacos', '-e', `INSERT INTO users(username,password,enabled) VALUES ('${username}','${passwordHash}',TRUE) ON DUPLICATE KEY UPDATE password=VALUES(password),enabled=TRUE; INSERT INTO roles(username,role) VALUES ('${username}','ROLE_ADMIN') ON DUPLICATE KEY UPDATE role=VALUES(role);`])
@@ -605,7 +650,12 @@ export function cleanupDockerResource(resource, context) {
       return { resource, disposition: 'DELETED_EXACT', exitStatus: 0 }
     }
     if (resource.kind === 'certificate') {
-      for (const file of [resource.key, resource.cert]) if (fs.existsSync(file)) fs.rmSync(file)
+      if (!Array.isArray(resource.files) || resource.files.length !== 4) throw new Error('CERTIFICATE_FILE_IDENTITY_REQUIRED')
+      for (const file of resource.files) {
+        if (!fs.existsSync(file.path)) continue
+        if (sha256(fs.readFileSync(file.path)) !== file.sha256) throw new Error(`CERTIFICATE_FILE_IDENTITY_MISMATCH path=${file.path}`)
+        fs.rmSync(file.path)
+      }
       return { resource, disposition: 'DELETED_EXACT', exitStatus: 0 }
     }
     if (resource.kind === 'directory') {
@@ -636,6 +686,60 @@ export function cleanupDockerResource(resource, context) {
   } catch (error) {
     return { resource, disposition: 'PRESERVED_IDENTITY_OR_CLEANUP_FAILURE', reason: error.message, exitStatus: 1 }
   }
+}
+
+/** Observes whether one exact run-owned Docker/logical/file resource remains after reconciliation. */
+export function observeDockerResourceResidue(resource) {
+  const key = `${resource.provider}:${resource.kind}:${resource.objectId || resource.database || resource.bucket || resource.user || resource.owner || resource.name}`
+  if (resource.scope !== 'RUN') return { key, applicable: false, present: false, observation: 'SHARED_OUTSIDE_RUN_DELETE_SET' }
+  const inspectAbsent = (callback) => {
+    try { return { present: true, observed: callback() } } catch (error) {
+      if (/no such (?:object|container|volume|network)|not found/iu.test(`${error.stderr || ''}\n${error.stdout || ''}\n${error.message || ''}`)) return { present: false, observed: null }
+      throw error
+    }
+  }
+  if (resource.kind === 'container') {
+    const observed = inspectAbsent(() => inspectContainer(resource.name))
+    return { key, applicable: true, present: observed.present, observation: observed.present ? `container:${observed.observed.Id}` : 'ABSENT' }
+  }
+  if (resource.kind === 'network') {
+    const observed = inspectAbsent(() => JSON.parse(docker(['network', 'inspect', resource.objectId]).stdout)[0])
+    return { key, applicable: true, present: observed.present, observation: observed.present ? `network:${observed.observed.Id}` : 'ABSENT' }
+  }
+  if (resource.kind === 'certificate') {
+    const paths = [...(resource.files || []).map((entry) => entry.path), resource.ca].filter(Boolean)
+    const remaining = paths.filter((file) => fs.existsSync(file))
+    return { key, applicable: true, present: remaining.length > 0, observation: remaining }
+  }
+  if (resource.kind === 'database') {
+    if (resource.containerScope === 'RUN') {
+      const observed = inspectAbsent(() => inspectContainer(resource.containerName))
+      return { key, applicable: true, present: observed.present, observation: observed.present ? `container:${observed.observed.Id}` : 'ABSENT_WITH_RUN_CONTAINER' }
+    }
+    const bytes = fs.readFileSync(resource.rootCredentialReference.path)
+    if (sha256(bytes) !== resource.rootCredentialReference.sha256) throw new Error('POSTGRES_ROOT_CREDENTIAL_REFERENCE_MISMATCH')
+    const bootstrap = JSON.parse(bytes.toString('utf8'))
+    const sql = `SELECT (SELECT count(*) FROM pg_database WHERE datname='${resource.database}') + (SELECT count(*) FROM pg_roles WHERE rolname IN ('${resource.runtime}','${resource.migrator}'));`
+    const count = Number(docker(['exec', '-e', `PGPASSWORD=${bootstrap.rootPassword}`, resource.containerName, 'psql', '-v', 'ON_ERROR_STOP=1', '-t', '-A', '-U', 'oes_provisioner', '-d', 'postgres', '-c', sql]).stdout.trim())
+    return { key, applicable: true, present: count !== 0, observation: { databaseOrRoleCount: count } }
+  }
+  if (resource.kind === 'bucket') {
+    if (resource.containerScope === 'RUN') {
+      const observed = inspectAbsent(() => inspectContainer(resource.containerName))
+      return { key, applicable: true, present: observed.present, observation: observed.present ? `container:${observed.observed.Id}` : 'ABSENT_WITH_RUN_CONTAINER' }
+    }
+    const bytes = fs.readFileSync(resource.adminCredentialReference.path)
+    if (sha256(bytes) !== resource.adminCredentialReference.sha256) throw new Error('MINIO_ADMIN_CREDENTIAL_REFERENCE_MISMATCH')
+    const admin = JSON.parse(bytes.toString('utf8'))
+    const script = `mc alias set local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; mc stat local/${resource.bucket} >/dev/null 2>&1 && echo bucket || true; mc admin user info local ${resource.accessKey} >/dev/null 2>&1 && echo user || true; mc admin policy info local ${resource.policy} >/dev/null 2>&1 && echo policy || true`
+    const remaining = docker(['run', '--rm', '--network', `container:${resource.containerName}`, '--env', `MINIO_ROOT_USER=${admin.rootUser}`, '--env', `MINIO_ROOT_PASSWORD=${admin.rootPassword}`, '--entrypoint', 'sh', IMAGES.minioClient, '-ec', script], { timeout: 120000 }).stdout.trim().split(/\s+/u).filter(Boolean)
+    return { key, applicable: true, present: remaining.length > 0, observation: remaining }
+  }
+  if (resource.kind === 'acl-user') {
+    const observed = inspectAbsent(() => inspectContainer(resource.containerName))
+    return { key, applicable: true, present: observed.present, observation: observed.present ? `container:${observed.observed.Id}` : 'ABSENT_WITH_RUN_CONTAINER' }
+  }
+  return { key, applicable: true, present: false, observation: 'NO_INDEPENDENT_RESIDUE_SURFACE' }
 }
 
 /** Grants one service runtime role only DML/sequence access after migrator-owned deployment. */

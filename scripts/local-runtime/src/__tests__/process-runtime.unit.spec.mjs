@@ -2,11 +2,12 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import net from 'node:net'
 import test from 'node:test'
 import { sha256, writeAtomic } from '../canonical.mjs'
 import { writeCredentialBundle } from '../credentials.mjs'
-import { exactResourceToken } from '../docker-driver.mjs'
-import { cleanupRuntimeDirectory, downstreamEnvironment, endpointEnvironment, gatewayReadinessEnvironment, signerSourceHash, signerWorkDirectory } from '../process-runtime.mjs'
+import { exactResourceToken, exactRunIdentity, isPublishedPortCollision } from '../docker-driver.mjs'
+import { cleanupRuntimeDirectory, downstreamEnvironment, endpointEnvironment, gatewayReadinessEnvironment, reservePort, signerSourceHash, signerWorkDirectory } from '../process-runtime.mjs'
 import { bindHumanOboPolicies, loadMachineSelectors, loadWorkloadPolicies, selectorEnvironment, trustedProcessEnvironment } from '../trusted-runtime-config.mjs'
 
 const root = path.resolve(import.meta.dirname, '../../../..')
@@ -17,6 +18,35 @@ test('long run identities retain distinct Docker resource tokens after readable 
   assert.notEqual(left, right)
   assert.equal(left.length, 24)
   assert.equal(right.length, 24)
+})
+
+test('run resource identity includes taskKey when two accountable tasks reuse one runId', () => {
+  const left = exactRunIdentity({ taskKey: 'task_alpha', runId: 'shared_run' })
+  const right = exactRunIdentity({ taskKey: 'task_beta', runId: 'shared_run' })
+  assert.notEqual(left, right)
+  assert.notEqual(exactResourceToken(left), exactResourceToken(right))
+})
+
+test('shared-provider restart recovery only classifies explicit host-port collisions', () => {
+  assert.equal(isPublishedPortCollision({ stderr: 'Bind for 127.0.0.1:43123 failed: port is already allocated' }), true)
+  assert.equal(isPublishedPortCollision({ stderr: 'permission denied while opening volume' }), false)
+})
+
+test('host-process ports remain reserved until explicit child handoff', async () => {
+  const reservation = await reservePort()
+  const competing = net.createServer()
+  await assert.rejects(new Promise((resolve, reject) => {
+    competing.once('error', reject)
+    competing.listen(reservation.port, '127.0.0.1', resolve)
+  }), { code: 'EADDRINUSE' })
+  await reservation.release()
+
+  const rebound = net.createServer()
+  await new Promise((resolve, reject) => {
+    rebound.once('error', reject)
+    rebound.listen(reservation.port, '127.0.0.1', resolve)
+  })
+  await new Promise((resolve, reject) => rebound.close((error) => error ? reject(error) : resolve()))
 })
 
 function manifestFixture(directory, owners = ['auth-service', 'api-gateway', 'permission-service']) {

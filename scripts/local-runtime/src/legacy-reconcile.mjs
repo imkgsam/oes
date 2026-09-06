@@ -62,7 +62,7 @@ function classify(resource, bindings) {
   if (active && active.objectId === resource.objectId && active.ownerTaskId && active.leaseSha256) return { classification: 'ACTIVE_OWNER_HELD', plannedAction: 'PRESERVE', reason: 'exact active owner and lease binding reopened', evidence: active }
   const idle = bindings.idleLegacy[key]
   const unattached = !resource.active && resource.attachments.length === 0 && (resource.type !== 'container' || resource.mounts.every((mount) => mount.type !== 'volume'))
-  if (idle && idle.objectId === resource.objectId && idle.lifecycleEvidenceSha256 && unattached) return { classification: 'CONFIRMED_IDLE_LEGACY_RESIDUE', plannedAction: 'DELETE_AFTER_CLEANUP_CONFIRMATION', reason: 'exact legacy lifecycle evidence and idle/unattached state', evidence: idle }
+  if (idle && idle.objectId === resource.objectId && idle.lifecycleEvidenceReference?.path && idle.lifecycleEvidenceReference?.sha256 && idle.lifecycleEvidenceReference?.fingerprint && unattached) return { classification: 'CONFIRMED_IDLE_LEGACY_RESIDUE', plannedAction: 'DELETE_AFTER_CLEANUP_CONFIRMATION', reason: 'exact legacy lifecycle evidence and idle/unattached state', evidence: idle }
   return { classification: 'UNKNOWN_OR_INSUFFICIENT_EVIDENCE', plannedAction: 'PRESERVE_AND_RESOLVE_OWNER', reason: resource.active ? 'active state lacks exact owner/lease evidence' : 'name/Compose label/stopped state is insufficient deletion proof', evidence: null }
 }
 
@@ -89,12 +89,54 @@ export function inventoryLegacyResources({ bindingsPath, now = new Date().toISOS
 }
 
 /** Creates a deterministic, sealed, child-first cleanup plan from one immutable inventory. */
-export function planLegacyCleanup(inventory) {
+export function planLegacyCleanup(inventory, { ownerTaskId } = {}) {
   if (inventory.inventoryFingerprint !== fingerprint(inventory, 'inventoryFingerprint')) throw new Error('LEGACY_INVENTORY_FINGERPRINT_MISMATCH')
+  if (!ownerTaskId || typeof ownerTaskId !== 'string') throw new Error('LEGACY_CLEANUP_OWNER_TASK_REQUIRED')
   const order = { container: 0, network: 1, volume: 2 }
-  const actions = inventory.resources.map((resource) => ({ type: resource.type, objectId: resource.objectId, name: resource.name, labels: resource.labels, state: resource.state, active: resource.active, attachments: resource.attachments, mounts: resource.mounts, classification: resource.classification, action: resource.plannedAction, reason: resource.reason, evidenceDigest: resource.evidenceDigest })).sort((a, b) => order[a.type] - order[b.type] || a.objectId.localeCompare(b.objectId))
-  const raw = { schemaVersion: 2, kind: 'OES_LEGACY_RUNTIME_CLEANUP_PLAN', inventoryFingerprint: inventory.inventoryFingerprint, observedAt: inventory.observedAt, readOnlyDryRun: true, applyRequiresSeparateCleanupConfirmation: true, actions, residueExpectation: { deleteSet: actions.filter((action) => action.action === 'DELETE_AFTER_CLEANUP_CONFIRMATION').map((action) => `${action.type}:${action.objectId}`), preservedSet: actions.filter((action) => action.action !== 'DELETE_AFTER_CLEANUP_CONFIRMATION').map((action) => `${action.type}:${action.objectId}`) } }
+  const actions = inventory.resources.map((resource) => {
+    const evidenceEnvelope = {
+      resource: { type: resource.type, objectId: resource.objectId, name: resource.name, labels: resource.labels, state: resource.state, active: resource.active, attachments: resource.attachments, mounts: resource.mounts },
+      decision: { classification: resource.classification, action: resource.plannedAction, reason: resource.reason, evidence: resource.evidence || null }
+    }
+    return { ...evidenceEnvelope.resource, classification: evidenceEnvelope.decision.classification, action: evidenceEnvelope.decision.action, reason: evidenceEnvelope.decision.reason, evidence: evidenceEnvelope.decision.evidence, evidenceDigest: fingerprint(evidenceEnvelope) }
+  }).sort((a, b) => order[a.type] - order[b.type] || a.objectId.localeCompare(b.objectId))
+  const raw = { schemaVersion: 2, kind: 'OES_LEGACY_RUNTIME_CLEANUP_PLAN', ownerTaskId, inventoryFingerprint: inventory.inventoryFingerprint, observedAt: inventory.observedAt, readOnlyDryRun: true, applyRequiresSeparateCleanupConfirmation: true, actions, residueExpectation: { deleteSet: actions.filter((action) => action.action === 'DELETE_AFTER_CLEANUP_CONFIRMATION').map((action) => `${action.type}:${action.objectId}`), preservedSet: actions.filter((action) => action.action !== 'DELETE_AFTER_CLEANUP_CONFIRMATION').map((action) => `${action.type}:${action.objectId}`) } }
   return { ...raw, planFingerprint: fingerprint(raw) }
+}
+
+/** Reopens one absolute sealed JSON reference and verifies both bytes and content fingerprint. */
+function reopenReference(reference, fingerprintField) {
+  if (!reference || !path.isAbsolute(reference.path) || !/^[0-9a-f]{64}$/u.test(reference.sha256 || '') || !/^[0-9a-f]{64}$/u.test(reference.fingerprint || '')) throw new Error('LEGACY_REFERENCE_INVALID')
+  const bytes = fs.readFileSync(reference.path)
+  if (sha256(bytes) !== reference.sha256) throw new Error(`LEGACY_REFERENCE_SHA_MISMATCH path=${reference.path}`)
+  const value = JSON.parse(bytes.toString('utf8'))
+  if (value[fingerprintField] !== reference.fingerprint || value[fingerprintField] !== fingerprint(value, fingerprintField)) throw new Error(`LEGACY_REFERENCE_FINGERPRINT_MISMATCH path=${reference.path}`)
+  return value
+}
+
+/** Reopens the protected collaboration binding behind one Human Cleanup confirmation. */
+function validateCleanupConfirmation({ plan, planPath, confirmation, confirmationPath }) {
+  const expectedKeys = ['collaborationBindingReference', 'confirmationFingerprint', 'expectedState', 'humanConfirmationFingerprint', 'kind', 'ownerTaskId', 'planReference', 'schemaVersion', 'stateVersion', 'status', 'transitionId']
+  if (!confirmationPath || !path.isAbsolute(confirmationPath) || fingerprint(confirmation, 'confirmationFingerprint') !== confirmation.confirmationFingerprint || Object.keys(confirmation).sort().join('\0') !== expectedKeys.sort().join('\0')) throw new Error('LEGACY_CLEANUP_CONFIRMATION_INVALID')
+  const reopenedConfirmation = readJson(confirmationPath)
+  if (fingerprint(reopenedConfirmation) !== fingerprint(confirmation)) throw new Error('LEGACY_CLEANUP_CONFIRMATION_REOPEN_MISMATCH')
+  if (confirmation.schemaVersion !== 2 || confirmation.kind !== 'OES_LEGACY_CLEANUP_CONFIRMATION' || confirmation.status !== 'CONFIRMED' || confirmation.expectedState !== 'LEGACY_CLEANUP_AUTHORIZED' || confirmation.ownerTaskId !== plan.ownerTaskId || !/^(?:\/[A-Za-z0-9][A-Za-z0-9_-]*){2,}$/u.test(confirmation.ownerTaskId || '') || !Number.isSafeInteger(confirmation.stateVersion) || confirmation.stateVersion < 1 || !confirmation.transitionId || !/^[0-9a-f]{64}$/u.test(confirmation.humanConfirmationFingerprint || '')) throw new Error('LEGACY_CLEANUP_CONFIRMATION_INVALID')
+  const reopenedPlan = reopenReference(confirmation.planReference, 'planFingerprint')
+  if (path.resolve(confirmation.planReference.path) !== path.resolve(planPath) || fingerprint(reopenedPlan) !== fingerprint(plan)) throw new Error('LEGACY_CLEANUP_PLAN_REFERENCE_MISMATCH')
+  const binding = reopenReference(confirmation.collaborationBindingReference, 'recordFingerprint')
+  const bindingKeys = ['expectedState', 'humanConfirmationFingerprint', 'kind', 'ownerTaskId', 'planReference', 'recordFingerprint', 'schemaVersion', 'stateVersion', 'status', 'transitionId']
+  if (Object.keys(binding).sort().join('\0') !== bindingKeys.sort().join('\0') || binding.schemaVersion !== 2 || binding.kind !== 'OES_LEGACY_CLEANUP_CURRENT_BINDING' || binding.status !== 'ACTIVE' || binding.expectedState !== confirmation.expectedState || binding.ownerTaskId !== confirmation.ownerTaskId || binding.stateVersion !== confirmation.stateVersion || binding.transitionId !== confirmation.transitionId || binding.humanConfirmationFingerprint !== confirmation.humanConfirmationFingerprint || fingerprint(binding.planReference) !== fingerprint(confirmation.planReference)) throw new Error('LEGACY_CLEANUP_COLLABORATION_BINDING_MISMATCH')
+}
+
+/** Reopens the exact lifecycle evidence that admitted one object to the delete set. */
+function reopenDeleteEvidence(action) {
+  const envelope = {
+    resource: { type: action.type, objectId: action.objectId, name: action.name, labels: action.labels, state: action.state, active: action.active, attachments: action.attachments, mounts: action.mounts },
+    decision: { classification: action.classification, action: action.action, reason: action.reason, evidence: action.evidence || null }
+  }
+  if (fingerprint(envelope) !== action.evidenceDigest) throw new Error(`LEGACY_ACTION_EVIDENCE_DIGEST_MISMATCH objectId=${action.objectId}`)
+  const lifecycle = reopenReference(action.evidence?.lifecycleEvidenceReference, 'evidenceFingerprint')
+  if (lifecycle.objectId !== action.objectId || lifecycle.ownerTaskId !== action.evidence.ownerTaskId || lifecycle.lifecycle !== 'IDLE') throw new Error(`LEGACY_LIFECYCLE_EVIDENCE_MISMATCH objectId=${action.objectId}`)
 }
 
 /** Reopens an object by exact type/id and verifies labels, state, attachments and mounts. */
@@ -108,13 +150,15 @@ function reopenPlannedObject(action) {
 }
 
 /** Applies only the sealed delete set after reopening a separate exact Cleanup confirmation. */
-export function applyLegacyCleanup({ plan, confirmation }) {
+export function applyLegacyCleanup({ plan, planPath, confirmation, confirmationPath }) {
   if (plan.planFingerprint !== fingerprint(plan, 'planFingerprint')) throw new Error('LEGACY_PLAN_FINGERPRINT_MISMATCH')
-  if (confirmation.kind !== 'OES_LEGACY_CLEANUP_CONFIRMATION' || confirmation.status !== 'CONFIRMED' || confirmation.planFingerprint !== plan.planFingerprint || confirmation.confirmationFingerprint !== fingerprint(confirmation, 'confirmationFingerprint')) throw new Error('LEGACY_CLEANUP_CONFIRMATION_INVALID')
+  if (!path.isAbsolute(planPath || '') || !path.isAbsolute(confirmationPath || '') || path.resolve(planPath) !== path.resolve(confirmation?.planReference?.path || '')) throw new Error('LEGACY_CLEANUP_PLAN_PATH_REQUIRED')
+  validateCleanupConfirmation({ plan, planPath: path.resolve(planPath), confirmation, confirmationPath: path.resolve(confirmationPath) })
   const results = []
   for (const action of plan.actions) {
     if (action.action !== 'DELETE_AFTER_CLEANUP_CONFIRMATION') { results.push({ key: `${action.type}:${action.objectId}`, disposition: 'PRESERVED_NOT_AUTHORIZED_DELETE_SET', exitStatus: 0 }); continue }
     try {
+      reopenDeleteEvidence(action)
       reopenPlannedObject(action)
       const args = action.type === 'container' ? ['rm', '--force', action.objectId] : action.type === 'network' ? ['network', 'rm', action.objectId] : ['volume', 'rm', action.objectId]
       runChecked('docker', args, { timeout: 120000 })

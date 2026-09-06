@@ -6,18 +6,30 @@ import { spawn } from 'node:child_process'
 import { resolveCredentialReference } from './credentials.mjs'
 import { cleanProcessEnvironment } from './bootstrap.mjs'
 import { environmentForOwner, publishManifest } from './manifest.mjs'
-import { cleanupDockerResource } from './docker-driver.mjs'
+import { cleanupDockerResource, exactResourceToken } from './docker-driver.mjs'
 import { canonicalJson, sha256, writeAtomic } from './canonical.mjs'
 import { runChecked } from './process.mjs'
 import { trustedProcessEnvironment } from './trusted-runtime-config.mjs'
+import { withExclusiveLock } from './locks.mjs'
 
-/** Requests one OS-assigned loopback port and releases the probe socket immediately. */
-export async function allocatePort() {
+/** Reserves one OS-assigned loopback port until the caller explicitly hands it to a child. */
+export async function reservePort() {
   return new Promise((resolvePromise, reject) => {
     const server = net.createServer()
     server.unref()
     server.once('error', reject)
-    server.listen(0, '127.0.0.1', () => { const address = server.address(); server.close(() => resolvePromise(address.port)) })
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address()
+      let released = false
+      resolvePromise({
+        port: address.port,
+        release: () => new Promise((resolveRelease, rejectRelease) => {
+          if (released) return resolveRelease()
+          released = true
+          server.close((error) => error ? rejectRelease(error) : resolveRelease())
+        })
+      })
+    })
   })
 }
 
@@ -126,7 +138,7 @@ export async function startProtectedSigner(root, manifest, signal) {
   const marker = path.join(work, '.oes-runtime-resource.json')
   writeAtomic(marker, { schemaVersion: 2, path: work, labels })
   const directoryResource = { provider: 'execution-token-signer', scope: 'RUN', kind: 'directory', path: work, marker, objectId: sha256(fs.readFileSync(marker)), labels, cleanup: 'DELETE_DIRECTORY_EXACT' }
-  const name = `oes-v2-${manifest.runId.replace(/[^a-z0-9]+/gu, '-').slice(0, 32)}-execution-signer`
+  const name = `oes-v2-${exactResourceToken(`${manifest.taskKey}:${manifest.runId}`)}-execution-signer`
   const socket = path.join(work, 'signer.sock')
   const containerSocket = path.join(work, 'container.sock')
   const ready = path.join(work, 'ready')
@@ -190,10 +202,6 @@ export async function startDevelopmentProcesses(manifestPath, { root, selectorPa
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
   if (manifest.profile !== 'DEV') throw new Error('DEVELOPMENT_PROCESS_PROFILE_REQUIRED')
   const declarations = JSON.parse(fs.readFileSync(path.join(root, 'scripts/local-runtime/relationships.json'), 'utf8'))
-  const ports = {}
-  for (const owner of manifest.owners) ports[owner] = await allocatePort()
-  const issuerPort = await allocatePort()
-  const authHttpPort = manifest.owners.includes('auth-service') ? await allocatePort() : null
   const children = []
   let signer = null
   try {
@@ -202,34 +210,62 @@ export async function startDevelopmentProcesses(manifestPath, { root, selectorPa
       children.push(...signer.children)
     }
     if (signal?.aborted) throw signal.reason
-    if (authHttpPort) {
-      const authEnvironment = environmentForOwner(manifest, 'auth-service', resolveCredentialReference)
-      const child = spawn(process.execPath, [path.join(root, 'scripts/local-runtime/src/issuer-server.mjs')], { cwd: root, env: { ...cleanProcessEnvironment(), OES_ISSUER_PORT: String(issuerPort), OES_AUTH_HTTP_PORT: String(authHttpPort), OES_ISSUER_CERT_PATH: authEnvironment.OES_GRPC_TLS_CERT_PATH, OES_ISSUER_KEY_PATH: authEnvironment.OES_GRPC_TLS_KEY_PATH }, stdio: 'inherit' })
-      children.push({ owner: 'local-issuer', kind: 'support', port: issuerPort, child })
-      await waitForProcess(child, 'local-issuer', issuerPort, 180000, signal)
-    }
-    for (const owner of manifest.owners) {
-      const providerEnvironment = environmentForOwner(manifest, owner, resolveCredentialReference)
-      const trustedEnvironment = trustedProcessEnvironment({ root, manifest, owner, issuerPort, selectorPath })
-      const environment = {
-        ...cleanProcessEnvironment(),
-        ...providerEnvironment,
-        ...downstreamEnvironment(owner, ports, declarations),
-        ...trustedEnvironment,
-        MODULE_NAME: owner,
-        GRPC_LISTEN_HOST: '127.0.0.1',
-        GRPC_LISTEN_PORT: String(ports[owner]),
-        SERVICE_REGISTRY_IP: '127.0.0.1',
-        SERVICE_REGISTRY_PORT: String(ports[owner]),
-        ...(owner === 'api-gateway' ? { SERVICE_PORT: String(ports[owner]), ...gatewayReadinessEnvironment(ports, declarations) } : {}),
-        ...(owner === 'auth-service' ? { AUTH_HTTP_PORT: String(authHttpPort), ...signer.environment } : {})
+    const started = await withExclusiveLock(path.join(manifest.stateRoot, 'locks', 'process-port-allocation.lock'), async () => {
+      let lastError
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        const ownerReservations = Object.fromEntries(await Promise.all(manifest.owners.map(async (owner) => [owner, await reservePort()])))
+        const issuerReservation = await reservePort()
+        const authHttpReservation = manifest.owners.includes('auth-service') ? await reservePort() : null
+        const reservations = [...Object.values(ownerReservations), issuerReservation, authHttpReservation].filter(Boolean)
+        const attemptChildren = []
+        const ports = Object.fromEntries(Object.entries(ownerReservations).map(([owner, reservation]) => [owner, reservation.port]))
+        const issuerPort = issuerReservation.port
+        const authHttpPort = authHttpReservation?.port || null
+        try {
+          if (authHttpPort) {
+            const authEnvironment = environmentForOwner(manifest, 'auth-service', resolveCredentialReference)
+            await issuerReservation.release()
+            await authHttpReservation.release()
+            const child = spawn(process.execPath, [path.join(root, 'scripts/local-runtime/src/issuer-server.mjs')], { cwd: root, env: { ...cleanProcessEnvironment(), OES_ISSUER_PORT: String(issuerPort), OES_AUTH_HTTP_PORT: String(authHttpPort), OES_ISSUER_CERT_PATH: authEnvironment.OES_GRPC_TLS_CERT_PATH, OES_ISSUER_KEY_PATH: authEnvironment.OES_GRPC_TLS_KEY_PATH }, stdio: 'inherit' })
+            attemptChildren.push({ owner: 'local-issuer', kind: 'support', port: issuerPort, child })
+            await waitForProcess(child, 'local-issuer', issuerPort, 180000, signal)
+          } else {
+            await issuerReservation.release()
+          }
+          for (const owner of manifest.owners) {
+            const providerEnvironment = environmentForOwner(manifest, owner, resolveCredentialReference)
+            const trustedEnvironment = trustedProcessEnvironment({ root, manifest, owner, issuerPort, selectorPath })
+            const environment = {
+              ...cleanProcessEnvironment(),
+              ...providerEnvironment,
+              ...downstreamEnvironment(owner, ports, declarations),
+              ...trustedEnvironment,
+              MODULE_NAME: owner,
+              GRPC_LISTEN_HOST: '127.0.0.1',
+              GRPC_LISTEN_PORT: String(ports[owner]),
+              SERVICE_REGISTRY_IP: '127.0.0.1',
+              SERVICE_REGISTRY_PORT: String(ports[owner]),
+              ...(owner === 'api-gateway' ? { SERVICE_PORT: String(ports[owner]), ...gatewayReadinessEnvironment(ports, declarations) } : {}),
+              ...(owner === 'auth-service' ? { AUTH_HTTP_PORT: String(authHttpPort), ...signer.environment } : {})
+            }
+            await ownerReservations[owner].release()
+            const child = spawn('pnpm', ['--filter', owner, 'dev'], { cwd: root, env: environment, stdio: 'inherit' })
+            attemptChildren.push({ owner, kind: 'service', port: ports[owner], child })
+          }
+          await Promise.all(attemptChildren.filter(({ kind }) => kind === 'service').map(({ child, owner, port }) => waitForProcess(child, owner, port, 180000, signal)))
+          return { attemptChildren, ports, issuerPort, authHttpPort, attempt }
+        } catch (error) {
+          lastError = error
+          await Promise.allSettled(reservations.map((reservation) => reservation.release()))
+          await stopDevelopmentProcesses(attemptChildren)
+          if (attempt === 3 || !/DEV_PROCESS_EXITED/u.test(String(error?.message || error))) throw error
+        }
       }
-      const child = spawn('pnpm', ['--filter', owner, 'dev'], { cwd: root, env: environment, stdio: 'inherit' })
-      children.push({ owner, kind: 'service', port: ports[owner], child })
-    }
-    await Promise.all(children.filter(({ kind }) => kind === 'service').map(({ child, owner, port }) => waitForProcess(child, owner, port, 180000, signal)))
-    const processEndpoints = children.filter(({ kind }) => kind === 'service').map(({ owner, port, child }) => ({ provider: 'host-process', authority: `pid:${child.pid}:tcp:${port}`, host: `${owner}.localhost`, port, ready: true, owners: manifest.owners.filter((candidate) => candidate === owner || declarations.owners[candidate].downstreams?.includes(owner)), environment: endpointEnvironment(owner, port), credentialReference: null }))
-    const issuerEndpoints = authHttpPort ? [{ provider: 'host-issuer', authority: `pid:${children.find(({ owner }) => owner === 'local-issuer').child.pid}:https:${issuerPort}`, host: 'issuer.local.oes.internal', port: issuerPort, ready: true, owners: manifest.owners, environment: { AUTH_EXECUTION_ISSUER: `https://issuer.local.oes.internal:${issuerPort}` }, credentialReference: null }] : []
+      throw lastError
+    }, { timeoutMs: 600000 })
+    children.push(...started.attemptChildren)
+    const processEndpoints = started.attemptChildren.filter(({ kind }) => kind === 'service').map(({ owner, port, child }) => ({ provider: 'host-process', authority: `pid:${child.pid}:tcp:${port}`, host: `${owner}.localhost`, port, ready: true, owners: manifest.owners.filter((candidate) => candidate === owner || declarations.owners[candidate].downstreams?.includes(owner)), environment: endpointEnvironment(owner, port), credentialReference: null }))
+    const issuerEndpoints = started.authHttpPort ? [{ provider: 'host-issuer', authority: `pid:${started.attemptChildren.find(({ owner }) => owner === 'local-issuer').child.pid}:https:${started.issuerPort}`, host: 'issuer.local.oes.internal', port: started.issuerPort, ready: true, owners: manifest.owners, environment: { AUTH_EXECUTION_ISSUER: `https://issuer.local.oes.internal:${started.issuerPort}` }, credentialReference: null }] : []
     const raw = { ...manifest, lifecycle: 'REGISTERED', resources: [...manifest.resources, ...(signer?.resources || [])], endpoints: [...manifest.endpoints, ...(signer ? [signer.endpoint] : []), ...issuerEndpoints, ...processEndpoints] }
     delete raw.manifestFingerprint
     const published = publishManifest(path.dirname(manifestPath), raw)
