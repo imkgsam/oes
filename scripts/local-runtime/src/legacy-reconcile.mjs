@@ -114,16 +114,19 @@ function reopenReference(reference, fingerprintField) {
   return value
 }
 
-/** Reopens the protected collaboration binding behind one Human Cleanup confirmation. */
-function validateCleanupConfirmation({ plan, planPath, confirmation, confirmationPath }) {
-  const expectedKeys = ['collaborationBindingReference', 'confirmationFingerprint', 'expectedState', 'humanConfirmationFingerprint', 'kind', 'ownerTaskId', 'planReference', 'schemaVersion', 'stateVersion', 'status', 'transitionId']
+/** Reopens the protected collaboration binding supplied independently by the Collaboration boundary. */
+function validateCleanupConfirmation({ plan, planPath, confirmation, confirmationPath, collaborationBindingPath }) {
+  const expectedKeys = ['confirmationFingerprint', 'expectedState', 'humanConfirmationFingerprint', 'kind', 'ownerTaskId', 'planReference', 'schemaVersion', 'stateVersion', 'status', 'transitionId']
   if (!confirmationPath || !path.isAbsolute(confirmationPath) || fingerprint(confirmation, 'confirmationFingerprint') !== confirmation.confirmationFingerprint || Object.keys(confirmation).sort().join('\0') !== expectedKeys.sort().join('\0')) throw new Error('LEGACY_CLEANUP_CONFIRMATION_INVALID')
+  if (!collaborationBindingPath || !path.isAbsolute(collaborationBindingPath) || [planPath, confirmationPath].map((item) => path.resolve(item)).includes(path.resolve(collaborationBindingPath))) throw new Error('LEGACY_CLEANUP_CURRENT_BINDING_REQUIRED')
   const reopenedConfirmation = readJson(confirmationPath)
   if (fingerprint(reopenedConfirmation) !== fingerprint(confirmation)) throw new Error('LEGACY_CLEANUP_CONFIRMATION_REOPEN_MISMATCH')
   if (confirmation.schemaVersion !== 2 || confirmation.kind !== 'OES_LEGACY_CLEANUP_CONFIRMATION' || confirmation.status !== 'CONFIRMED' || confirmation.expectedState !== 'LEGACY_CLEANUP_AUTHORIZED' || confirmation.ownerTaskId !== plan.ownerTaskId || !/^(?:\/[A-Za-z0-9][A-Za-z0-9_-]*){2,}$/u.test(confirmation.ownerTaskId || '') || !Number.isSafeInteger(confirmation.stateVersion) || confirmation.stateVersion < 1 || !confirmation.transitionId || !/^[0-9a-f]{64}$/u.test(confirmation.humanConfirmationFingerprint || '')) throw new Error('LEGACY_CLEANUP_CONFIRMATION_INVALID')
   const reopenedPlan = reopenReference(confirmation.planReference, 'planFingerprint')
   if (path.resolve(confirmation.planReference.path) !== path.resolve(planPath) || fingerprint(reopenedPlan) !== fingerprint(plan)) throw new Error('LEGACY_CLEANUP_PLAN_REFERENCE_MISMATCH')
-  const binding = reopenReference(confirmation.collaborationBindingReference, 'recordFingerprint')
+  const bindingBytes = fs.readFileSync(collaborationBindingPath)
+  const binding = JSON.parse(bindingBytes.toString('utf8'))
+  if (binding.recordFingerprint !== fingerprint(binding, 'recordFingerprint')) throw new Error(`LEGACY_REFERENCE_FINGERPRINT_MISMATCH path=${collaborationBindingPath}`)
   const bindingKeys = ['expectedState', 'humanConfirmationFingerprint', 'kind', 'ownerTaskId', 'planReference', 'recordFingerprint', 'schemaVersion', 'stateVersion', 'status', 'transitionId']
   if (Object.keys(binding).sort().join('\0') !== bindingKeys.sort().join('\0') || binding.schemaVersion !== 2 || binding.kind !== 'OES_LEGACY_CLEANUP_CURRENT_BINDING' || binding.status !== 'ACTIVE' || binding.expectedState !== confirmation.expectedState || binding.ownerTaskId !== confirmation.ownerTaskId || binding.stateVersion !== confirmation.stateVersion || binding.transitionId !== confirmation.transitionId || binding.humanConfirmationFingerprint !== confirmation.humanConfirmationFingerprint || fingerprint(binding.planReference) !== fingerprint(confirmation.planReference)) throw new Error('LEGACY_CLEANUP_COLLABORATION_BINDING_MISMATCH')
 }
@@ -150,10 +153,10 @@ function reopenPlannedObject(action) {
 }
 
 /** Applies only the sealed delete set after reopening a separate exact Cleanup confirmation. */
-export function applyLegacyCleanup({ plan, planPath, confirmation, confirmationPath }) {
+export function applyLegacyCleanup({ plan, planPath, confirmation, confirmationPath, collaborationBindingPath }) {
   if (plan.planFingerprint !== fingerprint(plan, 'planFingerprint')) throw new Error('LEGACY_PLAN_FINGERPRINT_MISMATCH')
   if (!path.isAbsolute(planPath || '') || !path.isAbsolute(confirmationPath || '') || path.resolve(planPath) !== path.resolve(confirmation?.planReference?.path || '')) throw new Error('LEGACY_CLEANUP_PLAN_PATH_REQUIRED')
-  validateCleanupConfirmation({ plan, planPath: path.resolve(planPath), confirmation, confirmationPath: path.resolve(confirmationPath) })
+  validateCleanupConfirmation({ plan, planPath: path.resolve(planPath), confirmation, confirmationPath: path.resolve(confirmationPath), collaborationBindingPath })
   const results = []
   for (const action of plan.actions) {
     if (action.action !== 'DELETE_AFTER_CLEANUP_CONFIRMATION') { results.push({ key: `${action.type}:${action.objectId}`, disposition: 'PRESERVED_NOT_AUTHORIZED_DELETE_SET', exitStatus: 0 }); continue }

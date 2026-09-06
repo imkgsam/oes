@@ -130,7 +130,7 @@ pnpm runtime:legacy:apply -- --plan /ABSOLUTE/cleanup-plan.json \
   --output /ABSOLUTE/cleanup-result.json
 ```
 
-The confirmation file is not a caller-authored approval flag. It must bind `ownerTaskId`, `stateVersion`, `transitionId`, the Human confirmation fingerprint, an absolute byte-hashed plan reference, and an absolute byte-hashed `OES_LEGACY_CLEANUP_CURRENT_BINDING` produced by the collaboration boundary. Apply reopens that current binding and every `CONFIRMED_IDLE_LEGACY_RESIDUE` lifecycle-evidence reference before it reopens object ID, labels, state, attachments, and mounts. Drift becomes preserve-and-report. This delivery, launcher startup, tests, CI, merge, and ordinary reconciliation never invoke legacy apply.
+The confirmation file is not a caller-authored approval flag. It must bind `ownerTaskId`, `stateVersion`, `transitionId`, the Human confirmation fingerprint, and an absolute byte-hashed plan reference; it must not select its own trust root. Immediately before `legacy-apply`, the Collaboration boundary supplies the independently controlled absolute `OES_LEGACY_CLEANUP_CURRENT_BINDING` path in the process environment. Apply reopens that exact current binding, requires the confirmation fields to match it, and reopens every `CONFIRMED_IDLE_LEGACY_RESIDUE` lifecycle-evidence reference before it inspects object ID, labels, state, attachments, and mounts. Missing, relative, self-referential, drifted, or mismatched binding input fails before Docker inspection. This delivery, launcher startup, tests, CI, merge, and ordinary reconciliation never invoke legacy apply.
 
 ## 10. Rollback
 

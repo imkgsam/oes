@@ -180,9 +180,11 @@ export async function main(argv = process.argv.slice(2)) {
   if (subcommand === 'legacy-apply') {
     const planPath = path.resolve(options.plan)
     const confirmationPath = path.resolve(options.confirmation)
+    const collaborationBindingPath = process.env.OES_LEGACY_CLEANUP_CURRENT_BINDING
+    if (!collaborationBindingPath || !path.isAbsolute(collaborationBindingPath)) throw new Error('LEGACY_CLEANUP_CURRENT_BINDING_REQUIRED')
     const plan = JSON.parse(fs.readFileSync(planPath, 'utf8'))
     const confirmation = JSON.parse(fs.readFileSync(confirmationPath, 'utf8'))
-    const value = applyLegacyCleanup({ plan, planPath, confirmation, confirmationPath })
+    const value = applyLegacyCleanup({ plan, planPath, confirmation, confirmationPath, collaborationBindingPath })
     if (options.output) writeLegacyArtifact(options.output, value)
     emit(value)
     return
