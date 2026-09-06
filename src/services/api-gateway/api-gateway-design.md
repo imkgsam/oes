@@ -45,7 +45,7 @@ oes/
 │       └── auxiliary/             # 辅助服务层
 │           ├── im-service         # 即时通讯 (骨架)
 │           └── mailbox-service    # 邮件服务 (骨架)
-├── docker-compose.yml
+├── scripts/local-runtime/launcher.mjs
 ├── pnpm-workspace.yaml
 └── package.json
 ```
@@ -78,7 +78,7 @@ flowchart TB
     end
 
     subgraph Infrastructure
-        PG[(PostgreSQL :5432)]
+        PG[(PostgreSQL via runtime manifest)]
         REDIS[(Redis :6379)]
         NACOS[Nacos :8848]
         JAEGER[Jaeger :16686<br/>OTLP :4317/4318]
@@ -130,7 +130,7 @@ flowchart TB
 2. **DDD 实践**: 各服务内部采用 domain / application / infrastructure / interface 分层
 3. **共享库设计**: `@oes/common` 统一了 transport、auth、logging、tracing 等横切关注点
 4. **可观测性基础**: OpenTelemetry + Jaeger 已集成
-5. **统一异常体系**: [`OESExceptionBase`](src/common/src/core/exceptions/oes.exception.ts) + [`ExceptionFactory`](src/common/src/core/exceptions/exception.factory.ts) 提供了三层异常分类
+5. **统一异常体系**: [`OESExceptionBase`](../../common/src/core/exceptions/oes.exception.ts) + [`ExceptionFactory`](../../common/src/core/exceptions/exception.factory.ts) 提供了三层异常分类
 
 ### 1.6 架构待改进点
 
@@ -154,17 +154,17 @@ flowchart TB
 
 | 功能                 | 状态 | 实现位置                                                                                                                                     |
 | -------------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| JWT 认证守卫         | ✅   | [`GatewayJwtAuthGuard`](src/common/src/auth/guards/gateway-jwt-auth.guard.ts)                                                                |
-| 公开路由装饰器       | ✅   | [`@Public()`](src/common/src/auth/decorators/is-public.decorator.ts)                                                                         |
-| 统一异常过滤器       | ✅   | [`GatewayExceptionFilter`](src/services/system/api-gateway/src/common/filters/gateway-exception.filter.ts)                                   |
-| 统一响应拦截器       | ✅   | [`ResponseTransformInterceptor`](src/services/system/api-gateway/src/common/interceptors/response.interceptor.ts)                            |
-| gRPC → HTTP 异常映射 | ✅   | [`grpcStatusToHttpStatus()`](src/services/system/api-gateway/src/common/filters/gateway-exception.filter.ts:81)                              |
-| 权限检查守卫         | ✅   | [`GatewayPermissionGuard`](src/common/src/authorization/guards/gateway-permission.guard.ts)                                                   |
-| Auth BFF 编排        | ✅   | [`AuthController`](src/services/api-gateway/src/modules/auth-bff/interfaces/http/controllers/auth.controller.ts)                              |
-| Permission 路由代理  | ✅   | [`PermissionController`](src/services/system/api-gateway/src/modules/permission-service/interface/http/controllers/permission.controller.ts) |
+| JWT 认证守卫         | ✅   | [`GatewayJwtAuthGuard`](../../common/src/auth/guards/gateway-jwt-auth.guard.ts)                                                     |
+| 公开路由装饰器       | ✅   | [`@Public()`](../../common/src/auth/decorators/is-public.decorator.ts)                                                              |
+| 统一异常过滤器       | ✅   | [`GatewayExceptionFilter`](src/common/filters/gateway-exception.filter.ts)                                                        |
+| 统一响应拦截器       | ✅   | [`ResponseTransformInterceptor`](src/common/interceptors/response.interceptor.ts)                                               |
+| gRPC → HTTP 异常映射 | ✅   | [`grpcStatusToHttpStatus()`](src/common/filters/gateway-exception.filter.ts#L81)                                                |
+| 权限检查守卫         | ✅   | [`GatewayPermissionGuard`](../../common/src/authorization/guards/gateway-permission.guard.ts)                                      |
+| Auth BFF 编排        | ✅   | [`AuthController`](src/modules/auth-bff/interfaces/http/controllers/auth.controller.ts)                                         |
+| Permission 路由代理  | ✅   | [`PermissionController`](src/modules/permission-service/interface/http/controllers/permission.controller.ts)                    |
 | Identity 路由代理    | ❌   | 历史占位代理已清理；后续如需对外暴露身份能力，应以新的场景型 BFF 重新设计                                                                   |
-| OpenTelemetry 集成   | ✅   | [`initOtelSdk()`](src/services/system/api-gateway/src/main.ts:13)                                                                            |
-| 结构化日志           | ✅   | [`AppLogger`](src/services/system/api-gateway/src/main.ts:16)                                                                                |
+| OpenTelemetry 集成   | ✅   | [`initOtelSdk()`](src/main.ts#L18)                                                                                                  |
+| 结构化日志           | ✅   | [`AppLogger`](src/main.ts#L22)                                                                                                      |
 
 ### 2.2 当前问题分析
 
@@ -210,7 +210,7 @@ flowchart LR
 
 ### 2.3 代码质量问题
 
-1. **[`GatewayExceptionFilter`](src/services/system/api-gateway/src/common/filters/gateway-exception.filter.ts:49)** 中 `OESExceptionBase` 和 unknown 分支的 `payload` 变量被 `const` 重新声明遮蔽了外层变量，导致最终 `res.status(payload.code).json(payload)` 使用的是未初始化的外层 `payload`，会抛出运行时错误
+1. **[`GatewayExceptionFilter`](src/common/filters/gateway-exception.filter.ts#L49)** 中 `OESExceptionBase` 和 unknown 分支的 `payload` 变量被 `const` 重新声明遮蔽了外层变量，导致最终 `res.status(payload.code).json(payload)` 使用的是未初始化的外层 `payload`，会抛出运行时错误
 2. 历史 `modules/auth-service` 与 `modules/identity-service` 占位代理曾长期留在代码仓库中，容易误导线程继续在死代码上扩写；现已清理
 3. 历史设计文档中仍存在部分旧路径与旧模块名引用，需要持续收口，避免把已删除代理视为活跃集成路径
 4. 缺少全局 `ValidationPipe`，入参未校验
@@ -359,7 +359,7 @@ flowchart LR
 
 ### 4.1 Bootstrap (main.ts) 增强
 
-当前 [`main.ts`](src/services/system/api-gateway/src/main.ts) 需要增强以下能力：
+当前 [`main.ts`](src/main.ts) 需要增强以下能力：
 
 ```typescript
 // 目标 main.ts 伪代码
@@ -598,7 +598,7 @@ modules/
 
 ### 4.9 GatewayExceptionFilter 修复
 
-当前 [`GatewayExceptionFilter`](src/services/system/api-gateway/src/common/filters/gateway-exception.filter.ts) 需要同时承担两项职责：
+当前 [`GatewayExceptionFilter`](src/common/filters/gateway-exception.filter.ts) 需要同时承担两项职责：
 
 - 在写出 HTTP 响应前调用 tracing helper 记录异常
 - 统一将 `RpcException` / `HttpException` / `OESExceptionBase` 映射为 JSON 响应
@@ -640,8 +640,8 @@ catch(exception: unknown, host: ArgumentsHost) {
 
 | 模块                                                                                                                     | 当前协议                                          | 目标协议 |
 | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------- | -------- |
-| [`AuthBffModule`](src/services/api-gateway/src/modules/auth-bff/auth-bff.module.ts)                                     | HTTP BFF controller + gRPC adapter                | gRPC     |
-| [`PermissionServiceProxyModule`](src/services/api-gateway/src/modules/permission-service/permission-service.module.ts)   | HTTP 管理薄代理 + gRPC adapter                    | gRPC     |
+| [`AuthBffModule`](src/modules/auth-bff/auth-bff.module.ts)                                      | HTTP BFF controller + gRPC adapter                | gRPC     |
+| [`PermissionServiceProxyModule`](src/modules/permission-service/permission-service.module.ts)   | HTTP 管理薄代理 + gRPC adapter                    | gRPC     |
 
 **目标**: 统一使用 `GrpcTransportModule.forFeature()` + `@InjectGrpcClient()` 模式。
 

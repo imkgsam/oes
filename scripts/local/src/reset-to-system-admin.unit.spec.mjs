@@ -41,7 +41,7 @@ test('reset to system admin keeps the one-click reset command sequence explicit'
     [
       'reset-postgres-databases',
       'sync-backend-schemas',
-      'sync-notification-schema',
+      'deploy-notification-migrations',
       'sync-permission-foundation',
       'validate-permission-foundation',
       'seed-system-admin',

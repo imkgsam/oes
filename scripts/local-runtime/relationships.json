@@ -1,0 +1,289 @@
+{
+  "schemaVersion": 2,
+  "owners": {
+    "api-gateway": {
+      "capabilities": [
+        "network-trust"
+      ],
+      "process": true,
+      "downstreams": [
+        "asset-service",
+        "auth-service",
+        "browser-activity-service",
+        "collaboration-service",
+        "crm-service",
+        "finance-service",
+        "hr-service",
+        "identity-service",
+        "item-master-service",
+        "mes-service",
+        "notification-service",
+        "party-service",
+        "permission-service",
+        "procurement-service",
+        "public-entry-service",
+        "sales-service",
+        "site-service",
+        "srm-service",
+        "tenant-org-service",
+        "terminal-device-service",
+        "wms-service"
+      ]
+    },
+    "asset-service": {
+      "capabilities": [
+        "database",
+        "object-store",
+        "events",
+        "network-trust"
+      ],
+      "process": true,
+      "downstreams": []
+    },
+    "auth-service": {
+      "capabilities": [
+        "database",
+        "cache",
+        "network-trust"
+      ],
+      "process": true,
+      "downstreams": [
+        "auth-service",
+        "hr-service",
+        "identity-service",
+        "notification-service",
+        "permission-service",
+        "tenant-org-service"
+      ]
+    },
+    "browser-activity-service": {
+      "capabilities": [
+        "database",
+        "network-trust"
+      ],
+      "process": true,
+      "downstreams": []
+    },
+    "collaboration-service": {
+      "capabilities": [
+        "database",
+        "events",
+        "network-trust"
+      ],
+      "process": true,
+      "downstreams": [
+        "auth-service",
+        "crm-service",
+        "identity-service",
+        "permission-service"
+      ]
+    },
+    "crm-service": {
+      "capabilities": [
+        "database",
+        "network-trust"
+      ],
+      "process": true,
+      "downstreams": [
+        "auth-service",
+        "party-service"
+      ]
+    },
+    "finance-service": {
+      "capabilities": [
+        "database",
+        "network-trust"
+      ],
+      "process": true,
+      "downstreams": []
+    },
+    "hr-service": {
+      "capabilities": [
+        "database",
+        "network-trust"
+      ],
+      "process": true,
+      "downstreams": [
+        "auth-service",
+        "identity-service",
+        "party-service",
+        "permission-service",
+        "tenant-org-service"
+      ]
+    },
+    "identity-service": {
+      "capabilities": [
+        "database",
+        "network-trust"
+      ],
+      "process": true,
+      "downstreams": [
+        "auth-service",
+        "hr-service",
+        "party-service",
+        "tenant-org-service"
+      ]
+    },
+    "item-master-service": {
+      "capabilities": [
+        "database",
+        "network-trust"
+      ],
+      "process": true,
+      "downstreams": []
+    },
+    "mes-service": {
+      "capabilities": [
+        "database",
+        "network-trust"
+      ],
+      "process": true,
+      "downstreams": [
+        "auth-service",
+        "item-master-service"
+      ]
+    },
+    "notification-service": {
+      "capabilities": [
+        "database",
+        "events",
+        "network-trust"
+      ],
+      "process": true,
+      "downstreams": []
+    },
+    "party-service": {
+      "capabilities": [
+        "database",
+        "network-trust"
+      ],
+      "process": true,
+      "downstreams": []
+    },
+    "permission-service": {
+      "capabilities": [
+        "database",
+        "network-trust"
+      ],
+      "process": true,
+      "downstreams": [
+        "auth-service",
+        "identity-service"
+      ]
+    },
+    "procurement-service": {
+      "capabilities": [
+        "database",
+        "network-trust"
+      ],
+      "process": true,
+      "downstreams": [
+        "auth-service",
+        "item-master-service",
+        "srm-service"
+      ]
+    },
+    "public-entry-service": {
+      "capabilities": [
+        "database",
+        "network-trust"
+      ],
+      "process": true,
+      "downstreams": [
+        "auth-service",
+        "hr-service",
+        "identity-service",
+        "permission-service",
+        "tenant-org-service"
+      ]
+    },
+    "sales-service": {
+      "capabilities": [
+        "database",
+        "network-trust"
+      ],
+      "process": true,
+      "downstreams": []
+    },
+    "site-service": {
+      "capabilities": [
+        "database",
+        "events",
+        "network-trust"
+      ],
+      "process": true,
+      "downstreams": [
+        "asset-service",
+        "auth-service"
+      ]
+    },
+    "srm-service": {
+      "capabilities": [
+        "database",
+        "network-trust"
+      ],
+      "process": true,
+      "downstreams": [
+        "auth-service",
+        "item-master-service",
+        "party-service"
+      ]
+    },
+    "tenant-org-service": {
+      "capabilities": [
+        "database",
+        "network-trust"
+      ],
+      "process": true,
+      "downstreams": [
+        "auth-service",
+        "hr-service",
+        "identity-service",
+        "party-service",
+        "permission-service"
+      ]
+    },
+  "terminal-device-service": {
+    "capabilities": [
+      "database",
+      "cache",
+      "network-trust"
+      ],
+      "process": true,
+      "downstreams": []
+    },
+    "wms-service": {
+      "capabilities": [
+        "database",
+        "network-trust"
+      ],
+      "process": true,
+      "downstreams": [
+        "auth-service",
+        "item-master-service",
+        "procurement-service"
+      ]
+    }
+  },
+  "testCapabilities": {
+    "unit": [],
+    "component": [],
+    "contract": [],
+    "integration": [
+      "database"
+    ],
+    "journey": [
+      "database",
+      "network-trust"
+    ]
+  },
+  "explicitCapabilities": [
+    "cache",
+    "events",
+    "object-store",
+    "network-trust",
+    "nacos-specific",
+    "trace-specific"
+  ],
+  "executableJourneys": []
+}

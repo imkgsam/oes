@@ -1,7 +1,7 @@
 # Local Development And Test Runtime
 
 ```text
-status: STABLE_TARGET_PENDING_ATOMIC_CUTOVER
+status: STABLE
 decision: docs/adr/0018-local-development-and-test-runtime.md
 currentExecutableRunbooks: docs/runbooks/index.md
 ```
@@ -10,8 +10,8 @@ currentExecutableRunbooks: docs/runbooks/index.md
 依赖选择、资源身份、配置注入、权限、schema bootstrap、并发、验证和原子切换；业务服务
 边界、测试分类、消息语义、gRPC 信任和可观测性语义仍分别由其现有真相源拥有。
 
-当前仓库在实现交付合并前仍执行现有 runbook。该状态不是第二个长期运行模式；目标运行时
-必须在一个候选中原子替换所有受支持入口、CI 内部路径与现行 runbook。
+仓库的受支持入口、CI 内部路径与现行 runbook 统一执行本文运行时。旧 Compose、生成式
+service `.env` 与独立测试基础设施入口已经从受支持路径退役，不构成第二个运行模式。
 
 ## 1. Runtime shape and invariants
 
@@ -144,8 +144,10 @@ process identity、lease、credential reference 和 evidence reference；它不�
   分配并重新发布 endpoint。
 - Repository runtime logic 不包含 hard-coded host port；container target port 或协议 default
   不是 host endpoint authority。
-- Gateway/frontend/service endpoint 全部从 manifest 传播。mTLS identity 使用 SPIFFE URI SAN，
-  不依赖 hostname 或 port 形成 workload authority。
+- Gateway/frontend/service endpoint 全部从 manifest 传播。mTLS workload authority 只使用
+  SPIFFE URI SAN，不依赖 hostname 或 port；证书同时携带 launcher-owned
+  `<service>.localhost` DNS SAN（Auth 另含 issuer DNS）以完成 TLS routing/hostname validation，
+  DNS 不参与 workload authorization。
 
 Startup、liveness、readiness 是三个不同状态。Dependency readiness gate 必须先于 service
 publication 和 test execution。启动事务逐项记录 partial progress；失败时只回滚当前 run 已
@@ -175,8 +177,7 @@ database、bucket、NATS subject 或 administrative credential。Credential mate
 mode `0600` 的 launcher runtime storage，按 service/run 限权，输出和 evidence 一律 redacted。
 
 Generated root/service `.env`、dotenv/current-directory discovery、worktree-derived owner identity
-和由 worktree 复制出的 Compose project 在原子切换时退役。切换前现有 executable runbook
-仍描述当前路径；切换后仓库不保留 legacy/v2 mode selector。
+和由 worktree 复制出的 Compose project 已退役。仓库不保留 legacy/v2 mode selector。
 
 ## 8. Unified launcher boundary
 
@@ -409,4 +410,4 @@ test 和 executable path 不积累旧模式。
   ExecutionToken 与 RPC admission。
 - [Observability And Audit](./observability-and-audit.md)：signal、trace、log 与 audit 语义。
 - [ADR 0018](../../adr/0018-local-development-and-test-runtime.md)：本运行时形态与原子切换的决定。
-- [Runbooks](../../runbooks/index.md)：当前可执行操作；原子切换时由实现候选整体改写。
+- [Runbooks](../../runbooks/index.md)：当前统一运行时的可执行操作。

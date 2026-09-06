@@ -12,7 +12,7 @@ import {
   cleanupPermissionAcceptanceFixture,
   loadPermissionAcceptanceContext
 } from './public-business-card-permission-acceptance-fixture.mjs'
-import { normalizeTaskKey, parseEnvironmentFile } from './worktree-env.mjs'
+import { loadRuntimeOwnerContext, normalizeTaskKey } from '../local-runtime/src/runtime-context.mjs'
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const serviceDirectory = path.join(repositoryRoot, 'src/services/system/public-entry-service')
@@ -134,24 +134,16 @@ export function buildPublicBusinessCardAcceptanceSeed(
 }
 
 /** Resolves the ignored task environment without echoing database credentials. */
-export function loadPublicEntryDatabaseContext(root = repositoryRoot, environment = process.env) {
-  const rootValues = parseEnvironmentFile(fs.readFileSync(path.join(root, '.env'), 'utf8'))
-  const taskKey = normalizeTaskKey(
-    environment.OES_TASK_KEY?.trim() || rootValues.get('OES_TASK_KEY')
-  )
-  const serviceEnvPath = path.join(root, 'src/services/system/public-entry-service/.env')
-  const serviceValues = parseEnvironmentFile(
-    fs.readFileSync(serviceEnvPath, 'utf8'),
-    serviceEnvPath
-  )
-  const databaseUrl =
-    environment.PUBLIC_ENTRY_DATABASE_URL?.trim() || serviceValues.get('DATABASE_URL')
-  assertTaskOwnedPublicEntryDatabase(databaseUrl, taskKey)
-  return { databaseUrl, taskKey }
+export function loadPublicEntryDatabaseContext(_root = repositoryRoot, environment = process.env) {
+  const runtime = loadRuntimeOwnerContext('public-entry-service', environment)
+  const taskKey = runtime.taskKey
+  const databaseUrl = environment.PUBLIC_ENTRY_DATABASE_URL?.trim() || runtime.databaseUrl
+  assertTaskOwnedPublicEntryDatabase(databaseUrl, taskKey, runtime.databaseAllocation)
+  return { databaseUrl, databaseAllocation: runtime.databaseAllocation, taskKey, manifestPath: runtime.manifestPath }
 }
 
 /** Rejects remote, shared, or differently owned databases before any read or write. */
-export function assertTaskOwnedPublicEntryDatabase(databaseUrl, taskKey) {
+export function assertTaskOwnedPublicEntryDatabase(databaseUrl, taskKey, allocation) {
   const parsed = new URL(databaseUrl)
   if (!['postgres:', 'postgresql:'].includes(parsed.protocol)) {
     throw new Error('PUBLIC_BUSINESS_CARD_FIXTURE_DATABASE_PROTOCOL_INVALID')
@@ -160,7 +152,8 @@ export function assertTaskOwnedPublicEntryDatabase(databaseUrl, taskKey) {
     throw new Error('PUBLIC_BUSINESS_CARD_FIXTURE_DATABASE_NOT_LOOPBACK')
   }
   const database = decodeURIComponent(parsed.pathname.slice(1))
-  if (database !== `oes_${normalizeTaskKey(taskKey)}_public_entry`) {
+  normalizeTaskKey(taskKey)
+  if (!allocation || allocation.kind !== 'database' || allocation.database !== database || !/^[a-f0-9]{64}$/u.test(allocation.containerObjectId || '')) {
     throw new Error('PUBLIC_BUSINESS_CARD_FIXTURE_DATABASE_NOT_TASK_OWNED')
   }
   return { database, host: parsed.hostname, port: parsed.port || '5432' }
@@ -391,10 +384,11 @@ async function main() {
   if (permissionContext.taskKey !== context.taskKey) {
     throw new Error('PUBLIC_BUSINESS_CARD_FIXTURE_TASK_KEY_MISMATCH')
   }
-  const target = assertTaskOwnedPublicEntryDatabase(context.databaseUrl, context.taskKey)
+  const target = assertTaskOwnedPublicEntryDatabase(context.databaseUrl, context.taskKey, context.databaseAllocation)
   const permissionTarget = assertTaskOwnedPermissionDatabase(
     permissionContext.databaseUrl,
-    permissionContext.taskKey
+    permissionContext.taskKey,
+    permissionContext.databaseAllocation
   )
   const require = createRequire(import.meta.url)
   const { PrismaClient: PublicEntryPrismaClient } = require(

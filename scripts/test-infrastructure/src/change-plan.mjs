@@ -26,7 +26,7 @@ const ruleSet = Object.freeze({
     'package.json',
     'tsconfig.json',
     'tsconfig.build.json',
-    'scripts/local/database-lifecycle.mjs',
+    'scripts/local-runtime/**',
     'scripts/local/runtime-config/**/*execution-token*',
     'src/common/src/**/*execution-token*',
     'src/common/src/contracts/**/*envelope*',

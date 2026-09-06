@@ -1,124 +1,91 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import test from 'node:test'
-import { resolveIntegrationTaskKey, withIntegrationRuntime } from './integration-runtime.mjs'
+import { integrationCapabilities, integrationEnvironmentForOwner, resolveIntegrationTaskKey, selectDeclaredRuntimeOwners, withIntegrationRuntime } from './integration-runtime.mjs'
 
-test('integration task identity prefers explicit CI ownership and otherwise reuses the worktree', () => {
-  const root = mkdtempSync(join(tmpdir(), 'oes-integration-owner-'))
-  try {
-    writeFileSync(join(root, '.env'), 'OES_TASK_KEY=worktree_owner\n')
-    assert.equal(resolveIntegrationTaskKey(root, 'ci_owner', 'fallback'), 'ci_owner')
-    assert.equal(resolveIntegrationTaskKey(root, undefined, 'fallback'), 'worktree_owner')
-    rmSync(join(root, '.env'))
-    assert.equal(resolveIntegrationTaskKey(root, undefined, 'fallback'), 'fallback')
-  } finally {
-    rmSync(root, { recursive: true, force: true })
-  }
+const root = path.resolve(import.meta.dirname, '../../..')
+
+test('integration task identity never reads a worktree dotenv file', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'oes-integration-owner-'))
+  fs.writeFileSync(path.join(directory, '.env'), 'OES_TASK_KEY=foreign_worktree_owner\n')
+  assert.equal(resolveIntegrationTaskKey(directory, 'ci_owner', 'fallback'), 'ci_owner')
+  assert.equal(resolveIntegrationTaskKey(directory, undefined, 'fallback'), 'fallback')
 })
 
-test('integration runtime selects service inventory, enables live tests, and always tears down', async () => {
-  const commands = []
-  const schemaEnvironments = []
-  let residueChecked = false
-  const services = [
-    {
-      name: 'notification-service',
-      database: 'notification_test',
-      directory: '/fixture/repository/notification-service',
-      schema: '/fixture/repository/notification-service/prisma/schema.prisma'
-    },
-    {
-      name: 'collaboration-service',
-      database: 'collaboration_test',
-      directory: '/fixture/repository/collaboration-service',
-      schema: '/fixture/repository/collaboration-service/prisma/schema.prisma'
-    },
-    {
-      name: 'unselected-service',
-      database: 'unselected_test',
-      directory: '/fixture/repository/unselected-service',
-      schema: '/fixture/repository/unselected-service/prisma/schema.prisma'
-    }
-  ]
-  const context = {
+test('integration capability planning is explicit and owner-derived', () => {
+  assert.deepEqual(integrationCapabilities(['permission-service']), [])
+  assert.deepEqual(integrationCapabilities(['notification-service', 'collaboration-service']), ['events', 'network-trust'])
+  assert.deepEqual(integrationCapabilities(['asset-service']), ['object-store'])
+})
+
+test('integration runtime excludes package-only owners and runs their tests without infrastructure', async () => {
+  const declarations = { owners: { 'permission-service': {}, 'notification-service': {}, 'collaboration-service': {} } }
+  assert.deepEqual(selectDeclaredRuntimeOwners(['@oes/pda-web', 'permission-service', '@oes/pda-web'], declarations), ['permission-service'])
+  assert.deepEqual(selectDeclaredRuntimeOwners(['notification-service'], declarations), ['collaboration-service', 'notification-service'])
+  let runtimeCalled = false
+  const result = await withIntegrationRuntime({
+    root,
+    ownerNames: ['@oes/meilong-ceramics-site'],
     taskKey: 'fixture_task',
-    stateDirectory: '/tmp/fixture-integration-state',
-    rootValues: new Map([
-      ['OES_POSTGRES_USER', 'fixture_user'],
-      ['OES_POSTGRES_PASSWORD', 'fixture_password']
-    ]),
-    services
+    runTests: async (environmentForOwner) => {
+      assert.deepEqual(environmentForOwner('@oes/meilong-ceramics-site'), {})
+      return [0]
+    },
+    adapters: {
+      declarations,
+      withRuntime() { runtimeCalled = true }
+    }
+  })
+  assert.deepEqual(result, [0])
+  assert.equal(runtimeCalled, false)
+})
+
+test('notification Integration gets its consumer identity plus one explicit Collaboration publisher fixture', () => {
+  const reference = { path: '/fixture/nats.json' }
+  const manifest = {
+    profile: 'CI',
+    taskKey: 'fixture_task',
+    runId: 'run_fixture',
+    devStackId: 'machine_fixture',
+    owners: ['collaboration-service', 'notification-service'],
+    endpoints: [{ provider: 'nats', owners: ['collaboration-service', 'notification-service'], environment: { NATS_URL: 'nats://127.0.0.1:4222' }, credentialReference: reference }]
   }
+  const environment = integrationEnvironmentForOwner(manifest, 'notification-service', (_reference, owner) => owner === 'notification-service'
+    ? { NATS_USER: 'notification', NATS_PASSWORD: 'consumer-password', NATS_NOTIFICATION_USER: 'notification', NATS_NOTIFICATION_PASSWORD: 'consumer-password' }
+    : { NATS_USER: 'collaboration', NATS_PASSWORD: 'publisher-password', NATS_COLLABORATION_USER: 'collaboration', NATS_COLLABORATION_PASSWORD: 'publisher-password' })
+  assert.equal(environment.NATS_USER, 'notification')
+  assert.equal(environment.NATS_PASSWORD, 'consumer-password')
+  assert.equal(environment.NATS_COLLABORATION_USER, 'collaboration')
+  assert.equal(environment.NATS_COLLABORATION_PASSWORD, 'publisher-password')
+})
+
+test('integration runtime uses the unified core, minimal owner environments and abnormal reconciliation', async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oes-integration-runtime-'))
   const failure = new Error('test failure sentinel')
-
-  await assert.rejects(
-    withIntegrationRuntime({
-      root: '/fixture/repository',
-      ownerNames: ['notification-service', 'collaboration-service'],
-      taskKey: 'fixture_task',
-      runTests: async (environmentForOwner) => {
-        const collaboration = environmentForOwner('collaboration-service')
-        const notification = environmentForOwner('notification-service')
-        assert.equal(collaboration.EVENT_BUS_LIVE, 'true')
-        assert.equal(collaboration.NATS_USER, 'collaboration')
-        assert.match(collaboration.DATABASE_URL, /\/collaboration_test\?schema=public$/u)
-        assert.equal(collaboration.COLLABORATION_DATABASE_URL, collaboration.DATABASE_URL)
-        assert.equal(notification.NOTIFICATION_EVENT_LIVE_TEST, 'true')
-        assert.equal(notification.NATS_USER, 'notification')
-        assert.match(notification.DATABASE_URL, /\/notification_test\?schema=public$/u)
-        assert.equal(notification.NOTIFICATION_DATABASE_URL, notification.DATABASE_URL)
-        assert.equal(notification.COLLABORATION_DATABASE_URL, undefined)
-        throw failure
-      },
-      adapters: {
-        run(command, args, options = {}) {
-          commands.push([command, ...args])
-          if (args.includes('push')) schemaEnvironments.push(options.env)
-          return ''
-        },
-        loadDatabaseContext() {
-          return context
-        },
-        readState() {
-          return { postgresPort: 55432 }
-        },
-        loadNatsEnvironment() {
-          return {
-            default: { NATS_URL: 'nats://fixture:4222' },
-            collaboration: { NATS_URL: 'nats://fixture:4222', NATS_USER: 'collaboration' },
-            notification: { NATS_URL: 'nats://fixture:4222', NATS_USER: 'notification' }
-          }
-        },
-        bootstrapTaskTrust() {
-          return { OES_GRPC_TLS_ENABLED: 'true' }
-        },
-        assertNoResidue() {
-          residueChecked = true
-        }
-      }
-    }),
-    failure
-  )
-
-  assert.ok(commands.some((command) => command.join(' ') === 'pnpm db:up -- --profile integration'))
-  assert.ok(
-    commands.some(
-      (command) =>
-        command.join(' ') ===
-        'pnpm db:migrate -- --services collaboration-service,notification-service'
-    )
-  )
-  const schemaPushes = commands.filter((command) => command.includes('push'))
-  assert.equal(schemaPushes.length, 2)
-  assert.ok(schemaPushes.every((command) => command.includes('--skip-generate')))
-  assert.ok(schemaPushes.every((command) => command.includes('--accept-data-loss')))
-  assert.ok(schemaEnvironments.every((environment) => environment.NODE_ENV === 'test'))
-  assert.deepEqual(
-    schemaEnvironments.map((environment) => new URL(environment.DATABASE_URL).pathname).sort(),
-    ['/collaboration_test', '/notification_test']
-  )
-  assert.deepEqual(commands.at(-1), ['pnpm', 'db:rollback'])
-  assert.equal(residueChecked, true)
+  let migrationManifest
+  await assert.rejects(withIntegrationRuntime({
+    root,
+    ownerNames: ['permission-service'],
+    taskKey: 'fixture_task',
+    runTests: async (environmentForOwner) => {
+      const environment = environmentForOwner('permission-service')
+      assert.equal(environment.OES_TASK_KEY, 'fixture_task')
+      assert.equal(environment.OES_RUN_ID, 'run_fixture')
+      assert.equal(environment.OES_POSTGRES_CREDENTIAL.startsWith('secret-'), true)
+      assert.equal(environment.NATS_PASSWORD, undefined)
+      throw failure
+    },
+    adapters: {
+      profile: 'LOCAL_INTEGRATION',
+      stateRoot,
+      runId: 'run_fixture',
+      driver: 'simulation',
+      applyCommittedMigrations(manifestPath) { migrationManifest = manifestPath }
+    }
+  }), failure)
+  assert.equal(migrationManifest.endsWith('/manifest.json'), true)
+  const cleanup = JSON.parse(fs.readFileSync(path.join(stateRoot, 'runs', 'fixture_task', 'run_fixture', 'cleanup.json'), 'utf8'))
+  assert.equal(cleanup.result, 'RECONCILED')
 })

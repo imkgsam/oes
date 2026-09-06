@@ -4,12 +4,12 @@
 status: ACCEPTED
 decisionDate: 2026-09-06
 architectureTruthSource: docs/architecture/platforms/local-development-and-test-runtime.md
-implementationState: PENDING_ATOMIC_CUTOVER
+implementationState: IMPLEMENTED
 ```
 
 ## Context
 
-OES 现行本地运行时把 worktree identity、Compose project、generated root/service `.env`、固定
+OES 原本的本地运行时把 worktree identity、Compose project、generated root/service `.env`、固定
 host port 和 current-directory dotenv discovery 绑定在一起。Focused test 与开发环境因而可能
 复制完整 Compose project、竞争端口、遗漏 `DATABASE_URL`、复用过宽 credential，或在失败后留下
 无法精确归属的资源。Managed test path 还混用了 committed migration 与 `prisma db push`，使本地

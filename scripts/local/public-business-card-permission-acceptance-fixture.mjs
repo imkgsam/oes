@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import { normalizeTaskKey, parseEnvironmentFile } from './worktree-env.mjs'
+import { loadRuntimeOwnerContext, normalizeTaskKey } from '../local-runtime/src/runtime-context.mjs'
 
 const PUBLIC_READ_CODE = 'public-entry.business-card.read'
 const FIXTURE_IDS = Object.freeze({
@@ -66,33 +66,21 @@ export function buildPublicBusinessCardPermissionAcceptanceSeed(
   }
 }
 
-/** Loads the exact task-owned Permission database and Gateway selector. */
-export function loadPermissionAcceptanceContext(repositoryRoot, environment = process.env) {
-  const rootValues = parseEnvironmentFile(
-    fs.readFileSync(path.join(repositoryRoot, '.env'), 'utf8')
-  )
-  const taskKey = normalizeTaskKey(
-    environment.OES_TASK_KEY?.trim() || rootValues.get('OES_TASK_KEY')
-  )
-  const serviceEnvPath = path.join(repositoryRoot, 'src/services/system/permission-service/.env')
-  const serviceValues = parseEnvironmentFile(
-    fs.readFileSync(serviceEnvPath, 'utf8'),
-    serviceEnvPath
-  )
-  const databaseUrl =
-    environment.PERMISSION_DATABASE_URL?.trim() || serviceValues.get('DATABASE_URL')
-  assertTaskOwnedPermissionDatabase(databaseUrl, taskKey)
-  const selectorPath =
-    environment.OES_MACHINE_SELECTOR_FILE?.trim() ||
-    path.join(repositoryRoot, '.tmp/oes-database-lifecycle', taskKey, 'machine-selectors-v2.json')
-  const gatewayMachinePrincipalId =
-    environment.GATEWAY_MACHINE_PRINCIPAL_ID?.trim() || readGatewayMachinePrincipalId(selectorPath)
-  return { databaseUrl, gatewayMachinePrincipalId, selectorPath, taskKey }
+/** Loads the exact manifest-bound Permission database and explicit Gateway selector. */
+export function loadPermissionAcceptanceContext(_repositoryRoot, environment = process.env) {
+  const runtime = loadRuntimeOwnerContext('permission-service', environment)
+  const taskKey = runtime.taskKey
+  const databaseUrl = environment.PERMISSION_DATABASE_URL?.trim() || runtime.databaseUrl
+  assertTaskOwnedPermissionDatabase(databaseUrl, taskKey, runtime.databaseAllocation)
+  const selectorPath = environment.OES_MACHINE_SELECTOR_FILE?.trim() || null
+  const gatewayMachinePrincipalId = environment.GATEWAY_MACHINE_PRINCIPAL_ID?.trim() || (selectorPath ? readGatewayMachinePrincipalId(selectorPath) : '')
+  if (!gatewayMachinePrincipalId) throw new Error('GATEWAY_MACHINE_PRINCIPAL_ID_REQUIRED')
+  return { databaseUrl, databaseAllocation: runtime.databaseAllocation, gatewayMachinePrincipalId, selectorPath, taskKey, manifestPath: runtime.manifestPath }
 }
 
 /** Rejects remote, shared, or differently owned Permission databases. */
-export function assertTaskOwnedPermissionDatabase(databaseUrl, taskKey) {
-  return assertTaskDatabase(databaseUrl, taskKey, 'permission')
+export function assertTaskOwnedPermissionDatabase(databaseUrl, taskKey, allocation) {
+  return assertTaskDatabase(databaseUrl, taskKey, allocation)
 }
 
 /** Applies the owned role, one permission edge, and one active machine binding. */
@@ -271,7 +259,7 @@ function readGatewayMachinePrincipalId(selectorPath) {
 }
 
 /** Validates one exact loopback database name for the task and service suffix. */
-function assertTaskDatabase(databaseUrl, taskKey, serviceSuffix) {
+function assertTaskDatabase(databaseUrl, taskKey, allocation) {
   const parsed = new URL(databaseUrl)
   if (!['postgres:', 'postgresql:'].includes(parsed.protocol)) {
     throw new Error('PUBLIC_BUSINESS_CARD_FIXTURE_DATABASE_PROTOCOL_INVALID')
@@ -280,7 +268,8 @@ function assertTaskDatabase(databaseUrl, taskKey, serviceSuffix) {
     throw new Error('PUBLIC_BUSINESS_CARD_FIXTURE_DATABASE_NOT_LOOPBACK')
   }
   const database = decodeURIComponent(parsed.pathname.slice(1))
-  if (database !== `oes_${normalizeTaskKey(taskKey)}_${serviceSuffix}`) {
+  normalizeTaskKey(taskKey)
+  if (!allocation || allocation.kind !== 'database' || allocation.database !== database || !/^[a-f0-9]{64}$/u.test(allocation.containerObjectId || '')) {
     throw new Error('PUBLIC_BUSINESS_CARD_FIXTURE_DATABASE_NOT_TASK_OWNED')
   }
   return { database, host: parsed.hostname, port: parsed.port || '5432' }

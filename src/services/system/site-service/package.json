@@ -10,7 +10,6 @@
     "test": "pnpm run test:unit && pnpm run test:component && pnpm run test:contract && pnpm run test:integration",
     "build": "tsc -b",
     "prisma:generate": "npx prisma generate --schema=./prisma/schema.prisma",
-    "prisma:push": "npx prisma db push --schema=./prisma/schema.prisma",
     "dev:build": "tsc -b -w --preserveWatchOutput",
     "dev:start": "wait-on dist/main.js ../../../common/dist/index.js && nodemon --watch dist --watch ../../../common/dist --ext js,json --signal SIGTERM dist/main.js",
     "dev": "concurrently -k -n build,run \"pnpm run dev:build\" \"pnpm run dev:start\"",
@@ -21,7 +20,7 @@
     "test:unit": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.unit\\.spec\\.ts$'",
     "test:component": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.component\\.spec\\.ts$'",
     "test:contract": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.contract\\.spec\\.ts$'",
-    "test:integration": "pnpm prisma:push && jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.integration\\.spec\\.ts$'"
+    "test:integration": "pnpm --workspace-root test:run -- --type integration --owner site-service"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.14.3",

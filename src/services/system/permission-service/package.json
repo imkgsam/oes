@@ -15,7 +15,6 @@
     "dev": "concurrently -k -n build,run \"pnpm run dev:build\" \"pnpm run dev:start\"",
     "start": "node dist/main.js",
     "prisma:generate": "npx prisma generate --schema=./prisma/schema.prisma",
-    "prisma:push": "node -r ts-node/register ./src/scripts/permission-prisma-push.ts",
     "seed:dry-run": "node -r ts-node/register ./src/scripts/permission-service-seed.ts",
     "seed:cleanup:dry-run": "node -r ts-node/register ./src/scripts/permission-service-seed-cleanup.ts",
     "seed:validate": "node -r ts-node/register ./src/scripts/permission-service-seed-validate.ts",
@@ -28,7 +27,7 @@
     "test:unit": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.unit\\.spec\\.ts$'",
     "test:component": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.component\\.spec\\.ts$'",
     "test:contract": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.contract\\.spec\\.ts$'",
-    "test:integration": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.integration\\.spec\\.ts$'"
+    "test:integration": "pnpm --workspace-root test:run -- --type integration --owner permission-service"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

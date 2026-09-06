@@ -172,7 +172,6 @@ The cutover is one revertible merge commit. A migration-caused post-main smoke f
 required PR/merge-group check, demonstrated selector omission, or unreliable new CI execution triggers
 preparation of an atomic revert. Merge and resource cleanup remain separate Human confirmations.
 
-The later local/CI runtime replacement is a separate atomic cutover governed by
-[Local Development And Test Runtime](./local-development-and-test-runtime.md). It preserves this
-taxonomy, selector meaning, required aggregate context, and FULL confirmation gate while replacing
-the provider/configuration orchestration beneath the runner.
+The local/CI provider and configuration orchestration beneath the runner is governed by
+[Local Development And Test Runtime](./local-development-and-test-runtime.md). The unified runtime
+preserves this taxonomy, selector meaning, required aggregate context, and FULL confirmation gate.
