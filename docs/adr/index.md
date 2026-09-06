@@ -18,3 +18,4 @@
 - [0015 Workload identity and execution token](./0015-workload-identity-and-execution-token.md)
 - [0016 Delegated execution and ActionGrant](./0016-delegated-execution-and-action-grant.md)
 - [0017 Protected external API key verifier provider](./0017-protected-external-api-key-verifier-provider.md)
+- [0018 Local development and test runtime](./0018-local-development-and-test-runtime.md)

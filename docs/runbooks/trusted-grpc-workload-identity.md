@@ -1,5 +1,11 @@
 # Trusted gRPC workload identity
 
+> Current executable state: these commands operate the pre-cutover Compose trust bootstrap. The
+> accepted target [Local Development And Test Runtime](../architecture/platforms/local-development-and-test-runtime.md)
+> uses stable `DEV`, per-run local Integration, and per-job CI certificate material. The future atomic
+> cutover rewrites this runbook; no parallel V2 mode is currently active, and these commands do not
+> authorize host-wide deletion of historical trust containers, networks, or volumes.
+
 ## Purpose and boundary
 
 This runbook operates the DG-1 deployment transport foundation defined by [ADR 0015](../adr/0015-workload-identity-and-execution-token.md) and the [trusted gRPC architecture](../architecture/platforms/grpc-metadata-and-service-trust.md). It supplies the per-workload certificate and trust material required for a verified direct-workload mTLS identity. It does not issue ExecutionTokens, define authorization policy, revoke a token, accept API keys, or interpret request headers/body as identity.

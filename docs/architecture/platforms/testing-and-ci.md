@@ -42,8 +42,8 @@ The executable inventory is derived on every run; there is no fixed package or t
 - Owner comes from the nearest `package.json`, service package, or registered platform adapter.
 - Code dependencies come from the pnpm workspace graph.
 - A small versioned relationship table records only relationships that static dependency analysis
-  cannot discover: Proto/event consumers, shared resources, serial groups, risk tags, and critical
-  journeys.
+  cannot discover: Proto/event consumers, runtime capabilities, shared resources, serial groups,
+  risk tags, and executable critical journeys.
 
 The relationship table and discovery rules are validated as code. An unowned path, graph failure,
 rule conflict, or anomalous empty selection yields `FULL_REQUIRED` rather than an optimistic result.
@@ -77,10 +77,22 @@ omitted dependency is a selector defect.
 
 ## 4. Execution environments
 
-Postgres, NATS, Compose networks, ports, data, and evidence paths are isolated by workflow job and run
-identity. Versions are fixed. Every real-resource run performs readiness checks, unconditional
-teardown, and a residue check. Execution is parallel by default; only a proven conflict appears in a
-named `serialGroup`.
+Runtime recipes, provider scope, logical-resource isolation, dynamic endpoint allocation, readiness,
+leases, cleanup, and local/CI parity are owned by
+[Local Development And Test Runtime](./local-development-and-test-runtime.md). The test contract adds
+these class-specific constraints:
+
+- Unit and Component use no real infrastructure.
+- Contract defaults to no real infrastructure or one minimal protocol process.
+- Integration starts one owner service and only its declared real dependencies.
+- Journey starts only an existing executable production chain; fakes do not complete a Journey.
+- Local real-resource runs use the runtime's bounded FIFO concurrency; CI providers remain
+  job-private.
+
+Versions are fixed. Every real-resource run performs readiness checks, exact owned-resource teardown,
+and a residue check. Unknown owner, conflicting declarations, or ambiguous runtime needs fail closed
+as declaration gaps; they never cause the runner to start every service. Execution is parallel by
+default; only a proven conflict appears in a named `serialGroup`.
 
 Browser journeys use repeatable headless Playwright automation. Android uses JVM and Robolectric for
 ordinary feedback. Emulator validation runs only for Android-scoped, full, or release work. Physical
@@ -159,3 +171,8 @@ target failure.
 The cutover is one revertible merge commit. A migration-caused post-main smoke failure, missing
 required PR/merge-group check, demonstrated selector omission, or unreliable new CI execution triggers
 preparation of an atomic revert. Merge and resource cleanup remain separate Human confirmations.
+
+The later local/CI runtime replacement is a separate atomic cutover governed by
+[Local Development And Test Runtime](./local-development-and-test-runtime.md). It preserves this
+taxonomy, selector meaning, required aggregate context, and FULL confirmation gate while replacing
+the provider/configuration orchestration beneath the runner.
