@@ -73,9 +73,17 @@ assert.doesNotMatch(workflow, /docker compose|docker-compose/u)
 const driver = read('scripts/local-runtime/src/docker-driver.mjs')
 assert.match(driver, /127\.0\.0\.1::\$\{port\}/u)
 assert.doesNotMatch(driver, /--publish['"],\s*['"](?:127\.0\.0\.1:)?\d+:/u)
-assert.equal(driver.match(/mc alias set -- local/gu)?.length, 3, 'every MinIO alias must terminate option parsing')
-assert.equal(driver.match(/mc admin user add -- local/gu)?.length, 1, 'MinIO user creation must terminate option parsing')
-assert.doesNotMatch(driver, /mc alias set local|mc admin user add local/u, 'MinIO secrets must not be parsed as CLI flags')
+const activeLocalRuntime = sources.filter(({ file }) => file.startsWith('scripts/local-runtime/')).map(({ text }) => text).join('\n')
+const aliasBoundaries = activeLocalRuntime.match(/mc alias set -- [^;\n`]*"\$(?:MINIO_ROOT_PASSWORD|A_SECRET)"/gu) || []
+const userAddBoundaries = activeLocalRuntime.match(/mc admin user add -- [^;&\n`]*"\$MINIO_USER_SECRET"/gu) || []
+assert.equal(aliasBoundaries.length, 6, 'all active MinIO aliases must terminate option parsing before credentials')
+assert.equal(userAddBoundaries.length, 1, 'all active MinIO user creation paths must terminate option parsing before credentials')
+assert.doesNotMatch(activeLocalRuntime, /mc alias set (?!--)|mc admin user add (?!--)/u, 'active MinIO credentials must not be parsed as CLI flags')
+const leadingDashFixture = '-deterministic-leading-dash-secret'
+for (const invocation of [...aliasBoundaries, ...userAddBoundaries]) {
+  const expanded = invocation.replace(/"\$(?:MINIO_ROOT_PASSWORD|A_SECRET|MINIO_USER_SECRET)"/u, leadingDashFixture).split(/\s+/u)
+  assert.ok(expanded.indexOf('--') < expanded.indexOf(leadingDashFixture), `leading-dash fixture must remain positional: ${invocation}`)
+}
 const processRuntime = read('scripts/local-runtime/src/process-runtime.mjs')
 for (const binding of ['AUTH_EXECUTION_SIGNER_SOCKET_PATH', 'AUTH_EXECUTION_KMS_KEY_REF', 'AUTH_HTTP_PORT', 'GATEWAY_READINESS_TARGETS', 'issuer-server.mjs']) assert.match(processRuntime, new RegExp(binding, 'u'))
 assert.match(read('scripts/local-runtime/src/bootstrap.mjs'), /prisma['"],\s*['"]migrate['"],\s*['"]deploy/u)

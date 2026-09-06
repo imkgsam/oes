@@ -59,7 +59,7 @@ export function backupDevelopmentState(manifestPath, { outputDirectory } = {}) {
     if (fs.existsSync(temporary)) throw new Error(`DEV_BACKUP_TEMPORARY_EXISTS bucket=${resource.bucket}`)
     fs.mkdirSync(temporary, { mode: 0o700 })
     try {
-      runChecked('docker', ['run', '--rm', '--network', `container:${resource.containerName}`, '--user', `${process.getuid?.() ?? 65532}:${process.getgid?.() ?? 65532}`, '--env', `MINIO_ROOT_USER=${admin.rootUser}`, '--env', `MINIO_ROOT_PASSWORD=${admin.rootPassword}`, '--env', 'HOME=/tmp', '--tmpfs', '/tmp', '--volume', `${temporary}:/backup`, '--entrypoint', 'sh', RUNTIME_DOCKER_IMAGES.minioClient, '-ec', `mkdir -p /backup/data; mc alias set local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; mc mirror local/${resource.bucket} /backup/data >/dev/null`], { timeout: 600000 })
+      runChecked('docker', ['run', '--rm', '--network', `container:${resource.containerName}`, '--user', `${process.getuid?.() ?? 65532}:${process.getgid?.() ?? 65532}`, '--env', `MINIO_ROOT_USER=${admin.rootUser}`, '--env', `MINIO_ROOT_PASSWORD=${admin.rootPassword}`, '--env', 'HOME=/tmp', '--tmpfs', '/tmp', '--volume', `${temporary}:/backup`, '--entrypoint', 'sh', RUNTIME_DOCKER_IMAGES.minioClient, '-ec', `mkdir -p /backup/data; mc alias set -- local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; mc mirror local/${resource.bucket} /backup/data >/dev/null`], { timeout: 600000 })
       runChecked('tar', ['-C', temporary, '-czf', file, 'data'], { timeout: 600000 })
       fs.chmodSync(file, 0o600)
     } finally { fs.rmSync(temporary, { recursive: true, force: true }) }
@@ -95,7 +95,7 @@ export function restoreDevelopmentState(manifestPath, record, confirmation) {
       fs.mkdirSync(temporary, { mode: 0o700 })
       try {
         runChecked('tar', ['-C', temporary, '-xzf', backup.file], { timeout: 600000 })
-        runChecked('docker', ['run', '--rm', '--network', `container:${resource.containerName}`, '--env', `MINIO_ROOT_USER=${admin.rootUser}`, '--env', `MINIO_ROOT_PASSWORD=${admin.rootPassword}`, '--volume', `${temporary}:/backup:ro`, '--entrypoint', 'sh', RUNTIME_DOCKER_IMAGES.minioClient, '-ec', `mc alias set local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; mc mirror --overwrite /backup/data local/${resource.bucket} >/dev/null`], { timeout: 600000 })
+        runChecked('docker', ['run', '--rm', '--network', `container:${resource.containerName}`, '--env', `MINIO_ROOT_USER=${admin.rootUser}`, '--env', `MINIO_ROOT_PASSWORD=${admin.rootPassword}`, '--volume', `${temporary}:/backup:ro`, '--entrypoint', 'sh', RUNTIME_DOCKER_IMAGES.minioClient, '-ec', `mc alias set -- local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; mc mirror --overwrite /backup/data local/${resource.bucket} >/dev/null`], { timeout: 600000 })
       } finally { fs.rmSync(temporary, { recursive: true, force: true }) }
     }
     results.push({ key, disposition: 'RESTORED_EXACT', exitStatus: 0 })

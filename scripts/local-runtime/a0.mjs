@@ -183,7 +183,7 @@ function verifyDenials(a, b, commandLog) {
     name: 'minio-cross-run-denied',
     template: ['docker', 'run', '--rm', '--network', 'container:<SHARED_MINIO_ID>', 'mc', 'ls', '<RUN_B_BUCKET>', 'using <RUN_A_CREDENTIAL>'],
     executable: 'docker',
-    args: ['run', '--rm', '--network', `container:${minio.name}`, '--env', `A_KEY=${assetA.ASSET_S3_ACCESS_KEY_ID}`, '--env', `A_SECRET=${assetA.ASSET_S3_SECRET_ACCESS_KEY}`, '--env', `B_BUCKET=${assetB.ASSET_S3_BUCKET}`, '--entrypoint', 'sh', IMAGES.minioClient, '-ec', 'mc alias set a http://127.0.0.1:9000 "$A_KEY" "$A_SECRET" >/dev/null && mc ls "a/$B_BUCKET"'],
+    args: ['run', '--rm', '--network', `container:${minio.name}`, '--env', `A_KEY=${assetA.ASSET_S3_ACCESS_KEY_ID}`, '--env', `A_SECRET=${assetA.ASSET_S3_SECRET_ACCESS_KEY}`, '--env', `B_BUCKET=${assetB.ASSET_S3_BUCKET}`, '--entrypoint', 'sh', IMAGES.minioClient, '-ec', 'mc alias set -- a http://127.0.0.1:9000 "$A_KEY" "$A_SECRET" >/dev/null && mc ls "a/$B_BUCKET"'],
     secrets,
     expect: (record) => record.exitStatus !== 0 && /access denied|forbidden/iu.test(`${record.stdout}\n${record.stderr}`)
   })
