@@ -149,6 +149,10 @@ DELEGATED runtime 仅在 DelegationGrant/ActionGrant、ToolContract、risk class
 | Edge session/BFF orchestration | API Gateway / BFF |
 
 Common 只能提供 target-neutral transport 和验证机制，不拥有业务 Code、risk class、tenant policy 或服务调用图。
+Local/CI 的 CA、leaf、certificate path、endpoint injection 与 cleanup 由
+[Local Development And Test Runtime](./local-development-and-test-runtime.md) 按 profile 编排；
+runtime 只交付 material 和 verified binding，不因此取得 SPIFFE、ExecutionToken、Permission 或
+method-declaration authority。
 
 ## 10. Current Enforcement Baseline
 
@@ -174,6 +178,9 @@ Common 只能提供 target-neutral transport 和验证机制，不拥有业务 C
 - package build、DI 启动与 owner-local audit/transaction 行为。
 
 运行和排障入口以 [trusted gRPC workload identity runbook](../../runbooks/trusted-grpc-workload-identity.md) 为准。
+`DEV` 使用 stable local CA/per-service leaf，cross-service Integration/Journey 使用 per-run CA/leaf，
+CI 使用 per-job CA/leaf；Unit/Component 无真实网络。准确生命周期以
+[Local Development And Test Runtime](./local-development-and-test-runtime.md) 为准。
 
 ## 12. Related Truth Sources
 
@@ -185,3 +192,4 @@ Common 只能提供 target-neutral transport 和验证机制，不拥有业务 C
 - [Identity service](../services/identity-service.md)
 - [Permission service](../services/permission-service.md)
 - [Delegated execution collaboration](../collaborations/delegated-execution-and-action-grant.md)
+- [Local development and test runtime](./local-development-and-test-runtime.md)

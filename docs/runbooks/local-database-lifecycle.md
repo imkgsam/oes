@@ -1,5 +1,10 @@
 # Local Database Lifecycle
 
+> Current executable state: this runbook operates the pre-cutover runtime. The accepted target is
+> [Local Development And Test Runtime](../architecture/platforms/local-development-and-test-runtime.md),
+> which replaces this lifecycle, generated dotenv ownership, fixed host port, and managed `db push`
+> paths only in one future atomic implementation cutover. No parallel V2 mode is currently active.
+
 This runbook operates only the current worktree's task-owned local database stack. The lifecycle derives one `OES_TASK_KEY`, one Compose project, isolated named resources, and one database per Prisma service from ignored local environment files.
 
 ## Prepare

@@ -15,3 +15,4 @@
 - [Site runtime](./site-runtime-architecture.md)
 - [Site runtime kit](./site-runtime-kit.md)
 - [Testing and CI](./testing-and-ci.md)
+- [Local development and test runtime](./local-development-and-test-runtime.md)

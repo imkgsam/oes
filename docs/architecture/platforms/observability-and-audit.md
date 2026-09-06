@@ -957,6 +957,12 @@ OES 当前处于框架搭建期，logging 应分两层推进：
    - Service domain audit event -> local persistence / outbox -> `PostgreSQL`
    - 后续可选 -> `OpenSearch / Elastic`
 
+本地与 CI 的 topology breadth 由
+[Local Development And Test Runtime](./local-development-and-test-runtime.md) 编排：`DEV` 运行共享完整
+OTel/Tempo/Loki/Grafana，Unit/Component 使用 in-memory sink，普通 Integration 不启动完整栈，
+trace-specific test 使用 temporary Collector，`FULL` 验证完整 observability stack。该运行配方不
+改变本文件对 signal、trace、logging 与 audit truth 的定义。
+
 ## 11. 实施建议
 
 ### 11.1 当前阶段优先级

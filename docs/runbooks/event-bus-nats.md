@@ -1,5 +1,10 @@
 # Local NATS JetStream Event Bus Runbook
 
+> Current executable state: these commands operate the pre-cutover local Compose proof. The accepted
+> target [Local Development And Test Runtime](../architecture/platforms/local-development-and-test-runtime.md)
+> assigns NATS as shared in `DEV`, one-per-run when selected in local Integration, and job-private in
+> CI. The future atomic cutover rewrites this runbook; no parallel V2 mode is currently active.
+
 ## Scope and boundary
 
 This runbook operates the local P1 proof defined by [ADR 0013](../adr/0013-nats-jetstream-event-bus-and-delivery-semantics.md), [the event-bus architecture](../architecture/platforms/event-bus-and-outbox.md), and [the transport contract](../contracts/events/platform-transport.md). It is not a production deployment guide.

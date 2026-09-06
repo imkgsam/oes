@@ -166,6 +166,11 @@ For the full project baseline, start with [AGENTS.md](AGENTS.md) and [docs/index
 
 OES is a large monorepo. The commands below are the local baseline for running the system foundation and tenant web workspace.
 
+The accepted runtime target is [Local Development And Test Runtime V2](docs/architecture/platforms/local-development-and-test-runtime.md).
+Until its atomic implementation cutover merges, the commands below remain the only current
+executable setup path; there is no separately supported V2 mode. The cutover delivery will replace
+this section together with all pnpm/CI entry points and runtime runbooks.
+
 ### Prerequisites
 
 - Node.js 22 or newer.
