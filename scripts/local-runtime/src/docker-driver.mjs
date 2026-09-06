@@ -378,7 +378,7 @@ async function provisionMinio(context, shared) {
     const policy = `p-${suffix}`
     const policyPath = path.join(context.runDirectory, 'provider', `minio-policy-${suffix}.json`)
     writeAtomic(policyPath, { Version: '2012-10-17', Statement: [{ Effect: 'Allow', Action: ['s3:GetBucketLocation', 's3:ListBucket'], Resource: [`arn:aws:s3:::${bucket}`] }, { Effect: 'Allow', Action: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'], Resource: [`arn:aws:s3:::${bucket}/*`] }] })
-    const script = `mc alias set local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc mb --ignore-existing local/${bucket} >/dev/null && mc admin user add local ${accessKey} "$MINIO_USER_SECRET" >/dev/null && (mc admin policy info local ${policy} >/dev/null 2>&1 || mc admin policy create local ${policy} /policy.json >/dev/null) && mc admin policy attach local ${policy} --user ${accessKey} >/dev/null`
+    const script = `mc alias set -- local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc mb --ignore-existing local/${bucket} >/dev/null && mc admin user add -- local ${accessKey} "$MINIO_USER_SECRET" >/dev/null && (mc admin policy info local ${policy} >/dev/null 2>&1 || mc admin policy create local ${policy} /policy.json >/dev/null) && mc admin policy attach local ${policy} --user ${accessKey} >/dev/null`
     docker(['run', '--rm', '--network', `container:${container.name}`, '--env', `MINIO_ROOT_USER=${rootUser}`, '--env', `MINIO_ROOT_PASSWORD=${rootPassword}`, '--env', `MINIO_USER_SECRET=${secretKey}`, '--volume', `${policyPath}:/policy.json:ro`, '--entrypoint', 'sh', IMAGES.minioClient, '-ec', script], { timeout: 120000 })
     ownerEnvironments[owner] = { ASSET_S3_ENDPOINT: endpoint, ASSET_S3_ACCESS_KEY_ID: accessKey, ASSET_S3_SECRET_ACCESS_KEY: secretKey, ASSET_S3_BUCKET: bucket, ASSET_S3_FORCE_PATH_STYLE: 'true' }
     allocations.push({ provider: 'minio', kind: 'bucket', scope: persistent ? 'SHARED' : 'RUN', bucket, accessKey, policy, containerName: container.name, containerObjectId: container.objectId, containerScope: container.scope, adminCredentialReference, cleanup: persistent ? 'PRESERVE_SHARED' : 'DELETE_LOGICAL_EXACT' })
@@ -645,7 +645,7 @@ export function cleanupDockerResource(resource, context) {
       const admin = JSON.parse(bytes.toString('utf8'))
       const container = inspectContainer(resource.containerName)
       if (container.Id !== resource.containerObjectId) throw new Error('MINIO_CONTAINER_ID_MISMATCH')
-      const script = `mc alias set local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc rm --recursive --force local/${resource.bucket} >/dev/null 2>&1 || true; mc rb --force local/${resource.bucket} >/dev/null; mc admin policy detach local ${resource.policy} --user ${resource.accessKey} >/dev/null 2>&1 || true; mc admin user remove local ${resource.accessKey} >/dev/null; mc admin policy remove local ${resource.policy} >/dev/null`
+      const script = `mc alias set -- local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc rm --recursive --force local/${resource.bucket} >/dev/null 2>&1 || true; mc rb --force local/${resource.bucket} >/dev/null; mc admin policy detach local ${resource.policy} --user ${resource.accessKey} >/dev/null 2>&1 || true; mc admin user remove local ${resource.accessKey} >/dev/null; mc admin policy remove local ${resource.policy} >/dev/null`
       docker(['run', '--rm', '--network', `container:${resource.containerName}`, '--env', `MINIO_ROOT_USER=${admin.rootUser}`, '--env', `MINIO_ROOT_PASSWORD=${admin.rootPassword}`, '--entrypoint', 'sh', IMAGES.minioClient, '-ec', script], { timeout: 120000 })
       return { resource, disposition: 'DELETED_EXACT', exitStatus: 0 }
     }
@@ -731,7 +731,7 @@ export function observeDockerResourceResidue(resource) {
     const bytes = fs.readFileSync(resource.adminCredentialReference.path)
     if (sha256(bytes) !== resource.adminCredentialReference.sha256) throw new Error('MINIO_ADMIN_CREDENTIAL_REFERENCE_MISMATCH')
     const admin = JSON.parse(bytes.toString('utf8'))
-    const script = `mc alias set local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; mc stat local/${resource.bucket} >/dev/null 2>&1 && echo bucket || true; mc admin user info local ${resource.accessKey} >/dev/null 2>&1 && echo user || true; mc admin policy info local ${resource.policy} >/dev/null 2>&1 && echo policy || true`
+    const script = `mc alias set -- local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; mc stat local/${resource.bucket} >/dev/null 2>&1 && echo bucket || true; mc admin user info local ${resource.accessKey} >/dev/null 2>&1 && echo user || true; mc admin policy info local ${resource.policy} >/dev/null 2>&1 && echo policy || true`
     const remaining = docker(['run', '--rm', '--network', `container:${resource.containerName}`, '--env', `MINIO_ROOT_USER=${admin.rootUser}`, '--env', `MINIO_ROOT_PASSWORD=${admin.rootPassword}`, '--entrypoint', 'sh', IMAGES.minioClient, '-ec', script], { timeout: 120000 }).stdout.trim().split(/\s+/u).filter(Boolean)
     return { key, applicable: true, present: remaining.length > 0, observation: remaining }
   }

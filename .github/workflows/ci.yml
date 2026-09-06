@@ -381,6 +381,11 @@ jobs:
       - if: ${{ needs.change-plan.outputs.needs-pda-install == 'true' }}
         run: pnpm --dir app/pda install --frozen-lockfile
       - run: pnpm generated:all
+      - name: Build compiled Journey-test dependencies
+        run: |
+          pnpm common:build
+          pnpm --filter api-gateway build
+          pnpm --filter @oes/site-runtime-kit build
       - run: pnpm test:run -- --type journey --plan .tmp/change-plan.json
 
   quick-smoke:
