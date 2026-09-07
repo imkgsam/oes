@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 2,
+  "stateRoot": "~/.local/state/oes/runtime-v2",
+  "machineConfig": "~/.config/oes/local.env",
+  "realInfrastructureConcurrency": 2,
+  "profiles": {
+    "DEV": {
+      "providerScope": "MACHINE_SHARED",
+      "sharedProviders": ["postgres", "redis", "nats", "minio", "nacos", "otel-full", "mtls"],
+      "jobPrivate": false
+    },
+    "LOCAL_INTEGRATION": {
+      "providerScope": "SHARED_TEST_LOGICAL_RUN",
+      "sharedProviders": ["postgres", "minio"],
+      "ephemeralByCapability": {
+        "cache": "redis",
+        "events": "nats",
+        "network-trust": "mtls",
+        "nacos-specific": "nacos",
+        "trace-specific": "otel"
+      },
+      "jobPrivate": false
+    },
+    "CI": {
+      "providerScope": "JOB_PRIVATE",
+      "sharedProviders": [],
+      "ephemeralByCapability": {
+        "database": "postgres",
+        "object-store": "minio",
+        "cache": "redis",
+        "events": "nats",
+        "network-trust": "mtls",
+        "nacos-specific": "nacos",
+        "trace-specific": "otel"
+      },
+      "jobPrivate": true
+    }
+  }
+}

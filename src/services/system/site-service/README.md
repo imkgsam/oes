@@ -5,12 +5,12 @@
 ## Local Runtime
 
 - gRPC default: `0.0.0.0:50069`
-- Database: `DATABASE_URL` from `src/services/system/site-service/.env`
+- Database: `DATABASE_URL` injected from the ready runtime manifest
 - API Gateway expects the site-service endpoint from `SITE_SERVICE_HOST` / `SITE_SERVICE_PORT`, or `127.0.0.1:50069` in local development.
 
 Start order matters for local browser verification:
 
-1. `pnpm --filter site-service prisma:push`
+1. `pnpm runtime:run -- --profile LOCAL_INTEGRATION --test-class integration --owner site-service --task-key TASK_KEY --migrate -- pnpm --filter site-service test:integration`
 2. `pnpm --filter site-service build`
 3. `pnpm --filter site-service start`
 4. Restart `api-gateway` if it had already reported `UNAVAILABLE` for site-service.

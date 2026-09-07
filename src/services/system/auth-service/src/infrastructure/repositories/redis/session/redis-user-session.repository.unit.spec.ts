@@ -19,14 +19,18 @@ const mockMulti = jest.fn(() => ({
 }))
 const mockGet = jest.fn().mockResolvedValue(null)
 const mockScan = jest.fn().mockResolvedValue(['0', []])
+let mockRedisOptions: Record<string, unknown> | undefined
 
 jest.mock('ioredis', () => {
-  return jest.fn().mockImplementation(() => ({
-    get: mockGet,
-    multi: mockMulti,
-    scan: mockScan,
-    smembers: mockSmembers
-  }))
+  return jest.fn().mockImplementation((options: Record<string, unknown>) => {
+    mockRedisOptions = options
+    return {
+      get: mockGet,
+      multi: mockMulti,
+      scan: mockScan,
+      smembers: mockSmembers
+    }
+  })
 })
 
 // Creates a persisted session fixture whose access TTL is shorter than its refresh TTL.
@@ -82,10 +86,13 @@ describe('RedisUserSessionRepository', () => {
     mockSet.mockClear()
     mockSmembers.mockReset().mockResolvedValue([])
     mockSrem.mockClear()
+    mockRedisOptions = undefined
+    delete process.env.OES_REDIS_NAMESPACE
   })
 
   afterEach(() => {
     jest.useRealTimers()
+    delete process.env.OES_REDIS_NAMESPACE
   })
 
   it('keeps the persisted session alive until the refresh window ends', async () => {
@@ -170,6 +177,41 @@ describe('RedisUserSessionRepository', () => {
     expect(mockDel).not.toHaveBeenCalledWith('session:session-other-tenant')
     expect(mockDel).not.toHaveBeenCalledWith('session:session-system')
     expect(mockDel).not.toHaveBeenCalledWith('session:session-suspended')
+  })
+
+  it('scans physical namespaced keys but keeps direct Redis commands logical', async () => {
+    process.env.OES_REDIS_NAMESPACE = 'oes:task_a:run_a'
+    const targetSession = createSessionFixture({
+      id: 'session-target',
+      tenantId: 'tenant-1',
+      scopeLevel: 'TENANT'
+    })
+    mockScan.mockResolvedValue([
+      '0',
+      [
+        'oes:task_a:run_a:session:session-target',
+        'oes:other:run:session:foreign',
+        'oes:task_a:run_a:session:session-target'
+      ]
+    ])
+    mockGet.mockImplementation(async (key: string) => key === 'session:session-target'
+      ? JSON.stringify(targetSession.toRedis())
+      : null)
+
+    const repository = new RedisUserSessionRepository()
+
+    await expect(repository.deleteActiveTenantScopeSessionsByTenantId('tenant-1')).resolves.toBe(1)
+    expect(mockRedisOptions?.keyPrefix).toBe('oes:task_a:run_a:')
+    expect(mockScan).toHaveBeenCalledWith(
+      '0',
+      'MATCH',
+      'oes:task_a:run_a:session:*',
+      'COUNT',
+      200
+    )
+    expect(mockGet).toHaveBeenCalledWith('session:session-target')
+    expect(mockGet).not.toHaveBeenCalledWith('oes:task_a:run_a:session:session-target')
+    expect(mockDel).toHaveBeenCalledWith('session:session-target')
   })
 
   it('finds only active sessions for one managed terminal device id', async () => {

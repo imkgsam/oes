@@ -57,18 +57,21 @@ test('public business card acceptance seed keeps contact values as upstream refe
 })
 
 test('public business card acceptance seed accepts only the exact loopback task database', () => {
+  const allocation = (database) => ({ kind: 'database', database, containerObjectId: 'a'.repeat(64) })
   assert.deepEqual(
     assertTaskOwnedPublicEntryDatabase(
-      'postgresql://user:password@127.0.0.1:5432/oes_2af8_a2e462d5_public_entry?schema=public',
-      '2af8_a2e462d5'
+      'postgresql://user:password@127.0.0.1:5432/oes_9f381d_public_entry_service?schema=public',
+      '2af8_a2e462d5',
+      allocation('oes_9f381d_public_entry_service')
     ),
-    { database: 'oes_2af8_a2e462d5_public_entry', host: '127.0.0.1', port: '5432' }
+    { database: 'oes_9f381d_public_entry_service', host: '127.0.0.1', port: '5432' }
   )
   assert.throws(
     () =>
       assertTaskOwnedPublicEntryDatabase(
         'postgresql://user:password@db.example.com:5432/oes_2af8_a2e462d5_public_entry',
-        '2af8_a2e462d5'
+        '2af8_a2e462d5',
+        allocation('oes_2af8_a2e462d5_public_entry')
       ),
     /DATABASE_NOT_LOOPBACK/
   )
@@ -76,14 +79,16 @@ test('public business card acceptance seed accepts only the exact loopback task 
     () =>
       assertTaskOwnedPublicEntryDatabase(
         'postgresql://user:password@127.0.0.1:5432/oes_other_public_entry',
-        '2af8_a2e462d5'
+        '2af8_a2e462d5',
+        allocation('oes_9f381d_public_entry_service')
       ),
     /DATABASE_NOT_TASK_OWNED/
   )
   assert.deepEqual(
     assertTaskOwnedPermissionDatabase(
       'postgresql://user:password@localhost:5544/oes_2af8_a2e462d5_permission?schema=public',
-      '2af8_a2e462d5'
+      '2af8_a2e462d5',
+      allocation('oes_2af8_a2e462d5_permission')
     ),
     { database: 'oes_2af8_a2e462d5_permission', host: 'localhost', port: '5544' }
   )

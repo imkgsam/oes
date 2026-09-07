@@ -84,6 +84,8 @@ expect(dlqInspection.filter_subject === 'oes.dlq.notification-service.collaborat
 NODE
 
 docker run --rm \
+  -e NATS_ASSET_USER=asset-publisher \
+  -e NATS_ASSET_PASSWORD=local-validation-only \
   -e NATS_COLLABORATION_USER=collaboration-publisher \
   -e NATS_COLLABORATION_PASSWORD=local-validation-only \
   -e NATS_NOTIFICATION_USER=notification-consumer \
@@ -109,35 +111,26 @@ docker run --rm \
   -e NATS_NOTIFICATION_REPLAY_CANCELLED_ACK_SUBJECT="'\$JS.ACK.OES_BUSINESS_EVENTS.notification-service__replay__validation__cancelled.>'" \
   -e NATS_OPERATOR_USER=platform-operator \
   -e NATS_OPERATOR_PASSWORD=local-validation-only \
+  -e NATS_SITE_USER=site-consumer \
+  -e NATS_SITE_PASSWORD=local-validation-only \
   -v "$config:/etc/nats/nats-server.conf:ro" \
   nats:2.10.26-alpine \
   nats-server -t --config /etc/nats/nats-server.conf
 
-NATS_COLLABORATION_USER=collaboration-publisher \
-NATS_COLLABORATION_PASSWORD=local-validation-only \
-NATS_NOTIFICATION_USER=notification-consumer \
-NATS_NOTIFICATION_PASSWORD=local-validation-only \
-NATS_NOTIFICATION_REPLAY_USER=notification-replay \
-NATS_NOTIFICATION_REPLAY_PASSWORD=local-validation-only \
-NATS_NOTIFICATION_RECOVERY_USER=notification-recovery \
-NATS_NOTIFICATION_RECOVERY_PASSWORD=local-validation-only \
-NATS_NOTIFICATION_REPLAY_ASSIGNED_CREATE_SUBJECT="'\$JS.API.CONSUMER.CREATE.OES_BUSINESS_EVENTS.notification-service__replay__validation__assigned.oes.events.collaboration.task.assigned'" \
-NATS_NOTIFICATION_REPLAY_COMPLETED_CREATE_SUBJECT="'\$JS.API.CONSUMER.CREATE.OES_BUSINESS_EVENTS.notification-service__replay__validation__completed.oes.events.collaboration.task.completed'" \
-NATS_NOTIFICATION_REPLAY_CANCELLED_CREATE_SUBJECT="'\$JS.API.CONSUMER.CREATE.OES_BUSINESS_EVENTS.notification-service__replay__validation__cancelled.oes.events.collaboration.task.cancelled'" \
-NATS_NOTIFICATION_REPLAY_ASSIGNED_INFO_SUBJECT="'\$JS.API.CONSUMER.INFO.OES_BUSINESS_EVENTS.notification-service__replay__validation__assigned'" \
-NATS_NOTIFICATION_REPLAY_COMPLETED_INFO_SUBJECT="'\$JS.API.CONSUMER.INFO.OES_BUSINESS_EVENTS.notification-service__replay__validation__completed'" \
-NATS_NOTIFICATION_REPLAY_CANCELLED_INFO_SUBJECT="'\$JS.API.CONSUMER.INFO.OES_BUSINESS_EVENTS.notification-service__replay__validation__cancelled'" \
-NATS_NOTIFICATION_REPLAY_ASSIGNED_DELETE_SUBJECT="'\$JS.API.CONSUMER.DELETE.OES_BUSINESS_EVENTS.notification-service__replay__validation__assigned'" \
-NATS_NOTIFICATION_REPLAY_COMPLETED_DELETE_SUBJECT="'\$JS.API.CONSUMER.DELETE.OES_BUSINESS_EVENTS.notification-service__replay__validation__completed'" \
-NATS_NOTIFICATION_REPLAY_CANCELLED_DELETE_SUBJECT="'\$JS.API.CONSUMER.DELETE.OES_BUSINESS_EVENTS.notification-service__replay__validation__cancelled'" \
-NATS_NOTIFICATION_REPLAY_ASSIGNED_NEXT_SUBJECT="'\$JS.API.CONSUMER.MSG.NEXT.OES_BUSINESS_EVENTS.notification-service__replay__validation__assigned'" \
-NATS_NOTIFICATION_REPLAY_COMPLETED_NEXT_SUBJECT="'\$JS.API.CONSUMER.MSG.NEXT.OES_BUSINESS_EVENTS.notification-service__replay__validation__completed'" \
-NATS_NOTIFICATION_REPLAY_CANCELLED_NEXT_SUBJECT="'\$JS.API.CONSUMER.MSG.NEXT.OES_BUSINESS_EVENTS.notification-service__replay__validation__cancelled'" \
-NATS_NOTIFICATION_REPLAY_ASSIGNED_ACK_SUBJECT="'\$JS.ACK.OES_BUSINESS_EVENTS.notification-service__replay__validation__assigned.>'" \
-NATS_NOTIFICATION_REPLAY_COMPLETED_ACK_SUBJECT="'\$JS.ACK.OES_BUSINESS_EVENTS.notification-service__replay__validation__completed.>'" \
-NATS_NOTIFICATION_REPLAY_CANCELLED_ACK_SUBJECT="'\$JS.ACK.OES_BUSINESS_EVENTS.notification-service__replay__validation__cancelled.>'" \
-NATS_OPERATOR_USER=platform-operator \
-NATS_OPERATOR_PASSWORD=local-validation-only \
-  docker compose -f "$repo_root/docker-compose.infra.yml" config -q
+plan=$(mktemp "${TMPDIR:-/tmp}/oes-nats-plan.XXXXXX")
+trap 'rm -f "$plan"' EXIT INT TERM
+node "$repo_root/scripts/local-runtime/launcher.mjs" plan \
+  --profile LOCAL_INTEGRATION \
+  --test-class integration \
+  --owners collaboration-service,notification-service \
+  --capabilities events > "$plan"
+node - "$plan" <<'NODE'
+const fs = require('fs')
+const value = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
+if (!value.plan.providers.includes('nats')) throw new Error('unified runtime NATS provider missing')
+if (JSON.stringify(value.plan.providerOwners.nats) !== JSON.stringify(['collaboration-service', 'notification-service'])) {
+  throw new Error('unified runtime NATS owner projection mismatch')
+}
+NODE
 
 echo 'EV3_NATS_TOPOLOGY_READY'

@@ -19,14 +19,17 @@ export class RedisTerminalDeviceUnavailablePublisher implements TerminalDeviceUn
       new Redis({
         host: process.env.REDIS_HOST || 'localhost',
         port: parseInt(process.env.REDIS_PORT || '6379'),
+        username: process.env.REDIS_USERNAME,
         password: process.env.REDIS_PASSWORD,
+        enableReadyCheck: false,
         db: parseInt(process.env.REDIS_DB || '0')
       })
   }
 
   async publish(event: TerminalDeviceUnavailableEvent): Promise<void> {
     await this.redis.publish(
-      TERMINAL_DEVICE_UNAVAILABLE_EVENT_NAME,
+      process.env.TERMINAL_DEVICE_UNAVAILABLE_REDIS_CHANNEL ||
+        TERMINAL_DEVICE_UNAVAILABLE_EVENT_NAME,
       JSON.stringify({
         ...event,
         occurredAt: event.occurredAt.toISOString()

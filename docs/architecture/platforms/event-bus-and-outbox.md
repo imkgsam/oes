@@ -463,9 +463,9 @@ Provider 端的 stream、consumer、ACL 与 retention 由平台 IaC / bootstrap 
 - Terminal Device -> Auth 当前 Redis Pub/Sub 没有持久化、重试、replay 或 inbox；在其 event contract 冻结前不纳入第一批迁移。
 - Asset availability 业务契约已经完成第 8.1 节对齐，但 common code contract、producer、Site consumer 与对应 migration 尚未实现。
 - `src/common/src/contracts` 当前按 service 目录保存 gRPC Proto，但尚无任何 `<service>/events.ts` 公共事件代码契约；实现时必须由对应 owner 添加，不能由平台线程猜测 payload。
-- 当前仓库已有 local Compose JetStream proof、credential/ACL bootstrap、common adapter 和运行
-  手册；它们尚未由统一 runtime 按 `DEV`/`LOCAL_INTEGRATION`/`CI` profile、manifest 和 lease
-  编排。原子切换前仍以 current executable runbook 为准。
+- 当前仓库由统一 runtime 按 `DEV`/`LOCAL_INTEGRATION`/`CI` profile、manifest 和 lease 编排
+  JetStream provider、credential/ACL bootstrap 与运行手册；业务事件契约与 consumer 完成度仍
+  由本真相源其余状态项分别约束。
 - 当前仓库没有 common DLQ/advisory/replay runner，也没有任何 consumer-owned operations module/job；实现按 `EV-OPS` 组合 lane 推进，不创建中央 Event Operations runtime。
 - Auth security event 的 owner semantic contract 与 Event Catalog registration 已完成对齐；当前仓库仍没有 `src/common/src/contracts/auth_service/events.ts`、Auth outbox/relay、`OES_SECURITY_EVENTS` / `OES_SECURITY_EVENT_DLQ` topology、security-critical common profile、consumer freshness gate 或任何 consumer enforcement 实现。
 

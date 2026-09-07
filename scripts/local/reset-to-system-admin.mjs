@@ -66,7 +66,7 @@ export function buildResetToSystemAdminPlan(env = process.env, options = parseRe
     steps: [
       { name: 'reset-postgres-databases', command: `docker exec ${container} dropdb/createdb` },
       { name: 'sync-backend-schemas', command: 'pnpm backend:db:sync' },
-      { name: 'sync-notification-schema', command: 'pnpm --filter notification-service prisma:push' },
+      { name: 'deploy-notification-migrations', command: 'pnpm --filter notification-service prisma:migrate:deploy' },
       { name: 'sync-permission-foundation', command: 'pnpm backend:foundation:sync' },
       { name: 'validate-permission-foundation', command: 'pnpm --filter permission-service seed:apply -- --validate' },
       { name: 'seed-system-admin', command: 'pnpm seed:system-admin -- --apply' },
@@ -125,7 +125,7 @@ export function runResetToSystemAdmin(env = process.env, args = process.argv.sli
   validateResetPlan(plan)
   resetPostgresDatabases(plan, env)
   runCommand('pnpm', ['backend:db:sync'], { label: 'sync-backend-schemas' })
-  runCommand('pnpm', ['--filter', 'notification-service', 'prisma:push'], { label: 'sync-notification-schema' })
+  runCommand('pnpm', ['--filter', 'notification-service', 'prisma:migrate:deploy'], { label: 'deploy-notification-migrations' })
   runCommand('pnpm', ['backend:foundation:sync'], { label: 'sync-permission-foundation' })
   runCommand('pnpm', ['--filter', 'permission-service', 'seed:apply', '--', '--validate'], { label: 'validate-permission-foundation' })
 

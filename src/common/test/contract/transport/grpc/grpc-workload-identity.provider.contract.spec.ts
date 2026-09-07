@@ -66,10 +66,15 @@ describe('GrpcWorkloadIdentityProvider', () => {
   })
 
   it('derives issuance-only leaf expiry from the same verified DER without widening global identity facts', async () => {
-    const provider = new GrpcWorkloadIdentityProvider({ registry, adapter: { resolveVerifiedPeer: async () => ({ transportVerified: true as const, spiffeId: SPIFFE_ID, certificateDer: CERTIFICATE_DER }) } })
-    const issuanceIdentity = await provider.getVerifiedWorkloadIssuanceIdentity({})
-    expect(issuanceIdentity.certificateNotAfter).toBeInstanceOf(Date)
-    expect(issuanceIdentity.certificateNotAfter.getTime()).toBeGreaterThan(Date.now())
-    await expect(provider.getVerifiedWorkloadIdentity({})).resolves.not.toHaveProperty('certificateNotAfter')
+    jest.spyOn(Date, 'now').mockReturnValue(Date.UTC(2026, 8, 1))
+    try {
+      const provider = new GrpcWorkloadIdentityProvider({ registry, adapter: { resolveVerifiedPeer: async () => ({ transportVerified: true as const, spiffeId: SPIFFE_ID, certificateDer: CERTIFICATE_DER }) } })
+      const issuanceIdentity = await provider.getVerifiedWorkloadIssuanceIdentity({})
+      expect(issuanceIdentity.certificateNotAfter).toBeInstanceOf(Date)
+      expect(issuanceIdentity.certificateNotAfter.getTime()).toBeGreaterThan(Date.now())
+      await expect(provider.getVerifiedWorkloadIdentity({})).resolves.not.toHaveProperty('certificateNotAfter')
+    } finally {
+      jest.restoreAllMocks()
+    }
   })
 })

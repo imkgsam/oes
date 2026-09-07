@@ -320,6 +320,7 @@ export async function main(argv = process.argv.slice(2)) {
   const selected = paths
     .map((path) => discovery.tests.find((test) => test.path === path))
     .filter(Boolean)
+    .filter((test) => !args.owner || test.owner === args.owner)
 
   if (!selected.length) {
     console.log(`TEST_RUN=PASS type=${type} selected=0`)
@@ -343,9 +344,7 @@ export async function main(argv = process.argv.slice(2)) {
     ...process.env,
     TZ: process.env.TZ || 'Asia/Shanghai',
     OES_TEST_RUN_ID: runId,
-    OES_CI_TASK_KEY: taskKey,
-    COMPOSE_PROJECT_NAME:
-      process.env.COMPOSE_PROJECT_NAME || `oes_${taskKey}`.replace(/[^a-zA-Z0-9_-]/g, '_')
+    OES_CI_TASK_KEY: taskKey
   }
   /** Runs groups with bounded parallelism; declared shared-resource groups remain internally serial. */
   async function runGroups(environmentForOwner = () => ({})) {

@@ -2,7 +2,7 @@
 FROM golang:1.23-bookworm
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends softhsm2 opensc openssl ca-certificates \
+  && apt-get install -y --no-install-recommends softhsm2 opensc openssl ca-certificates socat \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace

@@ -16,7 +16,6 @@
     "dev": "concurrently -k -n build,run \"pnpm run dev:build\" \"pnpm run dev:start\"",
     "start": "node dist/main.js",
     "prisma:generate": "npx prisma generate --schema=./prisma/schema.prisma",
-    "prisma:push": "npx prisma db push",
     "identifier:scan": "node -r ts-node/register ./src/scripts/identifier-backfill-scan.ts",
     "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo",
     "clear:nm": "rimraf node_modules",
@@ -26,7 +25,7 @@
     "test:unit": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.unit\\.spec\\.ts$'",
     "test:component": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.component\\.spec\\.ts$'",
     "test:contract": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.contract\\.spec\\.ts$'",
-    "test:integration": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.integration\\.spec\\.ts$'"
+    "test:integration": "pnpm --workspace-root test:run -- --type integration --owner auth-service"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.3",

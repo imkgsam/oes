@@ -22,9 +22,12 @@ export class TerminalDeviceUnavailableSubscriber implements OnModuleInit, OnModu
   }
 
   async onModuleInit(): Promise<void> {
-    await this.redis.subscribe(TERMINAL_DEVICE_UNAVAILABLE_EVENT_NAME)
+    const expectedChannel =
+      process.env.TERMINAL_DEVICE_UNAVAILABLE_REDIS_CHANNEL ||
+      TERMINAL_DEVICE_UNAVAILABLE_EVENT_NAME
+    await this.redis.subscribe(expectedChannel)
     this.redis.on('message', (channel, message) => {
-      if (channel !== TERMINAL_DEVICE_UNAVAILABLE_EVENT_NAME) {
+      if (channel !== expectedChannel) {
         return
       }
 

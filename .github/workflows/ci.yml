@@ -232,8 +232,6 @@ jobs:
         run: |
           pnpm common:build
           pnpm --filter notification-service build
-      - name: Bootstrap task-local Unit-test environment
-        run: pnpm env:bootstrap
       - run: pnpm test:run -- --type unit --plan .tmp/change-plan.json
 
   component:
@@ -311,8 +309,11 @@ jobs:
     if: ${{ needs.change-plan.result == 'success' && needs.change-plan.outputs.phase == 'candidate' && needs.change-plan.outputs.integration == 'true' && needs.change-plan.outputs.confirmation-required != 'true' }}
     needs: [change-plan]
     runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 2
     env:
       OES_CI_TASK_KEY: ci_${{ github.run_id }}_${{ github.run_attempt }}_integration
+      OES_RUNTIME_CONCURRENCY: 2
     steps:
       - uses: actions/checkout@v7
         with:
@@ -343,9 +344,9 @@ jobs:
       - name: Prove task-owned runtime cleanup
         if: ${{ always() }}
         run: |
-          test -z "$(docker ps -aq --filter "label=oes.local.owner=${OES_CI_TASK_KEY}")"
-          test -z "$(docker volume ls -q --filter "label=oes.local.owner=${OES_CI_TASK_KEY}")"
-          test -z "$(docker network ls -q --filter "label=oes.local.owner=${OES_CI_TASK_KEY}")"
+          test -z "$(docker ps -aq --filter "label=oes.runtime.task-key=${OES_CI_TASK_KEY}")"
+          test -z "$(docker volume ls -q --filter "label=oes.runtime.task-key=${OES_CI_TASK_KEY}")"
+          test -z "$(docker network ls -q --filter "label=oes.runtime.task-key=${OES_CI_TASK_KEY}")"
 
   journey:
     name: Journey
@@ -380,6 +381,11 @@ jobs:
       - if: ${{ needs.change-plan.outputs.needs-pda-install == 'true' }}
         run: pnpm --dir app/pda install --frozen-lockfile
       - run: pnpm generated:all
+      - name: Build compiled Journey-test dependencies
+        run: |
+          pnpm common:build
+          pnpm --filter api-gateway build
+          pnpm --filter @oes/site-runtime-kit build
       - run: pnpm test:run -- --type journey --plan .tmp/change-plan.json
 
   quick-smoke:

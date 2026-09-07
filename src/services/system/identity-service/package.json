@@ -17,7 +17,6 @@
     "prisma:generate": "npx prisma generate --schema=./prisma/schema.prisma",
     "prisma:migrate:dev": "npx prisma migrate dev --schema=./prisma/schema.prisma",
     "prisma:migrate:deploy": "prisma migrate deploy --schema=./prisma/schema.prisma",
-    "prisma:push": "npx prisma db push",
     "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo",
     "clear:nm": "rimraf node_modules",
     "clear": "npm run clear:build && npm run clear:nm",
@@ -25,7 +24,7 @@
     "test:unit": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.unit\\.spec\\.ts$'",
     "test:component": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.component\\.spec\\.ts$'",
     "test:contract": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.contract\\.spec\\.ts$'",
-    "test:integration": "jest --config jest.config.js --runInBand --passWithNoTests --testPathPattern='\\.integration\\.spec\\.ts$'"
+    "test:integration": "pnpm --workspace-root test:run -- --type integration --owner identity-service"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

@@ -30,12 +30,19 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
   private readonly IP_SESSIONS_PREFIX = 'ip_sessions:'
   private readonly REFRESH_TOKEN_PREFIX = 'refresh_token:'
   private readonly redis: Redis
+  private readonly redisKeyPrefix: string
 
   constructor() {
+    this.redisKeyPrefix = process.env.OES_REDIS_NAMESPACE
+      ? `${process.env.OES_REDIS_NAMESPACE}:`
+      : ''
     this.redis = new Redis({
       host: process.env.REDIS_HOST || 'localhost',
       port: parseInt(process.env.REDIS_PORT || '6379'),
+      username: process.env.REDIS_USERNAME,
       password: process.env.REDIS_PASSWORD,
+      enableReadyCheck: false,
+      keyPrefix: this.redisKeyPrefix || undefined,
       db: parseInt(process.env.REDIS_DB || '0')
     })
   }
@@ -403,13 +410,9 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
   }
 
   async deleteAllByAccountId(accountId: string): Promise<void> {
-    const pattern = `${this.SESSION_PREFIX}*`
-    const keys = await this.redis.keys(pattern)
-
-    for (const key of keys) {
-      const data = await this.redis.get(key)
-      if (!data) continue
-      const session = Session.fromRedis(JSON.parse(data))
+    for (const sessionId of await this.listAllSessionIds()) {
+      const session = await this.findById(sessionId)
+      if (!session) continue
       if (session.getAccountId() === accountId) {
         await this.delete(session.getId())
       }
@@ -524,17 +527,11 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
     // 这里需要扫描所有 Session，实际项目中可能需要使用 Redis 的 SCAN 命令
     // 或者使用定时任务来清理过期 Session
     let deletedCount = 0
-    const pattern = `${this.SESSION_PREFIX}*`
-    const keys = await this.redis.keys(pattern)
-
-    for (const key of keys) {
-      const data = await this.redis.get(key)
-      if (data) {
-        const session = Session.fromRedis(JSON.parse(data))
-        if (session.isExpired() && session.isRefreshExpired()) {
-          await this.delete(session.getId())
-          deletedCount++
-        }
+    for (const sessionId of await this.listAllSessionIds()) {
+      const session = await this.findById(sessionId)
+      if (session?.isExpired() && session.isRefreshExpired()) {
+        await this.delete(session.getId())
+        deletedCount++
       }
     }
 
@@ -572,9 +569,7 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
    * @returns Promise<number>
    */
   async countAll(): Promise<number> {
-    const pattern = `${this.SESSION_PREFIX}*`
-    const keys = await this.redis.keys(pattern)
-    return keys.length
+    return (await this.listAllSessionIds()).length
   }
 
   /**
@@ -589,17 +584,12 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
    * @returns Promise<number>
    */
   async countActive(): Promise<number> {
-    const pattern = `${this.SESSION_PREFIX}*`
-    const keys = await this.redis.keys(pattern)
     let activeCount = 0
 
-    for (const key of keys) {
-      const data = await this.redis.get(key)
-      if (data) {
-        const session = Session.fromRedis(JSON.parse(data))
-        if (session.isActive()) {
-          activeCount++
-        }
+    for (const sessionId of await this.listAllSessionIds()) {
+      const session = await this.findById(sessionId)
+      if (session?.isActive()) {
+        activeCount++
       }
     }
 
@@ -610,14 +600,15 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
    * 扫描 Redis 中全部 session key，并提取出 session id 列表供聚合查询复用。
    */
   private async listAllSessionIds(): Promise<string[]> {
-    const sessionIds: string[] = []
+    const sessionIds = new Set<string>()
+    const physicalSessionPrefix = `${this.redisKeyPrefix}${this.SESSION_PREFIX}`
     let cursor = '0'
 
     do {
       const [nextCursor, keys] = await this.redis.scan(
         cursor,
         'MATCH',
-        `${this.SESSION_PREFIX}*`,
+        `${physicalSessionPrefix}*`,
         'COUNT',
         200
       )
@@ -625,15 +616,16 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
       cursor = nextCursor
 
       for (const key of keys) {
-        const sessionId = key.replace(this.SESSION_PREFIX, '').trim()
+        if (!key.startsWith(physicalSessionPrefix)) continue
+        const sessionId = key.slice(physicalSessionPrefix.length).trim()
 
         if (sessionId) {
-          sessionIds.push(sessionId)
+          sessionIds.add(sessionId)
         }
       }
     } while (cursor !== '0')
 
-    return sessionIds
+    return [...sessionIds]
   }
 
   // ==================== 管理员控制方法 ====================
@@ -813,18 +805,15 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
     revoked: number
     suspended: number
   }> {
-    const pattern = `${this.SESSION_PREFIX}*`
-    const keys = await this.redis.keys(pattern)
     let total = 0
     let active = 0
     let expired = 0
     let revoked = 0
     let suspended = 0
 
-    for (const key of keys) {
-      const data = await this.redis.get(key)
-      if (data) {
-        const session = Session.fromRedis(JSON.parse(data))
+    for (const sessionId of await this.listAllSessionIds()) {
+      const session = await this.findById(sessionId)
+      if (session) {
         total++
 
         if (session.isActive()) {

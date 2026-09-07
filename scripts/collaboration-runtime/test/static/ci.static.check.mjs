@@ -40,6 +40,21 @@ for (let index = 1; index < orderedSmoke.length; index += 1)
     `quick smoke order invalid at ${orderedSmoke[index]}`
   )
 
+const journey = workflow.match(/^  journey:\n[\s\S]*?(?=^  quick-smoke:)/m)?.[0]
+assert.ok(journey, 'authoritative CI must define the candidate Journey job')
+const orderedJourney = [
+  'pnpm generated:all',
+  'pnpm common:build',
+  'pnpm --filter api-gateway build',
+  'pnpm --filter @oes/site-runtime-kit build',
+  'pnpm test:run -- --type journey'
+]
+for (let index = 1; index < orderedJourney.length; index += 1)
+  assert.ok(
+    journey.indexOf(orderedJourney[index]) > journey.indexOf(orderedJourney[index - 1]),
+    `journey dependency order invalid at ${orderedJourney[index]}`
+  )
+
 assert.equal(existsSync(new URL('.github/workflows/ci-optimized-shadow.yml', repo)), false)
 assert.equal(existsSync(new URL('scripts/local/test-matrix.mjs', repo)), false)
 assert.equal(existsSync(new URL('scripts/local/l2-test-runner.mjs', repo)), false)

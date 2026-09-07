@@ -1,28 +1,19 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import test from 'node:test'
-import {
-  findOccupiedBackendListeners,
-  selectBackendListenerTargets
-} from '../backend-start-preflight.mjs'
 
-test('backend preflight selects scope listeners and reports occupied ports once', async () => {
-  const inventory = [
-    { workload: 'auth-service', source: 'src/services/system/auth-service/src/main.ts' },
-    { workload: 'sales-service', source: 'src/services/business/sales-service/src/main.ts' }
-  ]
-  assert.deepEqual(selectBackendListenerTargets(inventory, 'system'), [
-    { workload: 'auth-service', port: 52050 },
-    { workload: 'api-gateway', port: 52101 }
-  ])
-  assert.deepEqual(selectBackendListenerTargets(inventory, 'business'), [
-    { workload: 'sales-service', port: 52051 }
-  ])
-  const full = selectBackendListenerTargets(inventory, 'full')
+test('development aliases delegate every backend scope to the unified runtime launcher', () => {
+  const scripts = JSON.parse(fs.readFileSync(new URL('../../../package.json', import.meta.url), 'utf8')).scripts
   assert.deepEqual(
-    await findOccupiedBackendListeners(full, async (port) => [52051, 52101].includes(port)),
-    [
-      { workload: 'sales-service', port: 52051 },
-      { workload: 'api-gateway', port: 52101 }
-    ]
+    Object.fromEntries(['backend:system', 'backend:business', 'backend', 'dev:system', 'dev:business', 'dev:all', 'dev'].map((name) => [name, scripts[name]])),
+    {
+      'backend:system': 'node scripts/local-runtime/launcher.mjs dev --scope system',
+      'backend:business': 'node scripts/local-runtime/launcher.mjs dev --scope business',
+      backend: 'node scripts/local-runtime/launcher.mjs dev --scope full',
+      'dev:system': 'node scripts/local-runtime/launcher.mjs dev --scope system',
+      'dev:business': 'node scripts/local-runtime/launcher.mjs dev --scope business',
+      'dev:all': 'node scripts/local-runtime/launcher.mjs dev --scope full',
+      dev: 'node scripts/local-runtime/launcher.mjs dev --scope full'
+    }
   )
 })

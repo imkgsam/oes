@@ -97,7 +97,7 @@ function applyBootstrapSql(databaseUrl, bootstrapSql) {
   )
 }
 
-/** prepareIntegrationDatabase recreates the dedicated test schema from the Prisma datamodel without relying on prisma db push. */
+/** prepareIntegrationDatabase recreates the dedicated test schema from the Prisma datamodel without non-migration schema mutation. */
 async function prepareIntegrationDatabase() {
   const databaseUrl = buildIntegrationDatabaseUrl()
   process.env.DATABASE_URL = databaseUrl

@@ -13,7 +13,12 @@ export class RedisOtpSendThrottleRepository implements IOtpSendThrottleRepositor
     this.redis = new Redis({
       host: process.env.REDIS_HOST || 'localhost',
       port: parseInt(process.env.REDIS_PORT || '6379'),
+      username: process.env.REDIS_USERNAME,
       password: process.env.REDIS_PASSWORD,
+      enableReadyCheck: false,
+      keyPrefix: process.env.OES_REDIS_NAMESPACE
+        ? `${process.env.OES_REDIS_NAMESPACE}:`
+        : undefined,
       db: parseInt(process.env.REDIS_DB || '0')
     })
   }
